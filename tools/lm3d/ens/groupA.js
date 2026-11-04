@@ -45,7 +45,20 @@ export const GROUP_A = [
     sel: { circle: [55.81973, 37.61166, 45] },
     styles: [byBuilding([
       { osm: 'r3440930', wall: '#c9c9c4', roof: '#c9c9c4', force: true },
-    ])],
+    ]), (B) => { // antenna above 385 m: red/white aviation bands (photo), split into ~9 m slices
+      const RED = C('#c23a2e'), WHITE = C('#f2f0ea'), add = [];
+      for (let i = B.length - 1; i >= 0; i--) {
+        const b = B[i]; if (b.spec.minH < 384) continue;
+        B.splice(i, 1);
+        const n = Math.max(1, Math.round((b.spec.top - b.spec.minH) / 9));
+        for (let k = 0; k < n; k++) {
+          const z0 = b.spec.minH + ((b.spec.top - b.spec.minH) * k) / n, z1 = b.spec.minH + ((b.spec.top - b.spec.minH) * (k + 1)) / n;
+          const col = Math.floor((z0 + 1) / 9) % 2 ? RED : WHITE;
+          add.push({ ...b, spec: { ...b.spec, minH: z0, wallH: z1, top: z1, roofH: 0, shape: 'flat', wall: col, roof: col, win: false, pattern: null } });
+        }
+      }
+      B.push(...add);
+    }],
     trees: false,
   },
   {

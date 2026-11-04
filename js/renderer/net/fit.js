@@ -122,5 +122,44 @@ export function smoothPath(raw, opts = {}) {
   }
   line(out, cur, Q[Q.length - 1]);
   out[out.length - 2] = Q[Q.length - 1][0]; out[out.length - 1] = Q[Q.length - 1][1];
-  return out;
+  return relax(out, opts.kind === 'rail' ? SMOOTH_W.rail : SMOOTH_W.road);
+}
+
+/** Half-window (tiles) of the final centreline relaxation: rounds DP zig-zags on player curves/circles. */
+export const SMOOTH_W = { road: 1.0, rail: 1.5 };
+
+/**
+ * Resample at exactly STEP and apply two passes of a tapered moving average (half-window w tiles,
+ * shrinking to 0 at the 0.5-tile lead in/out, which stays exact so tiles still meet axis-aligned). Straight runs and
+ * 1:1 staircase diagonals are unchanged; corners and jogs become smooth curves. Render-only.
+ * @param {number[]} pts flat points @param {number} w @returns {number[]}
+ */
+export function relax(pts, w) {
+  const n = pts.length / 2;
+  if (n < 3 || !(w > 0)) return pts;
+  const R = [pts[0], pts[1]];
+  let carry = 0;
+  for (let k = 1; k < n; k++) {
+    const ax = pts[2 * k - 2], ay = pts[2 * k - 1], bx = pts[2 * k], by = pts[2 * k + 1];
+    const L = Math.hypot(bx - ax, by - ay);
+    let s = STEP - carry;
+    while (s <= L) { R.push(ax + (bx - ax) * s / L, ay + (by - ay) * s / L); s += STEP; }
+    carry = L - (s - STEP);
+  }
+  if (Math.hypot(R[R.length - 2] - pts[2 * n - 2], R[R.length - 1] - pts[2 * n - 1]) > 1e-6) R.push(pts[2 * n - 2], pts[2 * n - 1]);
+  else { R[R.length - 2] = pts[2 * n - 2]; R[R.length - 1] = pts[2 * n - 1]; }
+  const m = R.length / 2, H = Math.max(1, Math.round(w / STEP));
+  let A = R;
+  for (let pass = 0; pass < 2; pass++) {
+    const B = A.slice();
+    const K = Math.min(Math.round(0.5 / STEP), (m - 1) >> 1); // keep the 0.5-tile lead in/out exact
+    for (let i = K + 1; i < m - 1 - K; i++) {
+      const h = Math.min(H, i - K, m - 1 - K - i);
+      let sx = 0, sy = 0;
+      for (let j = i - h; j <= i + h; j++) { sx += A[2 * j]; sy += A[2 * j + 1]; }
+      B[2 * i] = sx / (2 * h + 1); B[2 * i + 1] = sy / (2 * h + 1);
+    }
+    A = B;
+  }
+  return A;
 }

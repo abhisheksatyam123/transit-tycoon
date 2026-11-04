@@ -5,6 +5,7 @@ import { DIRS, OPPOSITE, AXIS_BITS, dirBetween } from './constants.js';
 import { isStationPort } from './stationLinks.js';
 import { COSTS } from '../config/costs.js';
 import { linePath } from './network.js';
+import { pathOk } from './shapes.js';
 import { getTile, inBounds } from './map.js';
 import { spend } from './economy.js';
 import { ERR, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
@@ -24,8 +25,13 @@ import { findTown } from './state.js';
 export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
-  if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
-  const pts = linePath(x0, y0, x1, y1);
+  const custom = Array.isArray(opts.path) ? opts.path : null;
+  const loop = !!(custom && opts.loop === true);
+  if (custom) {
+    if (!pathOk(custom, loop)) return { ok: false, error: 'Bad path' };
+    for (const p of custom) if (!coordsOk(map, p.x, p.y)) return { ok: false, error: ERR.bounds };
+  } else if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
+  const pts = custom || linePath(x0, y0, x1, y1);
   const n = pts.length;
   const want = new Map(); // tile index -> bits to add
   const add = (x, y, bits) => {
@@ -33,7 +39,13 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     want.set(i, (want.get(i) || 0) | bits);
   };
   let startOut, endOut;
-  if (n === 1) {
+  if (loop) {
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], p = pts[(i + 1) % n], q = pts[(i + n - 1) % n];
+      add(a.x, a.y, dirBetween(a.x, a.y, p.x, p.y) | dirBetween(a.x, a.y, q.x, q.y));
+    }
+    // a closed ring has no ends to connect
+  } else if (n === 1) {
     const axis = opts.axis === 'y' ? 'y' : 'x';
     add(x0, y0, AXIS_BITS[axis]);
     startOut = axis === 'x' ? 8 : 1;
@@ -54,7 +66,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (err) return { ok: false, error: err };
   }
   // optional end connections
-  for (const [p, out] of [[pts[0], startOut], [pts[n - 1], endOut]]) {
+  for (const [p, out] of loop ? [] : [[pts[0], startOut], [pts[n - 1], endOut]]) {
     const d = DIRS.find((q) => q.bit === out);
     const nx = p.x + d.dx, ny = p.y + d.dy;
     if (!inBounds(map, nx, ny)) continue;

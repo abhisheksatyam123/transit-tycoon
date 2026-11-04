@@ -26,7 +26,7 @@ export const GROUP_B = [
     id: 'novodevichy', src: 'novodevichy', covers: ['novodevichy'], anchor: [55.72620, 37.55620], title: 'Novodevichy Convent', ground: 'grass',
     sel: { circle: [55.72620, 37.55620, 150] },
     styles: [stBasil, byBuilding([
-      { osm: 'r3134990', wall: '#b8402f', roof: '#196F3D' },
+      { osm: 'r9328168', wall: '#f2efe6' }, // Smolensky Cathedral: white walls (OSM roof colours kept: gold central dome)
     ])],
     trees: true,
   },

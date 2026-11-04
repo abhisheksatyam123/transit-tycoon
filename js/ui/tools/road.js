@@ -1,4 +1,4 @@
-/** Road building tool (drag an L-shaped line). */
+/** Road building tool (L, diagonal, curve or circle; C cycles shape). */
 import { createLineTool } from './lineDrag.js';
 import { lTiles } from './geometry.js';
 
@@ -9,8 +9,9 @@ import { lTiles } from './geometry.js';
 export function createRoadTool(app) {
   return createLineTool(app, {
     id: 'road', label: 'Road', sound: 'build',
-    hint: 'Drag to build road (x first, then y). Crossing rail makes a level crossing.',
+    hint: 'Drag to build road. Crossing rail makes a level crossing. Circle: drag from centre.',
     command: (g, x0, y0, x1, y1, opts) => g.buildRoad(x0, y0, x1, y1, opts),
+    layer: 'road',
     tiles: lTiles,
   });
 }

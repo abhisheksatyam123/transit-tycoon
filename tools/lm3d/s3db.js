@@ -3,7 +3,7 @@
  * Heights in metres. Colours as [r,g,b]. See https://wiki.openstreetmap.org/wiki/Simple_3D_Buildings
  */
 const NAMED = {
-  white: '#f2f0ea', black: '#202020', grey: '#8f8f8f', gray: '#8f8f8f', lightgrey: '#c8c8c8', lightgray: '#c8c8c8',
+  white: '#f2f0ea', black: '#3a3a3d', grey: '#8f8f8f', gray: '#8f8f8f', lightgrey: '#c8c8c8', lightgray: '#c8c8c8',
   darkgrey: '#5a5a5a', darkgray: '#5a5a5a', silver: '#c0c0c0', red: '#b8332a', darkred: '#7f1f1a', maroon: '#7a2a22',
   brown: '#7b4a2e', tan: '#d2b48c', beige: '#e6dcc0', yellow: '#e8cf5a', lightyellow: '#f3e6a8', gold: '#e3b23c',
   orange: '#d9813a', pink: '#e2a3a3', green: '#3d8a4a', darkgreen: '#285c3c', lightgreen: '#8cc48c', olive: '#7a7a3a',
