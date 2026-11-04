@@ -39,13 +39,32 @@ export function obr(ring) {
 const shadeCol = (c, f) => c.map((x) => Math.max(0, Math.min(255, x * f)));
 
 /** Walls of a ring from zmin to top(p) (top may be a function). */
+let PAT = null; // active pattern of the part being built (set by partFaces)
+/** Colour of a face from the active pattern (stripes / spirals / checker on round parts). */
+function patCol(col, mid) {
+  if (!PAT || !PAT.cols) return col;
+  const [cx, cy] = PAT.c;
+  const ang = (Math.atan2(mid[1] - cy, mid[0] - cx) / (2 * Math.PI) + 1) % 1;
+  const z = mid[2];
+  let k;
+  if (PAT.type === 'spiral') k = Math.floor((ang + z * (PAT.rate || 0.08)) * PAT.n);
+  else if (PAT.type === 'checker') k = Math.floor(ang * PAT.n) + Math.floor(z / (PAT.dz || 0.9));
+  else if (PAT.type === 'bands') k = Math.floor(z / (PAT.dz || 0.9));
+  else k = Math.floor(ang * PAT.n);
+  return PAT.cols[((k % PAT.cols.length) + PAT.cols.length) % PAT.cols.length];
+}
+const midOf = (pts) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length, pts.reduce((s, p) => s + p[2], 0) / pts.length];
 function walls(out, ring, zmin, top, col) {
   const T = typeof top === 'function' ? top : () => top;
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length];
     const ta = T(a), tb = T(b);
     if (ta <= zmin + 0.01 && tb <= zmin + 0.01) continue;
-    out.push({ pts: [[a[0], a[1], zmin], [b[0], b[1], zmin], [b[0], b[1], tb], [a[0], a[1], ta]], col, kind: 'wall' });
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const pts = [[a[0], a[1], zmin], [b[0], b[1], zmin], [b[0], b[1], tb], [a[0], a[1], ta]];
+    const f = { pts, col: PAT && PAT.walls ? patCol(col, midOf(pts)) : col, kind: 'wall' };
+    if (PAT && PAT.win && L > 2.5) { f.uv = [[0, zmin], [L, zmin], [L, tb], [0, ta]]; f.tex = 'win'; }
+    out.push(f);
   }
 }
 /** Rings scaled toward a centre and lifted by profile [[scale, zfrac]..] -> faces. */
@@ -55,8 +74,8 @@ function lathe(out, ring, c, z0, h, profile, col) {
     const A = rings[k], B = rings[k + 1];
     for (let i = 0; i < A.length; i++) {
       const j = (i + 1) % A.length;
-      if (profile[k + 1][0] < 1e-3) out.push({ pts: [A[i], A[j], B[i]], col, kind: 'roof' });
-      else out.push({ pts: [A[i], A[j], B[j], B[i]], col, kind: 'roof' });
+      const pts = profile[k + 1][0] < 1e-3 ? [A[i], A[j], B[i]] : [A[i], A[j], B[j], B[i]];
+      out.push({ pts, col: patCol(col, midOf(pts)), kind: 'roof' });
     }
   }
 }
@@ -101,6 +120,8 @@ function rectRoof(out, R, z0, h, kind, along, col, wallCol) {
  * @param {ReturnType<import('./s3db.js').partSpec>} s
  */
 export function partFaces(poly, s) {
+  PAT = s.pattern ? { ...s.pattern, c: s.pattern.c || centroid(poly.outer[0]) } : null;
+  if (s.win) PAT = { ...(PAT || {}), win: true };
   const out = [];
   const outer = poly.outer[0]; if (!outer || outer.length < 3) return out;
   const { minH, wallH, roofH, top } = s;

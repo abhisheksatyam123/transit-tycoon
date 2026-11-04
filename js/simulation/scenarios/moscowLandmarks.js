@@ -7,6 +7,7 @@
 import { clearFootprint, clearable } from './moscowLand.js';
 import { inBounds } from '../map.js';
 import { project } from './moscowTiles.js';
+import { LM3D } from '../../config/landmarks3d.js';
 
 /** Maximum shift (tiles, Chebyshev) of a landmark footprint away from its real position. */
 export const LANDMARK_SHIFT = 2;
@@ -38,7 +39,7 @@ export const PARK = { mapId: 'gorky_park', w: 3, h: 4, title: 'Gorky Park' };
 
 /** Landmark titles by id (for the Query tool). */
 export const LANDMARK_TITLES = Object.fromEntries(
-  [...LANDMARK_SPECS.map((s) => [s.id, s.title]), ['gorky_park', PARK.title]],
+  [...LANDMARK_SPECS.map((s) => [s.id, s.title]), ['gorky_park', PARK.title], ...Object.values(LM3D).map((e) => [e.id, e.title])],
 );
 
 /** Map landmark position by id; null when the baked map has none. */
@@ -90,8 +91,10 @@ export function fitFootprint(state, w, h, ax, ay, major, maxR = LANDMARK_SHIFT) 
  * @returns {{id:string,x:number,y:number,w:number,h:number}[]} placed landmarks
  */
 export function placeLandmarks(state, map, major, log) {
-  const out = [];
+  const out = placeEnsembles(state, log);
+  const covered = new Set(Object.values(LM3D).flatMap((e) => e.covers || [e.id]));
   for (const spec of LANDMARK_SPECS) {
+    if (covered.has(spec.id)) continue;
     const p = mapPos(map, spec.mapId, spec.lat, spec.lon);
     if (!p) { log.push(`landmark ${spec.id}: not in baked map`); continue; }
     const ax = p.x + (spec.ox || 0) - Math.floor(spec.w / 2), ay = p.y + (spec.oy || 0) - Math.floor(spec.h / 2);
@@ -125,4 +128,35 @@ function stampLandmark(state, spec, x0, y0) {
     const t = map.tiles[(y0 + dy) * map.width + x0 + dx];
     t.building = { type: 'landmark', id: spec.id, dx, dy, w: spec.w, h: spec.h };
   }
+}
+
+/**
+ * Baked OSM 3D ensembles (js/config/landmarks3d.js): exact real footprint tiles (no shifting). Water, station,
+ * depot and industry tiles are skipped; the front tile (max x+y) draws the sprite and is always kept.
+ * tile.building = {type:'landmark', id, lm3d:1, front:0|1, dx:0, dy:0, w:1, h:1}.
+ * @returns {{id:string,x:number,y:number,w:number,h:number,title:string,tiles:number}[]}
+ */
+export function placeEnsembles(state, log) {
+  const { map } = state; const out = [];
+  for (const e of Object.values(LM3D)) {
+    const placed = [];
+    for (const [x, y] of e.tiles) {
+      if (!inBounds(map, x, y)) continue;
+      const t = map.tiles[y * map.width + x];
+      if (t.building && t.building.type === 'landmark') continue; // another ensemble got there first
+      if (!clearFootprint(state, x, y, 1, 1)) continue;
+      if (t.rail && !t.tunnel) t.rail = 0;
+      t.building = { type: 'landmark', id: e.id, lm3d: 1, front: 0, dx: 0, dy: 0, w: 1, h: 1 };
+      placed.push([x, y]);
+    }
+    if (!placed.length) { log.push(`landmark ${e.id}: no footprint tiles`); continue; }
+    // the front-most stamped tile (max x+y, then max x) draws the whole sprite after everything behind it
+    const f = placed.reduce((m, q) => (q[0] + q[1] > m[0] + m[1] || (q[0] + q[1] === m[0] + m[1] && q[0] > m[0]) ? q : m));
+    map.tiles[f[1] * map.width + f[0]].building.front = 1;
+    const xs = placed.map((q) => q[0]), ys = placed.map((q) => q[1]);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys);
+    log.push(`landmark ${e.id}: OSM 3D ensemble on ${placed.length}/${e.tiles.length} tiles, front ${f[0]},${f[1]}`);
+    out.push({ id: e.id, x: x0, y: y0, w: Math.max(...xs) - x0 + 1, h: Math.max(...ys) - y0 + 1, title: e.title, tiles: placed.length });
+  }
+  return out;
 }

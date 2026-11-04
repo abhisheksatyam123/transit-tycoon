@@ -9,6 +9,25 @@ const DEPTH_Z = (2 * KY) / VZ; // closeness = x + y + DEPTH_Z*z
 const SUN = (() => { const v = [-0.35, 0.8, 1.1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
 const VIEW = (() => { const v = [1, 1, DEPTH_Z]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
 
+/** Per-pixel textures: return a brightness multiplier for face-local (u,v) metres. */
+const TEX = {
+  // windows: 1.6 m wide every 3.4 m, 1.5 m tall every 3.3 m from 1.2 m; none on the ground floor band of tiny walls
+  win: (u, v) => { const a = ((u % 3.4) + 3.4) % 3.4, b = ((v - 1.0) % 3.3 + 3.3) % 3.3; return a > 0.9 && a < 2.5 && b > 0.9 && b < 2.4 ? 0.62 : 1; },
+};
+/** Affine screen->value map from a ring's projected points (sx,sy) and per-vertex values. */
+function affine(R, vals) {
+  for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) for (let k = j + 1; k < R.length; k++) {
+    const a = R[i], b = R[j], c = R[k];
+    const det = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+    if (Math.abs(det) < 0.5) continue;
+    const va = vals[i], vb = vals[j], vc = vals[k];
+    const A = ((vb - va) * (c[1] - a[1]) - (vc - va) * (b[1] - a[1])) / det;
+    const B = ((vc - va) * (b[0] - a[0]) - (vb - va) * (c[0] - a[0])) / det;
+    return [A, B, va - A * a[0] - B * a[1]];
+  }
+  return null;
+}
+
 function normal(pts) {
   let nx = 0, ny = 0, nz = 0;
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
@@ -45,6 +64,8 @@ export function render(faces, s, opts = {}) {
       C = a[2] - A * a[0] - B * a[1]; ok = true;
     }
     if (!ok) return; // edge-on face
+    let U = null, V = null;
+    if (f.uv && f.tex && s >= (opts.texMinZoom ?? 2)) { U = affine(R, f.uv.map((t) => t[0])); V = affine(R, f.uv.map((t) => t[1])); if (!U || !V) U = V = null; }
     let ry0 = 1e9, ry1 = -1e9; for (const r of rings) for (const p of r) { ry0 = Math.min(ry0, p[1]); ry1 = Math.max(ry1, p[1]); }
     const yA = Math.max(0, Math.ceil(ry0 - 0.5)), yB = Math.min(h - 1, Math.floor(ry1 - 0.5));
     const xs = [];
@@ -61,7 +82,9 @@ export function render(faces, s, opts = {}) {
           const o = y * w + x; const d = A * (x + 0.5) + B * yc + C + (f.bias || 0);
           if (d <= depth[o]) continue;
           depth[o] = d; id[o] = fi; const q = o * 4;
-          rgba[q] = col[0]; rgba[q + 1] = col[1]; rgba[q + 2] = col[2]; rgba[q + 3] = 255;
+          let m = 1;
+          if (U) { const u = U[0] * (x + 0.5) + U[1] * yc + U[2], v = V[0] * (x + 0.5) + V[1] * yc + V[2]; m = TEX[f.tex](u, v, f); }
+          rgba[q] = col[0] * m; rgba[q + 1] = col[1] * m; rgba[q + 2] = col[2] * m; rgba[q + 3] = 255;
         }
       }
     }

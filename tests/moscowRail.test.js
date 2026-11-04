@@ -50,13 +50,12 @@ describe('moscow rail cleanup', () => {
     const state = { map: fixture() };
     expect(countSmallCycles(state.map)).toBeGreaterThan(0);
     const r = cleanRail(state);
-    expect(r.removedEdges).toBeGreaterThanOrEqual(3);
+    expect(r.removedEdges).toBe(2); // 3 rungs between two lines = 2 independent cycles
     expect(r.smallCyclesAfter).toBeLessThan(r.smallCyclesBefore);
     expect(countSmallCycles(state.map)).toBeLessThanOrEqual(2);
     const m = state.map;
-    expect(m.tiles[idx(m, 6, 20)].rail & S).toBe(0);
-    expect(m.tiles[idx(m, 9, 20)].rail & S).toBe(0);
-    expect(m.tiles[idx(m, 12, 20)].rail & S).toBe(0);
+    const rungs = [6, 9, 12].filter((x) => m.tiles[idx(m, x, 20)].rail & S).length;
+    expect(rungs).toBe(1);
   });
 
   test('big ring is kept intact', () => {
