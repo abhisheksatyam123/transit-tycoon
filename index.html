@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transit Tycoon JS</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/windows.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar" role="toolbar" aria-label="Main toolbar"></header>
+    <main id="viewport">
+      <canvas id="world" tabindex="0" aria-label="Game map"></canvas>
+      <div id="tool-hint" hidden></div>
+      <div id="minimap-wrap"><canvas id="minimap" width="200" height="110"></canvas></div>
+      <div id="windows"></div>
+      <div id="toasts" aria-live="polite"></div>
+    </main>
+    <footer id="statusbar"></footer>
+  </div>
+  <noscript>Transit Tycoon JS needs JavaScript (ES modules).</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

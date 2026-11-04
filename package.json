@@ -1,0 +1,14 @@
+{
+  "name": "transit-tycoon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser transport-simulation game inspired by OpenTTD",
+  "scripts": {
+    "dev": "bun server.js",
+    "test": "bun test",
+    "check": "bun tools/check-imports.js",
+    "simulate": "bun tools/simulate-city.js",
+    "simulate:moscow": "bun tools/simulate-city.js --scenario moscow --years 1"
+  }
+}

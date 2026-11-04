@@ -1,0 +1,114 @@
+/**
+ * Terrain heights, OpenTTD vertex model (landscape.cpp: one height per tile = its N corner).
+ * Vertex (cx,cy) is the N corner of tile (cx,cy); the E/S/W corners of tile (x,y) are the N corners
+ * of tiles (x+1,y), (x+1,y+1), (x,y+1). So tile (x,y) corners are [h(x,y), h(x+1,y), h(x+1,y+1), h(x,y+1)]
+ * in screen order [N,E,S,W]. A vertex touching any water tile is at sea level 0, so water stays flat
+ * and land next to water gets a shore slope. Out-of-map vertices clamp to the edge tile.
+ * Rendering only; the simulation is untouched.
+ *
+ * Screen: tile (x,y) top corner N = (x,y) screen top, E = (x+1,y) right, S bottom, W left.
+ */
+import { HEIGHT_STEP } from './iso.js';
+
+/** Clamp v into [lo, hi]. @param {number} v @param {number} lo @param {number} hi */
+function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+export class Heights {
+  /**
+   * @param {{width:number,height:number,tiles:any[]}} map
+   */
+  constructor(map) {
+    /** @type {{width:number,height:number,tiles:any[]}} */
+    this.map = map;
+    this.W = map.width;
+    this.H = map.height;
+    /** row stride of the corner grid */
+    this.cw = this.W + 1;
+    /** @type {Float32Array} vertex heights in levels, index cy*(W+1)+cx */
+    this.data = new Float32Array((this.W + 1) * (this.H + 1));
+    this.rebuild();
+  }
+
+  /** Recompute all vertex heights from the current tile heights/terrain. */
+  rebuild() {
+    const { W, H, cw, data } = this;
+    const tiles = this.map.tiles;
+    for (let cy = 0; cy <= H; cy++) {
+      for (let cx = 0; cx <= W; cx++) {
+        let water = false;
+        for (let dy = -1; dy <= 0 && !water; dy++) {
+          for (let dx = -1; dx <= 0; dx++) {
+            const x = cx + dx, y = cy + dy;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            if (tiles[y * W + x].terrain === 'water') { water = true; break; }
+          }
+        }
+        const t = tiles[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];
+        data[cy * cw + cx] = water ? 0 : t.height;
+      }
+    }
+  }
+
+  /**
+   * Height of a vertex (coordinates clamped to the grid).
+   * @param {number} cx
+   * @param {number} cy
+   * @returns {number}
+   */
+  cornerH(cx, cy) {
+    return this.data[clamp(cy, 0, this.H) * this.cw + clamp(cx, 0, this.W)];
+  }
+
+  /**
+   * Corner heights of a tile.
+   * @param {number} x
+   * @param {number} y
+   * @returns {number[]} [hN, hE, hS, hW]
+   */
+  tileCorners(x, y) {
+    return [this.cornerH(x, y), this.cornerH(x + 1, y), this.cornerH(x + 1, y + 1), this.cornerH(x, y + 1)];
+  }
+
+  /**
+   * Mean height of a tile (centre of its surface), or -1 when out of bounds.
+   * @param {number} x
+   * @param {number} y
+   * @returns {number}
+   */
+  centerH(x, y) {
+    if (x < 0 || y < 0 || x >= this.W || y >= this.H) return -1;
+    const c = this.tileCorners(x, y);
+    return (c[0] + c[1] + c[2] + c[3]) / 4;
+  }
+
+  /**
+   * Surface height at float tile coordinates (integer = tile centre). Coordinates outside the map
+   * are clamped to the edge tile. Linear within each of the two triangles of the tile.
+   * @param {number} fx
+   * @param {number} fy
+   * @returns {number} height in levels (>= 0)
+   */
+  surfaceH(fx, fy) {
+    const x = clamp(Math.floor(fx + 0.5), 0, this.W - 1);
+    const y = clamp(Math.floor(fy + 0.5), 0, this.H - 1);
+    const u = clamp(fx - x, -0.5, 0.5);
+    const v = clamp(fy - y, -0.5, 0.5);
+    const hN = this.cornerH(x, y), hE = this.cornerH(x + 1, y);
+    const hS = this.cornerH(x + 1, y + 1), hW = this.cornerH(x, y + 1);
+    if (u >= v) {
+      return hN + (hE - hN) * (u + 0.5) + (hS - hE) * (v + 0.5);
+    }
+    return hN + (hS - hW) * (u + 0.5) + (hW - hN) * (v + 0.5);
+  }
+
+  /**
+   * Screen y offset (pixels) for a level value.
+   * @param {number} h
+   * @returns {number}
+   */
+  pxOffset(h) {
+    return h * HEIGHT_STEP;
+  }
+}
