@@ -1,5 +1,6 @@
 /** Kremlin + Red Square ensemble (lead). */
 import { stBasil, byBuilding } from '../styles.js';
+import { mininPozharskyFaces } from './statueModels.js';
 
 export const KREMLIN = [
   {
@@ -19,5 +20,6 @@ export const KREMLIN = [
       { osm: 'r3272726', wall: '#6e2a26', roof: '#4a2522', win: false }, // Lenin Mausoleum: red/black granite
     ])],
     trees: true,
+    extraFaces: (toM) => mininPozharskyFaces(toM), // Martos monument in front of St Basil's (node 995935368)
   },
 ];

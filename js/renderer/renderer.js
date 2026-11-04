@@ -7,6 +7,7 @@
 import { HALF_W, HALF_H, HEIGHT_STEP, pickTile } from './iso.js';
 import { Camera } from './camera.js';
 import { drawObject, drawSegment } from './layers/objects.js';
+import { lm3dFronts, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
 import { drawAircraftLayer, pruneAir } from './layers/air.js';
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
@@ -274,6 +275,13 @@ export class Renderer {
     // ground + transport come from cached chunks (below everything else)
     this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
     drawUnderlays(ctx, map, this.overlay);
+    // baked landmark ensembles: flat ground first (under every object); objects whose front tile is off-screen after the loop
+    const lmFronts = lm3dFronts(map), lmLate = [];
+    for (const f of lmFronts) {
+      const p = { x: (f.x - f.y) * HALF_W, y: (f.x + f.y) * HALF_H - this.heights.centerH(f.x, f.y) * HEIGHT_STEP };
+      drawLm3dGround(ctx, f.id, f.x, f.y, p.x, p.y, r);
+      if (f.x < range.x0 || f.x > range.x1 || f.y < range.y0 || f.y > range.y1) lmLate.push([f, p]);
+    }
     if (this.overlay.trafficHeat) drawTrafficHeat(ctx, this.game, this.heights, range);
 
     const showCars = this.overlay.trafficCars !== false;
@@ -307,8 +315,13 @@ export class Renderer {
       for (let x = xa; x <= xb; x++) {
         const y = d - x;
         const sx = (x - y) * HALF_W;
-        if (sx < r.x0 || sx > r.x1) continue;
         const tile = tiles[y * W + x];
+        const lb = tile.building;
+        if (lb && lb.lm3d) { // ensemble sprites are wide: never culled by their front tile position
+          if (lb.front) drawLm3dObjects(ctx, lb.id, x, y, sx, (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP, r);
+          continue;
+        }
+        if (sx < r.x0 || sx > r.x1) continue;
         if (!tile.building && tile.terrain !== 'forest') continue;
         const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
         if (sy < r.y0 - 20 || sy > r.y1 + 160) continue;
@@ -321,6 +334,7 @@ export class Renderer {
       }
     }
 
+    for (const [f, p] of lmLate) drawLm3dObjects(ctx, f.id, f.x, f.y, p.x, p.y, r);
     if (this.showMetro) drawMetroOverlay(ctx, this, range);
     // aircraft: above the whole map pass (shadow on the ground, body lifted by altitude)
     if (this.airSegs.length) {

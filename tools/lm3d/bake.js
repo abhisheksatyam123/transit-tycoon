@@ -24,6 +24,7 @@ const ZOOMS = [1, 2, 4];
  * them, so ensembles are enlarged 2x about their anchor (a point that should stay put, e.g. a river-side wall).
  */
 export const LM_SCALE = 2;
+let BLOCKED = new Set();
 const GROUND = { paving: colour('#b3a898'), paved: colour('#9d9284'), cobble: colour('#8a8078'), grass: colour('#6a9e48'), pitch: colour('#4f9a3e'), asphalt: colour('#5e5e62') };
 
 function selRing(sel) {
@@ -92,9 +93,17 @@ export function bakeOne(E) {
   const S = (p) => [anc[0] + (p[0] - anc[0]) * k, anc[1] + (p[1] - anc[1]) * k, (p[2] || 0) * k];
   for (const f of faces) { f.pts = f.pts.map(S); if (f.holes) f.holes = f.holes.map((r) => r.map(S)); }
   const sring = ring.map((p) => S(p).slice(0, 2));
-  const tiles = footprint(sring, E.frac ?? 0.35);
+  let tiles = footprint(sring, E.frac ?? 0.35).filter((t) => !BLOCKED.has(t.join(',')));
+  if (!tiles.length) { // small monuments: the anchor tile, else the nearest free neighbour
+    const tx = Math.round(anc[0] / TILE_M), ty = Math.round(anc[1] / TILE_M);
+    const cand = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) cand.push([tx + dx, ty + dy]);
+    cand.sort((a, b) => Math.hypot(a[0] * TILE_M - anc[0], a[1] * TILE_M - anc[1]) - Math.hypot(b[0] * TILE_M - anc[0], b[1] * TILE_M - anc[1]));
+    const t = cand.find((c) => !BLOCKED.has(c.join(','))); if (t) tiles = [t];
+  }
+  const tset = new Set(tiles.map((t) => t.join(',')));
   const gcol = GROUND[E.ground || 'paved'];
-  for (const [tx, ty] of tiles) {
+  if (E.ground !== 'none') for (const [tx, ty] of tiles) {
     const a = (tx - 0.5) * TILE_M, b = (ty - 0.5) * TILE_M, c = (tx + 0.5) * TILE_M, d = (ty + 0.5) * TILE_M;
     faces.push({ pts: [[a, b, 0], [c, b, 0], [c, d, 0], [a, d, 0]], col: gcol, kind: 'ground', bias: -3, light: 0.82 });
   }
@@ -102,7 +111,7 @@ export function bakeOne(E) {
     if (g.kind === 'water' || !inRing(centroid(g.poly.outer[0]), ring)) continue;
     faces.push({ pts: g.poly.outer[0].map((p) => S([p[0], p[1], 0.05])), holes: g.poly.inner.map((r) => r.map((p) => S([p[0], p[1], 0.05]))), col: GROUND[g.kind], kind: 'ground', bias: -2, light: 0.82 });
   }
-  if (E.trees && src) for (const f of treeFaces(loadGround(src).filter((g) => g.kind === 'grass' && g.tags && (g.tags.leisure || g.tags.natural === 'wood') && inRing(centroid(g.poly.outer[0]), ring)), B, E.treeStep || 11)) faces.push({ ...f, pts: f.pts.map(S) });
+  if (E.trees && src) for (const f of treeFaces(loadGround(src).filter((g) => g.kind === 'grass' && g.tags && (g.tags.leisure || g.tags.natural === 'wood') && inRing(centroid(g.poly.outer[0]), ring)), B, E.treeStep || 11)) { const q = f.pts.map(S), mx = q.reduce((a, p) => a + p[0], 0) / q.length, my = q.reduce((a, p) => a + p[1], 0) / q.length; if (tset.has(Math.round(mx / TILE_M) + ',' + Math.round(my / TILE_M))) faces.push({ ...f, pts: q }); }
   if (E.streets !== false && src) for (const st of loadStreets(src)) {
     if (!st.pts.some((p) => inRing(p, ring))) continue;
     faces.push({ pts: st.pts.map((p) => S([p[0], p[1], st.kind === 'asphalt' ? 0.08 : 0.1])), col: GROUND[st.kind === 'asphalt' ? 'asphalt' : 'paving'], kind: 'ground', bias: -1.5, light: 0.85 });
@@ -111,21 +120,51 @@ export function bakeOne(E) {
   const levels = [];
   mkdirSync(ROOT + 'assets/landmarks', { recursive: true });
   for (const z of ZOOMS) {
-    const img = render(faces.map((f) => (f.kind === 'ground' ? { ...f } : f)), z, { outline: true });
+    // two images per level: ground (flat, drawn under every object by the renderer) and the 3D objects
+    const clip = (x, y) => tset.has(Math.round(x / TILE_M) + ',' + Math.round(y / TILE_M));
+    const obj = faces.filter((f) => f.kind !== 'ground'), gnd = faces.filter((f) => f.kind === 'ground');
+    const img = render(obj.length ? obj : [{ pts: [[anc[0], anc[1], 0], [anc[0] + 0.1, anc[1], 0], [anc[0], anc[1] + 0.1, 0]], col: [0, 0, 0], kind: 'model' }], z, { outline: true });
     const file = `assets/landmarks/${E.id}@${z}.png`;
     writeFileSync(ROOT + file, encodeRGBA(img.w, img.h, img.rgba));
-    levels.push({ z, file, w: img.w, h: img.h, wx: +(-img.ox / z).toFixed(3), wy: +(-img.oy / z).toFixed(3) });
+    const lv = { z, file, w: img.w, h: img.h, wx: +(-img.ox / z).toFixed(3), wy: +(-img.oy / z).toFixed(3) };
+    if (gnd.length) {
+      const g = render(gnd, z, { outline: false, clip });
+      lv.g = { file: `assets/landmarks/${E.id}_g@${z}.png`, w: g.w, h: g.h, wx: +(-g.ox / z).toFixed(3), wy: +(-g.oy / z).toFixed(3) };
+      writeFileSync(ROOT + lv.g.file, encodeRGBA(g.w, g.h, g.rgba));
+    }
+    levels.push(lv);
   }
   console.log(`[lm3d] ${E.id}: ${B.length} parts, ${faces.length} faces, ${tiles.length} tiles, front ${front}, z4 ${levels[2].w}x${levels[2].h}`);
   return { id: E.id, title: E.title, covers: E.covers || [E.id], tiles, front, levels };
 }
 
+/** Tiles an ensemble must not own (water, stations/depots/industries) in the scenario world without ensembles. Roads under an ensemble are removed by the scenario. */
+async function blockedTiles() {
+  const cache = ROOT + 'tools/lm3d/.blocked.json';
+  if (existsSync(cache) && !process.env.LM_REBLOCK) return new Set(JSON.parse(readFileSync(cache, 'utf8')));
+  process.env.NO_LM3D = '1';
+  const { Game } = await import('../../js/simulation/game.js');
+  const m = Game.create({ scenario: 'moscow', seed: 1 }).state.map; const out = [];
+  m.tiles.forEach((t, i) => { if (t.terrain === 'water' || (t.building && t.building.type !== 'house' && t.building.type !== 'landmark')) out.push((i % m.width) + ',' + Math.floor(i / m.width)); });
+  delete process.env.NO_LM3D;
+  writeFileSync(cache, JSON.stringify(out));
+  return new Set(out);
+}
+BLOCKED = await blockedTiles();
+
 const only = process.argv[2];
+let done = false;
 const OUT = ROOT + 'js/config/landmarks3d.js';
 for (const E of ENSEMBLES) {
-  if (only && E.id !== only) continue;
+  if (only && E.id !== only) { // tiles of earlier ensembles are claimed (read their last bake)
+    const f = ROOT + `assets/landmarks/${E.id}.json`;
+    if (!done && existsSync(f)) for (const t of JSON.parse(readFileSync(f, 'utf8')).tiles) BLOCKED.add(t.join(','));
+    continue;
+  }
   const r = bakeOne(E);
   writeFileSync(ROOT + `assets/landmarks/${E.id}.json`, JSON.stringify(r));
+  for (const t of r.tiles) BLOCKED.add(t.join(','));
+  if (only) done = true;
 }
 // regenerate the config from every baked ensemble (per-id JSON files, so parallel bakes of different ids are safe)
 const data = {};

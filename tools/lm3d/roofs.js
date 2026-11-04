@@ -114,6 +114,36 @@ function rectRoof(out, R, z0, h, kind, along, col, wallCol) {
   for (const s of [-l, l]) out.push({ pts: [P(s, -w, z0), P(s, w, z0), P(s, 0, z0 + h)], col: wallCol, kind: 'wall' });
 }
 
+/** Distance from c to ring along direction t (furthest crossing). */
+function rayHit(ring, c, t) {
+  const d = [Math.cos(t), Math.sin(t)]; let best = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    const e = [b[0] - a[0], b[1] - a[1]], w = [a[0] - c[0], a[1] - c[1]];
+    const den = d[0] * e[1] - d[1] * e[0]; if (Math.abs(den) < 1e-9) continue;
+    const r = (w[0] * e[1] - w[1] * e[0]) / den, u = (w[0] * d[1] - w[1] * d[0]) / den;
+    if (r > 0 && u >= 0 && u <= 1) best = Math.max(best, r);
+  }
+  return best;
+}
+/** Stadium ring roof (dome with a large opening, e.g. Luzhniki): shallow canopy rising toward the opening. */
+function annulus(out, poly, s) {
+  const outer = poly.outer[0], inner = poly.inner[0], c = centroid(inner), N = 48;
+  const O = [], I = [];
+  for (let k = 0; k < N; k++) { const t = (k / N) * 2 * Math.PI, ro = rayHit(outer, c, t), ri = rayHit(inner, c, t); O.push([c[0] + ro * Math.cos(t), c[1] + ro * Math.sin(t)]); I.push([c[0] + ri * Math.cos(t), c[1] + ri * Math.sin(t)]); }
+  const width = Math.sqrt(ringArea(outer) / Math.PI) - Math.sqrt(ringArea(inner) / Math.PI);
+  const rise = Math.min(s.roofH, 0.28 * width), z0 = s.wallH;
+  walls(out, O, s.minH, z0, s.wall);
+  const rows = [0, 0.45, 0.8, 1].map((f) => ({ f, z: z0 + rise * Math.sin(f * Math.PI / 2) }));
+  for (let r = 0; r < rows.length - 1; r++) for (let k = 0; k < N; k++) {
+    const j = (k + 1) % N, A = rows[r], B = rows[r + 1];
+    const P = (i, R) => [O[i][0] + (I[i][0] - O[i][0]) * R.f, O[i][1] + (I[i][1] - O[i][1]) * R.f, R.z];
+    out.push({ pts: [P(k, A), P(j, A), P(j, B), P(k, B)], col: k % 2 ? s.roof : shadeCol(s.roof, 0.95), kind: 'roof' });
+  }
+  // inner rim fascia
+  for (let k = 0; k < N; k++) { const j = (k + 1) % N; out.push({ pts: [[I[k][0], I[k][1], z0 + rise - 2.5], [I[j][0], I[j][1], z0 + rise - 2.5], [I[j][0], I[j][1], z0 + rise], [I[k][0], I[k][1], z0 + rise]], col: shadeCol(s.wall, 0.8), kind: 'wall' }); }
+}
+
 /**
  * Faces for one part.
  * @param {{outer:number[][][], inner:number[][][]}} poly rings in metres
@@ -149,6 +179,7 @@ export function partFaces(poly, s) {
     out.push({ pts: outer.map((p) => [p[0], p[1], H(p)]), holes: poly.inner.map((r) => r.map((p) => [p[0], p[1], H(p)])), col: roofCol, kind: 'roof' });
     return out;
   }
+  if (shape === 'dome' && poly.inner.length && ringArea(poly.inner[0]) > 0.1 * ringArea(outer)) { annulus(out, poly, s); return out; }
   if (shape === 'dome' || shape === 'onion') {
     const ring = densify(outer, 28); const c = centroid(ring);
     walls(out, ring, minH, wallH, wallCol);

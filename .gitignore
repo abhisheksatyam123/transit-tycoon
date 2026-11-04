@@ -2,3 +2,4 @@ node_modules/
 *.log
 .DS_Store
 *.bak
+tools/lm3d/.blocked.json

@@ -6,6 +6,7 @@ import { buildScenario, SCENARIOS } from '../js/simulation/scenarios/index.js';
 import { MOSCOW } from '../js/config/maps/moscow.js';
 import { miniMoscow } from './fixtures/miniMoscow.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
+import { LM3D } from '../js/config/landmarks3d.js';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const RANDOM_HASH = {
@@ -120,8 +121,15 @@ describe('Moscow fidelity (T24)', () => {
     const W = state.map.width;
     for (const id of ids) {
       const tiles = [];
-      state.map.tiles.forEach((t, i) => { if (t.building && t.building.type === 'landmark' && t.building.id === id) tiles.push([i, t.building]); });
+      const ens = Object.values(LM3D).find((e) => e.id !== id && (e.covers || []).includes(id)); // e.g. red_square drawn by the kremlin ensemble
+      const lid = ens ? ens.id : id;
+      state.map.tiles.forEach((t, i) => { if (t.building && t.building.type === 'landmark' && t.building.id === lid) tiles.push([i, t.building]); });
       expect(tiles.length).toBeGreaterThan(0);
+      if (tiles[0][1].lm3d) { // baked OSM 3D ensemble (R7): 1x1 stamps on its real footprint, exactly one front tile, no road/rail
+        expect(tiles.filter(([, b]) => b.front).length).toBe(1);
+        for (const [i, b] of tiles) { expect(b.lm3d).toBe(1); expect(state.map.tiles[i].road | (state.map.tiles[i].tunnel ? 0 : state.map.tiles[i].rail)).toBe(0); }
+        continue;
+      }
       const { w, h } = tiles[0][1];
       expect(tiles.length).toBe(w * h);
       for (const [i, b] of tiles) {

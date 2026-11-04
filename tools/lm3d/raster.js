@@ -68,7 +68,7 @@ export function render(faces, s, opts = {}) {
     if (f.uv && f.tex && s >= (opts.texMinZoom ?? 2)) { U = affine(R, f.uv.map((t) => t[0])); V = affine(R, f.uv.map((t) => t[1])); if (!U || !V) U = V = null; }
     let ry0 = 1e9, ry1 = -1e9; for (const r of rings) for (const p of r) { ry0 = Math.min(ry0, p[1]); ry1 = Math.max(ry1, p[1]); }
     const yA = Math.max(0, Math.ceil(ry0 - 0.5)), yB = Math.min(h - 1, Math.floor(ry1 - 0.5));
-    const xs = [];
+    const xs = []; const clipG = opts.clip && f.kind === 'ground';
     for (let y = yA; y <= yB; y++) {
       const yc = y + 0.5; xs.length = 0;
       for (const r of rings) for (let i = 0; i < r.length; i++) {
@@ -81,6 +81,7 @@ export function render(faces, s, opts = {}) {
         for (let x = xa; x <= xb; x++) {
           const o = y * w + x; const d = A * (x + 0.5) + B * yc + C + (f.bias || 0);
           if (d <= depth[o]) continue;
+          if (clipG && !opts.clip(((x + 0.5 - ox) / kx + (yc - oy) / ky) / 2, ((yc - oy) / ky - (x + 0.5 - ox) / kx) / 2)) continue;
           depth[o] = d; id[o] = fi; const q = o * 4;
           let m = 1;
           if (U) { const u = U[0] * (x + 0.5) + U[1] * yc + U[2], v = V[0] * (x + 0.5) + V[1] * yc + V[2]; m = TEX[f.tex](u, v, f); }

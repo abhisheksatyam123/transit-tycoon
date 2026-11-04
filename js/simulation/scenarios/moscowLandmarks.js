@@ -138,6 +138,7 @@ function stampLandmark(state, spec, x0, y0) {
  */
 export function placeEnsembles(state, log) {
   const { map } = state; const out = [];
+  if (globalThis.process?.env?.NO_LM3D) return out; // tools/lm3d/bake.js reads the world without ensembles
   for (const e of Object.values(LM3D)) {
     const placed = [];
     for (const [x, y] of e.tiles) {
@@ -146,6 +147,7 @@ export function placeEnsembles(state, log) {
       if (t.building && t.building.type === 'landmark') continue; // another ensemble got there first
       if (!clearFootprint(state, x, y, 1, 1)) continue;
       if (t.rail && !t.tunnel) t.rail = 0;
+      delete t.avenue; // the road under the ensemble is gone
       t.building = { type: 'landmark', id: e.id, lm3d: 1, front: 0, dx: 0, dy: 0, w: 1, h: 1 };
       placed.push([x, y]);
     }
@@ -158,5 +160,6 @@ export function placeEnsembles(state, log) {
     log.push(`landmark ${e.id}: OSM 3D ensemble on ${placed.length}/${e.tiles.length} tiles, front ${f[0]},${f[1]}`);
     out.push({ id: e.id, x: x0, y: y0, w: Math.max(...xs) - x0 + 1, h: Math.max(...ys) - y0 + 1, title: e.title, tiles: placed.length });
   }
+  for (const t of map.tiles) if (t.avenue !== undefined && !t.road) delete t.avenue; // neighbours cut off by cleared links
   return out;
 }

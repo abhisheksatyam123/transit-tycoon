@@ -88,3 +88,29 @@ export function place(faces, toM, lat, lon, heading = 0) {
   }
   return faces;
 }
+
+/** Lofted solid through cross-sections (each a ring [[x,y,z]..] of equal length), caps at both ends. */
+export function loft(out, rings, c, caps = true) {
+  const C = col(c), n = rings[0].length;
+  for (let k = 0; k + 1 < rings.length; k++) for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n; out.push({ pts: [rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]], col: C, kind: 'model' });
+  }
+  if (caps) { out.push({ pts: rings[0].slice().reverse(), col: C, kind: 'model' }); out.push({ pts: rings[rings.length - 1].slice(), col: C, kind: 'model' }); }
+}
+
+/** Solid extruded along y from y0 to y1 from an x/z profile polygon [[x,z]..] (may be concave: arches, gables). */
+export function extrudeY(out, prof, y0, y1, c) {
+  const C = col(c);
+  out.push({ pts: prof.map(([x, z]) => [x, y0, z]), col: C, kind: 'model' });
+  out.push({ pts: prof.map(([x, z]) => [x, y1, z]).reverse(), col: C, kind: 'model' });
+  for (let i = 0; i < prof.length; i++) { const a = prof[i], b = prof[(i + 1) % prof.length]; out.push({ pts: [[a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]]], col: C, kind: 'model' }); }
+}
+
+/** Flat ribbon (scarf, flag, sail) along a path of [x,y,z] points with a vertical half-width per point. */
+export function ribbon(out, path, hw, c) {
+  const C = col(c);
+  for (let i = 0; i + 1 < path.length; i++) {
+    const a = path[i], b = path[i + 1], wa = Array.isArray(hw) ? hw[i] : hw, wb = Array.isArray(hw) ? hw[i + 1] : hw;
+    out.push({ pts: [[a[0], a[1], a[2] - wa], [b[0], b[1], b[2] - wb], [b[0], b[1], b[2] + wb], [a[0], a[1], a[2] + wa]], col: C, kind: 'model' });
+  }
+}

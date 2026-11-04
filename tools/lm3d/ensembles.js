@@ -10,4 +10,5 @@ import { GROUP_A } from './ens/groupA.js';
 import { GROUP_B } from './ens/groupB.js';
 import { STATUES } from './ens/statues.js';
 
-export const ENSEMBLES = [...KREMLIN, ...GROUP_A, ...GROUP_B, ...STATUES];
+// order = tile priority: earlier ensembles claim shared tiles first (small statues before the large ensembles)
+export const ENSEMBLES = [...STATUES, ...GROUP_A, ...GROUP_B, ...KREMLIN];
