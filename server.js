@@ -1,6 +1,7 @@
 /**
  * Minimal static file server for Transit Tycoon JS (dev only).
- * Usage: `bun server.js` (PORT env overrides the default 5173).
+ * Usage: `bun server.js` (PORT env overrides the default 5173;
+ * HOST env binds a specific interface, e.g. HOST=100.105.86.72 for Tailscale-only).
  */
 import { join, normalize, extname } from 'node:path';
 
@@ -36,6 +37,7 @@ export function resolvePath(pathname) {
 
 const server = Bun.serve({
   port: PORT,
+  hostname: process.env.HOST || undefined,
   async fetch(req) {
     const url = new URL(req.url);
     const path = resolvePath(url.pathname);
@@ -47,4 +49,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Transit Tycoon dev server: http://localhost:${server.port}`);
+const shownHost = process.env.HOST || 'localhost';
+console.log(`Transit Tycoon dev server: http://${shownHost}:${server.port}`);
