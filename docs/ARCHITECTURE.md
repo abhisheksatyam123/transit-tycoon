@@ -33,6 +33,7 @@ transit-tycoon/
     traffic trafficTrips (private cars: spawn, routes, congestion)
     diagnostics diagIssue diagChecksMap diagChecksEntities (issue detector, read-only)
     Command/sim modules receive ctx = {state, emit}.
+  js/openloco/             ported OpenLoco (MIT) track & road code: piece tables, connection math, chain walk (see js/openloco/README.md)
   js/renderer/               isometric canvas: iso, camera, palette, groundCache, heights, slope, particles, minimap, renderer
     layers/   terrain transport objects overlays traffic (cars + congestion heatmap)
     sprites/  canvas shapes terrain transport houses buildings industries vehicles (procedural, cached)

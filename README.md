@@ -91,5 +91,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 Third-party content shipped in this folder:
 - `assets/opengfx/` — sprites extracted from OpenGFX, **GPL-2.0** (see `assets/opengfx/LICENSE`); the
   corresponding source is the OpenGFX repository plus the `tools/ogfx/` extractor.
+- `js/openloco/` (+ `js/renderer/net/locoPieces.js`, `tools/openloco/`) — track & road code and data
+  tables ported from [OpenLoco](https://github.com/OpenLoco/OpenLoco), **MIT** (© OpenLoco contributors);
+  see `js/openloco/README.md` for provenance and what was not ported. No Locomotion/OpenLoco assets are included.
 - `js/config/maps/moscow.js` — derived from OpenStreetMap data, © OpenStreetMap contributors, **ODbL 1.0**
   (attribution required; derived databases shared under ODbL).
