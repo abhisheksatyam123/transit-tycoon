@@ -3,10 +3,10 @@
  * Collisions and signals are not simulated (vehicles may overlap).
  */
 import { TICKS_PER_DAY } from './constants.js';
-import { ACCEL_TICKS } from '../config/vehicles.js';
+import { landSpeedStep, airSpeedStep, DIAGONAL_STEP } from './loco/vehicleMotion.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
-import { historyNeeded } from './vehicles.js';
+import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
@@ -90,9 +90,15 @@ function move(ctx, v) {
   if (!v.path.length || v.pathIndex >= v.path.length - 1) { onPathEnd(ctx, v); return; }
   const layer = layerOf(v);
   if (v.progress === 0 && !linkOk(state, layer, v)) { v.progress = 0; replan(ctx, v); return; }
-  const accel = v.maxSpeed / ACCEL_TICKS[v.kind];
-  v.speed = Math.min(v.maxSpeed, v.speed + accel);
-  v.progress += v.speed;
+  if (v.kind === 'aircraft') {
+    v.speed = airSpeedStep(v, v.maxSpeed);
+    // diagonal (Bresenham) steps are sqrt(2) tiles long (kMovementNibbleToDistance diagonal / straight)
+    const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
+    v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;
+  } else {
+    v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed);
+    v.progress += v.speed;
+  }
   const keep = historyNeeded(v);
   while (v.progress >= 1) {
     v.progress -= 1;

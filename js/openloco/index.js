@@ -15,3 +15,4 @@ export * from './map/tileClearance.js';
 export * from './map/track.js';
 export * from './map/place.js';
 export * from './map/fromGame.js';
+export * from './commands/index.js';

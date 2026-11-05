@@ -42,10 +42,8 @@ export const LOAN_STEP = 10000;
 /** Yearly interest rate on the loan (charged monthly). */
 export const INTEREST_RATE = 0.05;
 
-/** Conversion of model speed km/h into tiles per tick. */
-export const KMH_TO_TILES_PER_TICK = 1 / 800;
-/** Aircraft conversion: km/h into tiles per tick (about 3x a train at the same speed). */
-export const AIR_KMH_TO_TILES_PER_TICK = 1 / 700;
+/** km/h -> tiles per tick: OpenLoco motion units (R13a, loco/vehicleMotion.js). */
+export { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 
 /** Spacing (in tiles) between consecutive train segments. */
 export const SEGMENT_SPACING = 0.5;

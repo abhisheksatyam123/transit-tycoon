@@ -15,7 +15,7 @@
  *    own passengers+goods delivered/transported this month (as in the original TT: served towns grow faster).
  *  - populationCapacity -> population (sum of house pop).
  */
-import { growOnce } from '../townGrowth.js';
+import { growForTick } from './townGrow.js';
 import { recomputePopulation } from '../towns.js';
 
 export const HISTORY_LEN = 20 * 12;
@@ -25,8 +25,6 @@ export const MAX_COMPANY_RATING = 1000;
 export const TOWN_SIZE_NAMES = ['hamlet', 'village', 'town', 'city', 'metropolis'];
 /** 0x004FF714 */
 const POPULATIONS = [0, 150, 500, 2500, 8000];
-/** Probability of one growth step per town tick, by buildSpeed (index 1..4). */
-const TT_STEP_CHANCE = [0, 0.125, 0.25, 0.375, 0.5];
 
 /** Give a town record the OpenLoco fields it lacks. */
 export function ensureTown(town) {
@@ -60,9 +58,7 @@ export function recalculateSize(town) {
 export function tickTown(game, town) {
   ensureTown(town);
   recalculateSize(town);
-  const chance = TT_STEP_CHANCE[town.buildSpeed] ?? TT_STEP_CHANCE[1];
-  if (!game.rng.chance(chance)) return false;
-  const grew = growOnce(game.state, game.rng, town);
+  const grew = growForTick(game, town);
   if (grew) {
     recomputePopulation(game.state, town);
     recalculateSize(town);

@@ -54,7 +54,7 @@ export function openVehicleDetail(app, id) {
         if (!v) { win.close(); return; }
         win.setTitle(v.name);
         set['State'](STATE_LABEL[v.state] || v.state);
-        set['Speed'](`${speed(v.speed)} / ${speed(v.maxSpeed)}`);
+        set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
         set['Altitude'](v.kind !== 'aircraft' ? '—' : (v.alt || 0) > 0.01 ? (v.alt >= 0.99 ? `${Math.round(v.alt * 100)}% · cruising` : `${Math.round(v.alt * 100)}% · climbing / descending`) : 'on the ground');
         set['Cargo'](`${cargoName(v.cargoId)}${v.kind === 'train' ? ` · ${v.wagons} wagon(s)` : ''}`);
         const amt = v.load ? v.load.amount || 0 : 0;

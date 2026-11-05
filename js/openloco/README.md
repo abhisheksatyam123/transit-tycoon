@@ -24,12 +24,13 @@ code; **no original game data, graphics, or other assets are included** — only
 | element-insertion part of `CreateTrack.cpp` / `CreateRoad.cpp` | `map/place.js` | placeTrack / placeRoad / attachTrainStation / attachRoadStation (map writing only, no cost/bridge rules) |
 | `Engine/World.hpp`, `Math/Vector.hpp` | `map/world.js` | TILE_SIZE, rotatePos2, toTileSpace/toWorldSpace, Pos helpers |
 | — (transit-tycoon original) | `map/fromGame.js` | `tileManagerFromGame(state)`: converts the per-tile direction-bit map into pieces (mapping documented in the file header) |
+| `src/GameCommands/Track/{CreateTrack,RemoveTrack,CreateTrackMod,RemoveTrackMod,CreateSignal,RemoveSignal,CreateSignalsAuto,RemoveSignalsAuto,CreateTrainStation,RemoveTrainStation}.cpp`, `Road/{CreateRoad,RemoveRoad,CreateRoadMod,RemoveRoadMod,CreateRoadStation,RemoveRoadStation}.cpp` | `commands/*` | 16 game commands on `map/*`. Same validation order, string-id error names (`ctx.errorText`/`result.error`), cost formulas and apply/ghost/aiAllocated flags. `commands/index.js` is re-exported from `index.js`. |
+| `src/GameCommands/GameCommands.cpp` (doCommand, setError, nesting) | `commands/gameCommands.js` | `createContext`, `defineCommand`, `doCommand` (query pass, funding check, apply pass, min cost, nesting), `Flags`, `FAILURE`; `getInflationAdjustedCost` with injected `currencyFactors` |
+| `src/World/StationManager.cpp`, `Station.cpp` (tile list part) | `commands/stationManager.js` | minimal station manager for the commands (findNearbyStation, allocate, add/removeTile, exceedsStationSize); the game's own manager can be injected as `ctx.stations` |
+| Object headers (Track/Road/Bridge/…Object.h) | `commands/objects.js` | field names the commands read + placeholder default tables; inject real object costs via `createContext({objects})` |
 
 ## What was NOT ported (and why)
 
-- `CreateTrack`, `CreateRoad`, `RemoveTrack`, `RemoveRoad`, `CreateTrackMod`, `RemoveTrackMod`,
-  `CreateTrainStation`, `CreateRoadStation`, `CreateSignal(s)` game commands (`src/GameCommands/{Track,Road}/*`) —
-  cost, bridge/tunnel search, ownership and terrain rules. The map layer they need (`map/*`) is now in place.
 - Single `entries[]` array / `Store<T>` allocators / defrag of TileManager (replaced by per-tile JS arrays);
   terrain/tree/building/industry removal and game-wide updates (`TileManager::tick`, `removeTree`, `adjustSurfaceHeight`...).
 - `RoadElement::tick`, level-crossing/station/signal animation updates (need game state + ObjectManager).
@@ -45,3 +46,19 @@ bun run check                                     # import checker
 ```
 
 `trackData.js` is generated — edit the generator, never the output.
+
+## Game commands (`commands/`)
+
+Usage: `const ctx = createContext({tm, objects, stations, currencyFactors, hooks}); doCommand(ctx, createTrackCommand, args, Flags.apply)` returns
+`{ok, cost, error, position}`; calling a command directly runs one pass (query unless `Flags.apply` is passed). Removal commands return the
+sell value as a positive number, like OpenLoco. Args per command are documented in each file header.
+
+Injected instead of ported: object tables (`ctx.objects`: track/road/bridge/trackExtra/roadExtra/trainStation/roadStation/signal/levelCrossing/tree),
+inflation (`ctx.currencyFactors`), station manager (`ctx.stations`), funding/payment (`ctx.ensureFunding`, `ctx.applyPayment`), `ctx.hooks`
+(`clearBuilding`, `onSignalsChanged` for `sub_4A2AD7`, `onSurfaceIndustryRemoved`).
+
+Skipped: `checkFreeElementsAndReorganise`, sounds, company observation/emotion, viewport invalidation, station labels/cargo/town assignment,
+BuildingManager `RemoveBuilding` (buildings are a collision unless `hooks.clearBuilding` is given), AnimationManager.
+Known deviations: Remove{Train,Road}Station subtract `height/4` from clearZ (the C++ subtracts the raw object height, inconsistent with Create);
+CreateRoad tunnel cost reads `getTrackMiscData(roadId)` like the C++; mod walks in `network.js` use a LIFO search with a 3996-entry cap and set
+`ctx.warning` when the network is too complex.

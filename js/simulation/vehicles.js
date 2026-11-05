@@ -2,7 +2,8 @@
  * Vehicle creation and visual segments (locomotive + trailing wagons).
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
-import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK, SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
+import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
 
 /** Display prefix per vehicle class. */

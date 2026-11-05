@@ -1,6 +1,7 @@
 /**
  * Formatting helpers (money, numbers, dates, speeds).
  */
+import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from '../simulation/loco/vehicleMotion.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -63,12 +64,14 @@ export function monthName(m) {
 }
 
 /**
- * Convert a speed in tiles/tick into a display km/h figure (inverse of core KMH_TO_TILES_PER_TICK = 1/2400).
+ * Convert a speed in tiles/tick into a display km/h figure (inverse of KMH_TO_TILES_PER_TICK / AIR_KMH_TO_TILES_PER_TICK).
  * @param {number} tilesPerTick
+ * @param {string} [kind] vehicle kind ('aircraft' uses the air conversion)
  * @returns {string}
  */
-export function speed(tilesPerTick) {
-  return Math.round((tilesPerTick || 0) * 2400) + " km/h";
+export function speed(tilesPerTick, kind) {
+  const k = kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK;
+  return Math.round((tilesPerTick || 0) / k) + " km/h";
 }
 
 /**
