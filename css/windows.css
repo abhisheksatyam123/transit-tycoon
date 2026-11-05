@@ -120,6 +120,33 @@
 .help .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .help .steps b { color: #7dd3fc; }
 
+/* ---- small phones & landscape: windows become near-fullscreen sheets ---- */
+@media (max-width: 640px), (max-height: 500px) {
+  .win {
+    min-width: 0;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 12px);
+    left: 8px !important;
+    border-radius: 12px;
+  }
+  .win-body { padding: 8px 10px 10px; font-size: 12.5px; }
+  .win-title { font-size: 12.5px; }
+  .win-close { width: 30px; height: 30px; font-size: 20px; }
+  .list.scroll { max-height: 38vh; }
+  .field { grid-template-columns: 76px 1fr; }
+  .table-head, .table-row { gap: 5px; }
+}
+
+/* ---- coarse pointers: bigger touch targets ---- */
+@media (pointer: coarse) {
+  .btn { padding: 8px 12px; }
+  .btn.sm { padding: 5px 9px; font-size: 11.5px; }
+  .list-row { padding: 8px 10px; }
+  .tb-btn { min-width: 40px; }
+  .news-item { padding: 8px 10px; }
+}
+
 /* ---- monitoring windows (traffic, issues) ---- */
 .chip {
   display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 10px;

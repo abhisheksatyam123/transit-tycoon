@@ -151,6 +151,21 @@ export class WindowManager {
   }
 
   /**
+   * Clamp every open window into the visible container (call after resize/orientation change).
+   */
+  clampAll() {
+    const vw = this.container.clientWidth, vh = this.container.clientHeight;
+    for (const w of this.windows.values()) {
+      const maxX = Math.max(8, vw - 60), maxY = Math.max(0, vh - 30);
+      const minX = -w.root.offsetWidth + 60;
+      const left = Math.max(minX, Math.min(maxX, w.root.offsetLeft));
+      const top = Math.max(0, Math.min(maxY, w.root.offsetTop));
+      w.root.style.left = left + 'px';
+      w.root.style.top = top + 'px';
+    }
+  }
+
+  /**
    * Make a window draggable by its header (pointer events, clamped to the container).
    * @param {FloatingWindow} win
    * @param {HTMLElement} handle

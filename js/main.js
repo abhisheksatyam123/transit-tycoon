@@ -128,6 +128,10 @@ async function main() {
   });
 
   window.addEventListener('beforeunload', () => autosave(app));
+  /** Keep floating windows on-screen after rotation / resize (landscape phones). */
+  const clampWindows = () => app.wm.clampAll();
+  window.addEventListener('resize', clampWindows);
+  window.addEventListener('orientationchange', () => setTimeout(clampWindows, 60));
   if (scenario) { /* scenario toast shown above */ } else if (restored) app.toast('Continuing your autosaved game — New Game to start over', 'info');
   else app.open('help');
 }
