@@ -275,8 +275,9 @@ export class Renderer {
     // ground + transport come from cached chunks (below everything else)
     this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
     drawUnderlays(ctx, map, this.overlay);
-    // baked landmark ensembles: flat ground first (under every object); objects whose front tile is off-screen after the loop
-    // overlay-only monuments are anchored to real tiles but never take one; draw them in painter's order
+    // baked landmark ensembles: flat ground first (under every object); objects in painter's order.
+    // Generic overlays draw in tile order; stamped (geographically accurate) fronts draw after
+    // overlays on the same tile so major monuments stay prominent.
     const lm3dOverlays = lm3dOverlayBuckets(map);
     const lmFronts = lm3dFronts(map), lmLate = [];
     for (const f of lmFronts) {
@@ -322,8 +323,8 @@ export class Renderer {
         const overlays = lm3dOverlays.get(x + ',' + y);
         const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
         if (lb && lb.lm3d) { // ensemble sprites are wide: never culled by their front tile position
+          if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
           if (lb.front) drawLm3dObjects(ctx, lb.id, x, y, sx, sy, r);
-          if (overlays) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
           continue;
         }
         if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.terrain === 'forest')) {
@@ -334,7 +335,7 @@ export class Renderer {
             this.smoke.emit(sx + px, sy + py, 3, piece === 'chimney' || piece === 'blast');
           }
         }
-        if (overlays && sy >= r.y0 - 20 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
+        if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }
 
