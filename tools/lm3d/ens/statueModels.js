@@ -53,6 +53,21 @@ export function spaceRocketFaces() {
   return o;
 }
 
+/** Malchik («Сострадание» / "Compassion"): bronze stray dog at Mendeleevskaya metro station. Modelled oversize (~5 m) so it reads beside game-scale (5–10x real) buildings; glossy bronze, nose worn bright by the rubs of passers-by. */
+export function malchikFaces() {
+  const o = [];
+  lathe(o, 0, 0, [[3.4, 0], [3.15, 0.6], [2.5, 0.6], [2.5, 1.15], [0, 1.15]], 16, GRANITE);
+  for (const [sx, sy] of [[-0.72, -0.88], [0.72, -0.88], [-0.72, 1.05], [0.72, 1.05]]) box(o, sx, sy, 1.15, 0.5, 0.5, 1.35, '#6b5334'); // legs
+  box(o, 0, 0.1, 2.42, 1.82, 2.9, 1.4, '#6b5334');                                     // torso
+  tube(o, [[0, -1.15, 3.5], [0, -1.6, 4.35]], 1.1, '#6b5334');                          // neck/chest rising forward
+  box(o, 0, -1.78, 4.12, 1.05, 1.25, 0.95, '#6b5334');                                 // head
+  box(o, 0, -2.5, 4.28, 0.57, 0.65, 0.47, '#6b5334');                                  // snout
+  box(o, 0, -2.86, 4.44, 0.34, 0.15, 0.15, '#4a3b2c');                                 // nose (worn bright)
+  for (const s of [-1, 1]) box(o, s * 0.64, -1.6, 4.7, 0.25, 0.85, 0.6, '#4a3b2c');    // floppy ears
+  tube(o, [[0, 1.45, 3.45], [0, 1.95, 4.35], [0, 1.82, 5.15]], 0.25, '#6b5334');        // tail held up
+  return o;
+}
+
 /** Victory Monument, Poklonnaya Hill: 141.8 m trihedral granite bayonet, bronze reliefs, Nike with trumpet at ~100 m, St George on a round plinth in front. */
 export function victoryObeliskFaces() {
   const o = [];

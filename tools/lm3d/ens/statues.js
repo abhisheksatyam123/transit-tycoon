@@ -1,6 +1,6 @@
 /** Ensembles statues (see ../ensembles.js for fields). Positions: OSM monument nodes (raw/*.json) or Wikipedia coordinates. */
 import { place } from '../model.js';
-import { workerKolkhozFaces, spaceRocketFaces, victoryObeliskFaces, peterFaces, gagarinFaces, pushkinFaces, triumphArchFaces } from './statueModels.js';
+import { workerKolkhozFaces, spaceRocketFaces, victoryObeliskFaces, peterFaces, gagarinFaces, pushkinFaces, triumphArchFaces, malchikFaces } from './statueModels.js';
 import { byBuilding } from '../styles.js';
 
 /** Standalone monuments are baked at 3x (ensembles 2x, bake.js LM_SCALE) so slender statues stay readable beside OpenGFX houses. */
@@ -24,6 +24,9 @@ export const STATUES = [
   // Wikipedia 55.7082, 37.5824 (Gagarin Square, Leninsky Prospekt); faces the city centre (NE)
   { id: 'r7d_gagarin', title: 'Monument to Yuri Gagarin, Leninsky Prospekt', ground: 'none', streets: false, scale: 3,
     sel: { circle: [55.7082, 37.5824, 40] }, anchor: [55.7082, 37.5824], extraFaces: at(gagarinFaces, 55.7082, 37.5824, 40) },
+  // statue in the vestibule → stand-in on the tile north of the station (119,114), facing it (S); model authored oversize for game legibility
+  { id: 'r7d_malchik', title: 'Malchik («Сострадание»), Mendeleevskaya Station', ground: 'none', streets: false, scale: 3,
+    sel: { circle: [55.784, 37.6, 6] }, anchor: [55.784, 37.6], extraFaces: at(malchikFaces, 55.784, 37.6, 180) },
   { id: 'r7d_pushkin', title: 'Monument to Alexander Pushkin, Pushkinskaya Square', ground: 'none', streets: false, scale: 3,
     sel: { circle: [55.7653, 37.6054, 30] }, anchor: [55.7653, 37.6054], extraFaces: at(pushkinFaces, 55.7653, 37.6054, 160) },
   // Wikipedia 55.73675, 37.51992 (Victory Square); passage along Kutuzovsky Prospekt (~110 deg)
