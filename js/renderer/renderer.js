@@ -7,7 +7,7 @@
 import { HALF_W, HALF_H, HEIGHT_STEP, pickTile } from './iso.js';
 import { Camera } from './camera.js';
 import { drawObject, drawSegment } from './layers/objects.js';
-import { lm3dFronts, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
+import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
 import { drawAircraftLayer, pruneAir } from './layers/air.js';
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
@@ -276,6 +276,8 @@ export class Renderer {
     this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
     drawUnderlays(ctx, map, this.overlay);
     // baked landmark ensembles: flat ground first (under every object); objects whose front tile is off-screen after the loop
+    // overlay-only monuments are anchored to real tiles but never take one; draw them in painter's order
+    const lm3dOverlays = lm3dOverlayBuckets(map);
     const lmFronts = lm3dFronts(map), lmLate = [];
     for (const f of lmFronts) {
       const p = { x: (f.x - f.y) * HALF_W, y: (f.x + f.y) * HALF_H - this.heights.centerH(f.x, f.y) * HEIGHT_STEP };
@@ -317,20 +319,22 @@ export class Renderer {
         const sx = (x - y) * HALF_W;
         const tile = tiles[y * W + x];
         const lb = tile.building;
+        const overlays = lm3dOverlays.get(x + ',' + y);
+        const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
         if (lb && lb.lm3d) { // ensemble sprites are wide: never culled by their front tile position
-          if (lb.front) drawLm3dObjects(ctx, lb.id, x, y, sx, (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP, r);
+          if (lb.front) drawLm3dObjects(ctx, lb.id, x, y, sx, sy, r);
+          if (overlays) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
           continue;
         }
-        if (sx < r.x0 || sx > r.x1) continue;
-        if (!tile.building && tile.terrain !== 'forest') continue;
-        const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
-        if (sy < r.y0 - 20 || sy > r.y1 + 160) continue;
-        const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup);
-        if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
-          const [ou, ov, oz] = SMOKE[piece];
-          const [px, py] = P(ou, ov, oz);
-          this.smoke.emit(sx + px, sy + py, 3, piece === 'chimney' || piece === 'blast');
+        if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.terrain === 'forest')) {
+          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup);
+          if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
+            const [ou, ov, oz] = SMOKE[piece];
+            const [px, py] = P(ou, ov, oz);
+            this.smoke.emit(sx + px, sy + py, 3, piece === 'chimney' || piece === 'blast');
+          }
         }
+        if (overlays && sy >= r.y0 - 20 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }
 

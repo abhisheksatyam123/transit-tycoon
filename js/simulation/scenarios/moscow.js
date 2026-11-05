@@ -2,7 +2,7 @@
  * Moscow scenario: turns the baked MOSCOW map into a live game state. Entry point is
  * buildMoscow(game, map); the map object is passed in so tests can use a fixture.
  */
-import { createMoscowMap, decodeLayers, applyTerrain, applyBits, markMajor, layLocalStreets, project, embankWaterRoads } from './moscowTiles.js';
+import { createMoscowMap, decodeLayers, applyTerrain, applyBits, markMajor, layLocalStreets, project, embankWaterRoads, upgradeTrunkRoads } from './moscowTiles.js';
 import { makeTowns, placeHouses } from './moscowTowns.js';
 import { buildMetroLine, pickMetroLines, metroGeometry } from './moscowMetro.js';
 import { buildBusLines } from './moscowBuses.js';
@@ -11,7 +11,7 @@ import { placeIndustry } from '../industries.js';
 import { createTraffic } from '../traffic.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
-import { findFootprint, clearFootprint, pruneRoadIslands, joinRoadComponents, clearLinks } from './moscowLand.js';
+import { findFootprint, clearFootprint, pruneRoadIslands, joinRoadComponents, clearLinks, demolishHouseAt } from './moscowLand.js';
 import { placeLandmarks } from './moscowLandmarks.js';
 import { planIndustries } from './moscowIndustry.js';
 import { recomputePopulation } from '../towns.js';
@@ -54,7 +54,8 @@ export function buildTiles(state, map) {
   applyBits(state.map, 'rail', L.rail);
   embankWaterRoads(state.map);
   const streets = layLocalStreets(state.map, L, major, airportReserve(state.map, map));
-  return { L, major, streets };
+  const highways = upgradeTrunkRoads(state.map, L);
+  return { L, major, streets, highways };
 }
 
 /** Industries at the real sites (nearest clearable footprint). @returns {number} placed */
@@ -107,6 +108,55 @@ export function markGradeSeparation(map) {
 }
 
 /**
+ * Remove unnecessary houses that wall in transport corridors or crowd the map.
+ * Keeps houses spaced apart and clears a buffer beside highways and surface rail so roads/rail
+ * remain visible and buildable. The dense centre (near the Kremlin) is left mostly intact.
+ * @param {object} state
+ * @param {{x:number,y:number}} kremlin
+ * @returns {number} houses removed
+ */
+export function thinBuildings(state, kremlin) {
+  const { map } = state;
+  const W = map.width, H = map.height;
+  const kx = kremlin.x, ky = kremlin.y;
+  const isHouse = (i) => map.tiles[i].building?.type === 'house';
+  const near = (i, pred, r) => {
+    const x = i % W, y = Math.floor(i / W);
+    for (let yy = Math.max(0, y - r); yy <= Math.min(H - 1, y + r); yy++)
+      for (let xx = Math.max(0, x - r); xx <= Math.min(W - 1, x + r); xx++) {
+        if (xx === x && yy === y) continue;
+        if (pred(map.tiles[yy * W + xx], yy * W + xx)) return true;
+      }
+    return false;
+  };
+  let removed = 0;
+  // 1) clear a buffer beside highways and rail (corridors must stay open)
+  for (let i = 0; i < map.tiles.length; i++) {
+    if (!isHouse(i)) continue;
+    const x = i % W, y = Math.floor(i / W);
+    if (Math.hypot(x - kx, y - ky) <= 10) continue;
+    const t = map.tiles[i];
+    const byHwy = near(i, (nt) => nt.highway, 1);
+    const byRail = near(i, (nt) => nt.rail && !nt.tunnel, 1);
+    if (byHwy || byRail) { demolishHouseAt(state, i); removed++; }
+  }
+  // 2) gently break up wall-to-wall house blocks so there is buildable space between places
+  for (let i = 0; i < map.tiles.length; i++) {
+    if (!isHouse(i)) continue;
+    const x = i % W, y = Math.floor(i / W);
+    const dK = Math.hypot(x - kx, y - ky);
+    if (dK <= 14) continue;
+    let adj = 0;
+    for (let yy = Math.max(0, y - 1); yy <= Math.min(H - 1, y + 1); yy++)
+      for (let xx = Math.max(0, x - 1); xx <= Math.min(W - 1, x + 1); xx++)
+        if ((xx !== x || yy !== y) && isHouse(yy * W + xx)) adj++;
+    if (adj >= 6 && ((x * 7 + y * 11) % 4 === 0)) { demolishHouseAt(state, i); removed++; }
+  }
+  for (const t of state.towns) recomputePopulation(state, t);
+  return removed;
+}
+
+/**
  * Build the whole Moscow scenario onto a freshly created game (state.map is replaced).
  * @param {object} game Game instance (from Game.create with no generation)
  * @param {object} map baked MOSCOW object
@@ -117,14 +167,17 @@ export function buildMoscow(game, map) {
   const log = [];
   state.scenario = 'moscow';
   state.company.money = MOSCOW_MONEY;
-  const { L, major, streets } = buildTiles(state, map);
+  const { L, major, streets, highways } = buildTiles(state, map);
   const kremlin = landmark(map, 'kremlin', [55.752, 37.6175]);
   const city = landmark(map, 'moscow_city', [55.749, 37.539]);
   const landmarks = placeLandmarks(state, map, major, log);
   const towns = makeTowns(state, map.districts || [], kremlin, log);
   const houses = placeHouses(state, game.rng, L, towns, { kremlin, city, landmarks, centreTown: towns[0], landuse: L.landuse });
+  const thinned = thinBuildings(state, kremlin);
   if (streets.noMajor) log.push('roads: baked map has no major road layer; local streets laid unconnected to any avenue');
+  if (highways) log.push(`roads: marked ${highways} motorway/trunk tiles as 4-lane highways`);
   if (streets.pruned) log.push(`streets: pruned ${streets.pruned} tiles of local roads not connected to the major network`);
+  if (thinned) log.push(`buildings: removed ${thinned} houses to clear transport corridors and spacing`);
   const industries = buildIndustries(state, major, kremlin, log) + planIndustries(state, map, { L, major, kremlin, log }).placed;
   const metro = [];
   for (const line of pickMetroLines(map.metroLines || [])) {

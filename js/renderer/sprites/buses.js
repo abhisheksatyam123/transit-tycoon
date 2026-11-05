@@ -73,14 +73,18 @@ export function drawTrolley(ctx, axis, s, livery) {
 
 /** Truck cab (front) + frame, shared by all truck bodies. */
 function truckFrame(ctx, axis, s, L, W, cabCol) {
-  shadow(ctx, axis, L + 0.02, W + 0.03);
-  wheels(ctx, axis, L, W, 2.6, 0.06);
-  const cab0 = s > 0 ? L * 0.52 : -L, cab1 = s > 0 ? L : -L * 0.52;
-  obox(ctx, axis, -L, L, -W * 0.9, W * 0.9, 1.5, 3.5, '#27272a');
-  obox(ctx, axis, cab0, cab1, -W, W, 3, 9, cabCol, shade(cabCol, 1.1));
-  obox(ctx, axis, s > 0 ? L * 0.78 : -L * 0.92, s > 0 ? L * 0.92 : -L * 0.78, -W * 0.8, W * 0.8, 5, 8, GLASS);
-  lamp(ctx, axis, s, L, -W * 0.7, -W * 0.4, 3, 5, '#fef9c3');
-  lamp(ctx, axis, s, L, W * 0.4, W * 0.7, 3, 5, '#fef9c3');
+  shadow(ctx, axis, L + 0.022, W + 0.032);
+  wheels(ctx, axis, L, W, 2.7, 0.062);
+  const cab0 = s > 0 ? L * 0.5 : -L, cab1 = s > 0 ? L : -L * 0.5;
+  obox(ctx, axis, -L, L, -W * 0.9, W * 0.9, 1.4, 3.6, '#27272a');
+  obox(ctx, axis, cab0, cab1, -W, W, 3.2, 9.4, cabCol, shade(cabCol, 1.12));
+  obox(ctx, axis, s > 0 ? L * 0.76 : -L * 0.94, s > 0 ? L * 0.94 : -L * 0.76, -W * 0.82, W * 0.82, 5.2, 8.2, GLASS);
+  obox(ctx, axis, cab0, cab1, -W - 0.003, W + 0.003, 3.2, 4.2, shade(cabCol, 0.78));
+  obox(ctx, axis, s > 0 ? L - 0.012 : -L - 0.004, s > 0 ? L + 0.004 : -L + 0.012, -W * 0.5, W * 0.5, 3.4, 4.8, '#374151');
+  lamp(ctx, axis, s, L, -W * 0.72, -W * 0.38, 3.2, 5.2, '#fef9c3');
+  lamp(ctx, axis, s, L, W * 0.38, W * 0.72, 3.2, 5.2, '#fef9c3');
+  lamp(ctx, axis, -s, L, -W * 0.72, -W * 0.38, 3.2, 4.6, '#ef4444');
+  lamp(ctx, axis, -s, L, W * 0.38, W * 0.72, 3.2, 4.6, '#ef4444');
   return { cab0, cab1 };
 }
 

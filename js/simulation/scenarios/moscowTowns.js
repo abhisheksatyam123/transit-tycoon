@@ -11,12 +11,12 @@ import { pickStyle, clampLevel, tileDist, LANDUSE_STYLE } from './moscowStyles.j
 export const MAX_TOWNS = 80;
 
 /** Catchment radius (tiles) of a district town: houses farther than this from every town stay empty. */
-export const TOWN_CATCHMENT = 22;
+export const TOWN_CATCHMENT = 16;
 
 /** Catchment radius (tiles) of the Kremlin/Tverskoy town (dense centre). */
-export const CENTRE_CATCHMENT = 30;
+export const CENTRE_CATCHMENT = 24;
 /** Distance weight of the Kremlin/Tverskoy town when claiming tiles (<1 pulls the centre outward). */
-export const CENTRE_PULL = 0.5;
+export const CENTRE_PULL = 0.55;
 
 /**
  * Open plots for the player between districts: the chance a valid house site is left
@@ -24,10 +24,11 @@ export const CENTRE_PULL = 0.5;
  * Gives the map infill room instead of a wall of houses on every road-side tile.
  */
 export const VACANCY = [
-  { d: 9, p: 0.02 },
-  { d: 16, p: 0.05 },
-  { d: 26, p: 0.11 },
-  { d: Infinity, p: 0.20 },
+  { d: 8, p: 0.06 },
+  { d: 15, p: 0.16 },
+  { d: 24, p: 0.28 },
+  { d: 36, p: 0.40 },
+  { d: Infinity, p: 0.48 },
 ];
 /** Vacancy probability for distance `d` (tiles, Euclidean) from the Kremlin. */
 export function vacancyChance(d) {
@@ -130,24 +131,27 @@ export function catchmentTownOf(towns, x, y) {
   return d2(t.x, t.y, x, y) <= r * r ? t : null;
 }
 
+/** True when a highway or surface rail tile is within `r` Chebyshev tiles (keeps transport corridors open). */
+function nearTransport(map, x, y, r) {
+  const W = map.width, H = map.height;
+  for (let yy = Math.max(0, y - r); yy <= Math.min(H - 1, y + r); yy++)
+    for (let xx = Math.max(0, x - r); xx <= Math.min(W - 1, x + r); xx++) {
+      const t = map.tiles[yy * W + xx];
+      if (t.highway || (t.rail && !t.tunnel)) return true;
+    }
+  return false;
+}
+
 /**
- * Urban courtyard blocks: a house may stand next to a road, or (dens >= 2) up to two tiles from
- * one, so dense blocks stay populated without a street on every block edge.
+ * Houses stand next to local roads only; set back from highways/rail so the map stays playable
+ * instead of wall-to-wall buildings along every corridor.
  * @returns {boolean}
  */
-function houseSite(map, x, y, dens) {
-  if (nextToRoad(map, x, y)) return true;
-  if (dens < 2) return false;
-  const W = map.width, H = map.height;
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      const nx = x + dx, ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-      const t = map.tiles[ny * W + nx];
-      if (t.road && t.terrain !== 'water') return true;
-    }
-  }
-  return false;
+function houseSite(map, x, y, _dens, inCentre) {
+  if (!nextToRoad(map, x, y)) return false;
+  // keep a clear buildable buffer beside high-lane roads and rail
+  if (!inCentre && nearTransport(map, x, y, 1)) return false;
+  return true;
 }
 
 /**
@@ -193,12 +197,14 @@ export function placeHouses(state, rng, L, towns, marks) {
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
       if (manhattan(x, y, kx, ky) <= 5) continue;
       const dK = Math.hypot(x - kx, y - ky);
-      if (dK > 10 && rng.chance(vacancyChance(dK))) continue; // leave open plots between districts
-      // keep tiles clear around every built landmark ensemble (photo prominence)
-      if (dK > 10 && withinLandmarkClear(state, x, y)) continue;
-      if (!houseSite(map, x, y, dens)) continue;
       const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9;
-      const inCentre = d2(x, y, kx, ky) <= CENTRE_RADIUS * CENTRE_RADIUS;
+      const inCentre = dK <= CENTRE_RADIUS;
+      // keep the core readable but not wall-to-wall; open the rest for roads/rail and building
+      if (dK > 8 && rng.chance(vacancyChance(dK))) continue;
+      // extra thinning outside the centre so houses don't line every road
+      if (!inCentre && !inCity && rng.chance(dens >= 3 ? 0.18 : 0.30)) continue;
+      if (dK > 10 && withinLandmarkClear(state, x, y)) continue;
+      if (!houseSite(map, x, y, dens, inCentre || inCity)) continue;
       let level = Math.max(1, Math.min(4, dens + rng.int(-1, 1)));
       // historic centre is mostly 4–8 storey blocks (level 3) with scattered towers (level 4)
       if (inCentre) level = rng.chance(dens >= 2 ? CENTRE_TOWER_SHARE : CENTRE_TOWER_SHARE / 2) ? 4 : 3;

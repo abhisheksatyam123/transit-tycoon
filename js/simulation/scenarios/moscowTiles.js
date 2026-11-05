@@ -96,6 +96,23 @@ export function applyBits(map, key, chars) {
 export const AVENUE_OF = { m: 1, t: 1, p: 2, s: 3 };
 
 /**
+ * Mark the baked motorway/trunk network as full-width 4-lane highways.
+ * Local streets and primary avenues are unchanged.
+ * @returns {number} tiles upgraded
+ */
+export function upgradeTrunkRoads(map, L) {
+  let n = 0;
+  for (let i = 0; i < L.n; i++) {
+    if (L.roadClass[i] !== 'm' && L.roadClass[i] !== 't') continue;
+    const t = map.tiles[i];
+    if (!t.road || t.highway === 1) continue;
+    t.highway = 1;
+    n++;
+  }
+  return n;
+}
+
+/**
  * Mark tiles carrying major roads: owner 'town', forest under road cleared.
  * @returns {Uint8Array} 1 where baked roadClass is not '.'
  */

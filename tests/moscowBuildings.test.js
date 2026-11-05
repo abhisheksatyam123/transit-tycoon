@@ -7,6 +7,7 @@ import { createRng } from '../js/simulation/rng.js';
 
 import { MOSCOW } from '../js/config/maps/moscow.js';
 import { LANDMARK_SPECS } from '../js/simulation/scenarios/moscowLandmarks.js';
+import { LM3D } from '../js/config/landmarks3d.js';
 
 const real = !!(MOSCOW && MOSCOW.width);
 
@@ -62,21 +63,31 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
     const far = houses.filter(({ i }) => Math.hypot((i % state.map.width) - kx, Math.floor(i / state.map.width) - ky) > 100);
     expect(far.some(({ t }) => t.building.style === 'cottage')).toBe(true);
   });
-  // v2 band: the expanded bbox (outer districts, MKAD ring) gives ~485k; carving open plots
-  // (~413k), monument clear rings (~384k), then monument enlargement 2x + 8-tile rings (~350k).
-  // Towns regrow into the gaps during play. 320k–650k is the sane range.
-  test('Moscow population in the 320k–650k band', () => {
-    const pop = state.towns.reduce((a, t) => a + t.population, 0);
-    expect(pop).toBeGreaterThan(320000);
-    expect(pop).toBeLessThan(650000);
+  // The real motorway/trunk network is upgraded to 4-lane highways for cross-city runs.
+  test('intercity roads are upgraded to highways', () => {
+    const highways = state.map.tiles.filter((t) => t.highway === 1 && t.road);
+    expect(highways.length).toBeGreaterThan(1500);
   });
-  // Note (monument-focused design): since ensembles were enlarged 2x (LM_SCALE 4) with an
-  // 8-tile clear ring, the Kremlin ensemble itself occupies the centre, so the largest
-  // population town is now an outer district — Kremlin/Tverskoy only needs to be a major town.
-  test('Kremlin/Tverskoy is a major town', () => {
+  // Overlapping OSM monuments cannot claim tiles over big landmarks; they are drawn as overlays instead.
+  test('every blocked OSM monument is drawn as an overlay', () => {
+    const blocked = Object.values(LM3D).filter((e) => !e.tiles?.length);
+    expect(state.map.lm3dOverlays).toHaveLength(blocked.length);
+    for (const e of blocked) expect(state.map.lm3dOverlays.some((o) => o.id === e.id)).toBe(true);
+  });
+  // v4 band: houses are thinned aggressively so roads, rail and highways stay readable and
+  // there is buildable space between districts; corridors beside highways/rail are cleared.
+  // ~58k at the default scenario. Towns regrow into the gaps during play.
+  test('Moscow population in the 40k–160k band', () => {
+    const pop = state.towns.reduce((a, t) => a + t.population, 0);
+    expect(pop).toBeGreaterThan(40000);
+    expect(pop).toBeLessThan(160000);
+  });
+  // Note (sparse gameplay layout): buildings are thinned and corridors cleared; Kremlin/Tverskoy
+  // remains the central district and regrows into the cleared space.
+  test('Kremlin/Tverskoy is present', () => {
     const kre = state.towns.find((t) => /Kremlin/.test(t.name));
     expect(kre).toBeTruthy();
-    expect(kre.population).toBeGreaterThanOrEqual(8000);
+    expect(kre.population).toBeGreaterThanOrEqual(500);
   });
   test('new Seven Sisters and landmarks are in the spec list', () => {
     const ids = LANDMARK_SPECS.map((s) => s.id);

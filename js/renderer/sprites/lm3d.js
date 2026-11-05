@@ -40,9 +40,19 @@ function blit(ctx, e, x, y, sx, sy, ground, rect) {
   ctx.imageSmoothingEnabled = prev;
 }
 
-const frontCache = new WeakMap();
-/** Front tiles of the ensembles stamped on this map: [{id,x,y}] (rescanned every 240 calls; tiles rarely change). */
+/**
+ * Front tiles of the ensembles stamped on this map: [{id,x,y}] (rescanned every 240 calls; tiles rarely change).
+ * Overlay-only ensembles (whose footprint is too congested to claim) are included so off-screen sprites can be
+ * painted after the diagonal pass.
+ */
 export function lm3dFronts(map) {
+  const c = overlayFronts(map);
+  return c.list;
+}
+
+const frontCache = new WeakMap();
+const overlayCache = new WeakMap();
+function overlayFronts(map) {
   let c = frontCache.get(map);
   if (!c || ++c.n > 240) {
     const list = [];
@@ -50,7 +60,22 @@ export function lm3dFronts(map) {
     if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) if (o && LM3D[o.id] && Number.isInteger(o.x) && Number.isInteger(o.y)) list.push({ id: o.id, x: o.x, y: o.y });
     c = { list, n: 0 }; frontCache.set(map, c);
   }
-  return c.list;
+  return c;
+}
+
+/** Overlay sprites grouped by tile so they can be drawn in painter's order. */
+export function lm3dOverlayBuckets(map) {
+  let c = overlayCache.get(map);
+  if (!c || ++c.n > 240) {
+    const buckets = new Map();
+    if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) {
+      if (!o || !LM3D[o.id] || !Number.isInteger(o.x) || !Number.isInteger(o.y)) continue;
+      const key = o.x + ',' + o.y;
+      const bucket = buckets.get(key); if (bucket) bucket.push(o); else buckets.set(key, [o]);
+    }
+    c = { buckets, n: 0 }; overlayCache.set(map, c);
+  }
+  return c.buckets;
 }
 
 /** Ground image (plazas, parks, paths) of ensemble `id`; drawn before all objects so nothing tall is painted over. */

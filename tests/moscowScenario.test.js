@@ -82,7 +82,8 @@ describe('real Moscow map', () => {
     const g = Game.create({ scenario: 'moscow', seed: 1, startYear: 1950 });
     const ms = performance.now() - t0;
     const pop = g.state.towns.reduce((a, t) => a + t.population, 0);
-    expect(pop).toBeGreaterThanOrEqual(150000);
+    // sparse, gameplay-friendly layout: houses thinned and corridors cleared; towns regrow
+    expect(pop).toBeGreaterThanOrEqual(40000);
     expect(g.state.scenarioMeta.metro.length).toBeGreaterThanOrEqual(5);
     expect(runDiagnostics(g).filter((i) => i.severity === 'error')).toEqual([]);
     expect(ms).toBeLessThan(20000);
@@ -100,15 +101,14 @@ describe('Moscow fidelity (T24)', () => {
     return s.scenarioMeta.focus;
   };
 
-  // Note (monument-focused design, LM_SCALE 4 + 8-tile ring): the enlarged Kremlin ensemble
-  // occupies the centre, so the largest town is now an outer district — just check focus + that
-  // Kremlin/Tverskoy is a major town.
-  test.skipIf(!real)('focus point is the Kremlin and the Kremlin town is major', () => {
+  // Note (sparse gameplay layout): buildings are thinned and corridors cleared; the focus is the
+  // Kremlin and its town remains the central district (it regrows into cleared space).
+  test.skipIf(!real)('focus point is the Kremlin and the Kremlin town is present', () => {
     const { state } = world();
     expect(state.scenarioMeta.focus).toBeDefined();
     const kre = state.towns.find((t) => /Kremlin/.test(t.name));
     expect(kre).toBeTruthy();
-    expect(kre.population).toBeGreaterThanOrEqual(8000);
+    expect(kre.population).toBeGreaterThanOrEqual(500);
   }, 60000);
 
   test.skipIf(!real)('no industry within 30 tiles of the Kremlin', () => {
