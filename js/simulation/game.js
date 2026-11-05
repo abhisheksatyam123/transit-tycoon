@@ -152,10 +152,11 @@ export class Game {
 
   // ---- commands ----
   buildRail(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, opts); }
-  buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts); }
+  buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}); }
   /** Build along an explicit 4-connected tile path (opts.loop = closed ring); see shapes.js. */
-  buildRailPath(path, opts) { return buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...opts, path }); }
-  buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...opts, path }); }
+  buildRailPath(path, opts) { return buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...(opts || {}), path }); }
+  /** Build a road along a shape path. opts: { highway?: boolean } */
+  buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }); }
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
   buildRailStation(x, y, axis, length, opts) { return buildRailStation(this.ctx, x, y, axis, length, opts); }
   buildRoadStop(x, y, kind, opts) { return buildRoadStop(this.ctx, x, y, kind, opts); }

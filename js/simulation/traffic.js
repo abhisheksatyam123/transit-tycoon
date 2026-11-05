@@ -11,8 +11,14 @@ import { dirBetween } from './constants.js';
 import { planTrip, repath, linkBit, tileIndex } from './trafficTrips.js';
 import {
   MAX_CARS, MAX_CARS_LIMIT, POP_PER_CAR_CAP, TRIPS_PER_POP_PER_DAY, CAR_SPEED, LANE_CAPACITY, CONGESTION_SLOW, LANE_OFFSET, GAP_MIN, ACCEL, DECEL, CORNER_SLOW,
-  STUCK_TICKS, HISTORY_DAYS, CONGESTED_LOAD, LOAD_ALPHA, JAM_CONGESTED, JAM_ALPHA,
+  STUCK_TICKS, HISTORY_DAYS, CONGESTED_LOAD, LOAD_ALPHA, JAM_CONGESTED, JAM_ALPHA, HWY_LANE_OFFSET, HWY_LANE_CAPACITY,
 } from '../config/traffic.js';
+
+/** Per-tile lane capacity: highway tiles (tile.highway on, tile.road present) hold HWY_LANE_CAPACITY. */
+function laneCapacity(map, tileIndex) {
+  const t = map.tiles[tileIndex];
+  return t && t.highway === 1 && t.road ? HWY_LANE_CAPACITY : LANE_CAPACITY;
+}
 
 /**
  * Create the initial traffic state.
@@ -108,7 +114,7 @@ function spawnCars(ctx, tr, rng, occ) {
     }
     // origin lane full: the trip is suppressed (demand the street cannot absorb)
     const k0 = occKey(plan.path[0], linkBit(state.map, plan.path[0], plan.path[1]));
-    if (occ[k0] >= LANE_CAPACITY) { tr.stats.suppressedToday++; tr.stats.suppressedTotal++; continue; }
+    if (occ[k0] >= laneCapacity(state.map, plan.path[0])) { tr.stats.suppressedToday++; tr.stats.suppressedTotal++; continue; }
     occ[k0]++;
     tr.cars.push({
       id: tr.nextCarId++, townId: town.id, path: plan.path, i: 0, t: 0, speed: CAR_SPEED,
@@ -186,7 +192,7 @@ function moveCar(ctx, tr, c, occ, lanes) {
   if (c.i >= last) { endCar(tr, c, true, state.tick); return true; }
   const a = c.path[c.i], b = c.path[c.i + 1];
   const here = occKey(a, linkBit(map, a, b));
-  const load = occ[here] / LANE_CAPACITY;
+  const load = occ[here] / laneCapacity(map, a);
   let target = CAR_SPEED * (1 - CONGESTION_SLOW * Math.min(1, load));
   if (bendsAt(W, c.path, c.i)) target *= CORNER_SLOW;
   // car ahead in the same lane (larger progress on this tile)
@@ -215,7 +221,7 @@ function moveCar(ctx, tr, c, occ, lanes) {
     return false;
   }
   const nextKey = c.i + 1 < last ? occKey(b, linkBit(map, b, c.path[c.i + 2])) : null;
-  if (nextKey !== null && occ[nextKey] >= LANE_CAPACITY) {
+  if (nextKey !== null && occ[nextKey] >= laneCapacity(map, b)) {
     c.t = 1; c.speed = 0;
     tr.acc.blocked[a]++;
     if (++c.wait >= STUCK_TICKS) { endCar(tr, c, false, state.tick); return true; }
@@ -292,13 +298,15 @@ export function trafficDaily(ctx) {
 /**
  * Lane pose on tile path[i] at fraction t (0..1). Straights run between edge midpoints,
  * corners are quarter arcs about the shared tile corner (radius 0.5 -/+ LANE_OFFSET). Right-hand
- * traffic: the lane sits LANE_OFFSET to the right of the travel direction.
+ * traffic: the lane sits LANE_OFFSET (or HWY_LANE_OFFSET on highway tiles when `map` is given)
+ * to the right of the travel direction.
  * @returns {{x:number,y:number,ang:number}} tile-space point and heading angle (rad)
  */
-export function lanePose(W, path, i, t) {
+export function lanePose(W, path, i, t, map = null) {
   const tile = path[i];
   const cx = tile % W, cy = (tile - cx) / W;
-  const L = LANE_OFFSET;
+  const onHwy = map && map.tiles && map.tiles[tile] && map.tiles[tile].highway === 1 && map.tiles[tile].road;
+  const L = onHwy ? HWY_LANE_OFFSET : LANE_OFFSET;
   const pIdx = i > 0 ? path[i - 1] : -1, nIdx = i + 1 < path.length ? path[i + 1] : -1;
   const ent = pIdx >= 0 ? [(pIdx % W) - cx, Math.floor(pIdx / W) - cy] : null;
   const ext = nIdx >= 0 ? [(nIdx % W) - cx, Math.floor(nIdx / W) - cy] : null;
@@ -342,7 +350,7 @@ export function trafficCars(state) {
   const W = state.map.width;
   const out = [];
   for (const c of tr.cars) {
-    const p = lanePose(W, c.path, c.i, c.t);
+    const p = lanePose(W, c.path, c.i, c.t, state.map);
     // dir bit from the heading (nearest of N/E/S/W), kept for existing 4-dir sprites
     const ax = Math.cos(p.ang), ay = Math.sin(p.ang);
     const dir = Math.abs(ax) >= Math.abs(ay) ? (ax >= 0 ? 2 : 8) : (ay >= 0 ? 4 : 1);

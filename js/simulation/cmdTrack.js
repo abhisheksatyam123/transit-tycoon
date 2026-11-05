@@ -65,6 +65,14 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     const err = canAddBits(getTile(map, p.x, p.y), layer, want.get(p.y * map.width + p.x));
     if (err) return { ok: false, error: err };
   }
+  // apply the requested highway class to road tiles of this line (upgrade in place / fresh build)
+  let hwy = 0;
+  if (layer === 'road' && opts.highway === true) {
+    for (const p of pts) {
+      const i = p.y * map.width + p.x;
+      if (map.tiles[i].road) hwy++;
+    }
+  }
   // optional end connections
   for (const [p, out] of loop ? [] : [[pts[0], startOut], [pts[n - 1], endOut]]) {
     const d = DIRS.find((q) => q.bit === out);
@@ -80,11 +88,14 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   let cost = 0, changed = 0;
   const base = layer === 'rail' ? COSTS.rail : COSTS.road;
   const onLine = new Set(pts.map((p) => p.y * map.width + p.x));
+  const isHwy = layer === 'road' && opts.highway === true;
   for (const [i, bits] of want) {
     const t = map.tiles[i];
-    if ((t[layer] | bits) === t[layer]) continue;
+    const fresh = (t[layer] | bits) !== t[layer];
+    const upgrade = isHwy && t[layer] !== 0 && t.highway !== 1;
+    if (!fresh && !upgrade) continue;
     changed++;
-    if (onLine.has(i)) cost += base + clearingCost(t);
+    if (onLine.has(i)) cost += (fresh ? base : 0) + (isHwy ? base * Math.max(0, 2 - (fresh ? 1 : 0)) : 0) + clearingCost(t);
   }
   if (changed === 0) return { ok: false, error: ERR.built };
   const money = checkMoney(state, cost);
@@ -94,6 +105,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     const t = map.tiles[i];
     if (onLine.has(i)) clearTerrain(t);
     t[layer] |= bits;
+    if (isHwy) t.highway = 1;
     if (!t.owner) t.owner = 'company';
   }
   spend(state.company, 'construction', cost);

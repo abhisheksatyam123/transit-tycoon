@@ -8,7 +8,7 @@ import { HALF_W, HALF_H, HEIGHT_STEP } from '../iso.js';
 import { blit } from '../sprites/canvas.js';
 import { carSprite, carTraits } from '../sprites/cars.js';
 import { getPoseMap, smoothPose, poseCovered } from '../net/pose.js';
-import { LANE_OFFSET } from '../../config/traffic.js';
+import { LANE_OFFSET, HWY_LANE_OFFSET } from '../../config/traffic.js';
 
 /**
  * Move a car from its sim lane pose onto the smooth net centreline (render-only). The lane point is
@@ -21,11 +21,15 @@ export function smoothCarPose(car) {
   const map = getPoseMap();
   if (!map || car.ang === undefined || !poseCovered(map, 'road', car.fx, car.fy)) return car;
   const p = { x: 0, y: 0, angle: 0, w: 1 };
+  /** Lane offset per current tile (highway tiles use the wider offset). */
+  const L = (typeof car.fx === 'number' && map.tiles[Math.floor(car.fy) * map.width + Math.floor(car.fx)]?.highway === 1
+    && map.tiles[Math.floor(car.fy) * map.width + Math.floor(car.fx)]?.road)
+    ? HWY_LANE_OFFSET : LANE_OFFSET;
   // remove the sim lane offset (right of the sim heading), project the centreline, re-add it
-  const ox = -Math.sin(car.ang) * LANE_OFFSET, oy = Math.cos(car.ang) * LANE_OFFSET;
+  const ox = -Math.sin(car.ang) * L, oy = Math.cos(car.ang) * L;
   const p2 = smoothPose(map, 'road', car.fx - ox, car.fy - oy, car.ang);
   if (!p2) return car;
-  const nx = -Math.sin(p2.angle) * LANE_OFFSET, ny = Math.cos(p2.angle) * LANE_OFFSET;
+  const nx = -Math.sin(p2.angle) * L, ny = Math.cos(p2.angle) * L;
   p.x = p2.x; p.y = p2.y; p.angle = p2.angle; p.w = p2.w;
   const w = p.w;
   let da = p.angle - car.ang;

@@ -19,6 +19,10 @@ export const CAR_SPEED = 50 / 800;
 export const LANE_CAPACITY = 2;
 /** Lane offset from the road centre line (tile units), right-hand traffic. */
 export const LANE_OFFSET = 0.2;
+/** Highway (4-lane) lane offset (tile units), right-hand traffic. */
+export const HWY_LANE_OFFSET = 0.23;
+/** Highway occupancy multiplier: each highway lane key holds this many more cars. */
+export const HWY_LANE_CAPACITY = 4;
 /** Minimum bumper gap (tile units along the lane) kept to the car ahead. */
 export const GAP_MIN = 0.35;
 /** Speed change limits per tick (tiles/tick). */

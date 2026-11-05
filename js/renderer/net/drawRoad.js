@@ -73,8 +73,9 @@ function dashes(ctx, len, i0, S, n, colour, lw) {
  * @param {boolean} paved town street / avenue: pavement both sides
  * @param {number} cls road class (tile.avenue|0)
  * @param {boolean} ogfx OpenGFX palette (else procedural palette)
+ * @param {boolean} [hwy] highway tile: full-tile 4-lane carriageway with a grass median + dashed lane lines
  */
-export function drawRoadSpan(ctx, e, i0, S, n, paved, cls, ogfx) {
+export function drawRoadSpan(ctx, e, i0, S, n, paved, cls, ogfx, hwy) {
   if (n < 2) return;
   const w = (WIDTH[cls] || WIDTH[0]) * PX;
   ctx.lineCap = 'butt';
@@ -83,5 +84,14 @@ export function drawRoadSpan(ctx, e, i0, S, n, paved, cls, ogfx) {
   else strokePoly(ctx, S, n, ogfx ? '#4f6b35' : '#5c7a42', w + 3);
   strokePoly(ctx, S, n, '#6e6e6e', w + 1.6); // kerb line both sides
   strokePoly(ctx, S, n, ogfx ? '#4b4f55' : '#55595f', w); // asphalt
+  if (hwy) {
+    const hw = 0.52 * PX; // full-tile carriageway (two lanes a side + edge lines)
+    strokePoly(ctx, S, n, ogfx ? '#4b4f55' : '#55595f', hw);
+    // centre median (grass strip + kerb edges)
+    strokePoly(ctx, S, n, '#6e6e6e', 0.16 * PX);
+    strokePoly(ctx, S, n, ogfx ? '#4f6b35' : '#5c7a42', 0.12 * PX);
+    dashes(ctx, e.len, i0, S, n, '#ececec', 1.1);
+    return;
+  }
   dashes(ctx, e.len, i0, S, n, '#ececec', 1.3);
 }

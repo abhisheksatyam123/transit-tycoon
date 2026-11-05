@@ -84,10 +84,10 @@ export function drawNetTile(ctx, map, x, y, sx, sy, heights) {
         buf[2 * k] = (px - py) * HALF_W;
         buf[2 * k + 1] = (px + py) * HALF_H - h * HEIGHT_STEP;
       }
-      if (kind === 'road') {
+  if (kind === 'road') {
         const tile = map.tiles[i];
         const paved = (tile.avenue | 0) > 0 || tile.owner === 'town';
-        drawRoadSpan(ctx, e, i0, buf, n, paved, e.cls | 0, ogfx);
+        drawRoadSpan(ctx, e, i0, buf, n, paved, e.cls | 0, ogfx, tile.highway === 1);
       } else {
         drawRailSpan(ctx, e, i0, buf, n, ogfx);
       }

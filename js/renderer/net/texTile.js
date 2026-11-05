@@ -42,7 +42,30 @@ export function netTexReady() {
 
 /** Procedural (non-OpenGFX) straight road/rail sources in the same 64x31 straight-sprite layout. */
 const procCache = new Map();
-function procSprite(kind, paved) {
+/** Procedural highway strip: full-tile-width dark asphalt with a grass median + dashes. */
+function procHwy() {
+  if (procCache.has('roadH')) return procCache.get('roadH');
+  const w = 64, h = 31, d = new Uint8ClampedArray(w * h * 4);
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+    const a = (px + 0.5 - w / 2) / (w / 2), b = (py + 0.5 - h / 2) / (h / 2);
+    const uu = (a + b) / 2, vv = (b - a) / 2, au = Math.abs(uu);
+    const g = (rnd() - 0.5) * 5;
+    let c = [62 + g, 65 + g, 70 + g];
+    let f = ((vv + 0.5) * 4) % 1; if (f < 0) f += 1;
+    if (au < 0.05) c = [88 + g, 140 + g, 52 + g];
+    else if (au < 0.09) c = [188, 186, 178];
+    else if (au < 0.24 && f < 0.45) c = [236, 236, 228];
+    const o = (py * w + px) * 4;
+    d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+  }
+  const r = { w, h, d };
+  procCache.set('roadH', r);
+  return r;
+}
+function procSprite(kind, paved, hwy) {
+  if (kind === 'road' && hwy) return procHwy();
   const key = kind + (paved ? 'p' : 'g');
   if (procCache.has(key)) return procCache.get(key);
   const w = 64, h = 31, d = new Uint8ClampedArray(w * h * 4);
@@ -113,7 +136,10 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
       }
       if (!be || best > 0.27) continue; // |d| > ~0.52
       const paved = kind === 'road' && isPaved(map, be);
-      const src = ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procSprite(kind, paved);
+      const hwy = kind === 'road' && isHwy(map, be);
+      // highway tiles sample the procedural highway strip even in OpenGFX mode (no matching pack sprite)
+  const src = hwy ? (ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procHwy())
+    : (ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procSprite(kind, paved));
       if (!src) continue;
       let d = bd;
       const ad = Math.abs(d);
@@ -126,10 +152,11 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
           continue;
         }
       }
-      if (kind === 'road' && paved) {
+      if (kind === 'road' && hwy && ad > 0.52 && !onWater) { any = true; continue; }
+      if (kind === 'road' && paved && !hwy) {
         if (ad > 0.5) continue;
         if (ad > 0.3) { const q = (ad - 0.3) % 0.28; d = Math.sign(d) * (0.3 + (q < 0.14 ? q : 0.28 - q)); }
-      } else if (ad > 0.45) continue;
+      } else if (ad > 0.45 && !hwy) continue;
       let tv = bt % 1; if (tv < 0) tv += 1;
       const uu = d, vv = tv - 0.5;
       const sx = Math.round((uu - vv) * (src.w / 2) + src.w / 2 - 0.5);
@@ -149,6 +176,15 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
     }
   }
   return any;
+}
+
+/**
+ * True when the edge overlays a highway tile (tile.highway on + road).
+ */
+function isHwy(map, e) {
+  const ti = e.tiles.length ? e.tiles[0] : e.a;
+  const t = ti >= 0 ? map.tiles[ti] : null;
+  return !!t && t.highway === 1 && !!t.road;
 }
 
 function isPaved(map, e) {
