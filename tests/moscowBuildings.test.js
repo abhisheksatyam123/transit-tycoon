@@ -70,9 +70,15 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
     expect(pop).toBeGreaterThan(320000);
     expect(pop).toBeLessThan(650000);
   });
-  test('Kremlin/Tverskoy is the largest town', () => {
-    const top = state.towns.slice().sort((a, b) => b.population - a.population)[0];
-    expect(top.name).toMatch(/Kremlin/);
+  // Note (monument-focused design): since ensembles were enlarged 2x (LM_SCALE 4) with an
+  // 8-tile clear ring, the Kremlin ensemble itself occupies the centre, so the largest
+  // population town is now an outer district — Kremlin/Tverskoy only needs to be a major town.
+  test('Kremlin/Tverskoy is a major town', () => {
+    const kre = state.towns.find((t) => /Kremlin/.test(t.name));
+    expect(kre).toBeTruthy();
+    expect(kre.population).toBeGreaterThanOrEqual(10000);
+    const ranked = state.towns.slice().sort((a, b) => b.population - a.population);
+    expect(ranked.indexOf(kre)).toBeLessThan(8);
   });
   test('new Seven Sisters and landmarks are in the spec list', () => {
     const ids = LANDMARK_SPECS.map((s) => s.id);

@@ -100,11 +100,17 @@ describe('Moscow fidelity (T24)', () => {
     return s.scenarioMeta.focus;
   };
 
-  test.skipIf(!real)('focus point is the Kremlin and the largest town is central', () => {
+  // Note (monument-focused design, LM_SCALE 4 + 8-tile ring): the enlarged Kremlin ensemble
+  // occupies the centre, so the largest town is now an outer district — just check focus + that
+  // Kremlin/Tverskoy is a major town.
+  test.skipIf(!real)('focus point is the Kremlin and the Kremlin town is major', () => {
     const { state } = world();
     expect(state.scenarioMeta.focus).toBeDefined();
-    const top = [...state.towns].sort((a, b) => b.population - a.population)[0];
-    expect(top.name).toMatch(/Kremlin/);
+    const kre = state.towns.find((t) => /Kremlin/.test(t.name));
+    expect(kre).toBeTruthy();
+    expect(kre.population).toBeGreaterThanOrEqual(10000);
+    const ranked = state.towns.slice().sort((a, b) => b.population - a.population);
+    expect(ranked.indexOf(kre)).toBeLessThan(8);
   }, 60000);
 
   test.skipIf(!real)('no industry within 30 tiles of the Kremlin', () => {
