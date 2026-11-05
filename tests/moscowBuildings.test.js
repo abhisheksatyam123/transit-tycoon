@@ -62,10 +62,11 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
     const far = houses.filter(({ i }) => Math.hypot((i % state.map.width) - kx, Math.floor(i / state.map.width) - ky) > 100);
     expect(far.some(({ t }) => t.building.style === 'cottage')).toBe(true);
   });
-  // v2 band: the expanded bbox (outer districts, MKAD ring) gives ~485k; 450k–650k is the sane range
-  test('Moscow population in the 450k–650k v2 band', () => {
+  // v2 band: the expanded bbox (outer districts, MKAD ring) gives ~485k; carving open plots for
+  // gameplay lowered it (~400k). Towns regrow into the gaps during play. 380k–650k is the sane range.
+  test('Moscow population in the 380k–650k band', () => {
     const pop = state.towns.reduce((a, t) => a + t.population, 0);
-    expect(pop).toBeGreaterThan(450000);
+    expect(pop).toBeGreaterThan(380000);
     expect(pop).toBeLessThan(650000);
   });
   test('Kremlin/Tverskoy is the largest town', () => {

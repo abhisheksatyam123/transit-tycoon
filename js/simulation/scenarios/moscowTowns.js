@@ -18,6 +18,23 @@ export const CENTRE_CATCHMENT = 30;
 /** Distance weight of the Kremlin/Tverskoy town when claiming tiles (<1 pulls the centre outward). */
 export const CENTRE_PULL = 0.5;
 
+/**
+ * Open plots for the player between districts: the chance a valid house site is left
+ * empty grows with distance from the Kremlin (the historic core stays dense).
+ * Gives the map infill room instead of a wall of houses on every road-side tile.
+ */
+export const VACANCY = [
+  { d: 9, p: 0.02 },
+  { d: 16, p: 0.05 },
+  { d: 26, p: 0.11 },
+  { d: Infinity, p: 0.20 },
+];
+/** Vacancy probability for distance `d` (tiles, Euclidean) from the Kremlin. */
+export function vacancyChance(d) {
+  for (const band of VACANCY) if (d <= band.d) return band.p;
+  return VACANCY[VACANCY.length - 1].p;
+}
+
 /** Radius (tiles) of the dense centre inside the Garden Ring: houses at level 3, some 4. */
 export const CENTRE_RADIUS = 18;
 
@@ -157,6 +174,7 @@ export function placeHouses(state, rng, L, towns, marks) {
       const dens = Number(L.density[i]) || 0;
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
       if (manhattan(x, y, kx, ky) <= 5) continue;
+      if (rng.chance(vacancyChance(Math.hypot(x - kx, y - ky)))) continue; // leave open plots between districts
       if (!houseSite(map, x, y, dens)) continue;
       const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9;
       const inCentre = d2(x, y, kx, ky) <= CENTRE_RADIUS * CENTRE_RADIUS;
