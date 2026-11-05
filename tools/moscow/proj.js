@@ -6,7 +6,7 @@
 /** Map bounding box (MKAD with margin). */
 export const BBOX = { s: 55.39, w: 37.22, n: 55.99, e: 37.95 };
 /** Tile size in metres. */
-export const TILE_M = 200;
+export const TILE_M = Number(process.env.MOSCOW_TILE_M) || 100;
 const COS_LAT = Math.cos((55.75 * Math.PI) / 180);
 /** Metres per degree longitude / latitude at the map centre. */
 export const M_PER_LON = 111320 * COS_LAT;

@@ -6,14 +6,15 @@
  * Model: mutual 4-bit links (A has bit toward B and B the opposite bit). Edges touching building
  * tiles (houses, stations, depots, landmarks, industries) are never removed. Pure, deterministic.
  */
+import { tl, TS } from './moscowScale.js';
 import { DIRS, OPPOSITE } from '../constants.js';
 const DIRS_BY_BIT = { 1: DIRS[0], 2: DIRS[1], 4: DIRS[2], 8: DIRS[3] };
 
 const BITS = [1, 2, 4, 8];
 /** Max path length (edges) between the ends of a road edge that closes a cycle we drop. */
-export const ROAD_SMALL_CYCLE = 8;
+export const ROAD_SMALL_CYCLE = tl(8);
 /** Max dead-end spur length (tiles) pruned. */
-export const ROAD_SPUR_MAX = 2;
+export const ROAD_SPUR_MAX = tl(2);
 const ALWAYS_KEEP = 1e6;
 
 const hasBuilding = (t) => !!t.building;
@@ -113,7 +114,7 @@ const step = (map, i, bit) => idxOf(map, i % map.width + STEP[bit][0], Math.floo
 /** Free for a new road corner: no road, building, water, rail, tunnel. */
 const freeTile = (t) => !t.road && !t.building && !t.rail && !t.tunnel && t.terrain !== 'water';
 
-const JOG_RUN_MAX = 4;
+const JOG_RUN_MAX = tl(4);
 const isStraightArm = (t, d) => t.road === (d | OPPB[d]) && !t.building && !t.rail && !t.tunnel;
 
 /**

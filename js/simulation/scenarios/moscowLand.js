@@ -2,6 +2,7 @@
  * Moscow scenario, land and depots: demolish houses and local links where industries, stations
  * or depots need room, and attach depots to a line through a one-tile spur.
  */
+import { tl, TS } from './moscowScale.js';
 import { DIRS, OPPOSITE } from '../constants.js';
 import { inBounds } from '../map.js';
 
@@ -62,7 +63,7 @@ export function clearFootprint(state, x0, y0, w, h, keepLinks = false) {
  * and no major road (local streets may be cleared). Does not modify the map.
  * @returns {{x:number,y:number}|null}
  */
-export function findFootprint(state, w, h, cx, cy, maxR = 8, major = null) {
+export function findFootprint(state, w, h, cx, cy, maxR = tl(8), major = null) {
   const { map } = state;
   for (let r = 0; r <= maxR; r++) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -129,7 +130,7 @@ export function spurDepot(game, layer, anchors) {
  * e.g. bridge stubs cut off by water polygons or metro works. Rail bits are kept.
  * @returns {number} road tiles removed
  */
-export function pruneRoadIslands(state, maxTiles = 8) {
+export function pruneRoadIslands(state, maxTiles = 8 * TS * TS) {
   const { map } = state;
   const W = map.width, N = W * map.height;
   const seen = new Uint8Array(N);
@@ -203,7 +204,7 @@ function roadLabels(map) {
  * @param {number} [maxLen=20] longest connector in tiles
  * @returns {{joined:number, tiles:number}}
  */
-export function joinRoadComponents(state, maxLen = 20) {
+export function joinRoadComponents(state, maxLen = tl(20)) {
   const { map } = state;
   const W = map.width, N = W * map.height;
   const { lab, sizes, main } = roadLabels(map);

@@ -1,4 +1,5 @@
 import { test, expect, describe } from 'bun:test';
+import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { createHash } from 'crypto';
 import { Game } from '../js/simulation/game.js';
 import { runDiagnostics } from '../js/simulation/diagnostics.js';
@@ -115,7 +116,7 @@ describe('Moscow fidelity (T24)', () => {
     const k = kremlinPos();
     for (const ind of world().state.industries) {
       const d = dist(ind.x + ind.w / 2, ind.y + ind.h / 2, k.x, k.y);
-      expect(d).toBeGreaterThanOrEqual(30);
+      expect(d).toBeGreaterThanOrEqual(tl(30));
     }
   });
 
@@ -167,7 +168,7 @@ describe('Moscow fidelity (T24)', () => {
     const { state } = world();
     const k = state.scenarioMeta.focus;
     let near = false;
-    for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = -tl(3); dy <= tl(3) && !near; dy++) for (let dx = -tl(3); dx <= tl(3); dx++) {
       const x = k.x + dx, y = k.y + dy;
       if (x < 0 || y < 0 || x >= state.map.width || y >= state.map.height) continue;
       if (state.map.tiles[y * state.map.width + x].terrain === 'water') { near = true; break; }

@@ -3,6 +3,7 @@
  * hangar depot, plus a couple of prop/jet aircraft flying between them. Sites come from
  * map.airports when baked, otherwise from the real lat/lon. Pure and deterministic.
  */
+import { tl, TS } from './moscowScale.js';
 import { project } from './moscowTiles.js';
 
 /** Real airport positions: [id, name, lat, lon]. */
@@ -16,10 +17,10 @@ export const AIRPORT_SITES = [
 export const AIRCRAFT_PER_PAIR = 1;
 
 /** Search radius (tiles) around a real site for a clearable airport footprint. */
-export const AIRPORT_SEARCH_R = 40;
+export const AIRPORT_SEARCH_R = tl(40);
 
 /** Half-size (tiles) of the area kept free of generated local streets around each airport site. */
-export const AIRPORT_RESERVE = { rx: 6, ry: 5 };
+export const AIRPORT_RESERVE = { rx: tl(6), ry: tl(5) };
 
 /**
  * Tile position of each airport site: centre of the baked bbox (x+w/2, y+h/2) clamped into the map,

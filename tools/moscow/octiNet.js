@@ -3,7 +3,7 @@
  * octilinear chains. Rail: all tracks are rasterised, thinned to one centreline, traced and
  * then routed the same way so parallel tracks collapse into one line.
  */
-import { WIDTH, HEIGHT, projectF } from './proj.js';
+import { WIDTH, HEIGHT, projectF, TILE_M } from './proj.js';
 import { chainTiles, markChain } from './raster.js';
 import { simplifyDP } from './network.js';
 import { octiChainTiles } from './octi.js';
@@ -37,7 +37,7 @@ export function smooth(pts, n) {
 const EPS = Number(process.env.OCTI_EPS || 2);
 const SHORT = Number(process.env.OCTI_SHORT || 3);
 /** Minimum summed length (tiles) of a named secondary street to keep it. */
-const SECONDARY_MIN_TILES = Number(process.env.OCTI_SEC_KM || 6) * 1000 / 200;
+const SECONDARY_MIN_TILES = (Number(process.env.OCTI_SEC_KM || 3) * 1000) / TILE_M; // 3 km (was '6 km' at a 200 m-per-km bug = 3 km at 100 m)
 
 /**
  * Float tile polyline of a way.

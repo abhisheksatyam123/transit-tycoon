@@ -26,7 +26,7 @@ const ZOOMS = [1, 2, 4];
  * roads and vehicles are drawn ~5-10x larger than reality; true-scale monuments looked like miniatures beside
  * them, so ensembles are enlarged 4x about their anchor (a point that should stay put, e.g. a river-side wall).
  */
-export const LM_SCALE = 4;
+export const LM_SCALE = 3;
 let BLOCKED = new Set();
 const GROUND = { paving: colour('#b3a898'), paved: colour('#9d9284'), cobble: colour('#8a8078'), grass: colour('#6a9e48'), pitch: colour('#4f9a3e'), asphalt: colour('#5e5e62') };
 
@@ -89,9 +89,9 @@ function otherPoints(E) {
   }
   return out;
 }
-const SCALE_OVERRIDE = { kremlin: 3.5 }; // Kremlin is the centrepiece: fixed large scale (ens/kremlin.js untouched)
+const SCALE_OVERRIDE = { kremlin: 3 }; // Kremlin is the centrepiece: fixed large scale (ens/kremlin.js untouched)
 const PRIORITY = { kremlin: 0, christ_saviour: 1, bolshoi: 1, msu: 1, moscow_city: 1, luzhniki: 1, vdnkh: 1, ukraina: 1, kotelnicheskaya: 1, kudrinskaya: 1, mid: 1, leningradskaya: 1, red_gates: 1 };
-const MAX_PUSH = 8; // tiles: largest radial push-out per ensemble
+const MAX_PUSH = 16; // tiles (100 m): largest radial push-out per ensemble
 let PLAN = new Map(); // id -> {k, off:[dx,dy] metres}
 const isGeneric = (E) => E.id.startsWith('r7d_osm_');
 

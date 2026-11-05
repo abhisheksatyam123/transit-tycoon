@@ -3,9 +3,10 @@
  * deterministic: the style depends on the tile's distance from the Kremlin (tiles, 200 m each)
  * and on the Moscow City core, drawn from the game rng. Renderer draws styles in houses.js.
  */
+import { tl, TS } from './moscowScale.js';
 
 /** Distance bands (tiles from the Kremlin): inside Garden Ring, Garden-TTK, TTK-MKAD, outside MKAD. */
-export const ZONE_RADII = { garden: 18, ttk: 45, mkad: 100 };
+export const ZONE_RADII = { garden: tl(18), ttk: tl(45), mkad: tl(100) };
 
 /** Allowed level range per style [min, max] (level drives population, style drives looks). */
 export const STYLE_LEVELS = {

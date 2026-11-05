@@ -73,7 +73,7 @@ export function planTrip(state, rng, origin) {
   const dest = pickDestination(state, rng, origin);
   if (!dest) return null;
   if (dest.x === start.x && dest.y === start.y) return null;
-  const p = findPath(map, start, [dest], 'road', { maxNodes: PATH_MAX_NODES });
+  const p = findPath(map, start, [dest], 'road', { maxNodes: map.pathMaxNodes || PATH_MAX_NODES });
   if (!p) return { failed: true };
   return { path: p.map((t) => tileIndex(map, t.x, t.y)) };
 }
@@ -84,7 +84,7 @@ export function planTrip(state, rng, origin) {
  */
 export function repath(map, cur, dest) {
   const W = map.width;
-  const p = findPath(map, { x: cur % W, y: Math.floor(cur / W) }, [{ x: dest % W, y: Math.floor(dest / W) }], 'road', { maxNodes: PATH_MAX_NODES });
+  const p = findPath(map, { x: cur % W, y: Math.floor(cur / W) }, [{ x: dest % W, y: Math.floor(dest / W) }], 'road', { maxNodes: map.pathMaxNodes || PATH_MAX_NODES });
   return p ? p.map((t) => tileIndex(map, t.x, t.y)) : null;
 }
 

@@ -2,6 +2,8 @@
  * Moscow scenario: turns the baked MOSCOW map into a live game state. Entry point is
  * buildMoscow(game, map); the map object is passed in so tests can use a fixture.
  */
+import { tl, TS } from './moscowScale.js';
+import { PATH_MAX_NODES } from '../../config/traffic.js';
 import { createMoscowMap, decodeLayers, applyTerrain, applyBits, markMajor, layLocalStreets, project, embankWaterRoads, upgradeTrunkRoads } from './moscowTiles.js';
 import { makeTowns, placeHouses } from './moscowTowns.js';
 import { buildMetroLine, pickMetroLines, metroGeometry } from './moscowMetro.js';
@@ -22,7 +24,7 @@ import { cleanRoad } from './moscowRoad.js';
 export const MOSCOW_MONEY = 4_000_000;
 
 /** Minimum distance (tiles) from the Kremlin to any industry footprint. */
-export const INDUSTRY_MIN_DIST = 30;
+export const INDUSTRY_MIN_DIST = tl(30);
 
 /** Industries at real outskirt sites (MKAD ring / industrial zones): [typeId, lat, lon, label]. */
 export const INDUSTRY_SITES = [
@@ -66,8 +68,8 @@ function buildIndustries(state, major, kremlin, log) {
     const type = INDUSTRY_BY_ID[typeId];
     if (!type) { log.push(`industry ${label}: unknown type ${typeId}`); continue; }
     const c = project(lat, lon);
-    const a = findFootprint(state, type.w, type.h, c.x, c.y, 8, major);
-    if (!a) { log.push(`industry ${label}: no clearable site within 8 tiles of ${c.x},${c.y}`); continue; }
+    const a = findFootprint(state, type.w, type.h, c.x, c.y, tl(8), major);
+    if (!a) { log.push(`industry ${label}: no clearable site within ${tl(8)} tiles of ${c.x},${c.y}`); continue; }
     const far = Math.hypot(a.x + type.w / 2 - kremlin.x, a.y + type.h / 2 - kremlin.y);
     if (far < INDUSTRY_MIN_DIST) { log.push(`industry ${label}: site ${a.x},${a.y} only ${far.toFixed(1)} tiles from Kremlin, skipped`); continue; }
     if (!clearFootprint(state, a.x, a.y, type.w, type.h)) { log.push(`industry ${label}: site ${a.x},${a.y} not clearable`); continue; }
@@ -135,10 +137,10 @@ export function thinBuildings(state, kremlin) {
   for (let i = 0; i < map.tiles.length; i++) {
     if (!isHouse(i)) continue;
     const x = i % W, y = Math.floor(i / W);
-    if (Math.hypot(x - kx, y - ky) <= 10) continue;
+    if (Math.hypot(x - kx, y - ky) <= tl(10)) continue;
     const t = map.tiles[i];
-    const byHwy = near(i, (nt) => nt.highway, 1);
-    const byRail = near(i, (nt) => nt.rail && !nt.tunnel, 1);
+    const byHwy = near(i, (nt) => nt.highway, tl(1));
+    const byRail = near(i, (nt) => nt.rail && !nt.tunnel, tl(1));
     if (byHwy || byRail) { demolishHouseAt(state, i); removed++; }
   }
   // 2) gently break up wall-to-wall house blocks so there is buildable space between places
@@ -146,7 +148,7 @@ export function thinBuildings(state, kremlin) {
     if (!isHouse(i)) continue;
     const x = i % W, y = Math.floor(i / W);
     const dK = Math.hypot(x - kx, y - ky);
-    if (dK <= 14) continue;
+    if (dK <= tl(14)) continue;
     let adj = 0;
     for (let yy = Math.max(0, y - 1); yy <= Math.min(H - 1, y + 1); yy++)
       for (let xx = Math.max(0, x - 1); xx <= Math.min(W - 1, x + 1); xx++)
@@ -169,6 +171,8 @@ export function buildMoscow(game, map) {
   state.scenario = 'moscow';
   state.company.money = MOSCOW_MONEY;
   const { L, major, streets, highways } = buildTiles(state, map);
+  // car route search budget: 100 m tiles double every path length (random worlds keep PATH_MAX_NODES)
+  state.map.pathMaxNodes = Math.round(PATH_MAX_NODES * TS * TS);
   const kremlin = landmark(map, 'kremlin', [55.752, 37.6175]);
   const city = landmark(map, 'moscow_city', [55.749, 37.539]);
   const landmarks = placeLandmarks(state, map, major, log);
@@ -199,9 +203,9 @@ export function buildMoscow(game, map) {
   markGradeSeparation(state.map);
   const bus = buildBusLines(game, major, log);
   // airports after buses (aircraft need a free hangar depot); road-connected below by pruneRoadIslands / joins
-  const islands = pruneRoadIslands(state, 150);
+  const islands = pruneRoadIslands(state, 150 * TS * TS);
   if (islands) log.push(`streets: pruned ${islands} tiles of tiny road islands (bridge stubs)`);
-  const joins = joinRoadComponents(state, 60);
+  const joins = joinRoadComponents(state, tl(60));
   if (joins.tiles) for (const t of state.towns) recomputePopulation(state, t);
   if (joins.joined) log.push(`streets: joined ${joins.joined} cut-off road pieces with ${joins.tiles} connector tiles`);
   state.traffic = createTraffic(state);

@@ -1,4 +1,5 @@
 import { test, expect, describe } from 'bun:test';
+import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { existsSync } from 'fs';
 import { Game } from '../js/simulation/game.js';
 import { STYLES, houseSprite } from '../js/renderer/sprites/houses.js';
@@ -17,15 +18,15 @@ describe('Moscow house styles (pure)', () => {
   });
   test('zones: Kremlin core, Moscow City, outskirts', () => {
     expect(zoneOf(5, false)).toBe('garden');
-    expect(zoneOf(30, false)).toBe('ttk');
-    expect(zoneOf(80, false)).toBe('mkad');
-    expect(zoneOf(150, false)).toBe('outer');
-    expect(zoneOf(40, true)).toBe('city');
+    expect(zoneOf(tl(30), false)).toBe('ttk');
+    expect(zoneOf(tl(80), false)).toBe('mkad');
+    expect(zoneOf(tl(150), false)).toBe('outer');
+    expect(zoneOf(tl(40), true)).toBe('city');
   });
   test('pickStyle: garden never cottage, outer has cottage', () => {
     const rng = createRng({ rngState: 5 });
     const g = new Set(), o = new Set();
-    for (let i = 0; i < 2000; i++) { g.add(pickStyle(rng, 10, false)); o.add(pickStyle(rng, 150, false)); }
+    for (let i = 0; i < 2000; i++) { g.add(pickStyle(rng, tl(10), false)); o.add(pickStyle(rng, tl(150), false)); }
     expect(g.has('cottage')).toBe(false);
     expect(o.has('cottage')).toBe(true);
   });
@@ -50,17 +51,17 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
       expect(t.building.level).toBeLessThanOrEqual(hi);
     }
   });
-  test('within 10 tiles of the Kremlin, historic+stalinka dominate', () => {
-    const n = near(10);
+  test('within 10 tiles (200 m scale) of the Kremlin, historic+stalinka dominate', () => {
+    const n = near(tl(10));
     expect(n.length).toBeGreaterThan(0);
     const hs = n.filter(({ t }) => ['historic', 'stalinka'].includes(t.building.style)).length;
     expect(hs / n.length).toBeGreaterThanOrEqual(0.55); // fewer centre houses: ensembles keep their bounding box free
   });
   test('no cottages within the Garden Ring', () => {
-    expect(near(18).some(({ t }) => t.building.style === 'cottage')).toBe(false);
+    expect(near(tl(18)).some(({ t }) => t.building.style === 'cottage')).toBe(false);
   });
   test('cottages and panel/modern appear in the outskirts', () => {
-    const far = houses.filter(({ i }) => Math.hypot((i % state.map.width) - kx, Math.floor(i / state.map.width) - ky) > 100);
+    const far = houses.filter(({ i }) => Math.hypot((i % state.map.width) - kx, Math.floor(i / state.map.width) - ky) > tl(100));
     expect(far.some(({ t }) => t.building.style === 'cottage')).toBe(true);
   });
   // The real motorway/trunk network is upgraded to 4-lane highways for cross-city runs.
@@ -80,10 +81,11 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
   // v4 band: houses are thinned aggressively so roads, rail and highways stay readable and
   // there is buildable space between districts; corridors beside highways/rail are cleared.
   // ~58k at the default scenario. Towns regrow into the gaps during play.
-  test('Moscow population in the 40k–160k band', () => {
+  test('Moscow population in the 40k–650k band', () => {
     const pop = state.towns.reduce((a, t) => a + t.population, 0);
     expect(pop).toBeGreaterThan(40000);
-    expect(pop).toBeLessThan(160000);
+    // 100 m tiles (TS=2): per-tile house odds unchanged, second row behind streets in dense districts, 3-tile landmark frame => ~440k
+    expect(pop).toBeLessThan(650000);
   });
   // Note (sparse gameplay layout): buildings are thinned and corridors cleared; Kremlin/Tverskoy
   // remains the central district and regrows into the cleared space.

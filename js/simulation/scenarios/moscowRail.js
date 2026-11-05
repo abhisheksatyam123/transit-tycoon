@@ -9,16 +9,17 @@
  * that closes a cycle whose remaining path is <= SMALL_CYCLE tiles is dropped; longer loops
  * (e.g. the ring railway) are kept. Pure and deterministic: no randomness, no clock.
  */
+import { tl, TS } from './moscowScale.js';
 import { DIR_BY_BIT } from '../constants.js';
 
 /** Rail bits: N=1, E=2, S=4, W=8. */
 const OPP = { 1: 4, 2: 8, 4: 1, 8: 2 };
 const BITS = [1, 2, 4, 8];
 /** Max path length (edges) kept between two tiles that closes a cycle we drop. */
-export const SMALL_CYCLE = 24;
+export const SMALL_CYCLE = tl(24);
 /** Max spur length (tiles) removed as a dead end. */
-export const SPUR_MAX = 3;
-const STRAIGHT_CAP = 8;
+export const SPUR_MAX = tl(3);
+const STRAIGHT_CAP = tl(8);
 const ALWAYS_KEEP = 1e6;
 
 const isStationOrDepot = (t) => !!t.building && (t.building.type === 'station' || t.building.type === 'depot');
@@ -228,7 +229,7 @@ function reconnects(map, a, b, bit, limit) {
  * changing reachability. Deterministic (fixed tile order, bounded search).
  * @returns {number} edges removed
  */
-export function removeRedundantJunctionEdges(map, limit = 60) {
+export function removeRedundantJunctionEdges(map, limit = tl(60)) {
   let removed = 0;
   for (let i = 0; i < map.tiles.length; i++) {
     const t = map.tiles[i];
@@ -305,7 +306,7 @@ function freeForRail(map, i) {
  * tile. On success the path is laid as rail. Deterministic.
  * @returns {number} tiles added
  */
-export function reconnectDeadEnds(map, maxLen = 15) {
+export function reconnectDeadEnds(map, maxLen = tl(15)) {
   const W = map.width, T = map.tiles, DXY = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };
   let added = 0;
   // component labels (surface graph); only join dead ends of different components => no new loops
@@ -313,7 +314,7 @@ export function reconnectDeadEnds(map, maxLen = 15) {
   for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
   for (let i = 0; i < T.length; i++) {
     const t = T[i];
-    if (!t.rail || !isSurface(t) || degree(map, i) !== 1 || nearStationRail(map, i, 2)) continue;
+    if (!t.rail || !isSurface(t) || degree(map, i) !== 1 || nearStationRail(map, i, tl(2))) continue;
     const L = links(map, i)[0].bit;
     const first = OPP[L];
     const [fx, fy] = DXY[first];
@@ -368,12 +369,12 @@ export function reconnectDeadEnds(map, maxLen = 15) {
  * clear the chain, unless the leaf sits near a station/depot (kept) or the chain would reach a station,
  * depot or tunnel. Any length. @returns {number} tiles removed
  */
-export function pruneStubs(map, maxLen = 12) {
+export function pruneStubs(map, maxLen = tl(12)) {
   let pruned = 0;
   const sig0 = terminalSignature(map);
   map.tiles.forEach((t, i) => {
     if (!t.rail || !isSurface(t) || degree(map, i) !== 1) return;
-    if (nearStationRail(map, i, 2)) return;
+    if (nearStationRail(map, i, tl(2))) return;
     const chain = [];
     let prev = -1, cur = i, junction = -1;
     for (;;) {
@@ -409,7 +410,7 @@ const stepBit = (dx, dy) => (dy === -1 ? 1 : dx === 1 ? 2 : dy === 1 ? 4 : 8);
  * crossing (then gradeSep). A and B must be in different surface components, so no cycle is closed.
  * @returns {number} gaps bridged
  */
-export function bridgeGaps(map, maxGap = 4) {
+export function bridgeGaps(map, maxGap = tl(4)) {
   const { width: W, height: H, tiles: T } = map;
   const dsu = makeDsu(T.length);
   for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
@@ -422,7 +423,7 @@ export function bridgeGaps(map, maxGap = 4) {
   let bridged = 0;
   for (let a = 0; a < T.length; a++) {
     const t = T[a];
-    if (!t.rail || !isSurface(t) || degree(map, a) !== 1 || nearStationRail(map, a, 2)) continue;
+    if (!t.rail || !isSurface(t) || degree(map, a) !== 1 || nearStationRail(map, a, tl(2))) continue;
     const L = links(map, a)[0].bit;
     const d = OPP[L];
     const D = DIR_BY_BIT[d];
@@ -480,7 +481,7 @@ export function bridgeGaps(map, maxGap = 4) {
  * @param {string|null} bakedRail per-tile raster chars ('0' = none); null/short => no-op
  * @returns {number} dead ends restored
  */
-export const RESTORE_MAX = 30;
+export const RESTORE_MAX = tl(30);
 export function restoreFromBake(map, bakedRail) {
   if (!bakedRail || bakedRail.length < map.tiles.length) return 0;
   const { width: W, height: H, tiles: T } = map;
@@ -491,7 +492,7 @@ export function restoreFromBake(map, bakedRail) {
   const roadOnly = (i) => !T[i].rail && !T[i].building && !T[i].tunnel && T[i].terrain !== 'water' && !!T[i].road;
   let restored = 0;
   for (let a = 0; a < T.length; a++) {
-    if (!T[a].rail || !isSurface(T[a]) || degree(map, a) !== 1 || nearStationRail(map, a, 2)) continue;
+    if (!T[a].rail || !isSurface(T[a]) || degree(map, a) !== 1 || nearStationRail(map, a, tl(2))) continue;
     const ca = dsu.find(a);
     const par = new Map([[a, -1]]);
     let frontier = [a], hit = -1;

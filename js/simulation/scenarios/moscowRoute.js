@@ -2,6 +2,7 @@
  * Moscow scenario, routing helpers: A* over the tile grid for surface rail (may overlap roads,
  * crosses water only as bridges), and direct writes of rail bits / station tiles.
  */
+import { tl, TS } from './moscowScale.js';
 import { DIRS, OPPOSITE } from '../constants.js';
 import { inBounds } from '../map.js';
 import { createStation } from '../stations.js';
@@ -156,7 +157,7 @@ export function straightAt(map, path, k) {
  * Index in `path` nearest to `target` (tile index) that is a straight, station-capable tile.
  * @returns {number} path index or -1
  */
-export function nearestStraight(map, path, target, maxShift = 6) {
+export function nearestStraight(map, path, target, maxShift = tl(6)) {
   const W = map.width;
   const tx = target % W, ty = Math.floor(target / W);
   let best = -1, bd = Infinity;

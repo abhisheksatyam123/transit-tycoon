@@ -2,6 +2,7 @@
  * Moscow scenario, towns and housing: districts become towns (max 60, farthest-point
  * sampling), every urban roadside tile gets a house assigned to its nearest town.
  */
+import { tl, TS } from './moscowScale.js';
 import { placeHouse, nextToRoad, recomputePopulation } from '../towns.js';
 import { allocId } from '../state.js';
 import { manhattan } from '../state.js';
@@ -11,10 +12,10 @@ import { pickStyle, clampLevel, tileDist, LANDUSE_STYLE } from './moscowStyles.j
 export const MAX_TOWNS = 80;
 
 /** Catchment radius (tiles) of a district town: houses farther than this from every town stay empty. */
-export const TOWN_CATCHMENT = 16;
+export const TOWN_CATCHMENT = tl(16);
 
 /** Catchment radius (tiles) of the Kremlin/Tverskoy town (dense centre). */
-export const CENTRE_CATCHMENT = 24;
+export const CENTRE_CATCHMENT = tl(24);
 /** Distance weight of the Kremlin/Tverskoy town when claiming tiles (<1 pulls the centre outward). */
 export const CENTRE_PULL = 0.55;
 
@@ -24,10 +25,10 @@ export const CENTRE_PULL = 0.55;
  * Gives the map infill room instead of a wall of houses on every road-side tile.
  */
 export const VACANCY = [
-  { d: 8, p: 0.06 },
-  { d: 15, p: 0.16 },
-  { d: 24, p: 0.28 },
-  { d: 36, p: 0.40 },
+  { d: tl(8), p: 0.06 },
+  { d: tl(15), p: 0.16 },
+  { d: tl(24), p: 0.28 },
+  { d: tl(36), p: 0.40 },
   { d: Infinity, p: 0.48 },
 ];
 /** Vacancy probability for distance `d` (tiles, Euclidean) from the Kremlin. */
@@ -37,7 +38,7 @@ export function vacancyChance(d) {
 }
 
 /** Radius (tiles) of the dense centre inside the Garden Ring: houses at level 3, some 4. */
-export const CENTRE_RADIUS = 18;
+export const CENTRE_RADIUS = tl(18);
 
 /** Share of dense centre houses that are towers (level 4); the rest are mid-rise (level 3). */
 export const CENTRE_TOWER_SHARE = 0.35;
@@ -142,15 +143,24 @@ function nearTransport(map, x, y, r) {
   return false;
 }
 
+/** True when a road tile lies within Chebyshev distance r of (x,y). */
+function roadWithin(map, x, y, r) {
+  const W = map.width, H = map.height;
+  for (let yy = Math.max(0, y - r); yy <= Math.min(H - 1, y + r); yy++)
+    for (let xx = Math.max(0, x - r); xx <= Math.min(W - 1, x + r); xx++) if (map.tiles[yy * W + xx].road) return true;
+  return false;
+}
+
 /**
  * Houses stand next to local roads only; set back from highways/rail so the map stays playable
  * instead of wall-to-wall buildings along every corridor.
  * @returns {boolean}
  */
-function houseSite(map, x, y, _dens, inCentre) {
-  if (!nextToRoad(map, x, y)) return false;
+function houseSite(map, x, y, dens, inCentre) {
+  // dense districts also fill the second row behind the street frontage (100 m tiles: real blocks are 2-3 tiles deep)
+  if (!nextToRoad(map, x, y) && !(dens >= 2 && roadWithin(map, x, y, tl(1)))) return false;
   // keep a clear buildable buffer beside high-lane roads and rail
-  if (!inCentre && nearTransport(map, x, y, 1)) return false;
+  if (!inCentre && nearTransport(map, x, y, tl(1))) return false;
   return true;
 }
 
@@ -158,10 +168,16 @@ function houseSite(map, x, y, _dens, inCentre) {
  * True when a house at (x,y) would stand within 8 tiles (Chebyshev) of any landmark tile:
  * the park-like ring that keeps enlarged monuments visually dominant.
  */
+/** Chebyshev radius (tiles) of the house-free frame around landmark tiles. */
+export const LANDMARK_CLEAR_R = 3;
+
 export function withinLandmarkClear(state, x, y) {
   const { map } = state;
-  for (let yy = Math.max(0, y - 8); yy <= Math.min(map.height - 1, y + 8); yy++)
-    for (let xx = Math.max(0, x - 8); xx <= Math.min(map.width - 1, x + 8); xx++) {
+  // the ensemble box (ensembleBoxes) already keeps each baked sprite's extent free; this ring only frames monuments
+  // (it was 8 tiles at 200 m: with 100 m tiles, uniformly scaled ensembles and ~440 statues it emptied the centre)
+  const R = LANDMARK_CLEAR_R;
+  for (let yy = Math.max(0, y - R); yy <= Math.min(map.height - 1, y + R); yy++)
+    for (let xx = Math.max(0, x - R); xx <= Math.min(map.width - 1, x + R); xx++) {
       const t = map.tiles[yy * map.width + xx];
       if (t.building && t.building.type === 'landmark') return true;
     }
@@ -183,9 +199,9 @@ export function ensembleBoxes(map) {
   });
   const out = new Uint8Array(W * H);
   for (const b of box.values()) {
-    if (b.n < 4) continue;
-    for (let y = Math.max(0, b.y0 - 1); y <= Math.min(H - 1, b.y1 + 1); y++)
-      for (let x = Math.max(0, b.x0 - 1); x <= Math.min(W - 1, b.x1 + 1); x++) out[y * W + x] = 1;
+    if (b.n < 4 * TS * TS) continue;
+    for (let y = Math.max(0, b.y0 - tl(1)); y <= Math.min(H - 1, b.y1 + tl(1)); y++)
+      for (let x = Math.max(0, b.x0 - tl(1)); x <= Math.min(W - 1, b.x1 + tl(1)); x++) out[y * W + x] = 1;
   }
   return out;
 }
@@ -218,15 +234,15 @@ export function placeHouses(state, rng, L, towns, marks) {
       const i = y * W + x;
       const dens = Number(L.density[i]) || 0;
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
-      if (manhattan(x, y, kx, ky) <= 5) continue;
+      if (manhattan(x, y, kx, ky) <= tl(5)) continue;
       const dK = Math.hypot(x - kx, y - ky);
-      const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9;
+      const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9 * TS * TS;
       const inCentre = dK <= CENTRE_RADIUS;
       // keep the core readable but not wall-to-wall; open the rest for roads/rail and building
-      if (dK > 8 && rng.chance(vacancyChance(dK))) continue;
+      if (dK > tl(8) && rng.chance(vacancyChance(dK))) continue;
       // extra thinning outside the centre so houses don't line every road
       if (!inCentre && !inCity && rng.chance(dens >= 3 ? 0.18 : 0.30)) continue;
-      if (dK > 10 && withinLandmarkClear(state, x, y)) continue;
+      if (dK > tl(10) && withinLandmarkClear(state, x, y)) continue;
       if (lmBox[i]) continue; // never inside an enlarged ensemble's drawn extent (houses poked through the Kremlin walls)
       if (!houseSite(map, x, y, dens, inCentre || inCity)) continue;
       let level = Math.max(1, Math.min(4, dens + rng.int(-1, 1)));

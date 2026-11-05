@@ -29,9 +29,12 @@ function pickLevel(e, scale, ground) {
 
 function blit(ctx, e, x, y, sx, sy, ground, rect) {
   const scale = ctx.getTransform ? Math.abs(ctx.getTransform().a) : 1;
+  const dx = sx - (x - y) * HALF_W, dy = sy - (x + y) * HALF_H; // terrain height offset of the front tile
+  const l0 = ground ? e.levels[0].g && { ...e.levels[0].g, z: e.levels[0].z } : e.levels[0];
+  // cull before picking a level so off-screen ensembles never start loading their (large) zoom-4 images
+  if (rect && l0) { const X0 = l0.wx + dx, Y0 = l0.wy + dy; if (X0 - 8 > rect.x1 || Y0 > rect.y1 + 148 || X0 + l0.w / l0.z + 8 < rect.x0 || Y0 + l0.h / l0.z + 8 < rect.y0) return; }
   const p = pickLevel(e, scale, ground); if (!p) return;
   const { im, use } = p;
-  const dx = sx - (x - y) * HALF_W, dy = sy - (x + y) * HALF_H; // terrain height offset of the front tile
   const X = use.wx + dx, Y = use.wy + dy, W = use.w / use.z, H = use.h / use.z;
   if (rect && (X > rect.x1 || Y > rect.y1 + 140 || X + W < rect.x0 || Y + H < rect.y0)) return;
   const prev = ctx.imageSmoothingEnabled;

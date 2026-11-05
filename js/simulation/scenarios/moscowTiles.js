@@ -2,21 +2,23 @@
  * Moscow scenario, tile layer: decodes baked layers (terrain, road bits, rail bits, density),
  * applies heights and local street grid. Pure: no randomness, no DOM.
  */
+import { tl, TS } from './moscowScale.js';
 import { decodeRLE } from '../../config/maps/rle.js';
 import { createMap, inBounds } from '../map.js';
 import { DIRS, OPPOSITE } from '../constants.js';
+import { TILE_M } from './moscowScale.js';
 
 /** Projection of the baked map (see scratchpad contract): west/north edge in degrees. */
 const PROJ = { lonW: 37.22, latN: 55.99 };
 
 /**
- * Project lat/lon to baked tile coordinates (tileMeters 200).
+ * Project lat/lon to baked tile coordinates (MOSCOW.tileMeters).
  * @returns {{x:number,y:number}}
  */
 export function project(lat, lon) {
   return {
-    x: Math.round((lon - PROJ.lonW) * 111320 * Math.cos((55.75 * Math.PI) / 180) / 200),
-    y: Math.round((PROJ.latN - lat) * 110574 / 200),
+    x: Math.round((lon - PROJ.lonW) * 111320 * Math.cos((55.75 * Math.PI) / 180) / TILE_M),
+    y: Math.round((PROJ.latN - lat) * 110574 / TILE_M),
   };
 }
 
@@ -152,7 +154,7 @@ function isCandidate(map, L, i) {
 }
 
 /** Local street pitch: 4x4 house blocks with a street every 5 tiles. */
-export const LOCAL_PITCH = 10;
+export const LOCAL_PITCH = tl(10);
 /** Minimum baked density for local streets (0 none, 1 outskirts, 2+ urban core). */
 export const LOCAL_MIN_DENSITY = 1;
 

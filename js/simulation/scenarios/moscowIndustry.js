@@ -4,29 +4,30 @@
  * first. Suppliers (farms, forests, mines, oil wells) go on the outskirts beyond the MKAD band,
  * spread by angle around the Kremlin. Deterministic: no rng, fixed scan orders.
  */
+import { tl, TS } from './moscowScale.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { placeIndustry } from '../industries.js';
 import { clearFootprint } from './moscowLand.js';
 import { airportReserve } from './moscowAirports.js';
 
 /** Industry must stay this far (tiles) from the Kremlin centre. */
-const MIN_KREMLIN_DIST = 30;
+const MIN_KREMLIN_DIST = tl(30);
 /** Clusters smaller than this (tiles) get no industry; the largest URBAN_MAX are used. */
-const MIN_CLUSTER = 12;
+const MIN_CLUSTER = 12 * TS * TS;
 /** Maximum urban (cluster) industries. */
 const URBAN_MAX = 24;
 /** Urban type cycle, applied to clusters from largest to smallest. */
 const URBAN_TYPES = ['steel_mill', 'factory', 'power_station', 'factory', 'sawmill', 'power_station', 'factory', 'steel_mill'];
 /** Outskirt suppliers: type, count, band of distances from the Kremlin (tiles), terrain of the anchor. */
 export const SUPPLIERS = [
-  { typeId: 'farm', n: 3, band: [105, 150], terrain: 'grass' },
-  { typeId: 'forest', n: 3, band: [60, 130], terrain: 'forest' },
-  { typeId: 'iron_mine', n: 2, band: [95, 150], terrain: 'grass' },
-  { typeId: 'coal_mine', n: 2, band: [95, 150], terrain: 'grass' },
-  { typeId: 'oil_wells', n: 1, band: [95, 160], terrain: 'grass' },
+  { typeId: 'farm', n: 3, band: [tl(105), tl(150)], terrain: 'grass' },
+  { typeId: 'forest', n: 3, band: [tl(60), tl(130)], terrain: 'forest' },
+  { typeId: 'iron_mine', n: 2, band: [tl(95), tl(150)], terrain: 'grass' },
+  { typeId: 'coal_mine', n: 2, band: [tl(95), tl(150)], terrain: 'grass' },
+  { typeId: 'oil_wells', n: 1, band: [tl(95), tl(160)], terrain: 'grass' },
 ];
 /** Minimum spacing (tiles) between outskirt suppliers and any other industry. */
-const SUPPLIER_SPACING = 25;
+const SUPPLIER_SPACING = tl(25);
 
 /**
  * Connected components of one landuse char (4-neighbour), largest first.
@@ -73,7 +74,7 @@ function blockedMask(state, map, L, major) {
   }
   for (const line of map.metroLines || []) {
     for (const s of line.stations || []) {
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -tl(3); dy <= tl(3); dy++) for (let dx = -tl(3); dx <= tl(3); dx++) {
         const x = s.x + dx, y = s.y + dy;
         if (x >= 0 && y >= 0 && x < W && y < map.height) blocked[y * W + x] = 1;
       }

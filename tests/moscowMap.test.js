@@ -1,6 +1,7 @@
 /**
  * Tests for the baked Moscow map (js/config/maps/moscow.js). Skipped when the file is absent.
  */
+import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { describe, test, expect } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -42,7 +43,7 @@ describe.skipIf(!HAS)('baked Moscow map', async () => {
     const k = M.landmarks.find((l) => l.id === 'kremlin');
     expect(terr[k.y * W + k.x]).not.toBe('w');
     let near = false;
-    for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = -tl(3); dy <= tl(3) && !near; dy++) for (let dx = -tl(3); dx <= tl(3); dx++) {
       const x = k.x + dx, y = k.y + dy;
       if (x >= 0 && y >= 0 && x < W && y < M.height && terr[y * W + x] === 'w') { near = true; break; }
     }

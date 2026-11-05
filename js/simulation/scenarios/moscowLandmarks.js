@@ -4,19 +4,20 @@
  * anchors are tried by ring distance from the real position, shifting at most LANDMARK_SHIFT tiles
  * and never onto major roads or rail.
  */
+import { tl, TS } from './moscowScale.js';
 import { clearFootprint, clearable } from './moscowLand.js';
 import { inBounds } from '../map.js';
 import { project } from './moscowTiles.js';
 import { LM3D } from '../../config/landmarks3d.js';
 
 /** Maximum shift (tiles, Chebyshev) of a landmark footprint away from its real position. */
-export const LANDMARK_SHIFT = 2;
+export const LANDMARK_SHIFT = tl(2);
 
 /** Landmark buildings: id (contract), map landmark id, footprint, and display title. */
 export const LANDMARK_SPECS = [
   { id: 'kremlin', mapId: 'kremlin', w: 3, h: 3, ox: -1, oy: -1, title: 'Moscow Kremlin' },
   { id: 'red_square', mapId: 'red_square', w: 1, h: 2, ox: 1, oy: 0, title: "Red Square & St Basil's Cathedral" },
-  { id: 'moscow_city', mapId: 'moscow_city', w: 3, h: 2, shift: 12, title: 'Moscow City business district' },
+  { id: 'moscow_city', mapId: 'moscow_city', w: 3, h: 2, shift: tl(12), title: 'Moscow City business district' },
   { id: 'msu', mapId: 'msu', w: 2, h: 2, title: 'Lomonosov Moscow State University' },
   { id: 'ostankino', mapId: 'ostankino_tower', w: 1, h: 1, title: 'Ostankino TV Tower' },
   { id: 'luzhniki', mapId: 'luzhniki', w: 2, h: 2, title: 'Luzhniki Stadium' },
@@ -24,14 +25,14 @@ export const LANDMARK_SPECS = [
   { id: 'bolshoi', mapId: 'bolshoi', w: 1, h: 1, title: 'Bolshoi Theatre' },
   { id: 'vdnkh', mapId: 'vdnkh', w: 2, h: 2, title: 'VDNKh exhibition centre' },
   { id: 'ukraina', mapId: 'ukraina', w: 2, h: 2, lat: 55.7516, lon: 37.5663, title: 'Hotel Ukraina (Stalinist skyscraper)' },
-  { id: 'kotelnicheskaya', mapId: 'kotelnicheskaya', w: 2, h: 2, shift: 5, lat: 55.7472, lon: 37.6426, title: 'Kotelnicheskaya Embankment Building' },
+  { id: 'kotelnicheskaya', mapId: 'kotelnicheskaya', w: 2, h: 2, shift: tl(5), lat: 55.7472, lon: 37.6426, title: 'Kotelnicheskaya Embankment Building' },
   { id: 'kudrinskaya', mapId: 'kudrinskaya', w: 2, h: 2, lat: 55.7584, lon: 37.5812, title: 'Kudrinskaya Square Building' },
   { id: 'mid', mapId: 'mid', w: 2, h: 2, lat: 55.7462, lon: 37.5843, title: 'Ministry of Foreign Affairs' },
   { id: 'leningradskaya', mapId: 'leningradskaya', w: 2, h: 2, lat: 55.7739, lon: 37.6531, title: 'Leningradskaya Hotel' },
   { id: 'red_gates', mapId: 'red_gates', w: 2, h: 2, lat: 55.7685, lon: 37.6491, title: 'Red Gates Building' },
   { id: 'gum', mapId: 'gum', w: 2, h: 1, lat: 55.7547, lon: 37.6215, title: 'GUM department store' },
   { id: 'shukhov_tower', mapId: 'shukhov_tower', w: 1, h: 1, lat: 55.7172, lon: 37.6119, title: 'Shukhov Radio Tower' },
-  { id: 'novodevichy', mapId: 'novodevichy', w: 2, h: 2, shift: 6, lat: 55.7262, lon: 37.5562, title: 'Novodevichy Convent' },
+  { id: 'novodevichy', mapId: 'novodevichy', w: 2, h: 2, shift: tl(6), lat: 55.7262, lon: 37.5562, title: 'Novodevichy Convent' },
 ];
 
 /** Gorky Park forest strip along the river (3 wide, 4 tall), not a landmark building. */
@@ -110,7 +111,7 @@ export function placeLandmarks(state, map, major, log) {
   const park = mapPos(map, PARK.mapId);
   if (park) {
     const ax = park.x - Math.floor(PARK.w / 2), ay = park.y - Math.floor(PARK.h / 2);
-    const a = fitFootprint(state, PARK.w, PARK.h, ax, ay, major, 16);
+    const a = fitFootprint(state, PARK.w, PARK.h, ax, ay, major, tl(16));
     if (a && clearFootprint(state, a.x, a.y, PARK.w, PARK.h)) {
       for (let yy = a.y; yy < a.y + PARK.h; yy++) for (let xx = a.x; xx < a.x + PARK.w; xx++) {
         state.map.tiles[yy * state.map.width + xx].terrain = 'forest';

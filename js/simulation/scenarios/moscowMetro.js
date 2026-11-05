@@ -2,6 +2,7 @@
  * Moscow scenario, metro: lays one rail line per baked metro line (A* between consecutive
  * stations), turns stops into rail stations, adds a depot on a spur and passenger trains.
  */
+import { tl, TS } from './moscowScale.js';
 import { routeRail, layRailPath, nearestStraight, placeStationTile, stationAxis } from './moscowRoute.js';
 import { spurDepot } from './moscowLand.js';
 
@@ -28,7 +29,7 @@ export const TRAINS_PER_SERVICE = 2;
 /** Stops per service window (orders stay under the MAX_ORDERS cap). */
 export const WINDOW = 8;
 /** Passenger catchment radius (tiles) of metro stations: deep-metro stations draw from far away. */
-export const METRO_CATCHMENT = 6;
+export const METRO_CATCHMENT = tl(6);
 
 /**
  * Split a line's stops into services: overlapping windows of WINDOW stops. Ring lines use the
@@ -89,7 +90,7 @@ function placeStops(state, stops, names, path, log, label, color) {
   const { map } = state;
   const out = [];
   stops.forEach((tileIdx, k) => {
-    const pk = nearestStraight(map, path, tileIdx, 8);
+    const pk = nearestStraight(map, path, tileIdx, tl(8));
     if (pk < 0) { log.push(`metro ${label}: no straight track near stop "${names[k]}"`); return; }
     const t = path[pk];
     const st = placeStationTile(state, t, names[k], stationAxis(map, t));

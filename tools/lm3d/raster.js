@@ -1,10 +1,12 @@
 /**
  * Z-buffered scanline rasteriser for planar 3D faces in the game's isometric projection.
- * World: x=east m, y=south m, z=up m. Screen (zoom s): sx=(x-y)*32/200*s, sy=(x+y)*16/200*s - z*VZ*s.
- * VZ = 0.196 px/m (true 2:1 dimetric: 30 deg elevation). Flat shading, sun from the south-west-ish
+ * World: x=east m, y=south m, z=up m. Screen (zoom s): sx=(x-y)*32/T*s, sy=(x+y)*16/T*s - z*VZ*s, T = tile metres.
+ * VZ = 0.196*200/T px/m (true 2:1 dimetric: 30 deg elevation). Flat shading, sun from the south-west-ish
  * (left faces lit, right faces darker, like OpenTTD/OpenGFX), silhouette darkening for crisp pixel art.
  */
-export const KX = 32 / 200, KY = 16 / 200, VZ = 0.196;
+import { TILE_M } from '../moscow/proj.js';
+
+export const KX = 32 / TILE_M, KY = 16 / TILE_M, VZ = (0.196 * 200) / TILE_M;
 const DEPTH_Z = (2 * KY) / VZ; // closeness = x + y + DEPTH_Z*z
 const SUN = (() => { const v = [-0.35, 0.8, 1.1]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
 const VIEW = (() => { const v = [1, 1, DEPTH_Z]; const l = Math.hypot(...v); return v.map((c) => c / l); })();

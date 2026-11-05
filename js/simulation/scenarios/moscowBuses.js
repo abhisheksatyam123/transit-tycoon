@@ -2,6 +2,7 @@
  * Moscow scenario, buses: bus lines between district centres on major roads. Stops sit on straight
  * major-road tiles; a road depot hangs off a road spur; city omnibuses are bought via commands.
  */
+import { tl, TS } from './moscowScale.js';
 import { inBounds } from '../map.js';
 import { spurDepot } from './moscowLand.js';
 
@@ -27,16 +28,16 @@ function straightStop(state, major, cx, cy, r) {
 
 /** Stop site for a town: straight major road within 6, else within 10, else any straight road within 6. */
 function stopNear(state, major, town) {
-  return straightStop(state, major, town.x, town.y, 6)
-    || straightStop(state, major, town.x, town.y, 10)
-    || straightStop(state, null, town.x, town.y, 6);
+  return straightStop(state, major, town.x, town.y, tl(6))
+    || straightStop(state, major, town.x, town.y, tl(10))
+    || straightStop(state, null, town.x, town.y, tl(6));
 }
 
 /** Road tiles near a stop (nearest first, stop excluded) to hang a depot spur from. */
 function roadAnchors(state, stop) {
   const { map } = state;
   const out = [];
-  for (let y = stop.y - 4; y <= stop.y + 4; y++) for (let x = stop.x - 4; x <= stop.x + 4; x++) {
+  for (let y = stop.y - tl(4); y <= stop.y + tl(4); y++) for (let x = stop.x - tl(4); x <= stop.x + tl(4); x++) {
     if (!inBounds(map, x, y) || (x === stop.x && y === stop.y)) continue;
     const i = y * map.width + x;
     const t = map.tiles[i];
@@ -65,7 +66,7 @@ export function buildBusLines(game, major, log) {
     for (const b of towns) {
       if (b === a || used.has(b.id)) continue;
       const d = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-      if (d >= 12 && d < bd) { bd = d; best = b; }
+      if (d >= tl(12) && d < bd) { bd = d; best = b; }
     }
     if (!best) continue;
     used.add(a.id); used.add(best.id);

@@ -4,6 +4,7 @@
  * runs for N years printing monthly stats, then reports diagnostics and a save/load determinism check.
  * Usage: bun tools/simulate-city.js [--seed N] [--years Y] [--json path]
  */
+import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { writeFileSync } from 'fs';
 import { Game } from '../js/simulation/game.js';
 import { runDiagnostics, summarizeIssues } from '../js/simulation/diagnostics.js';
@@ -52,11 +53,11 @@ function attempt(report, label, r) {
 function buildBusNetwork(g, report) {
   const towns = [...g.state.towns].sort((a, b) => b.population - a.population).slice(0, 2);
   for (const town of towns) {
-    const roads = straightRoadNear(g, town.x, town.y, 10);
+    const roads = straightRoadNear(g, town.x, town.y, tl(10));
     const stops = [];
     for (const p of roads) {
       if (stops.length >= 4) break;
-      if (stops.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 4)) continue;
+      if (stops.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < tl(4))) continue;
       const r = g.buildRoadStop(p.x, p.y, 'bus');
       if (attempt(report, `bus stop in ${town.name}`, r)) stops.push({ x: p.x, y: p.y, id: g.state.stations.find((st) => st.x === p.x && st.y === p.y).id });
     }
@@ -79,7 +80,7 @@ function buildBusNetwork(g, report) {
 
 /** A free tile next to a road tile, with the depot's dir facing that road. */
 function roadDepotNear(g, cx, cy) {
-  for (const p of straightRoadNear(g, cx, cy, 10)) {
+  for (const p of straightRoadNear(g, cx, cy, tl(10))) {
     for (const d of DIRS) {
       const x = p.x + d.dx, y = p.y + d.dy;
       if (inMap(g, x, y) && isFree(tileAt(g, x, y))) return { x, y, dir: DIRS.find((q) => q.bit === oppBit(d.bit)).bit };
@@ -108,8 +109,8 @@ function connectTowns(g, report) {
   const { a, b } = best;
   const la = roadLabel(g, a), lb = roadLabel(g, b);
   if (la >= 0 && la === lb) { report.setup.push(`road link ${a.name}-${b.name} already connected`); return; }
-  const from = straightRoadNear(g, a.x, a.y, 4)[0];
-  const to = straightRoadNear(g, b.x, b.y, 4)[0];
+  const from = straightRoadNear(g, a.x, a.y, tl(4))[0];
+  const to = straightRoadNear(g, b.x, b.y, tl(4))[0];
   if (!from || !to) { report.setup.push(`setup: no road tiles to link ${a.name} and ${b.name}`); return; }
   const variants = [[from.x, from.y, to.x, from.y], [from.x, from.y, from.x, to.y], [from.x, to.y, to.x, to.y], [to.x, from.y, to.x, to.y]];
   let ok = false;
@@ -131,7 +132,7 @@ function buildCoalLine(g, report) {
   const mine = mines[0];
   const plant = plants.reduce((best, p) => (Math.abs(p.x - mine.x) + Math.abs(p.y - mine.y) < Math.abs(best.x - mine.x) + Math.abs(best.y - mine.y) ? p : best));
   const dist = Math.abs(plant.x - mine.x) + Math.abs(plant.y - mine.y);
-  if (dist > 40) report.setup.push(`setup: nearest power station is ${dist} tiles away`);
+  if (dist > tl(40)) report.setup.push(`setup: nearest power station is ${dist} tiles away`);
   const y = mine.y + mine.h + 1;
   const sa = g.buildRailStation(mine.x, y, 'x', 3);
   const sb = g.buildRailStation(plant.x, y, 'x', 3);
