@@ -151,6 +151,20 @@ function houseSite(map, x, y, dens) {
 }
 
 /**
+ * True when a house at (x,y) would stand within 4 tiles (Chebyshev) of any landmark tile:
+ * the park/park-like ring that keeps OSM 3D ensembles visually dominant.
+ */
+export function withinLandmarkClear(state, x, y) {
+  const { map } = state;
+  for (let yy = Math.max(0, y - 4); yy <= Math.min(map.height - 1, y + 4); yy++)
+    for (let xx = Math.max(0, x - 4); xx <= Math.min(map.width - 1, x + 4); xx++) {
+      const t = map.tiles[yy * map.width + xx];
+      if (t.building && t.building.type === 'landmark') return true;
+    }
+  return false;
+}
+
+/**
  * Place houses on urban road-side tiles. Density 0 tiles stay empty; level = density ±1
  * (deterministic per game rng); the centre within CENTRE_RADIUS is mostly level 3 with
  * CENTRE_TOWER_SHARE level 4; Moscow City's
@@ -166,6 +180,9 @@ function houseSite(map, x, y, dens) {
 export function placeHouses(state, rng, L, towns, marks) {
   const { map } = state;
   const W = map.width;
+  // (landmark loss at equal radii: MoscowCity 21, MSU 18, VDNKh 18, Luzhniki 15, Kremlin 45)
+  // NOTE: landmarks are placed by placeLandmarks BEFORE placeHouses, so withinLandmarkClear's
+  // landmark tiles include the Kremlin ensemble, Moscow City, Seven Sisters and statues.
   let placed = 0;
   const kx = marks.kremlin.x, ky = marks.kremlin.y;
   for (let y = 0; y < map.height; y++) {
@@ -175,6 +192,8 @@ export function placeHouses(state, rng, L, towns, marks) {
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
       if (manhattan(x, y, kx, ky) <= 5) continue;
       if (rng.chance(vacancyChance(Math.hypot(x - kx, y - ky)))) continue; // leave open plots between districts
+      // keep 4 tiles clear around every built landmark ensemble (photo prominence)
+      if (withinLandmarkClear(state, x, y)) continue;
       if (!houseSite(map, x, y, dens)) continue;
       const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9;
       const inCentre = d2(x, y, kx, ky) <= CENTRE_RADIUS * CENTRE_RADIUS;
