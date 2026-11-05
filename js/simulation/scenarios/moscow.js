@@ -2,6 +2,7 @@
  * Moscow scenario: turns the baked MOSCOW map into a live game state. Entry point is
  * buildMoscow(game, map); the map object is passed in so tests can use a fixture.
  */
+import { setSetting } from '../settings.js';
 import { tl, TS } from './moscowScale.js';
 import { PATH_MAX_NODES } from '../../config/traffic.js';
 import { createMoscowMap, decodeLayers, applyTerrain, applyBits, markMajor, layLocalStreets, project, embankWaterRoads, upgradeTrunkRoads } from './moscowTiles.js';
@@ -22,6 +23,8 @@ import { cleanRoad } from './moscowRoad.js';
 
 /** Starting company money for the real-city game. */
 export const MOSCOW_MONEY = 4_000_000;
+/** Cargo payment rate (percent) for the Moscow scenario (settings.cargoPaymentPercent). */
+export const MOSCOW_PAYMENT_PERCENT = 40;
 
 /** Minimum distance (tiles) from the Kremlin to any industry footprint. */
 export const INDUSTRY_MIN_DIST = tl(30);
@@ -170,6 +173,8 @@ export function buildMoscow(game, map) {
   const log = [];
   state.scenario = 'moscow';
   state.company.money = MOSCOW_MONEY;
+  // OpenLoco loop (~96 ticks/day) makes the prebuilt network earn ~1.1M/month at 100%; 40% keeps the old ~0.4M balance
+  setSetting(state, 'cargoPaymentPercent', MOSCOW_PAYMENT_PERCENT);
   const { L, major, streets, highways } = buildTiles(state, map);
   // car route search budget: 100 m tiles double every path length (random worlds keep PATH_MAX_NODES)
   state.map.pathMaxNodes = Math.round(PATH_MAX_NODES * TS * TS);

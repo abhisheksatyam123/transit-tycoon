@@ -1,6 +1,7 @@
 /**
  * Vehicle commands: buy, orders, start/stop, send to depot, sell.
  */
+import { vehiclePrice } from './prices.js';
 import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -19,6 +20,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (!depot) return { ok: false, error: 'Unknown depot' };
   const r = resolvePurchase(depot, spec || {}, state.date.year);
   if (!r.ok) return r;
+  r.cost = vehiclePrice(state, r.cost); // inflated; recorded as v.value so sell-back stays consistent
   const money = checkMoney(state, r.cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost: r.cost, vehicle: null };

@@ -25,6 +25,9 @@ import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
 import { initGoals, goalSnapshot } from './goals.js';
 import { tick as locoTick } from './loco/gameLoop.js';
+import { setSetting, DEFAULT_SETTINGS } from './settings.js';
+import { createObjective } from './objective.js';
+import { SCENARIOS } from './scenarios/index.js';
 
 
 /**
@@ -42,6 +45,25 @@ function createScenarioGame(game, o) {
   return game;
 }
 
+
+/**
+ * Apply scenario options after world generation: initial settings and the objective.
+ * Nothing is written when no option is given (day-0 state of default games is unchanged).
+ * @param {Game} game
+ * @param {any} o resolved options
+ */
+function applyOptions(game, o) {
+  const st = game.state;
+  if (o.settings) {
+    for (const k of Object.keys(o.settings)) if (k in DEFAULT_SETTINGS) setSetting(st, k, o.settings[k]);
+  }
+  let obj = o.objective;
+  if (obj === undefined && o.scenario) {
+    const sc = SCENARIOS.find((c) => c.id === o.scenario);
+    obj = sc && sc.defaults ? sc.defaults.objective : undefined;
+  }
+  if (obj && obj.type && obj.type !== 'none') st.objective = createObjective(st, obj);
+}
 
 export class Game {
   /**
@@ -69,7 +91,12 @@ export class Game {
       company: createCompany(), news: [], nextId: 1,
     };
     const game = new Game(state);
-    if (o.scenario && o.scenario !== 'random') return createScenarioGame(game, o);
+    if (o.maxLoan > 0) state.company.maxLoan = Math.max(state.company.loan, Math.floor(o.maxLoan));
+    if (o.scenario && o.scenario !== 'random') {
+      createScenarioGame(game, o);
+      applyOptions(game, o);
+      return game;
+    }
     generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio });
     generateTowns(state, game.rng, o.townCount);
     generateIndustries(state, game.rng, o.industryCount);
@@ -79,6 +106,7 @@ export class Game {
     state.traffic = createTraffic(state);
     recomputeAllAcceptance(state);
     notify(game.ctx, `Welcome! ${state.company.name} was founded in ${o.startYear}. Connect industries and towns to earn money.`, 'good');
+    applyOptions(game, o);
     return game;
   }
 

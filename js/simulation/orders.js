@@ -14,6 +14,7 @@ import { recordTownDelivery } from './townGrowth.js';
 import { vehicleModel } from './vehicles.js';
 import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
+import { subsidyMultiplier } from './subsidies.js';
 
 /** Ticks spent at a station before (re)trying to load and depart. */
 export const LOAD_TICKS = 40;
@@ -42,7 +43,9 @@ export function unload(ctx, v, st) {
   if (load.fromStationId === st.id) return 0;
   const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
   const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
-  const pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
+  let pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
+  const mult = subsidyMultiplier(state, v.cargoId, load.sourceX, load.sourceY, st, ctx);
+  if (mult !== 1) pay = Math.round(pay * mult);
   recordDelivery(state.company, v.cargoId, load.amount, dist);
   creditDelivery(state, st, v.cargoId, load.amount);
   noteDelivery(state, v.cargoId, load.amount, v.id);

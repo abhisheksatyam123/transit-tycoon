@@ -22,6 +22,9 @@ import { openHelp } from './help.js';
 import { openSave, openLoad } from './saveLoad.js';
 import { openMetro } from './metro.js';
 import { openGoals } from './goals.js';
+import { openSettings } from './settings.js';
+import { openSubsidies } from './subsidies.js';
+import { openObjective } from './objective.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
@@ -46,6 +49,9 @@ const REGISTRY = {
   load: openLoad,
   metro: openMetro,
   goals: openGoals,
+  settings: openSettings,
+  subsidies: openSubsidies,
+  objective: openObjective,
 };
 
 /**

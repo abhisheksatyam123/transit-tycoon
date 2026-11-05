@@ -29,8 +29,10 @@ export const WINDOW_BUTTONS = [
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],
   ['goals', 'Goals', 'goals', 'O'],
+  ['subsidies', 'Subsidies', 'subsidies', ''],
   ['metro', 'Metro', 'metro', 'U'],
   ['issues', 'Issues', 'issues', 'G'],
+  ['settings', 'Settings', 'settings', ''],
   ['save', 'Save', 'save', ''],
   ['load', 'Load', 'load', 'L'],
   ['newGame', 'New Game', 'newGame', ''],
@@ -86,6 +88,14 @@ export function createToolbar(root, app) {
     badge.classList.toggle('warn', !!(sum && !sum.error && sum.warn));
   };
   setInterval(updateBadge, 3000);
+  /** Open the result dialog when the objective changes from active to won/lost while playing. */
+  const seen = new WeakMap();
+  setInterval(() => {
+    const o = app.game && app.game.state.objective;
+    if (!o) return;
+    if (!seen.has(o)) { seen.set(o, o.status); return; }
+    if (seen.get(o) === 'active' && o.status !== 'active') { seen.set(o, o.status); app.open('objective'); }
+  }, 1000);
   setTimeout(updateBadge, 500);
   const sound = tbButton(isMuted() ? 'soundOff' : 'soundOn', 'Sound', 'Toggle sound (M)', () => toggleSound());
   const toggleSound = () => {

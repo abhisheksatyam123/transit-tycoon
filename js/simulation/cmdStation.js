@@ -2,6 +2,7 @@
  * Station, road stop and depot commands plus their removal helpers.
  */
 import { DIRS, OPPOSITE, AXIS_BITS } from './constants.js';
+import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { getTile, inBounds } from './map.js';
 import { spend } from './economy.js';
@@ -50,6 +51,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
     if (t.rail && straightAxis(t.rail) !== axis) return { ok: false, error: ERR.track };
     cost += COSTS.railStation + clearingCost(t);
   }
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   const existing = adjacentStation(state, tiles);
@@ -88,7 +90,8 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
     axis = straightAxis(t.road);
     if (!axis) return { ok: false, error: 'Road stops need a straight road' };
   } else axis = opts.axis === 'y' ? 'y' : 'x';
-  const cost = COSTS.roadStop + clearingCost(t);
+  let cost = COSTS.roadStop + clearingCost(t);
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   const existing = adjacentStation(state, [{ x, y }]);
@@ -128,7 +131,8 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   if (t.terrain === 'water') return { ok: false, error: ERR.water };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail || t.road) return { ok: false, error: ERR.track };
-  const cost = (kind === 'rail' ? COSTS.depotRail : COSTS.depotRoad) + clearingCost(t);
+  let cost = (kind === 'rail' ? COSTS.depotRail : COSTS.depotRoad) + clearingCost(t);
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, depotId: null };

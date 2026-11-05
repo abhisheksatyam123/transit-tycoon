@@ -3,6 +3,7 @@
  */
 import { DIRS, OPPOSITE, AXIS_BITS, dirBetween } from './constants.js';
 import { isStationPort } from './stationLinks.js';
+import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { linePath } from './network.js';
 import { pathOk } from './shapes.js';
@@ -98,6 +99,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (onLine.has(i)) cost += (fresh ? base : 0) + (isHwy ? base * Math.max(0, 2 - (fresh ? 1 : 0)) : 0) + clearingCost(t);
   }
   if (changed === 0) return { ok: false, error: ERR.built };
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: n };
@@ -187,6 +189,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (t.terrain === 'forest' || t.terrain === 'rock') { jobs.push({ x, y, kind: 'clear' }); cost += clearingCost(t); }
   }
   if (jobs.length === 0) return { ok: false, error: sawIndustry ? "Can't demolish an industry" : 'Nothing to demolish' };
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: jobs.length };

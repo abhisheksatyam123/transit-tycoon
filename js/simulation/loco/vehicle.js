@@ -15,6 +15,8 @@ import { VEHICLE_MODELS } from '../../config/vehicles.js';
 import { spend } from '../economy.js';
 import { vehicleModel } from '../vehicles.js';
 import { notify } from '../news.js';
+import { getSetting } from '../settings.js';
+import { runningCost } from '../prices.js';
 
 export const RELIABILITY_SCALE = 25600; // 100% * 256
 export const RELIABILITY_LOSS_PER_DAY = 4; // kReliabilityLossPerDay
@@ -36,7 +38,7 @@ export function obsoleteYear(model) {
 }
 
 /** sub_4BA873: arm the breakdown timer (days until next breakdown) from reliability. */
-export function armBreakdownTimer(v, rng) {
+export function armBreakdownTimer(v, rng, state) {
   v.timeoutToBreakdown = NO_BREAKDOWN_TIMEOUT;
   const rel16 = Math.round(v.reliability * RELIABILITY_SCALE);
   if (rel16 !== 0) {
@@ -45,6 +47,7 @@ export function armBreakdownTimer(v, rng) {
     const randVal = Math.trunc((Math.floor(rng.next() * 65536) * (f >> 1)) / 65536);
     f -= f >> 2;
     f += randVal;
+    if (state && getSetting(state, 'breakdowns') === 'reduced') f *= 2;
     v.timeoutToBreakdown = Math.max(4, f);
   }
 }
@@ -59,11 +62,18 @@ export function vehicleDaily(ctx, v, rng, year) {
   v.age++;
   if (v.age === v.maxAge) notify(ctx, `${v.name} is getting old and should be replaced.`, 'bad', v.tx, v.ty);
   if (v.reliability === 0) return;
-  if (v.timeoutToBreakdown == null) armBreakdownTimer(v, rng);
+  // breakdowns setting: 'none' = never; 'reduced' = timer doubled (armBreakdownTimer); 'normal' = unchanged
+  if (ctx && ctx.state && getSetting(ctx.state, 'breakdowns') === 'none') {
+    v.timeoutToBreakdown = null;
+    v.breakdownPending = false;
+    v.reliability = Math.max(v.reliability - (obsoleteYear(vehicleModel(v)) <= year ? RELIABILITY_LOSS_PER_DAY_OBSOLETE : RELIABILITY_LOSS_PER_DAY) / RELIABILITY_SCALE, MIN_RELIABILITY / RELIABILITY_SCALE);
+    return;
+  }
+  if (v.timeoutToBreakdown == null) armBreakdownTimer(v, rng, ctx && ctx.state);
   if (v.state !== 'broken' && v.timeoutToBreakdown !== NO_BREAKDOWN_TIMEOUT) {
     v.timeoutToBreakdown = Math.max(0, v.timeoutToBreakdown - 1);
     if (v.timeoutToBreakdown === 0) {
-      armBreakdownTimer(v, rng);
+      armBreakdownTimer(v, rng, ctx && ctx.state);
       v.breakdownPending = true;
     }
   }
@@ -84,15 +94,16 @@ export function vehicleBreakdownTick(v) {
 }
 
 /** VehicleHead::calculateRunningCost: monthly running cost of one vehicle. */
-export function monthlyRunningCost(v) {
-  return Math.round(v.runningCost / 12);
+export function monthlyRunningCost(v, state) {
+  const base = Math.round(v.runningCost / 12);
+  return state ? runningCost(state, base) : base;
 }
 
 /** VehicleHead::updateMonthly. @returns {number} running cost charged */
 export function vehicleMonthly(ctx, v) {
   let cost = 0;
   if (v.state !== 'depot') {
-    cost = monthlyRunningCost(v);
+    cost = monthlyRunningCost(v, ctx && ctx.state);
     // veh2->curMonthRevenue = profit earned since the last month roll-over (orders.js adds deliveries to profitThisYear)
     const revenue = v.profitThisYear - (v.profitMonthMark || 0);
     v.profitThisYear -= cost;

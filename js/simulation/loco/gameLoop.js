@@ -16,6 +16,9 @@ import * as StationManager from './stationManager.js';
 import * as CompanyManager from './companyManager.js';
 import * as MessageManager from './messageManager.js';
 import * as Economy from './economy.js';
+import * as Subsidies from '../subsidies.js';
+import * as Objective from '../objective.js';
+import { getSetting } from '../settings.js';
 
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
 export const DAY_INCREMENT = 682;
@@ -52,7 +55,9 @@ export function tickDate(game) {
     CompanyManager.updateMonthly1(game);
     CompanyManager.updateMonthlyHeadquarters(game);
     VehicleManager.updateMonthly(game);
-    if (s.date.year <= 2029) Economy.updateMonthly(game);
+    if (s.date.year <= 2029 && getSetting(s, 'inflation')) Economy.updateMonthly(game);
+    Subsidies.updateMonthly(game); // transit-tycoon additions (OpenTTD subsidies, OpenLoco scenario objective)
+    Objective.updateMonthly(game);
     if (s.date.month % 3 === 0) CompanyManager.updateQuarterly(game); // January, April, July, October
     if (newYear) {
       CompanyManager.updateYearly(game);

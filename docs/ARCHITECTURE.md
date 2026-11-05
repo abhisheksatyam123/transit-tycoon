@@ -219,3 +219,9 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
   15% of the path (`altitudeAt`). Speed `AIR_KMH_TO_TILES_PER_TICK = 1/700` per km/h. Aircraft in flight
   (alt > 0) do not block tiles (`vehicleOnTile`). Orders use station tiles of kind `airport`.
 - Segments: `getVehicleSegments(v)` returns one item `{part:'aircraft', alt, dir, x, y, cargoId, loaded, fill}`.
+
+## Settings, inflation, subsidies, objectives (R15)
+- `js/simulation/settings.js`: `state.settings` (lazy; random worlds have none at day 0). Keys: `inflation`, `cargoPaymentPercent` (applied in `loco/economy.js` `calculateDeliveredCargoPayment`; Moscow uses 40 so its prebuilt network earns ~0.45M/month), `breakdowns` (`none`/`reduced`/`normal`, `loco/vehicle.js`), `subsidies`. UI: `ui/windows/settings.js`.
+- `js/simulation/prices.js`: every construction cost, vehicle price and running cost goes through OpenLoco inflation (`inflateCost`, scale 1.0 at game start).
+- `js/simulation/subsidies.js`: monthly offers (own PRNG per month, never `game.rng`), awarded on first matching delivery in `orders.js` `unload()`, x2 payment for 12 months. UI: `ui/windows/subsidies.js`.
+- `js/simulation/objective.js`: OpenLoco-style scenario objective (`companyValue`/`vehicleProfit`/`performanceIndex`/`cargoDelivery`, time limit), won/lost dialog `ui/windows/objective.js`; Moscow default: company value 40M within 10 years. New Game "Scenario options" pass `opts.settings`, `opts.objective`, `opts.maxLoan` to `Game.create`.

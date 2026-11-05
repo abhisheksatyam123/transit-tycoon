@@ -13,6 +13,7 @@
  * transit-tycoon has no object file).
  */
 import { CARGOS, CARGO_BY_ID } from '../../config/cargos.js';
+import { getSetting } from '../settings.js';
 
 /** Economy.cpp kInflationFactors. */
 export const INFLATION_FACTORS = [20, 20, 20, 20, 23, 20, 23, 23, 20, 17, 17, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20];
@@ -113,7 +114,9 @@ export function calculateDeliveredCargoPayment(state, cargoId, numUnits, distanc
   }
   percent = Math.floor(percent / 65536);
   const unitDistancePayment = getInflationAdjustedCost(state, percent, o.paymentIndex, 8);
-  return Math.trunc((unitDistancePayment * numUnits * distance) / 4096);
+  const pay = Math.trunc((unitDistancePayment * numUnits * distance) / 4096);
+  const pct = getSetting(state, 'cargoPaymentPercent');
+  return pct === 100 ? pay : Math.trunc((pay * pct) / 100); // transit-tycoon payment-rate setting
 }
 
 /** Economy::getDeliveryCargoPaymentsTable: payment for 100 units over 10 tiles after 2,4,..120 days (60 entries). */

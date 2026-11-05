@@ -6,6 +6,7 @@ import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
 import { describeBits } from './network.js';
 import { findDepot, findIndustry, findStation, findTown } from './state.js';
 import { tileAcceptance, waitingAmount } from './stations.js';
+import { vehiclePrice, runningCost } from './prices.js';
 import { industryType } from './industries.js';
 
 const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'] };
@@ -14,10 +15,13 @@ const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], 
  * Vehicle models available at the current date.
  * @param {object} state
  * @param {string} kind 'engine'|'train'|'wagon'|'road'|'bus'|'truck'
+ * @returns {any[]} model copies with inflated `cost` and `running`
  */
 export function listModels(state, kind) {
   const kinds = KIND_ALIASES[kind] || [kind];
-  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && m.introYear <= state.date.year);
+  // copies carrying the inflation-adjusted price / yearly running cost (what buying now would charge)
+  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && m.introYear <= state.date.year)
+    .map((m) => ({ ...m, cost: vehiclePrice(state, m), running: runningCost(state, m.running) }));
 }
 
 /**

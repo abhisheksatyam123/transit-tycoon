@@ -30,6 +30,8 @@ const PATHS = {
   metro: '<circle cx="12" cy="12" r="9"/><path d="M8 16V8l4 5 4-5v8"/>',
   traffic: '<circle cx="12" cy="12" r="9"/><path d="M12 12l4-5M7 15h2M15 15h2"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
   goals: '<path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17l-6.1 3.6 1.4-6.8L2.2 9.1l6.9-.8z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  subsidies: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9a3 3 0 0 0-5 1c0 3 5 2 5 5a3 3 0 0 1-5 1M12 6v2M12 16v2"/>',
   issues: '<path d="M12 3L2 20h20zM12 9v5M12 17v.01"/>',
   soundOn: '<path d="M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>',
   soundOff: '<path d="M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6"/>',

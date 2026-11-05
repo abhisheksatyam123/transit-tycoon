@@ -3,6 +3,7 @@
  * building.kind 'airport', a hangar tile that also registers an air depot, and removal.
  */
 import { AIRPORT_W, AIRPORT_H } from './constants.js';
+import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { spend } from './economy.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
@@ -38,6 +39,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
     cost += clearingCost(t);
   }
   if (maxH - minH > 1) return { ok: false, error: 'Airport needs flat land (heights differ by more than 1)' };
+  cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   const existing = adjacentStation(state, tiles);

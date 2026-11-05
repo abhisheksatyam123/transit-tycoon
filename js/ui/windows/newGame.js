@@ -4,6 +4,7 @@
 import { el } from '../dom.js';
 import { loadSlotData, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
+import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 
 /**
  * Labeled form field.
@@ -71,13 +72,29 @@ export function openNewGame(app) {
       const towns = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '1', max: '30', value: '8' }));
       const year = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '1920', max: '2050', value: '1950' }));
       const dice = el('button.btn.sm', { type: 'button', text: '🎲', title: 'Random seed', onclick: () => { seed.value = String(Math.floor(Math.random() * 1e6)); } });
+      const objType = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Scenario default' }),
+        el('option', { value: 'none', text: 'None' }),
+        ...Object.entries(OBJECTIVE_TYPES).map(([id, d]) => el('option', { value: id, text: d.label }))));
+      const objTarget = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '1', placeholder: 'default' }));
+      const objYears = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '0', max: '100', value: '10', title: '0 = no time limit' }));
+      const maxLoan = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '0', step: '10000', placeholder: 'default' }));
+      const infl = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Default (on)' }), el('option', { value: 'off', text: 'Off' })));
+      const pay = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '10', max: '300', step: '5', placeholder: 'default' }));
+      const brk = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Default (normal)' }), el('option', { value: 'reduced', text: 'Reduced' }), el('option', { value: 'none', text: 'None' })));
+      const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
+        field('Objective', objType), field('Target', objTarget), field('Years', objYears),
+        field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk));
       body.append(
         field('Scenario', scenario),
         desc,
         field('Seed', el('span.inline', null, seed, dice)),
         field('Map size', size),
         field('Towns', towns),
-        field('Start year', year));
+        field('Start year', year),
+        adv);
       const start = el('button.btn.primary', { type: 'button', text: 'Start new game' });
       start.addEventListener('click', () => {
         const sc = catalogue.find((c) => c.id === scenario.value) || catalogue[0];
@@ -91,6 +108,16 @@ export function openNewGame(app) {
           startYear: Math.max(1920, Math.min(2050, Number(year.value) || 1950)),
         };
         if (sc && sc.id !== 'random') opts.scenario = sc.id;
+        // Only explicit choices are passed, so default games stay identical.
+        if (objType.value === 'none') opts.objective = { type: 'none' };
+        else if (objType.value !== 'default') opts.objective = { type: objType.value, target: Number(objTarget.value) || undefined, timeLimitYears: Number(objYears.value) || 0 };
+        else if (objTarget.value && sc && sc.defaults && sc.defaults.objective) opts.objective = { ...sc.defaults.objective, target: Number(objTarget.value) };
+        if (Number(maxLoan.value) > 0) opts.maxLoan = Number(maxLoan.value);
+        const settings = {};
+        if (infl.value === 'off') settings.inflation = false;
+        if (Number(pay.value) > 0) settings.cargoPaymentPercent = Number(pay.value);
+        if (brk.value !== 'default') settings.breakdowns = brk.value;
+        if (Object.keys(settings).length) opts.settings = settings;
         win.close();
         app.newGame(opts);
       });
