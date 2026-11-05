@@ -3,6 +3,7 @@
  */
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { COSTS } from '../config/costs.js';
+import { noteExpenditure, companyDefaults } from './loco/company.js';
 import { START_MONEY, START_LOAN, MAX_LOAN, LOAN_STEP, INTEREST_RATE } from './constants.js';
 
 /** Ledger categories. */
@@ -14,6 +15,7 @@ export function createCompany(name = 'Transit Tycoon Co.') {
     name, money: START_MONEY, loan: START_LOAN, maxLoan: MAX_LOAN,
     ledger: { current: emptyLedger(), history: [] },
     negativeMonths: 0,
+    ...companyDefaults(),
   };
 }
 
@@ -55,6 +57,7 @@ export function spend(company, type, amount) {
   company.money -= amount;
   company.ledger.current.expenses += amount;
   company.ledger.current.byType[type] = (company.ledger.current.byType[type] || 0) + amount;
+  noteExpenditure(company, type, -amount);
 }
 
 /**
@@ -65,6 +68,7 @@ export function earn(company, amount, type = 'income') {
   company.money += amount;
   company.ledger.current.income += amount;
   company.ledger.current.byType[type] = (company.ledger.current.byType[type] || 0) + amount;
+  noteExpenditure(company, type, amount);
 }
 
 /**
@@ -110,18 +114,11 @@ export function propertyUpkeep(state) {
 }
 
 /**
- * Month-end finance processing: interest, property upkeep, ledger rollover.
- * Vehicle running costs are charged by the vehicles module before this.
- * @param {object} state
- * @param {{year:number,month:number}} [ended] the month being closed
- * @returns {{interest:number,property:number}}
+ * Close the ledger month `ended`: push it to history and start a new current month. Called by
+ * loco/companyManager.js after all monthly managers ran (interest/property are charged by Company::updateMonthly1).
  */
-export function monthlyFinances(state, ended = state.date) {
+export function closeLedgerMonth(state, ended) {
   const company = state.company;
-  const interest = Math.round((company.loan * INTEREST_RATE) / 12);
-  spend(company, 'interest', interest);
-  const property = propertyUpkeep(state);
-  spend(company, 'property', property);
   const cur = company.ledger.current;
   company.ledger.history.push({
     year: ended.year, month: ended.month, income: cur.income, expenses: cur.expenses,
@@ -129,5 +126,4 @@ export function monthlyFinances(state, ended = state.date) {
   });
   if (company.ledger.history.length > 36) company.ledger.history.shift();
   company.ledger.current = emptyLedger();
-  return { interest, property };
 }

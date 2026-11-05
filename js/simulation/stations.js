@@ -198,7 +198,7 @@ export function updateRatings(state, st) {
  * Mark that a vehicle tried to load cargo at the station (enables production delivery).
  */
 export function markPickup(state, st, cargoId, speedKmh) {
-  if (st.lastPickup[cargoId] === undefined && st.rating[cargoId] === undefined) st.rating[cargoId] = 69;
+  if (st.lastPickup[cargoId] === undefined && st.rating[cargoId] === undefined) st.rating[cargoId] = 75; // OpenLoco initial rating 150/200
   st.lastPickup[cargoId] = state.tick;
   if (speedKmh) st.lastSpeed = speedKmh;
 }

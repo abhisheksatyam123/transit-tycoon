@@ -5,7 +5,7 @@
 import { MAX_WAITING } from './constants.js';
 import { HOUSE_POP } from './towns.js';
 import { addWaiting } from './stations.js';
-import { monthlyIndustryOutput } from './industries.js';
+import { ensureIndustryState } from './loco/industry.js';
 import { manhattan, findStation } from './state.js';
 
 /** Days of the month on which a production chunk is distributed. */
@@ -54,31 +54,11 @@ export function deliverToStations(state, stations, cargoId, amount, sx, sy) {
 }
 
 /**
- * Month start: compute each industry's output for the coming month.
+ * World creation: set up the OpenLoco-style production state of every industry
+ * (daily production itself lives in loco/industryManager.js + loco/industry.js).
  */
-export function industriesMonthStart(state, rng) {
-  for (const ind of state.industries) ind.monthOutput = monthlyIndustryOutput(ind, rng);
-}
-
-/**
- * Distribute one chunk (a quarter of the month) of industry output.
- */
-export function distributeIndustryCargo(state, rng, coverage) {
-  const w = state.map.width;
-  for (const ind of state.industries) {
-    const out = ind.monthOutput || {};
-    const cargos = Object.keys(out);
-    if (cargos.length === 0) continue;
-    const idxs = [];
-    for (let y = ind.y; y < ind.y + ind.h; y++) for (let x = ind.x; x < ind.x + ind.w; x++) idxs.push(y * w + x);
-    const sx = ind.x + (ind.w >> 1), sy = ind.y + (ind.h >> 1);
-    for (const cargoId of cargos) {
-      const chunk = Math.floor(out[cargoId] / 4) + (rng.chance((out[cargoId] % 4) / 4) ? 1 : 0);
-      const stations = servingStations(state, coverage, idxs, cargoId, sx, sy);
-      const moved = deliverToStations(state, stations, cargoId, chunk, sx, sy);
-      ind.transportedThisMonth[cargoId] = (ind.transportedThisMonth[cargoId] || 0) + moved;
-    }
-  }
+export function industriesMonthStart(state, _rng) {
+  for (const ind of state.industries) ensureIndustryState(ind, state);
 }
 
 /**

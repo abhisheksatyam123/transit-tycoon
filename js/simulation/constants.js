@@ -20,7 +20,8 @@ export const DIR_BY_BIT = { 1: DIRS[0], 2: DIRS[1], 4: DIRS[2], 8: DIRS[3] };
 /** Bits of a straight piece along an axis. */
 export const AXIS_BITS = { x: 2 | 8, y: 1 | 4 };
 
-export const TICKS_PER_DAY = 30;
+/** Ticks per game day: OpenLoco day counter (loco/gameLoop.js DAY_INCREMENT 682 -> 65536/682 = 96.09 ticks). */
+export const TICKS_PER_DAY = 96;
 
 /** Catchment radius per station kind. */
 export const CATCHMENT = { rail: 4, bus: 3, truck: 3, airport: 6 };

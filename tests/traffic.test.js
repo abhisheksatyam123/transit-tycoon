@@ -6,7 +6,7 @@ import { trafficCars, trafficStats } from '../js/simulation/traffic.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
 import { LANE_CAPACITY } from '../js/config/traffic.js';
 
-function runDays(g, days) { for (let i = 0; i < days * TICKS_PER_DAY; i++) g.step(); }
+function runDays(g, days) { g.stepDays(days); }
 
 describe('traffic simulation', () => {
   test('cars spawn in a generated world and complete trips', () => {
@@ -65,7 +65,7 @@ describe('traffic simulation', () => {
     for (let k = 0; k < 40; k++) cars.push({ id: 900 + k, townId: 0, path, i: 0, t: 0, speed: 0.06, wait: 0, born: 0, kind: 'car', color: 0 });
     s.traffic.cars = cars;
     s.traffic.nextCarId = 1000;
-    for (let i = 0; i < 40; i++) g.step();
+    for (let i = 0; i < TICKS_PER_DAY + 4; i++) g.step(); // stats roll over daily
     expect(s.traffic.stats.avgSpeedRatio).toBeLessThan(1);
     expect(LANE_CAPACITY).toBeGreaterThan(0);
   });

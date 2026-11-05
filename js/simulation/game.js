@@ -2,20 +2,16 @@
  * Game: composes the simulation modules. Owns `state` (plain JSON), the seeded RNG,
  * the event emitter, the tick loop, commands and queries. No DOM access.
  */
-import { MAP_DEFAULTS, SAVE_VERSION, TICKS_PER_DAY } from './constants.js';
+import { MAP_DEFAULTS, SAVE_VERSION } from './constants.js';
 import { Emitter } from './events.js';
 import { createRng, hashSeed } from './rng.js';
-import { advanceDay } from './date.js';
 import { createMap, generateTerrain, getTile, inBounds } from './map.js';
 import { generateTowns } from './towns.js';
 import { generateIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
-import { createCompany, monthlyFinances, borrow, repay } from './economy.js';
-import { townMonthly } from './townGrowth.js';
-import { DISTRIBUTION_DAYS, distributeIndustryCargo, distributeTownCargo, industriesMonthStart } from './cargo.js';
-import { buildCoverage, catchmentTiles, recomputeAllAcceptance, updateRatings } from './stations.js';
-import { vehicleTick } from './movement.js';
-import { vehiclesDaily, vehiclesMonthly, vehiclesYearly } from './vehicleLife.js';
+import { createCompany, borrow, repay } from './economy.js';
+import { industriesMonthStart } from './cargo.js';
+import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
@@ -26,10 +22,10 @@ import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
 import { parseState, serializeState } from './save.js';
 import { buildScenario } from './scenarios/index.js';
-import { createTraffic, trafficTick, trafficDaily, trafficCars, trafficStats, trafficLoad } from './traffic.js';
-import { initGoals, evaluateGoals, rollGoalMonth, goalSnapshot } from './goals.js';
+import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
+import { initGoals, goalSnapshot } from './goals.js';
+import { tick as locoTick } from './loco/gameLoop.js';
 
-const BANKRUPT_WARN_MONTHS = 3;
 
 /**
  * Build a named real-map scenario onto a freshly created game.
@@ -66,7 +62,7 @@ export class Game {
   static create(opts = {}) {
     const o = { ...MAP_DEFAULTS, ...opts };
     const state = {
-      version: SAVE_VERSION, seed: o.seed, rngState: hashSeed(o.seed), tick: 0,
+      version: SAVE_VERSION, seed: o.seed, rngState: hashSeed(o.seed), tick: 0, dayCounter: 0,
       date: { year: o.startYear, month: 0, day: 1 },
       map: createMap(o.width, o.height),
       towns: [], industries: [], stations: [], depots: [], vehicles: [],
@@ -103,57 +99,14 @@ export class Game {
   on(event, fn) { return this.events.on(event, fn); }
   off(event, fn) { this.events.off(event, fn); }
 
-  /** Advance the simulation by one tick. */
-  step() {
-    const s = this.state;
-    s.tick++;
-    for (const v of s.vehicles) vehicleTick(this.ctx, v);
-    trafficTick(this.ctx);
-    if (s.tick % TICKS_PER_DAY === 0) this.onDay();
-  }
+  /** Advance the simulation by one tick (OpenLoco GameScene::tick, see loco/gameLoop.js). */
+  step() { locoTick(this); }
 
-  /** Daily processing (and month/year rollover). */
-  onDay() {
-    const s = this.state;
-    trafficDaily(this.ctx);
-    const { newMonth, newYear } = advanceDay(s.date);
-    vehiclesDaily(this.ctx, this.rng);
-    for (const st of s.stations) updateRatings(s, st);
-    if (DISTRIBUTION_DAYS.includes(s.date.day)) {
-      const coverage = buildCoverage(s);
-      distributeIndustryCargo(s, this.rng, coverage);
-      distributeTownCargo(s, this.rng, coverage);
-    }
-    if (s.goals) evaluateGoals(this.ctx);
-    this.events.emit('day', { date: s.date });
-    if (newMonth) this.onMonth();
-    if (newYear) {
-      vehiclesYearly(this.ctx, s.date.year);
-      this.events.emit('year', { date: s.date });
-    }
-  }
-
-  /** Month rollover: running costs, finances, production, town growth. */
-  onMonth() {
-    const s = this.state;
-    const ended = s.date.month === 0 ? { year: s.date.year - 1, month: 11 } : { year: s.date.year, month: s.date.month - 1 };
-    vehiclesMonthly(this.ctx);
-    monthlyFinances(s, ended);
-    evaluateGoals(this.ctx);
-    rollGoalMonth(s);
-    industriesMonthStart(s, this.rng);
-    for (const town of s.towns) townMonthly(s, this.rng, town);
-    recomputeAllAcceptance(s);
-    this.checkSolvency();
-    this.events.emit('month', { date: s.date });
-  }
-
-  /** Warn when money stays negative. */
-  checkSolvency() {
-    const c = this.state.company;
-    c.negativeMonths = c.money < 0 ? c.negativeMonths + 1 : 0;
-    if (c.negativeMonths >= BANKRUPT_WARN_MONTHS) {
-      notify(this.ctx, `${c.name} has been in debt for ${c.negativeMonths} months! Raise income or take a loan before bankruptcy.`, 'bad');
+  /** Run whole game days: tick until the date has advanced `n` times. */
+  stepDays(n = 1) {
+    for (let i = 0; i < n; i++) {
+      const d = this.state.date.day, m = this.state.date.month, y = this.state.date.year;
+      do this.step(); while (this.state.date.day === d && this.state.date.month === m && this.state.date.year === y);
     }
   }
 

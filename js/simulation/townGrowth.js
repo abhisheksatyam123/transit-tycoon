@@ -12,28 +12,17 @@ import { nextGrowthAction } from './townLayout.js';
 export const MILESTONES = [500, 1000, 2000, 3000, 5000, 8000, 12000];
 
 /**
- * Month end for a town: roll stats, accumulate growth, grow if due.
- * @returns {boolean} whether the town grew
+ * Month end statistics roll for a town (growth itself is driven per town tick by loco/town.js,
+ * see Town::tick / Town::updateMonthly there): last-month figures, counters reset, population, news.
  */
-export function townMonthly(state, rng, town) {
+export function rollTownStats(state, town) {
   town.passengersLastMonth = town.passengersThisMonth;
   town.mailLastMonth = town.mailThisMonth;
   town.passengersTransported = town.transportedThisMonth;
   town.goodsDeliveredLastMonth = town.goodsThisMonth;
-  const served = town.transportedThisMonth > 0 || town.deliveredPassThisMonth > 0;
+  town.goodsDelivered = town.goodsThisMonth;
   town.passengersThisMonth = 0; town.mailThisMonth = 0; town.transportedThisMonth = 0;
   town.goodsThisMonth = 0; town.deliveredPassThisMonth = 0;
-
-  let rate = 1;
-  if (served) rate += 3 + Math.min(4, Math.floor(town.passengersTransported / 150));
-  if (town.goodsDeliveredLastMonth > 0) rate += 2;
-  town.growthCounter += rate;
-  const threshold = 6;
-  let grew = false;
-  while (town.growthCounter >= threshold) {
-    town.growthCounter -= threshold;
-    if (growOnce(state, rng, town)) grew = true;
-  }
   const before = town.population;
   recomputePopulation(state, town);
   for (const m of MILESTONES) {
@@ -41,7 +30,6 @@ export function townMonthly(state, rng, town) {
       pushNews(state, `${town.name} has grown to a population of ${town.population}!`, 'good', town.x, town.y);
     }
   }
-  return grew;
 }
 
 /** Town radius used for growth. */

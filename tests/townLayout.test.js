@@ -35,7 +35,7 @@ describe('better roads', () => {
 describe('generated towns', () => {
   test('after 365 days each town road network is one connected component', () => {
     const game = Game.create({ seed: 1 });
-    for (let i = 0; i < 365 * TICKS_PER_DAY; i++) game.step();
+    game.stepDays(365);
     const { map, towns } = game.state;
     const W = map.width, H = map.height;
     const D = [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]];

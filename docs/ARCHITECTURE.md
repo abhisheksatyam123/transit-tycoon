@@ -101,7 +101,8 @@ export class Game {
   static create({seed=1234, width=96, height=96, startYear=1950, townCount=8, industryCount=18})
   static deserialize(json) ; serialize() -> string
   state
-  step()                              // advance ONE tick; day/month/year events
+  step()                              // advance ONE tick (OpenLoco GameScene::tick, js/simulation/loco/gameLoop.js); day/month/year events
+  stepDays(n)                         // tick until n calendar days have passed (a day = 65536/682 ~ 96 ticks)
   // Commands -> {ok:true, cost, ...extra} | {ok:false, error}. Last arg opts {dryRun:true} = validate+cost only.
   buildRail(x0,y0,x1,y1,opts)         // straight or L-shaped (x first, then y); connects consecutive tiles
   buildRoad(x0,y0,x1,y1,opts)
@@ -120,6 +121,16 @@ export class Game {
   on(event,fn) / off                  // 'news','day','month','year','income','vehicleArrived'
 }
 ```
+
+## Game loop (OpenLoco port, R12)
+`js/simulation/loco/gameLoop.js` mirrors OpenLoco (MIT) `GameScene::tick` / `tickDate` / `Date::updateDayCounter`:
+each tick runs tickDate (StationManager/VehicleManager/IndustryManager/MessageManager daily, then the date; at month end
+TownManager, IndustryManager, CompanyManager (monthly1, HQ), VehicleManager monthly, Economy inflation (<= 2029),
+quarterly/yearly company updates, then CompanyManager daily), then TileManager, TownManager, IndustryManager,
+VehicleManager, StationManager and CompanyManager ticks. Managers live in `js/simulation/loco/*Manager.js` with
+helpers `station.js`, `industry.js`, `town.js`, `vehicle.js`, `company.js`, `economy.js` (cargo payment:
+`calculateDeliveredCargoPayment`). UI runs 40 ticks/s (`ui/loop.js` BASE_TPS). OpenLoco map elements / tile manager /
+track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 
 ## Gameplay rules
 - Cargo: PASS, MAIL, COAL, WOOD, OIL, GRAI, LVST, IORE, STEL, GOOD.

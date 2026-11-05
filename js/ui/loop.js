@@ -3,7 +3,8 @@
  * fixed ticks (BASE_TPS at 1x, multiplied by speed), capped per frame to avoid spirals.
  */
 
-export const BASE_TPS = 30;
+/** OpenLoco runs 40 logic updates per second at normal speed (OpenLoco.cpp tickWait, 40 FPS). */
+export const BASE_TPS = 40;
 const MAX_STEPS_PER_FRAME = 40;
 
 /**

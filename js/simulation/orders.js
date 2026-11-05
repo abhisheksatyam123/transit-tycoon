@@ -2,7 +2,9 @@
  * Order progression and station loading / unloading.
  */
 import { TICKS_PER_DAY } from './constants.js';
-import { cargoPayment, earn } from './economy.js';
+import { earn } from './economy.js';
+import { calculateDeliveredCargoPayment } from './loco/economy.js';
+import { recordDelivery } from './loco/company.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, manhattan, findIndustry, nearestTown } from './state.js';
@@ -40,7 +42,8 @@ export function unload(ctx, v, st) {
   if (load.fromStationId === st.id) return 0;
   const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
   const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
-  const pay = cargoPayment(v.cargoId, load.amount, dist, days);
+  const pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
+  recordDelivery(state.company, v.cargoId, load.amount, dist);
   creditDelivery(state, st, v.cargoId, load.amount);
   noteDelivery(state, v.cargoId, load.amount, v.id);
   const amount = load.amount;

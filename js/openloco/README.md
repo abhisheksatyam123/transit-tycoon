@@ -16,21 +16,23 @@ code; **no original game data, graphics, or other assets are included** — only
 | `include/OpenLoco/Map/Track/TrackIteration.h` (iterateTrackToJunction) | `trackIteration.js` | chain walk with injected `filter`/`getConnections` callbacks; engine-agnostic |
 | `src/Map/Track/SubpositionData.cpp` (centreline move tables) | `js/renderer/net/locoPieces.js` | already ported earlier via `tools/openloco/extract.js` (partial: pieces used by the renderer) |
 | — | `trackEnum.js` | NULL_TAD (0xFFFF) from Track.cpp |
+| `include/OpenLoco/Map/{TileElement,SurfaceElement,BuildingElement,TreeElement,WallElement,IndustryElement}.h` | `map/elements.js` | 8-byte `Uint8Array` element classes, identical bit layout + camelCase accessors; ElementType/ElementFlags/SurfaceSlope |
+| `Map/{TrackElement,RoadElement,SignalElement,StationElement}.h` (+ RoadElement.cpp, Track.cpp ctor, Tile.cpp stationType) | `map/transportElements.js` | TrackElement/RoadElement/SignalElement(+Side)/StationElement, StationType |
+| `src/Map/TileManager.cpp`, `Tile.h/.cpp` | `map/tileManager.js` | `TileManager` (W x H ordered element lists, insertElement/insertElementRoad/insertElementAfterNoReorg/removeElement, getHeight, surface corner heights), `Tile` view (surface, trainStation, roadStation) |
+| `src/Map/TileClearance.cpp` | `map/tileClearance.js` | canConstructAt, applyClearAtStandardHeight/AllHeights, clear-function factories, getTileOwner; company/AI context injected, error text returned as string ids |
+| `src/Map/Track/Track.cpp` | `map/track.js` | getTrackConnections(+Ai), getRoadConnections(+OneWay/AiAllocated), validateTrackIsSignalCompatible (connection ends re-exported from `connection.js`) |
+| element-insertion part of `CreateTrack.cpp` / `CreateRoad.cpp` | `map/place.js` | placeTrack / placeRoad / attachTrainStation / attachRoadStation (map writing only, no cost/bridge rules) |
+| `Engine/World.hpp`, `Math/Vector.hpp` | `map/world.js` | TILE_SIZE, rotatePos2, toTileSpace/toWorldSpace, Pos helpers |
+| — (transit-tycoon original) | `map/fromGame.js` | `tileManagerFromGame(state)`: converts the per-tile direction-bit map into pieces (mapping documented in the file header) |
 
 ## What was NOT ported (and why)
 
-These all depend on the Locomotion map/engine (element bit layout, TileManager, GameState,
-ObjectManager, StationElement/SignalElement), which transit-tycoon does not have — its map model is
-per-tile direction bits (see `docs/ARCHITECTURE.md`). Porting them verbatim would produce dead code.
-
 - `CreateTrack`, `CreateRoad`, `RemoveTrack`, `RemoveRoad`, `CreateTrackMod`, `RemoveTrackMod`,
-  `CreateTrainStation`, `CreateRoadStation`, `CreateSignal(s)` game commands
-  (`src/GameCommands/{Track,Road}/*`) — build/remove rules tied to the Locomotion map element system.
-- `TrackElement` / `RoadElement` bit packing (`src/Map/TrackElement.cpp`, `src/Map/RoadElement.cpp`).
-- `getTrackConnections` / `getRoadConnections` (`src/Map/Track/Track.cpp`) — tile-query logic over
-  Locomotion elements; the *algorithm shape* is engine-specific. `iterateTrackToJunction` above is the
-  portable skeleton of that logic with the tile query injected.
-- `validateTrackIsSignalCompatible` — requires TileManager + rotation vector math.
+  `CreateTrainStation`, `CreateRoadStation`, `CreateSignal(s)` game commands (`src/GameCommands/{Track,Road}/*`) —
+  cost, bridge/tunnel search, ownership and terrain rules. The map layer they need (`map/*`) is now in place.
+- Single `entries[]` array / `Store<T>` allocators / defrag of TileManager (replaced by per-tile JS arrays);
+  terrain/tree/building/industry removal and game-wide updates (`TileManager::tick`, `removeTree`, `adjustSurfaceHeight`...).
+- `RoadElement::tick`, level-crossing/station/signal animation updates (need game state + ObjectManager).
 - Paint/sprite tables (`src/Paint/*`) — graphics belong to the renderer, not this module.
 
 ## Regenerating / verifying
@@ -38,6 +40,7 @@ per-tile direction bits (see `docs/ARCHITECTURE.md`). Porting them verbatim woul
 ```sh
 bun tools/openloco/extractTrackData.js --print   # re-extracts tables, fails loudly on mismatch
 bun test tests/openlocoTrackData.test.js         # invariants (counts, rotation masks, QuarterTile, iteration)
+bun test tests/openlocoMap.test.js               # elements, TileManager, clearance, connections, fromGame adapter
 bun run check                                     # import checker
 ```
 

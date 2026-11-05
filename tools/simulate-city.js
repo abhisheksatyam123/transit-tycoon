@@ -161,7 +161,7 @@ function runYears(g, report, years) {
   let monthlyIssues = null;
   for (let d = 0; d < totalDays; d++) {
     const t0 = performance.now();
-    for (let k = 0; k < TICKS_PER_DAY; k++) g.step();
+    g.stepDays(1);
     const ms = performance.now() - t0;
     maxMs = Math.max(maxMs, ms); sumMs += ms; days++;
     if (s.date.month !== lastMonth) {
@@ -212,7 +212,7 @@ function checkDeterminism(g) {
   const snap = g.serialize();
   const a = Game.deserialize(snap);
   const b = g;
-  const runDays = (gm, n) => { for (let i = 0; i < n * TICKS_PER_DAY; i++) gm.step(); return gm.serialize(); };
+  const runDays = (gm, n) => { gm.stepDays(n); return gm.serialize(); };
   const ra = runDays(a, 30);
   const rb = runDays(b, 30);
   return ra === rb ? 'MATCH' : 'MISMATCH';

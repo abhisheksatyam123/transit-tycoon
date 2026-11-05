@@ -10,9 +10,10 @@ import { TICKS_PER_DAY } from '../js/simulation/constants.js';
 import { LM3D } from '../js/config/landmarks3d.js';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
+// R12 (OpenLoco game loop + managers, js/simulation/loco/): day-0 state gained dayCounter/industry/economy fields
 const RANDOM_HASH = {
-  1: 'd77d70bff21ff64df200a86968e98a53e467b9a7d289f5304f5efcd09bff37ff',
-  7: 'a2559e6aaab1e2a0b825efffb5dbf69626ba2e887fcf9dc7872aefd2ef9d9845',
+  1: '5bbe6725ab0488f412af49d10738e12cc17ebff950eacaf29b622f499876b2a7',
+  7: 'edfe8f6ed38e471d26f7497e4460176f114ff3284d573681642e0778c8bcbd66',
 };
 const mini = () => { const g = Game.create({ seed: 3, width: 40, height: 40 }); const r = buildScenario('moscow', g, miniMoscow()); return { g, r }; };
 
@@ -71,7 +72,7 @@ describe('mini Moscow fixture', () => {
   });
   test('the game steps for a few days without errors', () => {
     const { g } = mini();
-    for (let i = 0; i < 3 * TICKS_PER_DAY; i++) g.step();
+    g.stepDays(3);
     expect(runDiagnostics(g).filter((i) => i.severity === 'error')).toEqual([]);
   });
 });

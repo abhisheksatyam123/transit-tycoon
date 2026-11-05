@@ -1,9 +1,10 @@
 /**
  * Industry placement and monthly production / processing.
  */
-import { INDUSTRY_TYPES, INDUSTRY_BY_ID, CONVERSION_RATIO } from '../config/industries.js';
+import { INDUSTRY_TYPES, INDUSTRY_BY_ID } from '../config/industries.js';
 import { allocId, manhattan } from './state.js';
 import { industryName } from './naming.js';
+import { receiveCargo, ensureIndustryState } from './loco/industry.js';
 
 /**
  * Check whether an industry of the given type fits at (x,y) (top-left).
@@ -68,6 +69,7 @@ export function placeIndustry(state, typeId, x, y) {
       t.rail = 0; t.road = 0;
     }
   }
+  ensureIndustryState(ind, state);
   state.industries.push(ind);
   return ind;
 }
@@ -111,39 +113,10 @@ export function industryTiles(ind) {
 }
 
 /**
- * Record a delivery of cargo to an industry (stocked for processing next month).
+ * Record a delivery of cargo to an industry (OpenLoco: received cargo counters, processed daily).
  */
 export function deliverToIndustry(ind, cargoId, amount) {
-  const type = INDUSTRY_BY_ID[ind.typeId];
-  if (!type || !type.accepts.includes(cargoId)) return;
-  ind.stock[cargoId] = (ind.stock[cargoId] || 0) + amount;
-  ind.deliveredThisMonth[cargoId] = (ind.deliveredThisMonth[cargoId] || 0) + amount;
-}
-
-/**
- * Amount an industry produces this month per cargo (base production + converted stock).
- * Consumes the stock. Also rolls over monthly stats.
- * @returns {{[cargoId:string]:number}}
- */
-export function monthlyIndustryOutput(ind, rng) {
-  const type = INDUSTRY_BY_ID[ind.typeId];
-  const out = {};
-  for (const [cargoId, base] of Object.entries(ind.production)) {
-    out[cargoId] = Math.max(0, Math.round(base * rng.range(0.85, 1.15)));
-  }
-  for (const [input, output] of Object.entries(type.converts || {})) {
-    const s = ind.stock[input] || 0;
-    if (s <= 0) continue;
-    out[output] = (out[output] || 0) + Math.floor(s * CONVERSION_RATIO);
-    ind.stock[input] = 0;
-  }
-  ind.producedLastMonth = ind.producedThisMonth;
-  ind.transportedLastMonth = ind.transportedThisMonth;
-  ind.deliveredLastMonth = ind.deliveredThisMonth;
-  ind.producedThisMonth = { ...out };
-  ind.transportedThisMonth = {};
-  ind.deliveredThisMonth = {};
-  return out;
+  receiveCargo(ind, cargoId, amount);
 }
 
 /** Industry type record for an industry. */
