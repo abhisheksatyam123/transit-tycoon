@@ -8,7 +8,7 @@ const at = (fn, la, lo, hd = 0) => (toM) => place(fn(), toM, la, lo, hd);
 
 export const STATUES = [
   // node 614438912; the pavilion (OSM 10 m museum parts) trails WNW, the pair strides ESE (pavilion long axis 117 deg)
-  { id: 'r7d_worker_kolkhoz', title: 'Worker and Kolkhoz Woman, VDNKh', src: 'vdnkh', ground: 'paved', streets: false, scale: 6,
+  { id: 'r7d_worker_kolkhoz', title: 'Worker and Kolkhoz Woman, VDNKh', src: 'vdnkh', ground: 'paved', streets: false, scale: 5,
     sel: { circle: [55.8281766, 37.646748, 55] }, anchor: [55.8281766, 37.646748], extraFaces: at(workerKolkhozFaces, 55.8281766, 37.646748, 117) },
   // node 250525422; OSM building parts model the plume and the museum stylobate
   { id: 'r7d_space_conquerors', title: 'Monument to the Conquerors of Space, VDNKh', src: 'vdnkh', ground: 'paved', streets: false, scale: 6,

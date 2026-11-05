@@ -61,7 +61,10 @@ function build(map, kind) {
     if (!conn[i]) continue;
     const t = T[i], m = conn[i];
     const deg = (m & 1) + ((m >> 1) & 1) + ((m >> 2) & 1) + ((m >> 3) & 1);
-    if (deg !== 2 || t.building || ((t.road | 0) && (t.rail | 0)) || t.tunnel) isNode[i] = 1; // water = bridge: drawn by the net
+    // Metro tunnels run underground: for the road net a tunnel tile is plain street (otherwise every street over a
+    // metro line broke into per-tile sprites and drew staircases); surface road+rail crossings stay nodes.
+    const crossing = (t.road | 0) && (t.rail | 0) && (kind === 'rail' || !t.tunnel);
+    if (deg !== 2 || t.building || crossing || (kind === 'rail' && t.tunnel)) isNode[i] = 1; // water = bridge: drawn by the net
   }
   const covered = new Uint8Array(n);
   const usedDir = new Uint8Array(n); // per tile, directions already walked

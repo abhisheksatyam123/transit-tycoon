@@ -1,14 +1,14 @@
 /** Ensembles groupA (see ../ensembles.js for fields). R7c-A: six Moscow landmarks, photo-checked. */
 import { byBuilding } from '../styles.js';
-import { colour as C } from '../s3db.js';
+import { colour as C, colour } from '../s3db.js';
 import { toM } from '../osm.js';
 import { stStone, stGoldTop } from './groupBStyles.js';
 
 export const GROUP_A = [
   {
     id: 'christ_saviour', src: 'christ_saviour', covers: ['christ_saviour'], anchor: [55.74423, 37.60531],
-    title: 'Cathedral of Christ the Saviour', ground: 'paved',
-    sel: { circle: [55.74423, 37.60531, 75] },
+    title: 'Cathedral of Christ the Saviour', ground: 'grass',
+    sel: { circle: [55.74423, 37.60531, 75] }, trees: true,
     styles: [byBuilding([
       { osm: 'r7314898', wall: '#f3f1ea', force: true }, // white walls
     ]), (B) => { // gold domes/onions; other roofs dark red-brown like the photo
@@ -17,10 +17,10 @@ export const GROUP_A = [
         if (Math.hypot(b.c[0] - ctr[0], b.c[1] - ctr[1]) > 50) continue; // only the cathedral mass
         if (b.tags['roof:colour']) continue;
         const dome = b.spec.shape === 'dome' || b.spec.shape === 'onion';
-        if (b.spec.top <= 10.5) { b.spec.roof = C('#c9c2b6'); b.spec.wall = C('#9a6f63'); b.spec.win = false; continue; } // stylobate: paved terrace on red granite
+        if (b.spec.top <= 10.5) { b.spec.roof = C('#b9b0a3'); b.spec.wall = C('#8f857a'); b.spec.win = false; continue; } // stylobate: paved terrace on red granite
         b.spec.roof = C(dome ? '#d9a838' : '#6e3b2c');
       }
-    }],
+    }], // stylobate: warm grey granite terrace
     trees: false,
   },
   {
@@ -30,7 +30,28 @@ export const GROUP_A = [
     styles: [byBuilding([
       { osm: 'r6204093', wall: '#eee3c2', roof: '#6f7f72', force: true }, // cream facade, green-grey roof
     ])],
-    trees: false,
+    extraFaces: (toM) => { // 8-column Doric portico + pediment + bronze quadriga, on the square side
+      const o = [], a = toM(55.76010, 37.61860), C = colour('#eee3c2'), BR = colour('#4a3a22');
+      const x0 = a[0] - 22, y0 = a[1] + 28, base = 0;
+      for (let i = 0; i < 8; i++) {
+        const cx = x0 + i * 6.3;
+        const rad = 0.95, h = 18;
+        for (let k = 0; k < 8; k++) { const t0 = (k / 8) * 2 * Math.PI, t1 = ((k + 1) / 8) * 2 * Math.PI;
+          o.push({ pts: [[cx + rad * Math.cos(t0), y0 + rad * Math.sin(t0), base], [cx + rad * Math.cos(t1), y0 + rad * Math.sin(t1), base], [cx + rad * Math.cos(t1), y0 + rad * Math.sin(t1), base + h], [cx + rad * Math.cos(t0), y0 + rad * Math.sin(t0), base + h]], col: C, kind: 'model' });
+        }
+      }
+      const bx = (x, y, z0, sx, sy, h, c) => { const x1 = x + sx, y1 = y + sy, z1 = z0 + h; const q = (p, r, s2, t) => o.push({ pts: [p, r, s2, t], col: c, kind: 'model' });
+        q([x, y, z1], [x1, y, z1], [x1, y1, z1], [x, y1, z1]); q([x, y, z0], [x1, y, z0], [x1, y, z1], [x, y, z1]); q([x1, y, z0], [x1, y1, z0], [x1, y1, z1], [x1, y, z1]); q([x1, y1, z0], [x, y1, z0], [x, y1, z1], [x1, y1, z1]); q([x, y1, z0], [x, y, z0], [x, y, z1], [x, y1, z1]); };
+      bx(x0 - 3, y0 - 1.5, 0, 6.3 * 7 + 6, 1.5, 1.2, C); // stylobate
+      bx(x0 - 2, y0 - 1.5, 18, 6.3 * 7 + 4, 1.5, 2.2, C); // entablature
+      const px = x0 - 2, py = y0 - 1.5, pw = 6.3 * 7 + 4;
+      o.push({ pts: [[px, py, 20.2], [px + pw, py, 20.2], [px + pw / 2, py, 26]], col: C, kind: 'model' }); // pediment
+      const cxq = px + pw / 2, qz = 20.2;
+      for (let i = 0; i < 4; i++) bx(cxq - 6 + i * 3.2, py - 2.2, qz, 1.0, 1.1, 2.4, BR); // horses (bodies, simplified)
+      bx(cxq - 3, py - 4.5, qz + 2.4, 6, 3, 1.6, BR); // chariot
+      return o;
+    },
+    trees: true,
   },
   {
     id: 'msu', src: 'msu', covers: ['msu'], anchor: [55.70340, 37.53000],
@@ -58,7 +79,7 @@ export const GROUP_A = [
         }
       }
       B.push(...add);
-    }],
+    }], // stylobate: warm grey granite terrace
     trees: false,
   },
   {

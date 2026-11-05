@@ -4,6 +4,7 @@
 import { SAVE_VERSION } from './constants.js';
 import { createTraffic } from './traffic.js';
 import { LM3D } from '../config/landmarks3d.js';
+import { ensureGoals } from './goals.js';
 
 /**
  * Serialise state to a JSON string.
@@ -58,6 +59,7 @@ function migrate(state) {
         && e.front[0] >= 0 && e.front[1] >= 0 && e.front[0] < state.map.width && e.front[1] < state.map.height)
       .map((e) => ({ id: e.id, x: e.front[0], y: e.front[1] }));
   }
+  ensureGoals(state);
   if (!state.traffic) state.traffic = createTraffic(state);
   const tr = state.traffic;
   tr.load ??= [];

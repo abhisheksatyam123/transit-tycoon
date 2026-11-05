@@ -23,6 +23,8 @@ export const RADII = {
 };
 const DIR = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 export const DP_EPS = 0.62;
+/** Rail uses a wider DP tolerance so mainline S-wobbles collapse into straight runs (render-only). */
+export const DP_EPS_RAIL = 0.9;
 const STEP = 0.125;
 
 /** Douglas-Peucker on [[x,y],...] keeping endpoints; returns kept points. */
@@ -77,10 +79,10 @@ export function smoothPath(raw, opts = {}) {
     const A = [P[0][0] + d0[0] * 0.5, P[0][1] + d0[1] * 0.5]; // first tile centre-line, axis aligned lead
     const B = [P[n - 1][0] - d1[0] * 0.5, P[n - 1][1] - d1[1] * 0.5];
     core = [A, ...P.slice(1, n - 1), B];
-    core = simplify(core, DP_EPS);
+    core = simplifyChain(core, opts, P, d0, d1);
     core = [P[0], ...core, P[n - 1]];
   } else {
-    core = simplify(P, DP_EPS);
+    core = simplifyChain(P, opts, P, null, null);
   }
   // drop duplicate points
   const Q = [core[0]];
@@ -125,8 +127,47 @@ export function smoothPath(raw, opts = {}) {
   return relax(out, opts.kind === 'rail' ? SMOOTH_W.rail : SMOOTH_W.road);
 }
 
+/** Road DP tolerances tried in order (tiles); a wider one is kept only if the result stays in the chain's tiles. */
+export const ROAD_EPS_LADDER = [DP_EPS, 0.8, 1.0];
+
+/**
+ * Simplify a centreline. Rail: unchanged (DP_EPS_RAIL). Road: adaptive tolerance so long slanted
+ * streets built from 1-tile jogs collapse into straight/gently curved runs, but only while every
+ * sampled point of the simplified line stays inside a tile of the chain (|dx|,|dy| <= 0.5 of a centre).
+ * @param {number[][]} pts polyline [[x,y],...] to simplify (already includes the lead-ins for non-loops)
+ * @param {object} opts smoothPath options (kind, map, tiles, loop)
+ * @param {number[][]} P raw boundary-midpoint path (for node-centre bookkeeping)
+ * @param {number[]|null} d0 first travel direction vector, d1 last
+ */
+function simplifyChain(pts, opts, P, d0, d1) {
+  if (opts.kind === 'rail' || !opts.map) return simplify(pts, opts.kind === 'rail' ? DP_EPS_RAIL : DP_EPS);
+  const W = opts.map.width;
+  const cells = new Set();
+  for (const t of opts.tiles || []) cells.add(((t / W) | 0) * 100000 + (t % W));
+  // node tile centres at the chain ends (boundary midpoint + half a tile back into the node)
+  if (d0) cells.add(Math.round(P[0][1] - d0[1] * 0.5) * 100000 + Math.round(P[0][0] - d0[0] * 0.5));
+  if (d1) { const q = P[P.length - 1]; cells.add(Math.round(q[1] + d1[1] * 0.5) * 100000 + Math.round(q[0] + d1[0] * 0.5)); }
+  const inside = (x, y) => cells.has(Math.round(y) * 100000 + Math.round(x));
+  let best = null;
+  for (const eps of ROAD_EPS_LADDER) {
+    const out = simplify(pts, eps);
+    if (eps === DP_EPS) { best = out; continue; }
+    let ok = out.length > 1 && cells.size > 0;
+    for (let i = 0; ok && i + 1 < out.length; i++) {
+      const [ax, ay] = out[i], [bx, by] = out[i + 1];
+      const L = Math.hypot(bx - ax, by - ay), m = Math.max(1, Math.ceil(L / 0.1));
+      for (let k = 0; k <= m && ok; k++) {
+        const x = ax + (bx - ax) * k / m, y = ay + (by - ay) * k / m;
+        if (!inside(x, y)) ok = false;
+      }
+    }
+    if (ok) best = out;
+  }
+  return best;
+}
+
 /** Half-window (tiles) of the final centreline relaxation: rounds DP zig-zags on player curves/circles. */
-export const SMOOTH_W = { road: 1.0, rail: 1.5 };
+export const SMOOTH_W = { road: 1.0, rail: 2.0 };
 
 /**
  * Resample at exactly STEP and apply two passes of a tapered moving average (half-window w tiles,

@@ -140,7 +140,7 @@ function samples(pts, step) {
  * @param {boolean} ballast
  * @param {boolean} [chamfer] rail corner drawn as a 45° chamfer
  */
-export function drawRails(ctx, mask, ballast, chamfer = false) {
+export function drawRails(ctx, mask, ballast, chamfer = false, noStop = false) {
   const paths = trackPaths(mask, chamfer);
   if (chamfer) { ctx.save(); clipTile(ctx); }
   if (ballast) for (const p of paths) band(ctx, p, 0.24, 0, '#6f6a62');
@@ -163,7 +163,7 @@ export function drawRails(ctx, mask, ballast, chamfer = false) {
     }
   }
   if (chamfer) ctx.restore();
-  if (paths.length === 1 && (mask & (mask - 1)) === 0) {
+  if (!noStop && paths.length === 1 && (mask & (mask - 1)) === 0) {
     // buffer stop at dead end
     const [u, v] = EDGE[mask];
     const bu = u * 0.1, bv = v * 0.1;

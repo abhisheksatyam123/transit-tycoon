@@ -25,22 +25,12 @@ const DECK = 5;
 export function gradeSepSprite(roadMask, railMask, cls = 3) {
   return cache.get(`g:${roadMask}:${railMask}:${cls}`, () => makeSprite(TILE_W, TILE_H + 16, HALF_W, HALF_H + 16, (ctx) => {
     // railway at ground level, same drawing as the plain rail sprite
-    drawRails(ctx, railMask, true, false);
+    drawRails(ctx, railMask, true, false, true);
     // road deck: same surface as an ordinary road, raised DECK px with parapets (V_SEP)
     ctx.save();
     ctx.translate(0, -DECK);
     drawRoad(ctx, roadMask, true, cls, V_SEP);
     ctx.restore();
-    // supports: two thin posts under each road end that leaves the tile
-    ctx.fillStyle = '#4b5563';
-    for (const b of BITS) {
-      if (!(roadMask & b)) continue;
-      const [u, v] = EDGE[b];
-      const [pu, pv] = u === 0 ? [1, 0] : [0, 1]; // edge-parallel offset
-      for (const s of [-0.3, 0.3]) {
-        const [px, py] = P(u * 0.85 + pu * s, v * 0.85 + pv * s, 0);
-        ctx.fillRect(px - 1, py - DECK, 2, DECK);
-      }
-    }
+    // no posts/fences: the deck sits on its parapets, the rail runs straight through beneath it
   }));
 }

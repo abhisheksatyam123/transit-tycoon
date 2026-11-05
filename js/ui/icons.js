@@ -29,6 +29,7 @@ const PATHS = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17v.01"/>',
   metro: '<circle cx="12" cy="12" r="9"/><path d="M8 16V8l4 5 4-5v8"/>',
   traffic: '<circle cx="12" cy="12" r="9"/><path d="M12 12l4-5M7 15h2M15 15h2"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
+  goals: '<path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17l-6.1 3.6 1.4-6.8L2.2 9.1l6.9-.8z"/>',
   issues: '<path d="M12 3L2 20h20zM12 9v5M12 17v.01"/>',
   soundOn: '<path d="M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>',
   soundOff: '<path d="M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6"/>',

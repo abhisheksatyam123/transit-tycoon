@@ -11,6 +11,7 @@ import { deliverToIndustry } from './industries.js';
 import { recordTownDelivery } from './townGrowth.js';
 import { vehicleModel } from './vehicles.js';
 import { notify } from './news.js';
+import { noteDelivery } from './goals.js';
 
 /** Ticks spent at a station before (re)trying to load and depart. */
 export const LOAD_TICKS = 40;
@@ -41,6 +42,7 @@ export function unload(ctx, v, st) {
   const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
   const pay = cargoPayment(v.cargoId, load.amount, dist, days);
   creditDelivery(state, st, v.cargoId, load.amount);
+  noteDelivery(state, v.cargoId, load.amount, v.id);
   const amount = load.amount;
   load.amount = 0;
   load.fromStationId = null;

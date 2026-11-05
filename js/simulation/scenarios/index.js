@@ -3,6 +3,7 @@
  */
 import { MOSCOW } from '../../config/maps/moscow.js';
 import { buildMoscow } from './moscow.js';
+import { initGoals } from '../goals.js';
 
 /** Selectable scenarios (ids are stored in state.scenario). */
 export const SCENARIOS = [
@@ -23,5 +24,7 @@ export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);
 export function buildScenario(id, game, map = MOSCOW) {
   if (id !== 'moscow') throw new Error(`Unknown scenario ${id}`);
   if (!map) throw new Error('Moscow map not baked yet: run bun tools/moscow/bake.js');
-  return buildMoscow(game, map);
+  const report = buildMoscow(game, map);
+  initGoals(game.state); // after prebuilt vehicles: their ids are the goal baseline
+  return report;
 }

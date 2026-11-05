@@ -27,6 +27,7 @@ import { listModels, stationsNear, tileInfo } from './queries.js';
 import { parseState, serializeState } from './save.js';
 import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficTick, trafficDaily, trafficCars, trafficStats, trafficLoad } from './traffic.js';
+import { initGoals, evaluateGoals, rollGoalMonth, goalSnapshot } from './goals.js';
 
 const BANKRUPT_WARN_MONTHS = 3;
 
@@ -95,6 +96,9 @@ export class Game {
     return serializeState(this.state);
   }
 
+  /** Goal progress for the UI (empty list for random worlds). */
+  goals() { return goalSnapshot(this.state); }
+
   /** Subscribe to an event; returns unsubscribe fn. */
   on(event, fn) { return this.events.on(event, fn); }
   off(event, fn) { this.events.off(event, fn); }
@@ -120,6 +124,7 @@ export class Game {
       distributeIndustryCargo(s, this.rng, coverage);
       distributeTownCargo(s, this.rng, coverage);
     }
+    if (s.goals) evaluateGoals(this.ctx);
     this.events.emit('day', { date: s.date });
     if (newMonth) this.onMonth();
     if (newYear) {
@@ -134,6 +139,8 @@ export class Game {
     const ended = s.date.month === 0 ? { year: s.date.year - 1, month: 11 } : { year: s.date.year, month: s.date.month - 1 };
     vehiclesMonthly(this.ctx);
     monthlyFinances(s, ended);
+    evaluateGoals(this.ctx);
+    rollGoalMonth(s);
     industriesMonthStart(s, this.rng);
     for (const town of s.towns) townMonthly(s, this.rng, town);
     recomputeAllAcceptance(s);

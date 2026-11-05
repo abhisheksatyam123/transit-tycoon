@@ -16,9 +16,10 @@ import { placeLandmarks } from './moscowLandmarks.js';
 import { planIndustries } from './moscowIndustry.js';
 import { recomputePopulation } from '../towns.js';
 import { cleanRail } from './moscowRail.js';
+import { cleanRoad } from './moscowRoad.js';
 
 /** Starting company money for the real-city game. */
-export const MOSCOW_MONEY = 10_000_000;
+export const MOSCOW_MONEY = 4_000_000;
 
 /** Minimum distance (tiles) from the Kremlin to any industry footprint. */
 export const INDUSTRY_MIN_DIST = 30;
@@ -187,8 +188,12 @@ export function buildMoscow(game, map) {
     if (r) metro.push(r);
   }
   if (!globalThis.process?.env?.NO_RAILCLEAN) {
-    const c = cleanRail(state);
-    log.push(`rail: cleanRail removed ${c.removedEdges} edges, pruned ${c.prunedTiles} tiles, small cycles ${c.smallCyclesBefore}->${c.smallCyclesAfter}`);
+    const c = cleanRail(state, L.rail);
+    log.push(`rail: cleanRail removed ${c.removedEdges} edges, pruned ${c.prunedTiles} tiles, restored ${c.restored} dead ends, small cycles ${c.smallCyclesBefore}->${c.smallCyclesAfter}`);
+  }
+  if (!globalThis.process?.env?.NO_ROADCLEAN) {
+    const r = cleanRoad(state);
+    log.push(`roads: cleanRoad removed ${r.removedEdges} edges, pruned ${r.prunedTiles} spur tiles, collapsed ${r.collapsed} doubled, flagged ${r.flaggedHighway} highway, small cycles ${r.smallCyclesBefore}->${r.smallCyclesAfter}`);
   }
   clearLandmarkLinks(state.map);
   markGradeSeparation(state.map);
@@ -196,7 +201,7 @@ export function buildMoscow(game, map) {
   // airports after buses (aircraft need a free hangar depot); road-connected below by pruneRoadIslands / joins
   const islands = pruneRoadIslands(state, 150);
   if (islands) log.push(`streets: pruned ${islands} tiles of tiny road islands (bridge stubs)`);
-  const joins = joinRoadComponents(state);
+  const joins = joinRoadComponents(state, 60);
   if (joins.tiles) for (const t of state.towns) recomputePopulation(state, t);
   if (joins.joined) log.push(`streets: joined ${joins.joined} cut-off road pieces with ${joins.tiles} connector tiles`);
   state.traffic = createTraffic(state);

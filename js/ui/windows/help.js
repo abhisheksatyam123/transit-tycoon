@@ -11,13 +11,14 @@ const STEPS = [
   ['Buy a train', 'Click the depot → Buy vehicle. Choose an engine, Hopper Wagons for coal, and a few wagons.'],
   ['Set orders', 'In the Orders window: Add order → click the mine station, then Add order → the power station. Tick "Full load" on the mine order. Press Start.'],
   ['Earn money', 'You are paid on delivery: farther and faster pays more. Watch income pop up and check Finances (F). Borrow if needed — interest is charged monthly.'],
+  ['Goals (O)', 'In Moscow, staged goals pay bonuses: a first route, busy months, serving six districts and the landmarks, a Kremlin–VDNKh link, and a company value of $8M. Each one unlocks the next.'],
   ['Grow', 'Run buses between two towns (Road, Bus Stop, Road Depot). Serving towns makes them grow. Deliver goods from secondary industries to towns.'],
 ];
 
 const KEYS = [
   ['Right / middle drag, WASD, arrows', 'Pan'], ['Wheel, + / -', 'Zoom'], ['Space', 'Pause'],
   ['1 – 9', 'Build tools'], ['0', 'Airport (6×4, R rotates runway)'], ['R', 'Rotate station / depot'], ['[ ]', 'Station length'],
-  ['Esc', 'Cancel tool / close window'], ['V F T I N H L', 'Vehicles, Finances, Towns, Industries, News, Help, Load'],
+  ['Esc', 'Cancel tool / close window'], ['V F T I N O H L', 'Vehicles, Finances, Towns, Industries, News, Goals, Help, Load'],
   ['K', 'Toggle graphics: OpenGFX / Procedural'],   ['M', 'Mute sound'], ['Click map', 'Inspect tile, station, depot, vehicle'],
 ];
 

@@ -11,6 +11,9 @@ import { partFaces, centroid, ringArea } from './roofs.js';
 import { render } from './raster.js';
 import { encodeRGBA } from './png.js';
 import { ENSEMBLES } from './ensembles.js';
+import { STATUES } from './ens/statues.js';
+import { STATUES_ALL } from './ens/statuesAll.js';
+const EXEMPT = new Set([...STATUES, ...STATUES_ALL].map((e) => e.id)); // statues keep their explicit/LM_SCALE scale
 import { baseStyle } from './styles.js';
 import { colour } from './s3db.js';
 import { TILE_M } from '../moscow/proj.js';
@@ -75,6 +78,56 @@ function treeFaces(parks, B, step) {
   return out;
 }
 
+/** Real projected positions (metres) of every other ensemble, skipping ones that share a covered id. */
+function otherPoints(E) {
+  const out = [];
+  for (const O of ENSEMBLES) {
+    if (O === E || (O.covers || []).some((c) => (E.covers || []).includes(c))) continue;
+    if (O.id.startsWith('r7d_osm_')) continue; // generic single-node OSM statues (~500): too dense to block anything; they are 1-tile points
+    const p = O.anchor ? toM(O.anchor[0], O.anchor[1]) : centroid(selRing(O.sel));
+    out.push(p);
+  }
+  return out;
+}
+const SCALE_OVERRIDE = { kremlin: 3.5 }; // Kremlin is the centrepiece: fixed large scale (ens/kremlin.js untouched)
+const PRIORITY = { kremlin: 0, christ_saviour: 1, bolshoi: 1, msu: 1, moscow_city: 1, luzhniki: 1, vdnkh: 1, ukraina: 1, kotelnicheskaya: 1, kudrinskaya: 1, mid: 1, leningradskaya: 1, red_gates: 1 };
+const MAX_PUSH = 8; // tiles: largest radial push-out per ensemble
+let PLAN = new Map(); // id -> {k, off:[dx,dy] metres}
+const isGeneric = (E) => E.id.startsWith('r7d_osm_');
+
+/** Priority-ordered layout plan: each ensemble takes the largest scale (LM_SCALE..1.5, step .25) whose footprint, pushed radially
+ *  outward from the conflicting higher-priority ensemble by whole half-tiles (<= MAX_PUSH), keeps a 1-tile gap from every claimed tile. */
+function planLayout() {
+  const claimed = new Map(), anchorOf = new Map(), plan = new Map();
+  const list = ENSEMBLES.filter((E) => !isGeneric(E) && E.sel).map((E, i) => [PRIORITY[E.id] ?? 2, i, E]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+  for (const E of list) {
+    const ring = selRing(E.sel);
+    const anc = E.anchor ? toM(E.anchor[0], E.anchor[1]) : centroid(ring);
+    const fixed = SCALE_OVERRIDE[E.id] ?? E.scale ?? (EXEMPT.has(E.id) ? LM_SCALE : null);
+    const fpAt = (k, off) => footprint(ring.map((p) => [anc[0] + off[0] + (p[0] - anc[0]) * k, anc[1] + off[1] + (p[1] - anc[1]) * k]), E.frac ?? 0.35);
+    const conflict = (tiles) => { for (const [tx, ty] of tiles) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const o = claimed.get((tx + dx) + ',' + (ty + dy)); if (o) return o; } return null; };
+    const attempt = (k, maxPush) => {
+      let dir = null;
+      for (let n = 0; n <= maxPush + 1e-9; n += 0.5) {
+        const off = dir ? [dir[0] * n * TILE_M, dir[1] * n * TILE_M] : [0, 0];
+        const tiles = fpAt(k, off);
+        const o = conflict(tiles);
+        if (!o) return { k, off, tiles };
+        if (!dir) { const a = anchorOf.get(o); const d = [anc[0] - a[0], anc[1] - a[1]], L = Math.hypot(d[0], d[1]) || 1; dir = [d[0] / L, d[1] / L]; }
+      }
+      return null;
+    };
+    let r = null;
+    if (fixed) r = attempt(fixed, MAX_PUSH) ?? { k: fixed, off: [0, 0], tiles: fpAt(fixed, [0, 0]) };
+    else for (let k = LM_SCALE; k >= 1.5 - 1e-9 && !r; k -= 0.25) r = attempt(k, MAX_PUSH);
+    if (!r) r = { k: 1.5, off: [0, 0], tiles: fpAt(1.5, [0, 0]) };
+    for (const [tx, ty] of r.tiles) claimed.set(tx + ',' + ty, E.id);
+    anchorOf.set(E.id, [anc[0] + r.off[0], anc[1] + r.off[1]]);
+    plan.set(E.id, { k: r.k, off: r.off });
+  }
+  return plan;
+}
+
 export function bakeOne(E) {
   const src = E.src ? RAW + E.src + '.json' : null;
   const ring = selRing(E.sel);
@@ -88,9 +141,11 @@ export function bakeOne(E) {
   for (const b of B) faces.push(...partFaces(b.poly, b.spec));
   for (const f of E.extraFaces ? E.extraFaces(toM) : []) faces.push(f);
   // ground: footprint tile squares (base) + OSM parks/squares inside the selection
-  const k = E.scale ?? LM_SCALE;
   const anc = E.anchor ? toM(E.anchor[0], E.anchor[1]) : centroid(ring);
-  const S = (p) => [anc[0] + (p[0] - anc[0]) * k, anc[1] + (p[1] - anc[1]) * k, (p[2] || 0) * k];
+  const P = PLAN.get(E.id) ?? { k: LM_SCALE, off: [0, 0] };
+  const k = P.k, off = P.off;
+  console.log(`[lm3d] scale ${E.id} = ${k} shift ${off.map((v) => (v / TILE_M).toFixed(1)).join(',')} tiles`);
+  const S = (p) => [anc[0] + off[0] + (p[0] - anc[0]) * k, anc[1] + off[1] + (p[1] - anc[1]) * k, (p[2] || 0) * k];
   for (const f of faces) { f.pts = f.pts.map(S); if (f.holes) f.holes = f.holes.map((r) => r.map(S)); }
   const sring = ring.map((p) => S(p).slice(0, 2));
   let tiles = footprint(sring, E.frac ?? 0.35).filter((t) => !BLOCKED.has(t.join(',')));
@@ -153,6 +208,11 @@ async function blockedTiles() {
 }
 BLOCKED = await blockedTiles();
 
+PLAN = planLayout();
+if (process.env.LM_DRY) { // scale/shift table without baking
+  for (const E of ENSEMBLES) { if (isGeneric(E)) continue; const P = PLAN.get(E.id); console.log(`[lm3d] dry ${E.id} scale ${P.k} shift ${P.off.map((v) => (v / TILE_M).toFixed(1)).join(',')}`); }
+  process.exit(0);
+}
 const only = process.argv[2];
 let done = false;
 const OUT = ROOT + 'js/config/landmarks3d.js';
@@ -163,12 +223,20 @@ for (const E of ENSEMBLES) {
     continue;
   }
   const r = bakeOne(E);
+  r.scale = PLAN.get(E.id)?.k; r.shift = (PLAN.get(E.id)?.off || [0, 0]).map((v) => +(v / TILE_M).toFixed(2));
   writeFileSync(ROOT + `assets/landmarks/${E.id}.json`, JSON.stringify(r));
   for (const t of r.tiles) BLOCKED.add(t.join(','));
   if (only) done = true;
 }
 // regenerate the config from every baked ensemble (per-id JSON files, so parallel bakes of different ids are safe)
 const data = {};
-for (const E of ENSEMBLES) { const f = ROOT + `assets/landmarks/${E.id}.json`; if (existsSync(f)) data[E.id] = JSON.parse(readFileSync(f, 'utf8')); }
+for (const E of ENSEMBLES) {
+  const f = ROOT + `assets/landmarks/${E.id}.json`; if (!existsSync(f)) continue;
+  const r = JSON.parse(readFileSync(f, 'utf8'));
+  if (!Array.isArray(r.front) && E.anchor) { // older per-id JSON (generic OSM statues) lack an overlay front: use the real anchor tile
+    const a = toM(E.anchor[0], E.anchor[1]); r.front = [Math.round(a[0] / TILE_M), Math.round(a[1] / TILE_M)];
+  }
+  data[E.id] = r;
+}
 writeFileSync(OUT, `/**\n * Baked OSM 3D landmark ensembles (generated by tools/lm3d/bake.js; geometry (c) OpenStreetMap contributors, ODbL).\n * tiles: footprint tile coords; front: tile that draws the sprite; levels: sprite per zoom with zoom-1 world-px top-left.\n */\nexport const LM3D = ${JSON.stringify(data)};\n`);
 console.log('[lm3d] wrote', OUT, Object.keys(data).join(','));

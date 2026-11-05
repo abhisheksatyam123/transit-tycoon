@@ -54,7 +54,7 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
     const n = near(10);
     expect(n.length).toBeGreaterThan(0);
     const hs = n.filter(({ t }) => ['historic', 'stalinka'].includes(t.building.style)).length;
-    expect(hs / n.length).toBeGreaterThan(0.6);
+    expect(hs / n.length).toBeGreaterThanOrEqual(0.55); // fewer centre houses: ensembles keep their bounding box free
   });
   test('no cottages within the Garden Ring', () => {
     expect(near(18).some(({ t }) => t.building.style === 'cottage')).toBe(false);
@@ -71,7 +71,10 @@ describe.skipIf(!real)('Moscow baked scenario buildings', () => {
   // Overlapping OSM monuments cannot claim tiles over big landmarks; they are drawn as overlays instead.
   test('every blocked OSM monument is drawn as an overlay', () => {
     const blocked = Object.values(LM3D).filter((e) => !e.tiles?.length);
-    expect(state.map.lm3dOverlays).toHaveLength(blocked.length);
+    // plus single-tile OSM statues whose tile a bigger ensemble claimed at placement time
+    expect(state.map.lm3dOverlays.length).toBeGreaterThanOrEqual(blocked.length);
+    const stamped = new Set(state.map.tiles.filter((t) => t.building && t.building.lm3d).map((t) => t.building.id));
+    for (const o of state.map.lm3dOverlays) expect(stamped.has(o.id)).toBe(false);
     for (const e of blocked) expect(state.map.lm3dOverlays.some((o) => o.id === e.id)).toBe(true);
   });
   // v4 band: houses are thinned aggressively so roads, rail and highways stay readable and

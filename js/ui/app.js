@@ -7,7 +7,7 @@ import { WindowManager } from './windowManager.js';
 import { Toasts } from './toast.js';
 import { createTools } from './tools/index.js';
 import { openWindow } from './windows/index.js';
-import { signedMoney } from './format.js';
+import { signedMoney, money } from './format.js';
 import { play } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
 
@@ -54,6 +54,10 @@ export class App {
     on('news', (n) => {
       play('news');
       this.ui.onNews(n);
+    });
+    on('goal', (g) => {
+      play('news');
+      this.toast(`Goal complete: ${g.title}! +${money(g.reward)}`, 'good', false, 6000);
     });
     on('month', () => this.onMonth());
   }
@@ -207,8 +211,8 @@ export class App {
    * @param {'error'|'info'|'good'} [kind]
    * @param {boolean} [nearCursor]
    */
-  toast(text, kind = 'info', nearCursor = false) {
-    this.toasts.show(text, kind, { nearCursor });
+  toast(text, kind = 'info', nearCursor = false, ms) {
+    this.toasts.show(text, kind, { nearCursor, ms });
   }
 
   /** @param {number} id */

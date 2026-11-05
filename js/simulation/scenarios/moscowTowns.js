@@ -169,6 +169,28 @@ export function withinLandmarkClear(state, x, y) {
 }
 
 /**
+ * Tiles inside the bounding box (+1 ring) of every multi-tile 3D landmark ensemble: the baked sprite covers
+ * that whole box (walls, embankments, squares), so no house may stand there.
+ * @returns {Uint8Array} 1 = keep free
+ */
+export function ensembleBoxes(map) {
+  const W = map.width, H = map.height, box = new Map();
+  map.tiles.forEach((t, i) => {
+    if (!t.building || !t.building.lm3d) return;
+    const x = i % W, y = (i / W) | 0, b = box.get(t.building.id);
+    if (!b) box.set(t.building.id, { x0: x, x1: x, y0: y, y1: y, n: 1 });
+    else { b.x0 = Math.min(b.x0, x); b.x1 = Math.max(b.x1, x); b.y0 = Math.min(b.y0, y); b.y1 = Math.max(b.y1, y); b.n++; }
+  });
+  const out = new Uint8Array(W * H);
+  for (const b of box.values()) {
+    if (b.n < 4) continue;
+    for (let y = Math.max(0, b.y0 - 1); y <= Math.min(H - 1, b.y1 + 1); y++)
+      for (let x = Math.max(0, b.x0 - 1); x <= Math.min(W - 1, b.x1 + 1); x++) out[y * W + x] = 1;
+  }
+  return out;
+}
+
+/**
  * Place houses on urban road-side tiles. Density 0 tiles stay empty; level = density ±1
  * (deterministic per game rng); the centre within CENTRE_RADIUS is mostly level 3 with
  * CENTRE_TOWER_SHARE level 4; Moscow City's
@@ -190,6 +212,7 @@ export function placeHouses(state, rng, L, towns, marks) {
   // The centre bypass: houses within 10 tiles of the Kremlin are never dropped by ring or vacancy.
   let placed = 0;
   const kx = marks.kremlin.x, ky = marks.kremlin.y;
+  const lmBox = ensembleBoxes(map);
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
@@ -204,6 +227,7 @@ export function placeHouses(state, rng, L, towns, marks) {
       // extra thinning outside the centre so houses don't line every road
       if (!inCentre && !inCity && rng.chance(dens >= 3 ? 0.18 : 0.30)) continue;
       if (dK > 10 && withinLandmarkClear(state, x, y)) continue;
+      if (lmBox[i]) continue; // never inside an enlarged ensemble's drawn extent (houses poked through the Kremlin walls)
       if (!houseSite(map, x, y, dens, inCentre || inCity)) continue;
       let level = Math.max(1, Math.min(4, dens + rng.int(-1, 1)));
       // historic centre is mostly 4–8 storey blocks (level 3) with scattered towers (level 4)

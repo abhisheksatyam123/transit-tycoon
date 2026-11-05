@@ -167,3 +167,12 @@
 .tb-badge:not(:empty) { display: block; }
 .tb-badge.err { background: #f87171; color: #fff; }
 .tb-badge.warn { background: #fbbf24; }
+
+/* Goals window */
+.goal-list { display: grid; gap: 8px; }
+.goal-row { padding: 8px 10px; border: 1px solid rgba(100, 116, 139, 0.35); border-radius: 6px; background: rgba(15, 23, 42, 0.5); }
+.goal-row.active { border-color: var(--accent); }
+.goal-row.done { opacity: 0.8; }
+.goal-row.locked { opacity: 0.45; }
+.goal-head { display: flex; justify-content: space-between; gap: 8px; }
+.goal-reward { color: #86efac; }

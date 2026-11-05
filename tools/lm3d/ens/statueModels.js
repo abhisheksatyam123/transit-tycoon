@@ -4,20 +4,25 @@
  * scratchpad/osm3d/ref and published heights (Wikipedia): Worker and Kolkhoz Woman 24.5 m on a 34.5 m pavilion,
  * Victory Monument 141.8 m with Nike at ~100 m, Peter the Great 98 m, Gagarin 42.5 m, Triumphal Arch 28 m.
  */
+import { colour } from '../s3db.js';
 import { box, lathe, cylinder, cone, sphere, prism, tube, panel, place, loft, extrudeY, ribbon } from '../model.js';
 
-const STEEL = '#d6dade', TI = '#b9c0c8', BRONZE = '#5e4a34', DBRONZE = '#3f3428', GRANITE = '#8a847c', LGRANITE = '#c9c3b8', RGRANITE = '#7a3a32', STONE = '#e8e2d2', IRON = '#2e3236', GOLD = '#d9a838';
+const STEEL = '#c9ced3', TI = '#b9c0c8', BRONZE = '#5e4a34', DBRONZE = '#3f3428', GRANITE = '#8a847c', LGRANITE = '#c9c3b8', RGRANITE = '#7a3a32', STONE = '#e8e2d2', IRON = '#2e3236', GOLD = '#d9a838';
 
+function normal3(p) { const u = [p[1][0]-p[0][0], p[1][1]-p[0][1], (p[1][2]||0)-(p[0][2]||0)], v = [p[2][0]-p[0][0], p[2][1]-p[0][1], (p[2][2]||0)-(p[0][2]||0)]; const n = [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]; const l = Math.hypot(...n) || 1; return n.map((c) => c / l); }
 /** Limb as a tapered square tube through points with widths (one width per point). */
 function limb(o, pts, ws, c) { for (let i = 0; i + 1 < pts.length; i++) tube(o, [pts[i], pts[i + 1]], (ws[i] + ws[i + 1]) / 2, c); }
 
 /** Worker and Kolkhoz Woman: striding pair raising hammer and sickle, the woman's scarf flying back; on the stepped prow pavilion. */
 export function workerKolkhozFaces() {
   const o = [];
-  // pavilion pedestal (34.5 m): stepped tiers narrowing upward with a pointed prow at the front (-y)
-  const tiers = [[0, 11, 40, 20], [11, 19, 32, 16], [19, 27, 25, 13], [27, 34.5, 19, 10.5]];
-  for (const [z0, z1, L, W] of tiers) prism(o, [[-W / 2, L / 2], [-W / 2, -L / 2 + W / 2], [0, -L / 2], [W / 2, -L / 2 + W / 2], [W / 2, L / 2]], z0, z1 - z0, LGRANITE);
-  const z = 34.5, S = STEEL;
+  // pavilion (34.5 m to the plinth top): long low stepped base 60 x 25 m, rising in steps to a tower-like plinth at the centre
+  const STONE_P = '#bdb8ae';
+  box(o, 0, 0, 0, 25, 60, 5, STONE_P);     // base wings
+  box(o, 0, 0, 5, 22, 44, 7, STONE_P);     // step 1
+  box(o, 0, 0, 12, 18, 28, 12, STONE_P);   // step 2 (tower core)
+  box(o, 0, 0, 24, 14, 14, 10.5, STONE_P); // plinth top, 34.5 m
+  const z = 34.5, S = STEEL, steelFrom = o.length;
   // worker (left, x<0) and kolkhoz woman (right, x>0): wide stride, front feet at -y
   for (const [x, w] of [[-1.7, 1], [1.7, 0]]) {
     const hip = [x, 0, z + 8.2];
@@ -42,6 +47,8 @@ export function workerKolkhozFaces() {
   for (let k = 0; k + 1 < arc.length; k++) tube(o, [arc[k], arc[k + 1]], 0.35, S);
   // the woman's scarf: long ribbon flying back from her shoulders, widening
   ribbon(o, [[2.4, 0.2, z + 15.0], [3.4, 4.5, z + 14.6], [4.8, 9.5, z + 14.0], [5.4, 13.5, z + 14.6], [5.8, 16.0, z + 13.6]], [0.8, 1.4, 1.9, 1.6, 0.9], S);
+  // steel shading: vertical side faces darker
+  for (let q = steelFrom; q < o.length; q++) { const n = normal3(o[q].pts); if (Math.abs(n[2]) < 0.4) o[q].col = colour('#8d949b'); }
   return o;
 }
 

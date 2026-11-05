@@ -202,6 +202,332 @@ export function countSmallCycles(map) {
   return n;
 }
 
+/** Bounded BFS path test with edge a-b hidden; true when a and b stay connected within limit. */
+function reconnects(map, a, b, bit, limit) {
+  const seen = new Set([a]);
+  let frontier = [a];
+  for (let d = 0; d < limit && frontier.length; d++) {
+    const next = [];
+    for (const u of frontier) {
+      for (const { j, bit: nb } of links(map, u)) {
+        if (u === a && nb === bit) continue;
+        if (u === b && nb === OPP[bit]) continue;
+        if (j === b) return true;
+        if (seen.has(j)) continue;
+        seen.add(j); next.push(j);
+      }
+    }
+    frontier = next;
+  }
+  return false;
+}
+
+/**
+ * Drop surface edges between junction tiles (degree >= 3) when their endpoints stay connected
+ * through the rest of the network. This removes 4-way X crossings and parallel rungs without
+ * changing reachability. Deterministic (fixed tile order, bounded search).
+ * @returns {number} edges removed
+ */
+export function removeRedundantJunctionEdges(map, limit = 60) {
+  let removed = 0;
+  for (let i = 0; i < map.tiles.length; i++) {
+    const t = map.tiles[i];
+    if (!t.rail || !isSurface(t) || degree(map, i) < 3) continue;
+    for (const bit of BITS) {
+      if (!(t.rail & bit) || degree(map, i) < 3) continue;
+      const j = mutual(map, i, bit);
+      if (j < 0 || !isSurface(map.tiles[j]) || degree(map, j) < 3) continue;
+      if (reconnects(map, i, j, bit, limit)) {
+        map.tiles[i].rail &= ~bit;
+        map.tiles[j].rail &= ~OPP[bit];
+        removed++;
+      }
+    }
+  }
+  return removed;
+}
+
+/** True when a station/depot tile with rail lies within r tiles of i. */
+function nearStationRail(map, i, r) {
+  const W = map.width, H = map.height, x = i % W, y = Math.floor(i / W);
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+    const t = map.tiles[ny * W + nx];
+    if (t.rail && isStationOrDepot(t)) return true;
+  }
+  return false;
+}
+
+/**
+ * Partition of terminal tiles (station/depot/tunnel rail) by connectivity over all rail links.
+ * Returns a string signature; equal signatures before and after mean connectivity is preserved.
+ */
+function terminalSignature(map) {
+  const { width: W, height: H, tiles: T } = map;
+  const n = T.length, comp = new Int32Array(n).fill(-1);
+  let c = 0;
+  const term = [];
+  for (let i = 0; i < n; i++) {
+    if (!T[i].rail || comp[i] >= 0) continue;
+    const stack = [i]; comp[i] = c;
+    while (stack.length) {
+      const u = stack.pop();
+      for (const b of BITS) {
+        if (!(T[u].rail & b)) continue;
+        const d = DIR_BY_BIT[b], x = u % W + d.dx, y = Math.floor(u / W) + d.dy;
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const v = y * W + x;
+        if (comp[v] >= 0 || !(T[v].rail & OPP[b])) continue;
+        comp[v] = c; stack.push(v);
+      }
+    }
+    c++;
+  }
+  for (let i = 0; i < n; i++) if (T[i].rail && (T[i].tunnel || isStationOrDepot(T[i]))) term.push(`${i}:${comp[i]}`);
+  // partition signature: relabel components by first terminal appearance
+  const relabel = new Map(); const out = [];
+  for (const t of term) { const k = +t.split(':')[1]; if (!relabel.has(k)) relabel.set(k, relabel.size); out.push(`${t.split(':')[0]}=${relabel.get(k)}`); }
+  return out.join(',');
+}
+
+/** Tile usable for new surface rail: no rail, no building, not water, not on the map border. */
+function freeForRail(map, i) {
+  const t = map.tiles[i];
+  if (t.rail || t.building || t.tunnel || t.terrain === 'water') return false;
+  const x = i % map.width, y = Math.floor(i / map.width);
+  return x > 0 && y > 0 && x < map.width - 1 && y < map.height - 1;
+}
+
+/**
+ * Reconnect surface dead ends: from a dead end, BFS up to maxLen tiles over free tiles (road crossings
+ * allowed), starting in the direction the line was already heading, to the nearest other surface rail
+ * tile. On success the path is laid as rail. Deterministic.
+ * @returns {number} tiles added
+ */
+export function reconnectDeadEnds(map, maxLen = 15) {
+  const W = map.width, T = map.tiles, DXY = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };
+  let added = 0;
+  // component labels (surface graph); only join dead ends of different components => no new loops
+  const dsu = makeDsu(T.length);
+  for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
+  for (let i = 0; i < T.length; i++) {
+    const t = T[i];
+    if (!t.rail || !isSurface(t) || degree(map, i) !== 1 || nearStationRail(map, i, 2)) continue;
+    const L = links(map, i)[0].bit;
+    const first = OPP[L];
+    const [fx, fy] = DXY[first];
+    const x0 = i % W, y0 = Math.floor(i / W);
+    const s0 = (y0 + fy) * W + (x0 + fx);
+    if (!(x0 + fx >= 0 && y0 + fy >= 0 && x0 + fx < W && y0 + fy < map.height)) continue;
+    if (!freeForRail(map, s0) && !(T[s0].rail && isSurface(T[s0]))) continue;
+    if (T[s0].rail && isSurface(T[s0]) && degree(map, s0) !== 1) continue;
+    // BFS from i (first step fixed to 'first'); target = surface rail tile not equal to i
+    const par = new Map([[i, -1]]);
+    let frontier = [s0];
+    par.set(s0, i);
+    let hit = -1, depth = 1;
+    while (frontier.length && depth <= maxLen && hit < 0) {
+      const next = [];
+      for (const u of frontier) {
+        if (T[u].rail && isSurface(T[u]) && u !== i && degree(map, u) === 1 && dsu.find(u) !== dsu.find(i)) { hit = u; break; }
+        for (const b of [1, 2, 4, 8]) {
+          const ux = u % W, uy = Math.floor(u / W), [dx, dy] = DXY[b];
+          const nx = ux + dx, ny = uy + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
+          const v = ny * W + nx;
+          if (par.has(v)) continue;
+          if (!(freeForRail(map, v) || (T[v].rail && isSurface(T[v])))) continue;
+          par.set(v, u); next.push(v);
+        }
+      }
+      if (hit >= 0) break;
+      frontier = next; depth++;
+    }
+    if (hit < 0) continue;
+    // walk back from hit to i, laying bits (skip laying onto existing rail target beyond its bit)
+    const path = [];
+    for (let c = hit; c !== i; c = par.get(c)) path.push(c);
+    path.push(i);
+    path.reverse();
+    if (path.length - 2 > maxLen) continue;
+    for (let k = 0; k + 1 < path.length; k++) {
+      const a = path[k], bb = path[k + 1];
+      const d = (bb - a === -W) ? 1 : (bb - a === 1) ? 2 : (bb - a === W) ? 4 : 8;
+      T[a].rail |= d; T[bb].rail |= OPP[d];
+      if (k + 1 < path.length - 1) added++;
+    }
+    dsu.union(i, hit);
+    for (const c of path) for (const { j } of links(map, c)) dsu.union(c, j);
+  }
+  return added;
+}
+
+/**
+ * Remove dead-end chains from the surface network: walk from a surface leaf to the first junction and
+ * clear the chain, unless the leaf sits near a station/depot (kept) or the chain would reach a station,
+ * depot or tunnel. Any length. @returns {number} tiles removed
+ */
+export function pruneStubs(map, maxLen = 12) {
+  let pruned = 0;
+  const sig0 = terminalSignature(map);
+  map.tiles.forEach((t, i) => {
+    if (!t.rail || !isSurface(t) || degree(map, i) !== 1) return;
+    if (nearStationRail(map, i, 2)) return;
+    const chain = [];
+    let prev = -1, cur = i, junction = -1;
+    for (;;) {
+      if (cur !== i && degree(map, cur) >= 3) { junction = cur; break; }
+      if (chain.length > maxLen || !isSurface(map.tiles[cur])) break;
+      chain.push(cur);
+      const next = links(map, cur).map((l) => l.j).filter((j) => j !== prev);
+      if (next.length !== 1) break;
+      prev = cur; cur = next[0];
+    }
+    if (junction < 0 || chain.length > maxLen) return;
+    const saved = chain.map((c) => [c, map.tiles[c].rail]);
+    const nbr = chain.flatMap((c) => links(map, c).map((l) => [l.j, map.tiles[l.j].rail]));
+    for (const c of chain) disconnect(map, c);
+    if (terminalSignature(map) !== sig0) {
+      // rollback: this stub carries a terminal link
+      for (const [c, r] of saved) map.tiles[c].rail = r;
+      for (const [j, r] of nbr) map.tiles[j].rail = r;
+      return;
+    }
+    pruned += chain.length;
+  });
+  return pruned;
+}
+
+/** Bit for a unit step (dx,dy). */
+const stepBit = (dx, dy) => (dy === -1 ? 1 : dx === 1 ? 2 : dy === 1 ? 4 : 8);
+
+/**
+ * Gap bridging (narrow rule). For each surface dead end A (not near a station/depot), look ahead in its
+ * open direction up to 4 tiles for a dead end B whose open side faces A (B's single link points back at
+ * the gap). Optionally one lateral jog (1 tile) before B. Gap tiles must be free or a perpendicular road
+ * crossing (then gradeSep). A and B must be in different surface components, so no cycle is closed.
+ * @returns {number} gaps bridged
+ */
+export function bridgeGaps(map, maxGap = 4) {
+  const { width: W, height: H, tiles: T } = map;
+  const dsu = makeDsu(T.length);
+  for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
+  const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : y * W + x);
+  const gapOk = (i, axis) => {
+    const t = T[i];
+    if (t.rail || t.tunnel || t.building || t.terrain === 'water') return false;
+    return !(t.road & axis);
+  };
+  let bridged = 0;
+  for (let a = 0; a < T.length; a++) {
+    const t = T[a];
+    if (!t.rail || !isSurface(t) || degree(map, a) !== 1 || nearStationRail(map, a, 2)) continue;
+    const L = links(map, a)[0].bit;
+    const d = OPP[L];
+    const D = DIR_BY_BIT[d];
+    const axis = d === 2 || d === 8 ? 2 | 8 : 1 | 4;
+    const perp = d === 2 || d === 8 ? [1, 4] : [2, 8];
+    const ax = a % W, ay = Math.floor(a / W);
+    let done = false;
+    for (let m = 1; m <= maxGap && !done; m++) {
+      for (const p of [0, ...perp]) {
+        // path: straight gap tiles A+1d..A+md, then (if p) lateral tile A+md+p, then B
+        const seq = [];
+        let ok = true;
+        for (let k = 1; k <= m; k++) seq.push([ax + D.dx * k, ay + D.dy * k]);
+        if (p) { const P = DIR_BY_BIT[p]; seq.push([ax + D.dx * m + P.dx, ay + D.dy * m + P.dy]); }
+        const last = seq[seq.length - 1];
+        const bx = last[0] + (p ? D.dx : D.dx), by = last[1] + (p ? D.dy : D.dy);
+        seq.push([bx, by]);
+        const idx = seq.map(([x, y]) => at(x, y));
+        const B = idx[idx.length - 1];
+        if (idx.some((v) => v < 0) || B < 0) continue;
+        const tb = T[B];
+        if (!tb.rail || !isSurface(tb) || degree(map, B) > 2) continue;
+        if (degree(map, B) === 1 && links(map, B)[0].bit !== OPP[d]) continue;
+        if (dsu.find(a) === dsu.find(B)) continue;
+        // gap tiles (all but B) must be free or a perpendicular crossing
+        const gaps = idx.slice(0, -1);
+        if (!gaps.every((g, k) => gapOk(g, k < m ? axis : (1 | 2 | 4 | 8)))) continue;
+        if (!gaps.every((g) => !isStationOrDepot(T[g]))) continue;
+        // lay: chain A, gaps..., B
+        const chain = [a, ...gaps, B];
+        for (let k = 0; k + 1 < chain.length; k++) {
+          const u = chain[k], v = chain[k + 1];
+          const dx = (v % W) - (u % W), dy = Math.floor(v / W) - Math.floor(u / W);
+          const b = stepBit(dx, dy);
+          T[u].rail |= b; T[v].rail |= OPP[b];
+        }
+        for (const g of gaps) if (T[g].road) T[g].gradeSep = 1;
+        dsu.union(a, B);
+        bridged++;
+        done = true;
+        break;
+      }
+    }
+  }
+  return bridged;
+}
+
+/**
+ * Restore baked rail lost to cleanup: for each surface dead end (not near a station/depot), BFS
+ * (4-neighbour, max RESTORE_MAX steps) through tiles that are baked-rail in `bakedRail` and currently
+ * free (no building, not water/tunnel) or road, to reach a surface rail tile of a DIFFERENT component.
+ * Lay the path as rail (road tiles get plain rail bits; markGradeSeparation runs later). Components are
+ * merged, so a restore never closes a cycle.
+ * @param {object} map tile map
+ * @param {string|null} bakedRail per-tile raster chars ('0' = none); null/short => no-op
+ * @returns {number} dead ends restored
+ */
+export const RESTORE_MAX = 30;
+export function restoreFromBake(map, bakedRail) {
+  if (!bakedRail || bakedRail.length < map.tiles.length) return 0;
+  const { width: W, height: H, tiles: T } = map;
+  const dsu = makeDsu(T.length);
+  for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
+  const baked = (i) => bakedRail[i] !== '0' && bakedRail[i] !== undefined;
+  const freeTile = (i) => !T[i].rail && !T[i].building && !T[i].tunnel && T[i].terrain !== 'water';
+  const roadOnly = (i) => !T[i].rail && !T[i].building && !T[i].tunnel && T[i].terrain !== 'water' && !!T[i].road;
+  let restored = 0;
+  for (let a = 0; a < T.length; a++) {
+    if (!T[a].rail || !isSurface(T[a]) || degree(map, a) !== 1 || nearStationRail(map, a, 2)) continue;
+    const ca = dsu.find(a);
+    const par = new Map([[a, -1]]);
+    let frontier = [a], hit = -1;
+    for (let step = 0; step < RESTORE_MAX && frontier.length && hit < 0; step++) {
+      const next = [];
+      for (const u of frontier) {
+        const ux = u % W, uy = Math.floor(u / W);
+        for (const b of BITS) {
+          const d = DIR_BY_BIT[b], x = ux + d.dx, y = uy + d.dy;
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const v = y * W + x;
+          if (par.has(v)) continue;
+          if (T[v].rail && isSurface(T[v]) && v !== a && dsu.find(v) !== ca && degree(map, v) <= 2) { par.set(v, u); hit = v; break; }
+          if (!baked(v) || !(freeTile(v) || roadOnly(v))) continue;
+          par.set(v, u); next.push(v);
+        }
+        if (hit >= 0) break;
+      }
+      frontier = next;
+    }
+    if (hit < 0) continue;
+    const path = [];
+    for (let c = hit; c !== -1; c = par.get(c)) path.push(c);
+    path.reverse();
+    for (let k = 0; k + 1 < path.length; k++) {
+      const u = path[k], v = path[k + 1];
+      const dx = (v % W) - (u % W), dy = Math.floor(v / W) - Math.floor(u / W);
+      const b = dy === -1 ? 1 : dx === 1 ? 2 : dy === 1 ? 4 : 8;
+      T[u].rail |= b; T[v].rail |= OPP[b];
+    }
+    for (const c of path) for (const { j } of links(map, c)) dsu.union(c, j);
+    restored++;
+  }
+  return restored;
+}
+
 /**
  * Clean surface rail in place: drop small-cycle rungs (Kruskal forest), prune short spurs,
  * clear dangling bits. Station, depot and tunnel tiles are never changed except their
@@ -209,7 +535,7 @@ export function countSmallCycles(map) {
  * @param {{map:object}} state game state holding state.map
  * @returns {{removedEdges:number,prunedTiles:number,smallCyclesBefore:number,smallCyclesAfter:number}}
  */
-export function cleanRail(state) {
+export function cleanRail(state, bakedRail = null) {
   const map = state.map;
   const smallCyclesBefore = countSmallCycles(map);
   const dangling = clearDangling(map);
@@ -232,7 +558,11 @@ export function cleanRail(state) {
       addAdj(e.a, e.b); addAdj(e.b, e.a);
     }
   }
-  const prunedTiles = pruneSpurs(map);
+  removedEdges += removeRedundantJunctionEdges(map);
+  const bridged = bridgeGaps(map);
+  const reconnected = globalThis.process?.env?.R8_RECON ? reconnectDeadEnds(map) : 0;
+  const prunedTiles = pruneSpurs(map) + pruneStubs(map);
+  const restored = restoreFromBake(map, bakedRail);
   clearDangling(map);
-  return { removedEdges, prunedTiles, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
+  return { restored, bridged, reconnected, removedEdges, prunedTiles, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
 }

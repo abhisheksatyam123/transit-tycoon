@@ -103,7 +103,7 @@ async function main() {
     ' ': () => app.togglePause(),
     v: () => app.open('vehicles'), f: () => app.open('finances'), t: () => app.open('towns'),
     i: () => app.open('industries'), n: () => app.open('news'), h: () => app.open('help'),
-    l: () => app.open('load'), x: () => app.open('traffic'), g: () => app.open('issues'), u: () => app.open('metro'), j: () => { app.renderer.showMetro = !app.renderer.showMetro; }, k: () => togglePack(renderer), m: () => toolbar.toggleSound(), q: () => app.setTool('query'),
+    l: () => app.open('load'), x: () => app.open('traffic'), g: () => app.open('issues'), u: () => app.open('metro'), o: () => app.open('goals'), j: () => { app.renderer.showMetro = !app.renderer.showMetro; }, k: () => togglePack(renderer), m: () => toolbar.toggleSound(), q: () => app.setTool('query'),
   };
   for (const [id, , , key] of TOOL_BUTTONS) shortcuts[key] = () => app.setTool(id);
   const input = setupInput(app, canvas, shortcuts);

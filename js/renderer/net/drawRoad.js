@@ -38,13 +38,19 @@ export function strokePoly(ctx, S, n, colour, lw) {
  * @param {string} colour
  * @param {number} lw width px
  */
+const JUNCTION_TRIM = 0.22;
 function dashes(ctx, len, i0, S, n, colour, lw) {
   ctx.strokeStyle = colour;
   ctx.lineWidth = lw;
   ctx.beginPath();
+  // edge ends sit on junction nodes: keep centre dashes out of the junction fillet area
+  const lo = len[0] + JUNCTION_TRIM, hi = len[len.length - 1] - JUNCTION_TRIM;
   for (let k = 0; k + 1 < n; k++) {
-    const a0 = len[i0 + k], a1 = len[i0 + k + 1], sl = a1 - a0;
-    if (!(sl > 0)) continue;
+    let a0 = len[i0 + k], a1 = len[i0 + k + 1];
+    if (a1 <= lo || a0 >= hi) continue;
+    a0 = Math.max(a0, lo); a1 = Math.min(a1, hi);
+    const sl = len[i0 + k + 1] - len[i0 + k];
+    if (!(a1 > a0) || !(sl > 0)) continue;
     const ax = S[2 * k], ay = S[2 * k + 1], dx = S[2 * k + 2] - ax, dy = S[2 * k + 3] - ay;
     let s = a0;
     while (s < a1) {
@@ -53,7 +59,7 @@ function dashes(ctx, len, i0, S, n, colour, lw) {
       let e1 = Math.min(a1, s + (on ? DASH_ON - ph : DASH_PERIOD - ph));
       if (e1 <= s) e1 = s + 1e-5;
       if (on) {
-        const t0 = (s - a0) / sl, t1 = (e1 - a0) / sl;
+        const t0 = (s - len[i0 + k]) / sl, t1 = (e1 - len[i0 + k]) / sl;
         ctx.moveTo(ax + dx * t0, ay + dy * t0);
         ctx.lineTo(ax + dx * t1, ay + dy * t1);
       }

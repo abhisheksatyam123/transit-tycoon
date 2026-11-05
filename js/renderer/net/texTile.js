@@ -54,9 +54,10 @@ function procHwy() {
     const g = (rnd() - 0.5) * 5;
     let c = [62 + g, 65 + g, 70 + g];
     let f = ((vv + 0.5) * 4) % 1; if (f < 0) f += 1;
-    if (au < 0.05) c = [88 + g, 140 + g, 52 + g];
-    else if (au < 0.09) c = [188, 186, 178];
-    else if (au < 0.24 && f < 0.45) c = [236, 236, 228];
+    if (au < 0.05) c = [88 + g, 140 + g, 52 + g];          // median grass
+    else if (au < 0.085) c = [150, 150, 144];                 // median kerb
+    else if (au > 0.455 && au < 0.49) c = [236, 236, 228];    // solid outer edge line
+    else if (au > 0.2 && au < 0.225 && f < 0.5) c = [236, 236, 228]; // dashed lane divider
     const o = (py * w + px) * 4;
     d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
   }
@@ -138,7 +139,7 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
       const paved = kind === 'road' && isPaved(map, be);
       const hwy = kind === 'road' && isHwy(map, be);
       // highway tiles sample the procedural highway strip even in OpenGFX mode (no matching pack sprite)
-  const src = hwy ? (ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procHwy())
+  const src = hwy ? procHwy()
     : (ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procSprite(kind, paved));
       if (!src) continue;
       let d = bd;
@@ -153,6 +154,15 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
         }
       }
       if (kind === 'road' && hwy && ad > 0.52 && !onWater) { any = true; continue; }
+      // local-road centre dashes are kept mid-tile only: near tile corners they wrapped into rings
+      if (kind === 'road' && !hwy && ad < 0.03) {
+        let tq = bt % 1; if (tq < 0) tq += 1;
+        if (tq < 0.2 || tq > 0.8) {
+          const o = (py * W + px) * 4;
+          out[o] = 62; out[o + 1] = 65; out[o + 2] = 70; out[o + 3] = 255; any = true;
+          continue;
+        }
+      }
       if (kind === 'road' && paved && !hwy) {
         if (ad > 0.5) continue;
         if (ad > 0.3) { const q = (ad - 0.3) % 0.28; d = Math.sign(d) * (0.3 + (q < 0.14 ? q : 0.28 - q)); }

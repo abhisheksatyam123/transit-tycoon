@@ -21,6 +21,7 @@ import { openNewGame } from './newGame.js';
 import { openHelp } from './help.js';
 import { openSave, openLoad } from './saveLoad.js';
 import { openMetro } from './metro.js';
+import { openGoals } from './goals.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
@@ -44,6 +45,7 @@ const REGISTRY = {
   save: openSave,
   load: openLoad,
   metro: openMetro,
+  goals: openGoals,
 };
 
 /**
