@@ -530,6 +530,33 @@ export function restoreFromBake(map, bakedRail) {
 }
 
 /**
+ * R10a: remove surface rail components (no tunnel tile) that hold fewer than 2 stations/depots. Such a
+ * piece cannot carry a service; it is a fragment or a line that ends in a field.
+ * @returns {number} tiles cleared
+ */
+export function pruneIsolatedRail(map) {
+  const seen = new Uint8Array(map.tiles.length);
+  let cleared = 0;
+  for (let s = 0; s < map.tiles.length; s++) {
+    if (seen[s] || !map.tiles[s].rail) continue;
+    const comp = [s]; seen[s] = 1;
+    let stations = 0, tunnel = false, deadEnd = false;
+    for (let k = 0; k < comp.length; k++) {
+      const u = comp[k], tu = map.tiles[u];
+      if (tu.tunnel) tunnel = true;
+      if (isStationOrDepot(tu)) stations++;
+      if (degree(map, u) === 1) deadEnd = true;
+      for (const { j } of links(map, u)) if (!seen[j]) { seen[j] = 1; comp.push(j); }
+    }
+    // closed loops (no dead end) are kept: they are not fragments or branches ending in fields
+    if (tunnel || stations >= 2 || !deadEnd) continue;
+    for (const u of comp) map.tiles[u].rail = 0;
+    cleared += comp.length;
+  }
+  return cleared;
+}
+
+/**
  * Clean surface rail in place: drop small-cycle rungs (Kruskal forest), prune short spurs,
  * clear dangling bits. Station, depot and tunnel tiles are never changed except their
  * mutual links to surface tiles, and connectivity between them is preserved.
@@ -562,8 +589,9 @@ export function cleanRail(state, bakedRail = null) {
   removedEdges += removeRedundantJunctionEdges(map);
   const bridged = bridgeGaps(map);
   const reconnected = globalThis.process?.env?.R8_RECON ? reconnectDeadEnds(map) : 0;
-  const prunedTiles = pruneSpurs(map) + pruneStubs(map);
+  const prunedTiles = pruneSpurs(map) + pruneStubs(map, tl(25));
+  const isolated = pruneIsolatedRail(map);
   const restored = restoreFromBake(map, bakedRail);
   clearDangling(map);
-  return { restored, bridged, reconnected, removedEdges, prunedTiles, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
+  return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
 }

@@ -13,9 +13,9 @@ import { placeIndustry } from '../industries.js';
 import { createTraffic } from '../traffic.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
-import { findFootprint, clearFootprint, pruneRoadIslands, joinRoadComponents, clearLinks, demolishHouseAt } from './moscowLand.js';
+import { clearFootprint, pruneRoadIslands, joinRoadComponents, clearLinks, demolishHouseAt } from './moscowLand.js';
 import { placeLandmarks } from './moscowLandmarks.js';
-import { planIndustries } from './moscowIndustry.js';
+import { planIndustries, namedSiteFootprint } from './moscowIndustry.js';
 import { recomputePopulation } from '../towns.js';
 import { cleanRail } from './moscowRail.js';
 import { cleanRoad } from './moscowRoad.js';
@@ -68,7 +68,7 @@ function buildIndustries(state, major, kremlin, log) {
     const type = INDUSTRY_BY_ID[typeId];
     if (!type) { log.push(`industry ${label}: unknown type ${typeId}`); continue; }
     const c = project(lat, lon);
-    const a = findFootprint(state, type.w, type.h, c.x, c.y, tl(8), major);
+    const a = namedSiteFootprint(state, typeId, c.x, c.y, tl(8), major);
     if (!a) { log.push(`industry ${label}: no clearable site within ${tl(8)} tiles of ${c.x},${c.y}`); continue; }
     const far = Math.hypot(a.x + type.w / 2 - kremlin.x, a.y + type.h / 2 - kremlin.y);
     if (far < INDUSTRY_MIN_DIST) { log.push(`industry ${label}: site ${a.x},${a.y} only ${far.toFixed(1)} tiles from Kremlin, skipped`); continue; }
@@ -183,7 +183,6 @@ export function buildMoscow(game, map) {
   if (highways) log.push(`roads: marked ${highways} motorway/trunk tiles as 4-lane highways`);
   if (streets.pruned) log.push(`streets: pruned ${streets.pruned} tiles of local roads not connected to the major network`);
   if (thinned) log.push(`buildings: removed ${thinned} houses to clear transport corridors and spacing`);
-  const industries = buildIndustries(state, major, kremlin, log) + planIndustries(state, map, { L, major, kremlin, log }).placed;
   const metro = [];
   for (const line of pickMetroLines(map.metroLines || [])) {
     const stops = line.stations.map((s) => ({ x: s.x, y: s.y }));
@@ -208,6 +207,8 @@ export function buildMoscow(game, map) {
   const joins = joinRoadComponents(state, tl(60));
   if (joins.tiles) for (const t of state.towns) recomputePopulation(state, t);
   if (joins.joined) log.push(`streets: joined ${joins.joined} cut-off road pieces with ${joins.tiles} connector tiles`);
+  // industries last among the road-changing steps: pruneRoadIslands/joinRoadComponents could strip the access they are sited on
+  const industries = buildIndustries(state, major, kremlin, log) + planIndustries(state, map, { L, major, kremlin, log }).placed;
   state.traffic = createTraffic(state);
   recomputeAllAcceptance(state);
   state.metro = { lines: metro.map((m) => ({ ref: m.ref, name: m.name, nameEn: m.nameEn, color: m.color, ring: m.ring, stationIds: m.stationIds, vehicleIds: m.vehicleIds })) };

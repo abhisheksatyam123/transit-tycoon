@@ -16,6 +16,10 @@ export const ROAD_SMALL_CYCLE = tl(8);
 /** Max dead-end spur length (tiles) pruned. */
 export const ROAD_SPUR_MAX = tl(2);
 const ALWAYS_KEEP = 1e6;
+/** R10a: longest dead-end spur (tiles) pruned, iterated. */
+const ROAD_SPUR_MAX_R10 = tl(5);
+/** R10a: shortest parallel duplicate run (tiles) removed. */
+const PAR_RUN_MIN = tl(4);
 
 const hasBuilding = (t) => !!t.building;
 
@@ -231,34 +235,117 @@ function cut(map, a, b, bit) {
   map.tiles[b].road &= ~OPPOSITE[bit];
 }
 
+
 /**
- * Prune dead-end spurs of <= ROAD_SPUR_MAX tiles that serve no building. A spur is a chain from a
- * dead end that reaches a junction (degree >= 3) or a building within the limit.
+ * R10a: prune dead-end road spurs (<= ROAD_SPUR_MAX_R10 tiles) that serve nothing, iterated to a fixpoint.
+ * A spur is a chain of building-free tiles from a leaf ending at a junction; a chain whose end touches a
+ * building (house, station, landmark) is kept because it serves that building.
  * @returns {number} tiles removed
  */
-function pruneSpurs(map) {
+function pruneDeadSpurs(map) {
   let removed = 0;
-  for (let i = 0; i < map.tiles.length; i++) {
-    const t = map.tiles[i];
-    if (!t.road || hasBuilding(t) || links(map, i).length !== 1) continue;
-    const chain = [i];
-    let prev = -1, cur = i, attach = -1;
-    for (;;) {
-      const next = links(map, cur).filter((l) => l.j !== prev);
-      if (next.length !== 1) break; // isolated segment (0) or junction (>=2): not a spur
-      const j = next[0].j;
-      if (hasBuilding(map.tiles[j]) || links(map, j).length >= 3) { attach = j; break; }
-      if (chain.length >= ROAD_SPUR_MAX) break;
-      chain.push(j); prev = cur; cur = j;
+  for (let round = 0; round < 20; round++) {
+    let changed = 0;
+    for (let i = 0; i < map.tiles.length; i++) {
+      const t = map.tiles[i];
+      if (!t.road || hasBuilding(t) || links(map, i).length !== 1) continue;
+      const chain = [i];
+      let prev = -1, cur = i, attach = -1;
+      for (;;) {
+        const next = links(map, cur).filter((l) => l.j !== prev);
+        if (next.length !== 1) break;
+        const j = next[0].j;
+        if (hasBuilding(map.tiles[j])) break;
+        if (links(map, j).length >= 3) { attach = j; break; }
+        if (chain.length >= ROAD_SPUR_MAX_R10) break;
+        chain.push(j); prev = cur; cur = j;
+      }
+      if (attach < 0) continue;
+      // a spur whose leaf touches a building still serves that building
+      if ([1, 2, 4, 8].some((b) => { const k = step(map, i, b); return k >= 0 && hasBuilding(map.tiles[k]); })) continue;
+      for (const c of chain) {
+        for (const { j, bit } of links(map, c)) cut(map, c, j, bit);
+        map.tiles[c].road = 0;
+        removed++; changed++;
+      }
     }
-    if (attach < 0 || chain.length > ROAD_SPUR_MAX) continue;
-    for (const c of chain) {
-      for (const { j, bit } of links(map, c)) cut(map, c, j, bit);
-      map.tiles[c].road = 0;
-      removed++;
-    }
+    if (!changed) break;
   }
   return removed;
+}
+
+const isStationLike = (t) => !!t.building && (t.building.type === 'station' || t.building.type === 'depot');
+
+/**
+ * R10a: true when road tile i has a surface rail or an unlinked road in its 8-neighbourhood, i.e. it
+ * runs beside another line (a doubled corridor) rather than being the only street here.
+ */
+function shadowedTile(map, i) {
+  const W = map.width, H = map.height, x = i % W, y = Math.floor(i / W);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!dx && !dy) continue;
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+    const tj = map.tiles[ny * W + nx];
+    if (tj.rail && !tj.tunnel && !isStationLike(tj)) return true;
+    if (tj.road && !(dx === 0 || dy === 0)) return true; // diagonal road: a doubled street
+  }
+  return false;
+}
+
+/** Bounded check: every tile in ends[] is reachable from ends[0] without passing through comp. */
+function staysConnected(map, comp, ends) {
+  const inComp = new Set(comp);
+  const seen = new Set([ends[0]]);
+  const q = [ends[0]];
+  const want = new Set(ends.slice(1));
+  while (q.length && want.size) {
+    const u = q.pop();
+    want.delete(u);
+    for (const { j } of links(map, u)) {
+      if (inComp.has(j) || seen.has(j)) continue;
+      seen.add(j); q.push(j);
+    }
+  }
+  return want.size === 0;
+}
+
+/**
+ * R10a: remove long parallel duplicate runs. A run is a connected set of surface road tiles (no
+ * building, no tunnel, not an avenue/highway) with each tile shadowed by a neighbouring rail or road,
+ * at least PAR_RUN_MIN tiles long, with exactly two outside ends. Removed only when the two ends stay
+ * connected through the rest of the road graph.
+ * @returns {{runs:number,tiles:number}}
+ */
+function removeParallelRuns(map) {
+  const cand = new Uint8Array(map.tiles.length);
+  map.tiles.forEach((t, i) => {
+    if (!t.road || t.tunnel || hasBuilding(t) || t.highway || (t.avenue || 0) >= 1) return;
+    if (links(map, i).length > 2) return;
+    if (!shadowedTile(map, i)) return;
+    for (const bit of BITS) { const j = step(map, i, bit); if (j >= 0 && hasBuilding(map.tiles[j])) return; }
+    cand[i] = 1;
+  });
+  const seen = new Uint8Array(map.tiles.length);
+  let runs = 0, tiles = 0;
+  for (let s = 0; s < map.tiles.length; s++) {
+    if (!cand[s] || seen[s]) continue;
+    const comp = [s]; seen[s] = 1;
+    for (let k = 0; k < comp.length; k++) {
+      for (const { j } of links(map, comp[k])) if (cand[j] && !seen[j]) { seen[j] = 1; comp.push(j); }
+    }
+    if (comp.length < PAR_RUN_MIN) continue;
+    const inComp = new Set(comp);
+    const ends = [...new Set(comp.flatMap((c) => links(map, c).map((l) => l.j)).filter((j) => !inComp.has(j)))];
+    if (ends.length !== 2) continue;
+    if (!staysConnected(map, comp, ends)) continue;
+    for (const c of comp) {
+      for (const { j, bit } of links(map, c)) cut(map, c, j, bit);
+      map.tiles[c].road = 0;
+    }
+    runs++; tiles += comp.length;
+  }
+  return { runs, tiles };
 }
 
 /**
@@ -296,7 +383,8 @@ export function cleanRoad(state) {
       addAdj(e.a, e.b); addAdj(e.b, e.a);
     }
   }
-  const prunedTiles = pruneSpurs(map);
+  const par = removeParallelRuns(map);
+  const prunedTiles = pruneDeadSpurs(map);
   const jogsStraightened = 0; // straightenJogs(map): disabled, net-increases jogs (see R8a report)
   // a collapsed doubled avenue becomes one wide road: flag its major surviving tiles as highway
   let flaggedHighway = 0;
@@ -307,7 +395,7 @@ export function cleanRoad(state) {
   }
   // a tile that lost its road must not keep road-only flags (avenue class / highway)
   for (const t of map.tiles) if (!t.road) { delete t.avenue; delete t.highway; }
-  return { removedEdges, prunedTiles, collapsed, flaggedHighway, jogsStraightened, jogsAfter: countJogs(map), smallCyclesBefore, smallCyclesAfter: countSmallRoadCycles(map) };
+  return { removedEdges, parallelRuns: par.runs, parallelTiles: par.tiles, prunedTiles, collapsed, flaggedHighway, jogsStraightened, jogsAfter: countJogs(map), smallCyclesBefore, smallCyclesAfter: countSmallRoadCycles(map) };
 }
 
 /**

@@ -5,7 +5,6 @@
 import { tl, TS } from './moscowScale.js';
 import { placeHouse, nextToRoad, recomputePopulation } from '../towns.js';
 import { allocId } from '../state.js';
-import { manhattan } from '../state.js';
 import { pickStyle, clampLevel, tileDist, LANDUSE_STYLE } from './moscowStyles.js';
 
 /** Maximum number of towns created from districts. */
@@ -169,7 +168,7 @@ function houseSite(map, x, y, dens, inCentre) {
  * the park-like ring that keeps enlarged monuments visually dominant.
  */
 /** Chebyshev radius (tiles) of the house-free frame around landmark tiles. */
-export const LANDMARK_CLEAR_R = 3;
+export const LANDMARK_CLEAR_R = 1;
 
 export function withinLandmarkClear(state, x, y) {
   const { map } = state;
@@ -184,26 +183,73 @@ export function withinLandmarkClear(state, x, y) {
   return false;
 }
 
+/** Margin (tiles) kept free around each ensemble bounding box. */
+export const ENSEMBLE_MARGIN = 1;
+/** Width (tiles) of the house ring built around each monument ensemble. */
+export const MONUMENT_RING = tl(3);
+
 /**
- * Tiles inside the bounding box (+1 ring) of every multi-tile 3D landmark ensemble: the baked sprite covers
- * that whole box (walls, embankments, squares), so no house may stand there.
- * @returns {Uint8Array} 1 = keep free
+ * Bounding boxes of every multi-tile 3D landmark ensemble (tiles are grouped by building id).
+ * Small groups (fewer than 4 tiles at 200 m) are ignored.
+ * @returns {{x0:number,y0:number,x1:number,y1:number}[]}
  */
-export function ensembleBoxes(map) {
-  const W = map.width, H = map.height, box = new Map();
+export function ensembleExtents(map) {
+  const W = map.width, box = new Map();
   map.tiles.forEach((t, i) => {
     if (!t.building || !t.building.lm3d) return;
     const x = i % W, y = (i / W) | 0, b = box.get(t.building.id);
     if (!b) box.set(t.building.id, { x0: x, x1: x, y0: y, y1: y, n: 1 });
     else { b.x0 = Math.min(b.x0, x); b.x1 = Math.max(b.x1, x); b.y0 = Math.min(b.y0, y); b.y1 = Math.max(b.y1, y); b.n++; }
   });
+  return [...box.values()].filter((b) => b.n >= 4 * TS * TS).map(({ x0, x1, y0, y1 }) => ({ x0, x1, y0, y1 }));
+}
+
+/**
+ * Tiles inside the bounding box (+ENSEMBLE_MARGIN ring) of every multi-tile 3D landmark ensemble: the
+ * baked sprite covers that whole box (walls, embankments, squares), so no house may stand there.
+ * @returns {Uint8Array} 1 = keep free
+ */
+export function ensembleBoxes(map) {
+  const W = map.width, H = map.height;
   const out = new Uint8Array(W * H);
-  for (const b of box.values()) {
-    if (b.n < 4 * TS * TS) continue;
-    for (let y = Math.max(0, b.y0 - tl(1)); y <= Math.min(H - 1, b.y1 + tl(1)); y++)
-      for (let x = Math.max(0, b.x0 - tl(1)); x <= Math.min(W - 1, b.x1 + tl(1)); x++) out[y * W + x] = 1;
+  for (const b of ensembleExtents(map)) {
+    for (let y = Math.max(0, b.y0 - ENSEMBLE_MARGIN); y <= Math.min(H - 1, b.y1 + ENSEMBLE_MARGIN); y++)
+      for (let x = Math.max(0, b.x0 - ENSEMBLE_MARGIN); x <= Math.min(W - 1, b.x1 + ENSEMBLE_MARGIN); x++) out[y * W + x] = 1;
   }
   return out;
+}
+
+/**
+ * Dense house ring around each monument ensemble: every free land tile within MONUMENT_RING tiles of the
+ * box (outside its keep-free margin) gets a house. Roads, rail, water, landmarks and the sprite box are
+ * never built on; no road adjacency is needed.
+ * @returns {number} houses placed
+ */
+function placeMonumentRings(state, rng, towns, marks) {
+  const { map } = state;
+  const W = map.width, H = map.height;
+  const inBox = ensembleBoxes(map);
+  const kx = marks.kremlin.x, ky = marks.kremlin.y;
+  let placed = 0;
+  for (const b of ensembleExtents(map)) {
+    for (let y = Math.max(0, b.y0 - MONUMENT_RING); y <= Math.min(H - 1, b.y1 + MONUMENT_RING); y++) {
+      for (let x = Math.max(0, b.x0 - MONUMENT_RING); x <= Math.min(W - 1, b.x1 + MONUMENT_RING); x++) {
+        if (x >= b.x0 - ENSEMBLE_MARGIN && x <= b.x1 + ENSEMBLE_MARGIN && y >= b.y0 - ENSEMBLE_MARGIN && y <= b.y1 + ENSEMBLE_MARGIN) continue;
+        const i = y * W + x;
+        const t = map.tiles[i];
+        if (inBox[i] || t.terrain === 'water' || t.terrain === 'forest' || t.road || t.highway || t.rail || t.building) continue;
+        const dK = Math.hypot(x - kx, y - ky);
+        const town = (dK <= CENTRE_RADIUS && marks.centreTown) ? marks.centreTown : (catchmentTownOf(towns, x, y) || towns[0]);
+        if (!town) continue;
+        const lu = marks.landuse ? marks.landuse[i] : '';
+        const style = LANDUSE_STYLE[lu] || pickStyle(rng, tileDist(x, y, kx, ky), false);
+        let level = dK <= CENTRE_RADIUS ? (rng.chance(CENTRE_TOWER_SHARE) ? 4 : 3) : 2;
+        level = clampLevel(style, level);
+        if (placeHouse(state, rng, town, x, y, level)) { t.building.style = style; placed++; }
+      }
+    }
+  }
+  return placed;
 }
 
 /**
@@ -234,7 +280,6 @@ export function placeHouses(state, rng, L, towns, marks) {
       const i = y * W + x;
       const dens = Number(L.density[i]) || 0;
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
-      if (manhattan(x, y, kx, ky) <= tl(5)) continue;
       const dK = Math.hypot(x - kx, y - ky);
       const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9 * TS * TS;
       const inCentre = dK <= CENTRE_RADIUS;
@@ -261,6 +306,7 @@ export function placeHouses(state, rng, L, towns, marks) {
       }
     }
   }
+  placed += placeMonumentRings(state, rng, towns, marks);
   for (const t of towns) recomputePopulation(state, t);
   return placed;
 }
