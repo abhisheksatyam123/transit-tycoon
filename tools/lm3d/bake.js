@@ -21,9 +21,9 @@ const ZOOMS = [1, 2, 4];
 /**
  * Uniform landmark scale (x, y and z alike, so proportions stay photo-true). The game's OpenTTD-style houses,
  * roads and vehicles are drawn ~5-10x larger than reality; true-scale monuments looked like miniatures beside
- * them, so ensembles are enlarged 2x about their anchor (a point that should stay put, e.g. a river-side wall).
+ * them, so ensembles are enlarged 4x about their anchor (a point that should stay put, e.g. a river-side wall).
  */
-export const LM_SCALE = 2;
+export const LM_SCALE = 4;
 let BLOCKED = new Set();
 const GROUND = { paving: colour('#b3a898'), paved: colour('#9d9284'), cobble: colour('#8a8078'), grass: colour('#6a9e48'), pitch: colour('#4f9a3e'), asphalt: colour('#5e5e62') };
 

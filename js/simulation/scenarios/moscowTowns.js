@@ -151,13 +151,13 @@ function houseSite(map, x, y, dens) {
 }
 
 /**
- * True when a house at (x,y) would stand within 4 tiles (Chebyshev) of any landmark tile:
- * the park/park-like ring that keeps OSM 3D ensembles visually dominant.
+ * True when a house at (x,y) would stand within 8 tiles (Chebyshev) of any landmark tile:
+ * the park-like ring that keeps enlarged monuments visually dominant.
  */
 export function withinLandmarkClear(state, x, y) {
   const { map } = state;
-  for (let yy = Math.max(0, y - 4); yy <= Math.min(map.height - 1, y + 4); yy++)
-    for (let xx = Math.max(0, x - 4); xx <= Math.min(map.width - 1, x + 4); xx++) {
+  for (let yy = Math.max(0, y - 8); yy <= Math.min(map.height - 1, y + 8); yy++)
+    for (let xx = Math.max(0, x - 8); xx <= Math.min(map.width - 1, x + 8); xx++) {
       const t = map.tiles[yy * map.width + xx];
       if (t.building && t.building.type === 'landmark') return true;
     }
@@ -183,6 +183,7 @@ export function placeHouses(state, rng, L, towns, marks) {
   // (landmark loss at equal radii: MoscowCity 21, MSU 18, VDNKh 18, Luzhniki 15, Kremlin 45)
   // NOTE: landmarks are placed by placeLandmarks BEFORE placeHouses, so withinLandmarkClear's
   // landmark tiles include the Kremlin ensemble, Moscow City, Seven Sisters and statues.
+  // The centre bypass: houses within 10 tiles of the Kremlin are never dropped by ring or vacancy.
   let placed = 0;
   const kx = marks.kremlin.x, ky = marks.kremlin.y;
   for (let y = 0; y < map.height; y++) {
@@ -191,9 +192,10 @@ export function placeHouses(state, rng, L, towns, marks) {
       const dens = Number(L.density[i]) || 0;
       if (dens < 1 || map.tiles[i].terrain === 'water' || map.tiles[i].terrain === 'forest') continue;
       if (manhattan(x, y, kx, ky) <= 5) continue;
-      if (rng.chance(vacancyChance(Math.hypot(x - kx, y - ky)))) continue; // leave open plots between districts
-      // keep 4 tiles clear around every built landmark ensemble (photo prominence)
-      if (withinLandmarkClear(state, x, y)) continue;
+      const dK = Math.hypot(x - kx, y - ky);
+      if (dK > 10 && rng.chance(vacancyChance(dK))) continue; // leave open plots between districts
+      // keep tiles clear around every built landmark ensemble (photo prominence)
+      if (dK > 10 && withinLandmarkClear(state, x, y)) continue;
       if (!houseSite(map, x, y, dens)) continue;
       const inCity = marks.city && d2(x, y, marks.city.x, marks.city.y) <= 9;
       const inCentre = d2(x, y, kx, ky) <= CENTRE_RADIUS * CENTRE_RADIUS;
