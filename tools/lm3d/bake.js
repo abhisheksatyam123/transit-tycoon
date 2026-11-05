@@ -116,7 +116,8 @@ export function bakeOne(E) {
     if (!st.pts.some((p) => inRing(p, ring))) continue;
     faces.push({ pts: st.pts.map((p) => S([p[0], p[1], st.kind === 'asphalt' ? 0.08 : 0.1])), col: GROUND[st.kind === 'asphalt' ? 'asphalt' : 'paving'], kind: 'ground', bias: -1.5, light: 0.85 });
   }
-  const front = tiles.reduce((m, t) => (!m || t[0] + t[1] > m[0] + m[1] || (t[0] + t[1] === m[0] + m[1] && t[0] > m[0]) ? t : m), null);
+  // zero-tile ensembles keep an overlay front anchored to the real position; it draws on top without clearing tiles
+  const front = tiles.reduce((m, t) => (!m || t[0] + t[1] > m[0] + m[1] || (t[0] + t[1] === m[0] + m[1] && t[0] > m[0]) ? t : m), null) ?? [Math.round(anc[0] / TILE_M), Math.round(anc[1] / TILE_M)];
   const levels = [];
   mkdirSync(ROOT + 'assets/landmarks', { recursive: true });
   for (const z of ZOOMS) {

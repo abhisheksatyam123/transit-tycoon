@@ -191,3 +191,162 @@ export function mininPozharskyFaces(toM) {
   lathe(o, 1.45, 0.2, [[0.6, z + 0.5], [0.6, z + 0.6], [0, z + 0.6]], 8, P);
   return place(o, toM, 55.7528014, 37.6226239, 312);
 }
+// ── Generic monument silhouettes (all OSM monuments, see ens/statuesAll.js) ──
+
+const GB_COL = { bronze: '#5a4632', granite: '#6d685f', stone: '#c9c3b8', steel: '#9aa1ad', gold: '#d9a838', iron: '#2e3236', default: '#bfb6a6' };
+const gb = (type) => GB_COL[type] || GB_COL.default;
+
+// Common: wide stepped stone base so monuments read www or as a monument footprint
+function foot(o, r) {
+  lathe(o, 0, 0, [[r, 0], [r * 0.92, 0.45], [r * 0.74, 0.8], [r * 0.74, 0.95], [r * 0.5, 1.0]], 16, GB_COL.granite);
+}
+
+// Slim vertical pillar with capital (e.g. modern monuments, dedication pillars)
+function pillar(o, h, baseR, col) {
+  foot(o, baseR * 1.6);
+  cylinder(o, 0, 0, 1.0, baseR, h, col || GB_COL.stone, 10);
+  box(o, 0, 0, 0, baseR * 2, baseR * 1.6, 0.95, GB_COL.granite);
+}
+
+// Classical bust on plinth
+function bust(o, h) {
+  foot(o, 1.15);
+  box(o, 0, 0, 0, 2.1, 1.5, 1.0, GB_COL.stone);
+  cylinder(o, 0, 0, 1.05, 0.48, 1.25, GB_COL.default, 10);
+  sphere(o, 0, 0, 2.85, 0.42, GB_COL.bronze, 10);
+  box(o, 0, 0, 3.15, 1.3, 0.55, 0.28, GB_COL.bronze);
+}
+
+// Standing figure of a person (generic, arms down at the sides)
+function figure(o, h, colour) {
+  foot(o, 1.05);
+  const c = colour || GB_COL.bronze;
+  const s = h / 6.0;
+  box(o, 0, 0, 0, 2.0, 1.45, 1.0, GB_COL.stone);
+  box(o, 0, 0, 1.0, 1.05, 0.78, 2.1 * s, c);                     // torso
+  tube(o, [[-0.55, 0, 3.15 * s + 1.0], [-0.85, 0.15, 1.15 * s + 1.0]], 0.34 * s, c);
+  tube(o, [[0.55, 0, 3.15 * s + 1.0], [0.85, 0.15, 1.15 * s + 1.0]], 0.34 * s, c);
+  lathe(o, 0, 0, [[0.58 * s, 0], [0.46 * s, 1.35 * s], [0, 1.35 * s]], 8, c);
+  sphere(o, 0, 0, 3.7 * s + 1.1, 0.42 * s, c, 8);
+}
+
+// An angel or winged figure (two angled wings)
+function winged(o, h, colour) {
+  figure(o, h, colour);
+  const c = colour || GB_COL.bronze;
+  const s = h / 6.0;
+  panel(o, [[-0.3, 0.05, 2.7 * s + 1.1], [-1.65, -0.65, 4.3 * s + 1.1], [-1.15, 0.35, 5.5 * s + 1.1]], c);
+  panel(o, [[0.3, 0.05, 2.7 * s + 1.1], [1.65, -0.65, 4.3 * s + 1.1], [1.15, 0.35, 5.5 * s + 1.1]], c);
+}
+
+// Four-finned pylon (Obelisk-style dedication, e.g. tall rectangular pillar)
+function pylon(o, h, colour) {
+  foot(o, 1.15);
+  const tiers = [[-2.0, 1.7], [-1.35, 1.45], [-0.88, 1.22], [-0.38, 1.0], [0.18, 0.82], [0.76, 0.66]];
+  let lastR = tiers[0][1];
+  tiers.forEach(([y, r], i) => {
+    cylinder(o, 0, 0, 1.0 + i * (h / tiers.length), r, h / tiers.length + 0.02, i % 2 ? (colour || GB_COL.granite) : GB_COL.stone, 8);
+    lastR = r;
+  });
+  cone(o, 0, 0, 1.0 + h + 0.02, lastR * 0.95, h * 0.13, colour || GB_COL.stone, 8);
+}
+
+// Reclining / seated figure silhouette
+function seated(o, h, colour) {
+  foot(o, 1.05);
+  const c = colour || GB_COL.bronze;
+  box(o, 0, 0, 0, 1.9, 1.5, 1.0, GB_COL.stone);
+  box(o, 0, 0, 1.0, 1.25, 2.25, 1.7, c);
+  box(o, 0, -0.25, 2.7 + 1.0, 1.1, 1.35, 0.55, c);
+  sphere(o, 0, -1.0, 4.35, 0.38, c, 8);
+}
+
+// Satellite dish frame (space-monument variant)
+function dish(o, h, colour) {
+  foot(o, 1.7);
+  cylinder(o, 0, 0, 1.0, 0.28, h * 0.85, colour || GB_COL.steel, 8);
+  cone(o, 0, 0, 1.0 + h * 0.85, h * 0.32, h * 0.1, colour || GB_COL.steel, 10);
+  sphere(o, 0, 0, 1.0 + h * 0.95, 0.22, GB_COL.gold, 8);
+}
+
+// Horse / rider silhouette (very generic mount + torso; kept low-poly)
+function equestrian(o, h, colour) {
+  foot(o, 1.6);
+  const c = colour || GB_COL.bronze;
+  const s = h / 5.0;
+  box(o, 0, 0, 0, 3.0, 1.4, 1.0, GB_COL.stone);
+  // horse body (rounded prism) + 4 legs
+  lathe(o, 0, 0.1, [[0.85 * s, 0], [1.15 * s, 0.55], [1.1 * s, 1.05 * s], [0.75 * s, 1.3 * s], [0, 1.35 * s]], 10, c);
+  for (const [dx, dy] of [[-0.55, -0.35], [-0.55, 0.38], [0.6, -0.35], [0.6, 0.38]]) box(o, dx, dy, 1.0, 0.28 * s, 0.22 * s, 2.1 * s, c);
+  // rider torso + head
+  box(o, 0, 0, 2.25 * s + 1.0, 0.75 * s, 0.52 * s, 1.7 * s, c);
+  sphere(o, 0, 0.02, 2.25 * s + 2.62 * s + 1.0, 0.3 * s, c, 8);
+}
+
+// Plate/plaque on a low plinth (memorial plaques)
+function plaque(o, colour) {
+  foot(o, 0.9);
+  const c = colour || GB_COL.gold;
+  box(o, 0, 0, 0, 1.6, 0.3, 1.35, GB_COL.stone);
+  box(o, 0, -0.06, 1.45, 1.15, 0.12, 0.5, c);
+}
+
+// Three-prong trident (ceremonial dedication pillar variants)
+function trident(o, h, colour) {
+  foot(o, 1.1);
+  const c = colour || GB_COL.stone;
+  cylinder(o, 0, 0, 1.0, 0.16, h * 0.7, c, 6);
+  for (const dx of [-0.95, 0, 0.95]) {
+    cylinder(o, dx, 0, 1.0 + h * 0.7, 0.11, h * 0.32, c, 6);
+    cone(o, dx, 0, 1.0 + h * 0.7 + h * 0.32, 0.09, h * 0.13, c, 6);
+  }
+}
+
+// Simple abstract obelisk with flattened cap (dedication marker)
+function marker(o, h, colour) {
+  foot(o, 0.95);
+  const c = colour || GB_COL.stone;
+  cylinder(o, 0, 0, 1.0, 0.32, h, c, 4);
+  cone(o, 0, 0, 1.0 + h, 0.36, h * 0.12, c, 4);
+}
+
+const BUILDERS = {
+  figure: (o, s) => figure(o, 5.2, s),
+  seated: (o, s) => seated(o, 4.4, s),
+  winged: (o, s) => winged(o, 5.6, s),
+  pillar: (o, s, h) => pillar(o, h || 7.5, (s === 1 ? 0.52 : 0.46) + ((h || 7.5) % 1.7) * 0.05, s),
+  pylon: (o, s) => pylon(o, 9.5, s),
+  bust: (o, s) => bust(o, 3.3),
+  equestrian: (o, s) => equestrian(o, 6.2, s),
+  dish: (o, s) => dish(o, 8.0, s),
+  plaque: (o, s) => plaque(o, s),
+  trident: (o, s) => trident(o, 7.0, s),
+  marker: (o, s) => marker(o, (s === 3 ? 9.5 : 6.5), s),
+};
+
+/** Deterministic pseudo-random in [0,1) from a string key. */
+function randFor(key) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+}
+
+/**
+ * Generic stand-in for OSM monuments/artwork we do not have a bespoke model for.
+ * Picks one of the silhouettes above deterministically from the id, so re-bakes are stable.
+ * @param {string} id
+ * @returns {Array} faces array ready for place()
+ */
+export function genericStatueFaces(id) {
+  const r = randFor(id);
+  const pick = r();
+  const stylePick = r();
+  const order = ['figure', 'seated', 'winged', 'pillar', 'pylon', 'bust', 'equestrian', 'dish', 'plaque', 'trident', 'marker'];
+  const kind = order[Math.floor(pick * order.length)];
+  // style drives the colour: 0..0.35 bronze, 0.35..0.65 granite/stone, 0.65..0.85 steel, 0.85.. gold
+  const styles = [GB_COL.bronze, GB_COL.bronze, GB_COL.bronze, GB_COL.granite, GB_COL.stone, GB_COL.steel, GB_COL.gold];
+  const colour = styles[Math.floor(stylePick * styles.length)];
+  const o = [];
+  BUILDERS[kind](o, colour);
+  return o;
+}

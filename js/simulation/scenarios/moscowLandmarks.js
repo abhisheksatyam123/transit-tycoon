@@ -137,7 +137,7 @@ function stampLandmark(state, spec, x0, y0) {
  * @returns {{id:string,x:number,y:number,w:number,h:number,title:string,tiles:number}[]}
  */
 export function placeEnsembles(state, log) {
-  const { map } = state; const out = [];
+  const { map } = state; const out = []; const overlays = [];
   if (globalThis.process?.env?.NO_LM3D) return out; // tools/lm3d/bake.js reads the world without ensembles
   for (const e of Object.values(LM3D)) {
     const placed = [];
@@ -151,7 +151,13 @@ export function placeEnsembles(state, log) {
       t.building = { type: 'landmark', id: e.id, lm3d: 1, front: 0, dx: 0, dy: 0, w: 1, h: 1 };
       placed.push([x, y]);
     }
-    if (!placed.length) { log.push(`landmark ${e.id}: no footprint tiles`); continue; }
+    if (!placed.length) {
+      if (Array.isArray(e.front) && inBounds(map, e.front[0], e.front[1])) {
+        overlays.push({ id: e.id, x: e.front[0], y: e.front[1] }); // draw it without demolishing anything
+        log.push(`landmark ${e.id}: no footprint tiles (drawn as overlay at ${e.front[0]},${e.front[1]})`);
+      } else log.push(`landmark ${e.id}: no footprint tiles`);
+      continue;
+    }
     // the front-most stamped tile (max x+y, then max x) draws the whole sprite after everything behind it
     const f = placed.reduce((m, q) => (q[0] + q[1] > m[0] + m[1] || (q[0] + q[1] === m[0] + m[1] && q[0] > m[0]) ? q : m));
     map.tiles[f[1] * map.width + f[0]].building.front = 1;
@@ -160,6 +166,7 @@ export function placeEnsembles(state, log) {
     log.push(`landmark ${e.id}: OSM 3D ensemble on ${placed.length}/${e.tiles.length} tiles, front ${f[0]},${f[1]}`);
     out.push({ id: e.id, x: x0, y: y0, w: Math.max(...xs) - x0 + 1, h: Math.max(...ys) - y0 + 1, title: e.title, tiles: placed.length });
   }
+  map.lm3dOverlays = overlays; // drawn by the renderer on top of the map without taking tiles
   for (const t of map.tiles) if (t.avenue !== undefined && !t.road) delete t.avenue; // neighbours cut off by cleared links
   return out;
 }

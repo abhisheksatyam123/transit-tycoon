@@ -47,6 +47,7 @@ export function lm3dFronts(map) {
   if (!c || ++c.n > 240) {
     const list = [];
     for (let i = 0; i < map.tiles.length; i++) { const b = map.tiles[i].building; if (b && b.lm3d && b.front && LM3D[b.id]) list.push({ id: b.id, x: i % map.width, y: Math.floor(i / map.width) }); }
+    if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) if (o && LM3D[o.id] && Number.isInteger(o.x) && Number.isInteger(o.y)) list.push({ id: o.id, x: o.x, y: o.y });
     c = { list, n: 0 }; frontCache.set(map, c);
   }
   return c.list;
