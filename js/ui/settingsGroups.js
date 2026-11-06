@@ -54,6 +54,8 @@ export const SETTING_META = [
 export const PREF_META = [
   { id: 'sound', group: 'interface', label: 'Sound effects', help: 'Build and vehicle sounds. Same as the toolbar sound button (M).' },
   { id: 'fx', group: 'interface', label: 'Vehicle effects', help: 'Smoke, sparks and wakes from trains, buses, trucks and ships. Off = no vehicle particles.' },
+  { id: 'townLabels', group: 'interface', label: 'Town names', help: 'Name signs on the map at each town centre (population from zoom 1). Same as the Town names checkbox here; stored in this browser.' },
+  { id: 'stationLabels', group: 'interface', label: 'Station names', help: 'Name signs above stations, coloured by owner (rivals in their own colour). Hidden when zoomed far out. Stored in this browser.' },
   { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', help: 'Use the OpenGFX sprite pack. Off = procedural drawing. Same as K.' },
 ];
 

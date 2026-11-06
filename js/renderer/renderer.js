@@ -29,6 +29,7 @@ import { drawSignalPost } from './layers/signals.js';
 import { drawCatenary, drawTramWires } from './layers/catenary.js';
 import { drawOneWayArrow } from './layers/oneway.js';
 import { drawTunnelPortal } from './layers/transport.js';
+import { drawLabels } from './layers/labels.js';
 
 export class Renderer {
   /**
@@ -48,6 +49,8 @@ export class Renderer {
     this.dpr = 1;
     /** metro schematic overlay (key J); tunnel trains are shown only while on */
     this.showMetro = false;
+    /** screen-space hit rects of the name signs from the last frame (see layers/labels.js) */
+    this.labelHits = [];
     /** OpenGFX pack drawing active (see pack/index.js); false = procedural */
     this.packOn = false;
     /** @type {Map<number, any>} */
@@ -376,6 +379,8 @@ export class Renderer {
     // screen-space labels and floating texts: last, always above landmarks/vehicles
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.floating.draw(ctx, dt, cam);
+    // town/station name signs (screen space); the hit list feeds click-to-open in input.js
+    drawLabels(ctx, this, cam);
     const pv = this.overlay.preview;
     if (pv && pv.label && pv.tiles.length) {
       const t = pv.tiles[pv.tiles.length - 1];
