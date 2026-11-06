@@ -5,7 +5,8 @@ import { vehiclePrice } from './prices.js';
 import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
-import { resolvePurchase, createVehicle } from './vehicles.js';
+import { resolvePurchase, createVehicle, purchasable } from './vehicles.js';
+import { MAX_WAGONS } from './constants.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField } from './orders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain } from './routing.js';
@@ -363,4 +364,96 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   v.cargoId = cargoId;
   v.capacity = capacity;
   return { ok: true, cost, cargoId, capacity };
+}
+
+/**
+ * Wagon model a train's consist uses: its current wagon model, or (for a train with no wagons yet) the
+ * wagon carrying its cargo, else the default coach. Null when none is available in `year`.
+ */
+function consistWagonFor(v, year) {
+  let wagon = v.wagonModelId ? MODEL_BY_ID[v.wagonModelId] : null;
+  if (!wagon && v.cargoId) wagon = Object.values(MODEL_BY_ID).find((m) => m.kind === 'wagon' && m.cargos.includes(v.cargoId));
+  if (!wagon) wagon = MODEL_BY_ID.wag_coach;
+  if (!wagon || wagon.kind !== 'wagon' || wagon.introYear > year || !purchasable(wagon, year)) return null;
+  return wagon;
+}
+
+/**
+ * Shared checks for changing a train's consist (add / remove wagons): a train, stopped in a depot,
+ * empty, with a valid wagon model. Returns {ok, v, wagon, unit} where unit is the inflated price per wagon.
+ */
+function consistCheck(ctx, id, n) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (v.kind !== 'train') return { ok: false, error: 'Only trains have wagons' };
+  if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its wagons' };
+  if (!Number.isInteger(n) || n < 1) return { ok: false, error: 'Wagon count must be a positive whole number' };
+  if ((v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the train before changing its wagons' };
+  const wagon = consistWagonFor(v, state.date.year);
+  if (!wagon) return { ok: false, error: 'No wagon model available' };
+  return { ok: true, v, wagon, unit: vehiclePrice(state, wagon.cost) };
+}
+
+/**
+ * Apply a wagon-count change to a train (both directions share the same bookkeeping).
+ * `delta` > 0 adds wagons; < 0 removes them. Capacity, running cost, value and cargo follow the wagons.
+ * History needs no edit here: the train's history grows as it moves (historyNeeded uses v.wagons).
+ */
+function applyWagonDelta(state, v, wagon, delta, unit) {
+  const k = Math.abs(delta);
+  v.wagonModelId = wagon.id;
+  v.cargoId = v.cargoId || wagon.cargos[0];
+  v.wagons += delta;
+  v.capacity = wagon.capacity * v.wagons;
+  v.runningCost = (v.runningCost || 0) + delta * wagon.running;
+  if (delta > 0) v.value = (v.value || 0) + unit * k;
+  return k;
+}
+
+/**
+ * Buy n more wagons for a train stopped in a depot (OpenTTD-style consist edit, simplified to one wagon
+ * model per train). Price per wagon = the purchase price of its wagon model, inflated (vehiclePrice).
+ * Limit: total wagons <= MAX_WAGONS. The train must be empty and its cargo carried by the wagon model.
+ * @returns {{ok:true,cost:number,wagons:number,capacity:number}|{ok:false,error:string}}
+ */
+export function addWagons(ctx, id, n, opts = {}) {
+  const { state } = ctx;
+  const c = consistCheck(ctx, id, n);
+  if (!c.ok) return c;
+  const { v, wagon, unit } = c;
+  if (v.wagons + n > MAX_WAGONS) return { ok: false, error: `A train can have at most ${MAX_WAGONS} wagons` };
+  if (v.cargoId && !wagon.cargos.includes(v.cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${v.cargoId}` };
+  const cost = unit * n;
+  const capacity = wagon.capacity * (v.wagons + n);
+  const money = checkMoney(state, cost);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost, wagons: v.wagons + n, capacity };
+  spend(state.company, 'vehicles', cost);
+  applyWagonDelta(state, v, wagon, n, unit);
+  return { ok: true, cost, wagons: v.wagons, capacity: v.capacity };
+}
+
+/**
+ * Sell n wagons from a train stopped in a depot. Refund = the inflated per-wagon price (what addWagons
+ * charges), capped at the train's value; v.value is reduced by the same amount. Minimum 0 wagons
+ * (an engine may run alone, as resolvePurchase allows). The train must be empty.
+ * @returns {{ok:true,cost:number,wagons:number,capacity:number}|{ok:false,error:string}}
+ */
+export function removeWagons(ctx, id, n, opts = {}) {
+  const { state } = ctx;
+  const c = consistCheck(ctx, id, n);
+  if (!c.ok) return c;
+  const { v, wagon, unit } = c;
+  if (n > v.wagons) return { ok: false, error: `Only ${v.wagons} wagon(s) to remove` };
+  // refund = the removed wagons' share of the train's current (depreciated) value: a new train refunds the
+  // purchase price, an old one less (OpenTTD sells parts at their depreciated value)
+  const engine = MODEL_BY_ID[v.modelId];
+  const fullPrice = (engine ? vehiclePrice(state, engine.cost) : 0) + unit * v.wagons;
+  const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit * n) / fullPrice)) : 0;
+  if (opts.dryRun) return { ok: true, cost: refund, wagons: v.wagons - n, capacity: wagon.capacity * (v.wagons - n) };
+  earn(state.company, refund, 'vehicles');
+  applyWagonDelta(state, v, wagon, -n, unit);
+  v.value = (v.value || 0) - refund;
+  return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
 }

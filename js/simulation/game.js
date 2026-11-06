@@ -195,6 +195,9 @@ export class Game {
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
   /** Refit a stopped, empty vehicle in a depot to another cargo (10% of the model price). */
   refitVehicle(id, cargoId, opts) { return vcmd.refitVehicle(this.ctx, id, cargoId, opts); }
+  /** Consist editor (T19): add / sell wagons of a train stopped empty in a depot. */
+  addWagons(id, n, opts) { return vcmd.addWagons(this.ctx, id, n, opts); }
+  removeWagons(id, n, opts) { return vcmd.removeWagons(this.ctx, id, n, opts); }
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   /** Service interval in days for one vehicle (0 = off). */
