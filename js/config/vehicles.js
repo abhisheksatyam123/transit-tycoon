@@ -48,7 +48,17 @@ export const EXTRA_VEHICLE_MODELS = [
   { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS];
+/**
+ * Electric locomotives (electrified track, see cmdElectrify.js). Gated by modelAvailable(): offered only
+ * once some tile of the map carries catenary, so default games never see them (hashes unchanged).
+ * Electric trains only route over electrified rail (pathfinder opts.electric).
+ */
+export const ELECTRIC_VEHICLE_MODELS = [
+  { id: 'eng_volt', name: 'Volt Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1955, obsoleteYear: 1995, speed: 144, capacity: 0, cost: 17000, running: 4200, reliability: 0.89, power: 2400, news: false },
+  { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
+];
+
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

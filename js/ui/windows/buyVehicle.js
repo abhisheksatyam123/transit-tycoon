@@ -13,7 +13,7 @@ import { cargoName } from '../cargo.js';
  */
 function modelSelect(models) {
   const s = /** @type {HTMLSelectElement} */ (el('select.input'));
-  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name} — ${money(m.cost)}` }));
+  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name}${m.traction === 'electric' ? ' (electric)' : ''} — ${money(m.cost)}` }));
   return s;
 }
 

@@ -1,6 +1,8 @@
 /** Construction / demolition costs (money). */
 export const COSTS = {
   rail: 120,
+  /** electrify (OpenTTD CMD_ELECTRIFY_TRACK): per rail tile; removal is free */
+  electrify: 60,
   road: 90,
   /** player bridge: extra per water deck tile (on top of the heads' normal track cost) */
   bridgeRail: 300,

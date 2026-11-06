@@ -16,6 +16,7 @@ export const TOOL_BUTTONS = [
   ['railDepot', 'Rail Depot', 'railDepot', '6'],
   ['roadDepot', 'Road Depot', 'roadDepot', '7'],
   ['demolish', 'Demolish', 'demolish', '8'],
+  ['electrify', 'Electrify', 'electrify', ''],
   ['query', 'Query', 'query', '9'],
   ['airport', 'Airport', 'airport', '0'],
   ['terraform', 'Terraform', 'terraform', 'Z'],

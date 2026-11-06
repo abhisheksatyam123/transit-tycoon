@@ -15,6 +15,7 @@ import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
+import { convertRail } from './cmdElectrify.js';
 import { buildSignal, removeSignal } from './signals.js';
 import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { toggleOneWay } from './cmdOneWay.js';
@@ -176,6 +177,8 @@ export class Game {
   /** Build a road along a shape path. opts: { highway?: boolean } */
   buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }); }
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
+  /** Electrify (or with opts.unelectrify remove catenary from) every rail tile in a rectangle. opts.dryRun = price only. */
+  convertRail(x0, y0, x1, y1, opts) { return convertRail(this.ctx, x0, y0, x1, y1, opts || {}); }
   /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
   /** One-way road toggle on a straight road tile (T42): two-way -> +axis -> -axis -> two-way. */

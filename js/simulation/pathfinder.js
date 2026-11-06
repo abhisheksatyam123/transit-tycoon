@@ -49,7 +49,7 @@ class MinHeap {
  * @param {{x:number,y:number}} start
  * @param {{x:number,y:number}[]} goals
  * @param {'rail'|'road'} layer
- * @param {{maxNodes?:number, avoidFirst?:{x:number,y:number}}} [opts]
+ * @param {{maxNodes?:number, avoidFirst?:{x:number,y:number}, electric?:boolean}} [opts] electric: rail only over electrified tiles (elec)
  * @returns {{x:number,y:number}[]|null} tiles from start to goal inclusive
  */
 export function findPath(map, start, goals, layer, opts = {}) {
@@ -78,6 +78,7 @@ export function findPath(map, start, goals, layer, opts = {}) {
   heap.push(startIdx, h(start.x, start.y));
   const maxNodes = opts.maxNodes ?? n;
   const avoid = opts.avoidFirst ? opts.avoidFirst.y * width + opts.avoidFirst.x : -1;
+  const electric = !!opts.electric && layer === 'rail';
   let expanded = 0;
   while (heap.size > 0) {
     const cur = heap.pop();
@@ -100,6 +101,7 @@ export function findPath(map, start, goals, layer, opts = {}) {
       if (cur === startIdx && ni === avoid) continue;
       const nt = tiles[ni];
       if (!(nt[layer] & OPPOSITE[d.bit])) continue;
+      if (electric && !nt.elec) continue; // electric locomotives: non-electrified track is impassable
       // one-way roads (T42): both the tile left and the tile entered must allow this travel direction
       if (layer === 'road' && (tile.oneWay || nt.oneWay) && !(oneWayAllows(tile, d.dx, d.dy) && oneWayAllows(nt, d.dx, d.dy))) continue;
       // turning costs a little more so straight routes are preferred

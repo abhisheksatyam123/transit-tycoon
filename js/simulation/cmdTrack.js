@@ -451,6 +451,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       const layer = t.building.kind;
       removeDepot(ctx, t.building.depotId);
       t[layer] = 0;
+      delete t.elec;
       t.building = null; t.owner = null;
     } else if (j.kind === 'station') {
       const kind = t.building.kind;
@@ -458,7 +459,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       removeStationTile(ctx, j.x, j.y);
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;
-      if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; }
+      if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; delete t.elec; }
     } else if (j.kind === 'hq') {
       removeHQ(state); // T31: no refund
     } else if (j.kind === 'house') {
@@ -467,6 +468,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       t.building = null; t.owner = null;
     } else if (j.kind === 'track') {
       delete t.signal;
+      delete t.elec;
       if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }
       if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; }
       stripLayer(map, j.x, j.y, 'rail');

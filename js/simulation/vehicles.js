@@ -23,8 +23,17 @@ export function purchasable(model, year) {
  */
 export function modelAvailable(state, model) {
   if (!model || !model.optIn) return true;
+  if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
+}
+
+/** True when at least one tile of the map is electrified (catenary). Lazy scan; electric models need it. */
+export function hasElectrifiedTrack(state) {
+  const tiles = state.map && state.map.tiles;
+  if (!tiles) return false;
+  for (let i = 0; i < tiles.length; i++) if (tiles[i].elec) return true;
+  return false;
 }
 
 /** Display prefix per vehicle class. */
