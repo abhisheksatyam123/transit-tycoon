@@ -3,7 +3,7 @@
  * a construction cost factor, a designed/obsolete year window and a catchment bonus.
  * The DEFAULT style is always available and is what a tile without a stored `style` uses,
  * so existing games keep today's cost and catchment. Styles only change cost and catchment
- * here; `tint` is a hint for renderers that want a variant (unused by the sprite layer yet).
+ * here; `tint` is a hint for renderers that want a variant (roof colour of canopies and road-stop shelters, layers/objects.js).
  * Lazy storage: a station tile carries `style` only when it is not the default.
  */
 

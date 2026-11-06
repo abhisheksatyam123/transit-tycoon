@@ -5,6 +5,7 @@
 import { houseSprite, STYLES, industrySprite, industryStyle, industryPiece, railStationCanopy, roadStopSprite, depotSprite } from '../sprites/buildings.js';
 import { fieldSprite } from '../sprites/industries.js';
 import { treeCluster } from '../sprites/terrain.js';
+import { styleById } from '../../config/stationTypes.js';
 import { metroEntranceSprite } from '../sprites/metro.js';
 import { drawLandmark } from '../sprites/landmarks.js';
 import { drawLm3d } from '../sprites/lm3d.js';
@@ -21,6 +22,11 @@ import { drawOgfxTrees } from '../pack/trees.js';
 
 /** Array memos for the hottest sprites (avoid string keys per tile per frame). */
 const houses = new Array(5 * 16);
+
+/** Roof colour of a non-default station style (null for the default, so its sprites are unchanged). */
+function stationTint(b) {
+  return b.style ? styleById(b.kind, b.style).tint : null;
+}
 const trees = new Array(12);
 /** @type {Map<number, any>} industry sprite memo keyed by numeric hash */
 const industries = new Map();
@@ -94,8 +100,8 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
         return null;
       }
       if (b.kind === 'rail' && b.metro && tile.tunnel) blit(ctx, metroEntranceSprite(b.axis === 'y' ? 'y' : 'x', b.color), sx, sy);
-      else if (b.kind === 'rail') blit(ctx, railStationCanopy(b.axis === 'y' ? 'y' : 'x'), sx, sy);
-      else blit(ctx, roadStopSprite(b.kind === 'truck' ? 'truck' : 'bus', b.axis === 'y' ? 'y' : 'x'), sx, sy);
+      else if (b.kind === 'rail') blit(ctx, railStationCanopy(b.axis === 'y' ? 'y' : 'x', stationTint(b)), sx, sy);
+      else blit(ctx, roadStopSprite(b.kind === 'truck' ? 'truck' : 'bus', b.axis === 'y' ? 'y' : 'x', stationTint(b)), sx, sy);
       return null;
     case 'landmark':
       if (b.lm3d) { if (b.front) drawLm3d(ctx, b.id, x, y, sx, sy); }

@@ -58,8 +58,8 @@ function platform(ctx, u0, v0, u1, v1) {
  * @param {'x'|'y'} axis
  * @returns {import('./canvas.js').Sprite}
  */
-export function railStationCanopy(axis) {
-  return cache.get(`sc:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
+export function railStationCanopy(axis, tint = null) {
+  return cache.get(tint ? `sc:${axis}:${tint}` : `sc:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
     const sides = axis === 'x' ? [[-0.5, 0.3, 0.5, 0.5], [-0.5, -0.5, 0.5, -0.3]] : [[0.3, -0.5, 0.5, 0.5], [-0.5, -0.5, -0.3, 0.5]];
     for (const [u0, v0, u1, v1] of sides) {
       const pu = axis === 'x' ? 0 : (u0 + u1) / 2, pv = axis === 'x' ? (v0 + v1) / 2 : 0;
@@ -68,7 +68,7 @@ export function railStationCanopy(axis) {
         ctx.fillStyle = '#4b5563';
         ctx.fillRect(x - 0.7, y - 13, 1.4, 13);
       }
-      poly(ctx, [u0, v0, 16, u1, v0, 16, u1, v1, 16, u0, v1, 16], 'rgba(30,111,217,0.92)', 'rgba(0,0,0,0.35)');
+      poly(ctx, [u0, v0, 16, u1, v0, 16, u1, v1, 16, u0, v1, 16], tint || 'rgba(30,111,217,0.92)', 'rgba(0,0,0,0.35)');
       poly(ctx, axis === 'x' ? [u0, v1, 16, u1, v1, 16, u1, v1, 14, u0, v1, 14] : [u1, v0, 16, u1, v1, 16, u1, v1, 14, u1, v0, 14], COMPANY.dark);
     }
   }));
@@ -80,9 +80,9 @@ export function railStationCanopy(axis) {
  * @param {'x'|'y'} axis
  * @returns {import('./canvas.js').Sprite}
  */
-export function roadStopSprite(kind, axis) {
-  return cache.get(`rs:${kind}:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
-    const roof = kind === 'bus' ? '#1e6fd9' : '#d97706';
+export function roadStopSprite(kind, axis, tint = null) {
+  return cache.get(tint ? `rs:${kind}:${axis}:${tint}` : `rs:${kind}:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
+    const roof = tint || (kind === 'bus' ? '#1e6fd9' : '#d97706');
     const bays = axis === 'x' ? [[-0.3, 0.34, 0.3, 0.48]] : [[0.34, -0.3, 0.48, 0.3]];
     for (const [u0, v0, u1, v1] of bays) {
       box(ctx, u0, v0, u1, v1, 0, 1.5, '#b8b4aa');
