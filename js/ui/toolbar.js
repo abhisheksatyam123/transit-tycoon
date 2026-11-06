@@ -25,6 +25,7 @@ export const WINDOW_BUTTONS = [
   ['vehicles', 'Vehicles', 'vehicles', 'V'],
   ['finances', 'Finances', 'finances', 'F'],
   ['towns', 'Towns', 'towns', 'T'],
+  ['stations', 'Stations', 'stations', 'B'],
   ['industries', 'Industries', 'industries', 'I'],
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],

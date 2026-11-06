@@ -1,5 +1,7 @@
 /**
  * Vehicle list window: every vehicle with state and profit this/last year.
+ * Sort by name / number, profit this year, profit last year, age, reliability; filter by kind.
+ * Sort and filter live on the window instance (not saved). OpenLoco VehicleList / OpenTTD vehicle_gui.
  */
 import { el, setText } from '../dom.js';
 import { money } from '../format.js';
@@ -10,23 +12,81 @@ export const STATE_LABEL = {
   depot: 'In depot', running: 'Running', loading: 'Loading', stopped: 'Stopped', broken: 'Broken down', lost: 'Lost',
 };
 
+/** Sort keys: [key, label]. */
+export const VEHICLE_SORTS = [
+  ['name', 'Name'], ['profitThisYear', 'Profit this year'], ['profitLastYear', 'Profit last year'],
+  ['age', 'Age'], ['reliability', 'Reliability'],
+];
+
+/** Kind filters: [value, label]. */
+export const VEHICLE_FILTERS = [['all', 'All'], ['train', 'Trains'], ['road', 'Road'], ['aircraft', 'Aircraft']];
+
+/** Reliability as a 0..1 fraction (older saves store percent). */
+function relFraction(v) {
+  const r = Number(v.reliability) || 0;
+  return r <= 1 ? r : r / 100;
+}
+
+/**
+ * Filter then sort vehicles. Pure: does not mutate the input. Ties break on unit number then id.
+ * @param {any[]} vehicles
+ * @param {{sort?:string, dir?:number, filter?:string}} opts dir: 1 ascending, -1 descending
+ * @returns {any[]}
+ */
+export function sortVehicles(vehicles, opts = {}) {
+  const { sort = 'name', dir = 1, filter = 'all' } = opts;
+  const list = vehicles.filter((v) => filter === 'all' || v.kind === filter);
+  const val = (v) => {
+    switch (sort) {
+      case 'profitThisYear': return Number(v.profitThisYear) || 0;
+      case 'profitLastYear': return Number(v.profitLastYear) || 0;
+      case 'age': return Number(v.age) || 0;
+      case 'reliability': return relFraction(v);
+      default: return null; // name: string compare
+    }
+  };
+  return list.sort((a, b) => {
+    let c;
+    if (sort === 'name') c = String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true });
+    else c = val(a) - val(b);
+    if (c === 0) c = (a.unitNumber || 0) - (b.unitNumber || 0) || a.id - b.id;
+    return c * (dir < 0 ? -1 : 1);
+  });
+}
+
 /**
  * @param {import('../app.js').App} app
  */
 export function openVehicleList(app) {
+  /** Window-instance state. */
+  const state = { sort: 'name', dir: 1, filter: 'all' };
   return app.wm.open('vehicles', {
     title: 'Vehicles',
     width: 440,
     build(body) {
       const summary = el('div.muted');
+      const sortSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Sort vehicles', title: 'Sort' },
+        VEHICLE_SORTS.map(([k, l]) => el('option', { value: k, text: l })));
+      const filterSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Filter by kind', title: 'Kind filter' },
+        VEHICLE_FILTERS.map(([v, l]) => el('option', { value: v, text: l })));
+      const dirBtn = el('button.btn.sm', { type: 'button', title: 'Toggle ascending / descending' });
+      sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
+      filterSel.onchange = () => { state.filter = filterSel.value; refresh(); };
+      dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
+      const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+        el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel);
       const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span'));
       const list = el('div.list.scroll.table');
-      body.append(summary, head, list);
-      return () => {
-        const vs = app.game.state.vehicles;
+      body.append(summary, controls, head, list);
+      const refresh = () => {
+        sortSel.value = state.sort;
+        filterSel.value = state.filter;
+        setText(dirBtn, state.dir < 0 ? '▼' : '▲');
+        const all = app.game.state.vehicles;
         let p = 0;
-        for (const v of vs) p += v.profitThisYear || 0;
-        setText(summary, `${vs.length} vehicle(s) · profit this year ${money(p)}`);
+        for (const v of all) p += v.profitThisYear || 0;
+        const vs = sortVehicles(all, state);
+        setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
         listOrEmpty(list, vs, (v) => v.id,
           (v) => el('div.table-row', null,
             el('button.link', { type: 'button', onclick: () => app.open('vehicle', v.id) }),
@@ -43,6 +103,8 @@ export function openVehicleList(app) {
             c[3].classList.toggle('neg', v.profitLastYear < 0);
           }, 'No vehicles yet — build a depot and buy one');
       };
+      refresh();
+      return refresh;
     },
   });
 }

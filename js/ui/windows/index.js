@@ -8,6 +8,7 @@ import { openTown } from './town.js';
 import { openIndustry } from './industry.js';
 import { openTownList } from './townList.js';
 import { openIndustryList } from './industryList.js';
+import { openStationList } from './stationList.js';
 import { openDepot } from './depot.js';
 import { openBuyVehicle } from './buyVehicle.js';
 import { openVehicleList } from './vehicleList.js';
@@ -34,6 +35,7 @@ const REGISTRY = {
   industry: openIndustry,
   towns: openTownList,
   industries: openIndustryList,
+  stations: openStationList,
   depot: openDepot,
   buyVehicle: openBuyVehicle,
   vehicles: openVehicleList,
