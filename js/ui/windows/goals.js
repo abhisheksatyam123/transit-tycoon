@@ -47,6 +47,24 @@ export function openGoals(app) {
           clear(list);
           return;
         }
+        if (snap.goals[0].hint !== undefined) { // random-world tutorial list
+          const rk = JSON.stringify(snap.goals.map((g) => [g.done, g.active, Math.round(g.v), g.t]));
+          if (rk === sig) return;
+          sig = rk;
+          setText(head, `${snap.completed} of ${snap.total} steps complete. Goal completions are announced in the news.`);
+          clear(list);
+          for (const g of snap.goals) {
+            const fmt = (n) => (g.unit === '$' ? money(n) : Math.round(Math.min(n, g.t)).toLocaleString('en-US'));
+            const pct = g.done ? 100 : Math.min(100, Math.round((g.v / g.t) * 100));
+            const prog = g.done ? 'Complete' : `${fmt(g.v)} / ${fmt(g.t)}${g.unit && g.unit !== '$' ? ' ' + g.unit : ''}`;
+            list.appendChild(el('div.goal-row' + (g.done ? '.done' : g.active ? '.active' : '.locked'), null,
+              el('div.goal-head', null, el('b', { text: (g.done ? '✔ ' : '') + g.title })),
+              el('div.muted.small', { text: g.hint }),
+              el('div.bar', null, el('div.bar-fill', { style: { width: pct + '%' } })),
+              el('div.small.mono', { text: g.done ? 'Done' : g.active ? prog : 'Locked until the previous step is done' })));
+          }
+          return;
+        }
         const s = JSON.stringify(snap.goals.map((g) => [g.done, g.active, g.v, g.t]));
         if (s === sig) return;
         sig = s;

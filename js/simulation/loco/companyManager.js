@@ -10,6 +10,7 @@
  * every monthly manager ran): company.pendingLedger holds the month being closed.
  */
 import { evaluateGoals, rollGoalMonth } from '../goals.js';
+import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
 import { propertyUpkeep, closeLedgerMonth, spend } from '../economy.js';
@@ -38,6 +39,7 @@ export function tick(game) {
 export function updateDaily(game) {
   const c = ensureCompany(game.state.company);
   if (game.state.goals) evaluateGoals(game.ctx);
+  if (game.state.rgoals) evaluateRandomGoals(game.ctx);
   // Company::updateLoanAutorepay (only when the player enabled it)
   if (c.autopayLoan && c.loan > 0 && c.money > 0) {
     const pay = Math.max(0, Math.min(c.loan, c.money));

@@ -12,11 +12,13 @@ const scenarioGame = () => {
 };
 
 describe('goals: random worlds and setup', () => {
-  test('random worlds have no goals and an empty snapshot', () => {
+  test('random worlds have no scenario goals; the tutorial list is created on request', () => {
     const g = Game.create({ seed: 5 });
     expect(g.state.goals).toBeUndefined();
-    expect(g.goals().total).toBe(0);
-    expect(g.goals().goals.length).toBe(0);
+    expect(g.state.rgoals).toBeUndefined();
+    expect(g.goals().total).toBe(7);
+    expect(g.state.goals).toBeUndefined();
+    expect(g.goals().goals.length).toBe(7);
   });
 
   test('scenario games start at the first goal with the prebuilt fleet as baseline', () => {

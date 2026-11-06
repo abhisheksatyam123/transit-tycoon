@@ -34,6 +34,7 @@ import { parseState, serializeState } from './save.js';
 import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
 import { initGoals, goalSnapshot } from './goals.js';
+import { randomGoalSnapshot } from './randomGoals.js';
 import { tick as locoTick } from './loco/gameLoop.js';
 import { setSetting, getSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
@@ -147,8 +148,8 @@ export class Game {
     return serializeState(this.state);
   }
 
-  /** Goal progress for the UI (empty list for random worlds). */
-  goals() { return goalSnapshot(this.state); }
+  /** Goal progress for the UI: scenario objectives, or the random-world tutorial list (created on first call). */
+  goals() { return this.state.scenario ? goalSnapshot(this.state) : randomGoalSnapshot(this.ctx); }
 
   /** Subscribe to an event; returns unsubscribe fn. */
   on(event, fn) { return this.events.on(event, fn); }
