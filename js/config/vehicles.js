@@ -58,6 +58,17 @@ export const EXTRA_VEHICLE_MODELS = [
   // TP: sub-tropical water tanker (road) and water tanker wagon (rail), offered only in tropic games (modelAvailable)
   { id: 'trk_water', name: 'Water Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4500, running: 900, reliability: 0.82, cargos: ['WATER'], optIn: 'tropic', news: false },
   { id: 'wag_water', name: 'Water Tanker Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 1, cargos: ['WATER'], optIn: 'tropic', news: false },
+  // TP sub-tropical chain vehicles (tropic games only): road trucks and rail wagons for RUBBER, FRUIT, MAIZE, COPPER_ORE, DIAMONDS
+  { id: 'trk_rubber', name: 'Rubber Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4300, running: 900, reliability: 0.82, cargos: ['RUBBER'], optIn: 'tropic', news: false },
+  { id: 'trk_fruit', name: 'Fruit Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 16, cost: 4200, running: 900, reliability: 0.82, cargos: ['FRUIT'], optIn: 'tropic', news: false },
+  { id: 'trk_maize', name: 'Maize Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4000, running: 900, reliability: 0.82, cargos: ['MAIZE'], optIn: 'tropic', news: false },
+  { id: 'trk_copper', name: 'Copper Ore Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4600, running: 950, reliability: 0.82, cargos: ['COPPER_ORE'], optIn: 'tropic', news: false },
+  { id: 'trk_diamonds', name: 'Diamond Truck', kind: 'truck', introYear: 1930, speed: 56, capacity: 10, cost: 5200, running: 1000, reliability: 0.85, cargos: ['DIAMONDS'], optIn: 'tropic', news: false },
+  { id: 'wag_rubber', name: 'Rubber Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 1, cargos: ['RUBBER'], optIn: 'tropic', news: false },
+  { id: 'wag_fruit', name: 'Fruit Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 1, cargos: ['FRUIT'], optIn: 'tropic', news: false },
+  { id: 'wag_maize', name: 'Maize Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1000, running: 120, reliability: 1, cargos: ['MAIZE'], optIn: 'tropic', news: false },
+  { id: 'wag_copper', name: 'Copper Ore Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 1, cargos: ['COPPER_ORE'], optIn: 'tropic', news: false },
+  { id: 'wag_diamonds', name: 'Diamond Wagon', kind: 'wagon', introYear: 1910, speed: 0, capacity: 15, cost: 1300, running: 120, reliability: 1, cargos: ['DIAMONDS'], optIn: 'tropic', news: false },
   // T-IN: chain vehicles, offered only when extraIndustries is on (modelAvailable)
   { id: 'wag_stone', name: 'Stone Hopper', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1000, running: 120, reliability: 1, cargos: ['STON', 'BMAT'], optIn: 'extraIndustries', news: false },
   { id: 'wag_crate', name: 'Food & Paper Van', kind: 'wagon', introYear: 1900, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 1, cargos: ['FOOD', 'PAPR'], optIn: 'extraIndustries', news: false },

@@ -2,6 +2,7 @@
  * Industry placement and monthly production / processing.
  */
 import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, TROPIC_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
+import { tropicZoneAt } from './climate.js';
 import { allocId, manhattan } from './state.js';
 import { getSetting } from './settings.js';
 import { plantInitialFields } from './farmFields.js';
@@ -133,6 +134,44 @@ export function placeTropicIndustries(state, rng) {
       const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
       const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
       if (canPlaceIndustry(state, tower, x, y)) { placeIndustry(state, tower.id, x, y); break; }
+    }
+  }
+}
+
+/**
+ * TP tropic mapgen: the OpenTTD sub-tropical chain (rubber, fruit, maize, copper ore, diamonds, lumber mill, factory,
+ * food plant, bank). Placement per type (placement field): 'tropicOpen' plantations never in the desert (zone 1);
+ * 'tropicRainforest' lumber mill only in the rainforest (zone 2, OpenTTD IndustryCheck::Lumbermill); 'tropicAny' mines
+ * and maize farm anywhere; 'tropicTown' processors within EXTRA_TOWN_RADIUS of a town; 'tropicBank' banks in towns.
+ * Uses game rng only in tropic games (called only from game.create when isTropic). Deterministic.
+ */
+export function placeTropicChains(state, rng) {
+  const { map } = state;
+  for (const type of TROPIC_INDUSTRY_TYPES) {
+    if (type.placement !== 'tropicOpen' && type.placement !== 'tropicRainforest' && type.placement !== 'tropicAny') continue;
+    for (let n = 0; n < (type.extraCount || 0); n++) {
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const x = rng.int(2, map.width - type.w - 3);
+        const y = rng.int(2, map.height - type.h - 3);
+        const zone = tropicZoneAt(map, x, y);
+        if (type.placement === 'tropicOpen' && zone === 1) continue;
+        if (type.placement === 'tropicRainforest' && zone !== 2) continue;
+        if (canPlaceIndustry(state, type, x, y)) { placeIndustry(state, type.id, x, y); break; }
+      }
+    }
+  }
+  for (const type of TROPIC_INDUSTRY_TYPES) {
+    if (type.placement !== 'tropicTown' && type.placement !== 'tropicBank') continue;
+    for (let n = 0; n < (type.extraCount || 0); n++) {
+      if (!state.towns.length) break;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const town = state.towns[rng.int(0, state.towns.length - 1)];
+        if ((town.population || 0) < (type.minTownPop || 0)) continue;
+        const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        if (manhattan(x, y, town.x, town.y) > EXTRA_TOWN_RADIUS) continue;
+        if (canPlaceIndustry(state, type, x, y)) { placeIndustry(state, type.id, x, y); break; }
+      }
     }
   }
 }

@@ -49,6 +49,16 @@ export const INDUSTRY_OTTD = {
   water_supply: 'water_supply',
   printing_works: 'printing_works',
   food_plant: 'food_plant',
+  // TP sub-tropical chain (OpenTTD build_industry.h families; see ottd_tables.js)
+  rubber_plantation: 'rubber_plantation',
+  fruit_plantation: 'fruit_plantation',
+  maize_farm: 'farm2',
+  copper_mine: 'copper_mine',
+  diamond_mine: 'diamond_mine',
+  lumber_mill: 'lumber_mill',
+  factory_tropic: 'factory_tropic',
+  food_plant_tropic: 'food_plant',
+  bank_tropic: 'bank_tropic',
 };
 
 /** Layouts whose OpenTTD shape has empty tiles inside the footprint; those tiles draw concrete ground. */

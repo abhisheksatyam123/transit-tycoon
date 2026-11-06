@@ -22,6 +22,12 @@ export const CARGOS = [
   { id: 'FOOD', name: 'Food', color: '#f97316', basePay: 1.0, days1: 4, days2: 30, unit: 'tonnes' },
   // TP: sub-tropical WATER (OpenTTD CT_WATER); only tropic games place water industries or water vehicles.
   { id: 'WATER', name: 'Water', color: '#38bdf8', basePay: 0.9, days1: 12, days2: 40, unit: 'kilolitres' },
+  // TP: sub-tropical cargos (OpenTTD CT_RUBBER, CT_FRUIT, CT_MAIZE, CT_COPPER_ORE, CT_DIAMONDS; WOOD is existing); tropic games only
+  { id: 'RUBBER', name: 'Rubber', color: '#1f2937', basePay: 0.95, days1: 2, days2: 20, unit: 'litres' },
+  { id: 'FRUIT', name: 'Fruit', color: '#e11d48', basePay: 1.1, days1: 0, days2: 15, unit: 'tonnes' },
+  { id: 'MAIZE', name: 'Maize', color: '#facc15', basePay: 0.7, days1: 10, days2: 40, unit: 'tonnes' },
+  { id: 'COPPER_ORE', name: 'Copper Ore', color: '#b45309', basePay: 0.85, days1: 12, days2: 255, unit: 'tonnes' },
+  { id: 'DIAMONDS', name: 'Diamonds', color: '#67e8f9', basePay: 1.6, days1: 10, days2: 255, unit: 'bags' },
 ];
 
 /** Cargo lookup by id. */

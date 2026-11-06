@@ -96,6 +96,12 @@ export const WAGON_IMG = {
   wag_stone: 34,
   wag_crate: 38,
   wag_water: 36,
+  // TP sub-tropical chain wagons: OpenGFX temperate stand-ins (no tropical wagon art mapped yet)
+  wag_rubber: 36,
+  wag_fruit: 38,
+  wag_maize: 34,
+  wag_copper: 34,
+  wag_diamonds: 37,
 };
 /** Wagon image index per cargo when the model is unknown. */
 export const CARGO_WAGON = {
@@ -110,6 +116,7 @@ export const CARGO_WAGON = {
   WOOD: 42,
   STEL: 42,
   STON: 34, BMAT: 34, PAPR: 38, FOOD: 38,
+  RUBBER: 36, FRUIT: 38, MAIZE: 34, COPPER_ORE: 34, DIAMONDS: 37,
 };
 /** Road vehicle image index per bus/truck model. */
 export const ROAD_IMG = {
@@ -127,6 +134,12 @@ export const ROAD_IMG = {
   trk_stone: 18,
   trk_food: 5,
   trk_water: 3,
+  // TP sub-tropical chain trucks: OpenGFX temperate stand-ins
+  trk_rubber: 3,
+  trk_fruit: 5,
+  trk_maize: 18,
+  trk_copper: 18,
+  trk_diamonds: 1,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
 export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];

@@ -51,6 +51,18 @@ export const EXTRA_TOWN_RADIUS = 16;
 export const TROPIC_INDUSTRY_TYPES = [
   { id: 'water_supply', name: 'Water Supply', w: 2, h: 2, produces: ['WATER'], accepts: [], converts: {}, production: { WATER: 90 }, color: '#0ea5e9', totalOfType: 2, monthlyClosureChance: 40, placement: 'extraRural', extraCount: 2 },
   { id: 'water_tower', name: 'Water Tower', w: 1, h: 1, produces: [], accepts: ['WATER'], converts: {}, production: {}, color: '#38bdf8', totalOfType: 2, monthlyClosureChance: 0, placement: 'inTown', minTownPop: 0, extraCount: 1 },
+  // TP sub-tropical chain (OpenTTD build_industry.h; footprints = OTTD layout extents, w = OTTD Y extent, h = OTTD X extent).
+  // Placed only by placeTropicChains (tropic mapgen). Primaries: plantations not in the desert (tropicOpen), rainforest
+  // lumber mill (tropicRainforest), mines and maize farm anywhere. Processors and banks sit in towns (tropicTown).
+  { id: 'rubber_plantation', name: 'Rubber Plantation', w: 4, h: 5, produces: ['RUBBER'], accepts: [], converts: {}, production: { RUBBER: 90 }, color: '#1f2937', totalOfType: 2, monthlyClosureChance: 40, placement: 'tropicOpen', extraCount: 2 },
+  { id: 'fruit_plantation', name: 'Fruit Plantation', w: 4, h: 5, produces: ['FRUIT'], accepts: [], converts: {}, production: { FRUIT: 90 }, color: '#e11d48', totalOfType: 2, monthlyClosureChance: 40, placement: 'tropicOpen', extraCount: 2 },
+  { id: 'maize_farm', name: 'Maize Farm', w: 3, h: 3, produces: ['MAIZE'], accepts: [], converts: {}, production: { MAIZE: 80 }, color: '#facc15', totalOfType: 2, monthlyClosureChance: 40, placement: 'tropicAny', extraCount: 2 },
+  { id: 'copper_mine', name: 'Copper Ore Mine', w: 3, h: 3, produces: ['COPPER_ORE'], accepts: [], converts: {}, production: { COPPER_ORE: 100 }, color: '#b45309', totalOfType: 2, monthlyClosureChance: 40, placement: 'tropicAny', extraCount: 2 },
+  { id: 'diamond_mine', name: 'Diamond Mine', w: 3, h: 3, produces: ['DIAMONDS'], accepts: [], converts: {}, production: { DIAMONDS: 60 }, color: '#67e8f9', totalOfType: 1, monthlyClosureChance: 40, placement: 'tropicAny', extraCount: 1 },
+  { id: 'lumber_mill', name: 'Lumber Mill', w: 2, h: 2, produces: ['WOOD'], accepts: [], converts: {}, production: { WOOD: 100 }, color: '#78350f', totalOfType: 2, monthlyClosureChance: 40, placement: 'tropicRainforest', extraCount: 2 },
+  { id: 'factory_tropic', name: 'Factory', w: 2, h: 4, produces: ['GOOD'], accepts: ['RUBBER', 'COPPER_ORE', 'WOOD'], converts: { RUBBER: 'GOOD', COPPER_ORE: 'GOOD', WOOD: 'GOOD' }, production: {}, color: '#7c2d12', totalOfType: 2, monthlyClosureChance: 0, placement: 'tropicTown', extraCount: 2 },
+  { id: 'food_plant_tropic', name: 'Food Processing Plant', w: 4, h: 3, produces: ['FOOD'], accepts: ['FRUIT', 'MAIZE'], converts: { FRUIT: 'FOOD', MAIZE: 'FOOD' }, production: {}, color: '#f97316', totalOfType: 2, monthlyClosureChance: 0, placement: 'tropicTown', extraCount: 2 },
+  { id: 'bank_tropic', name: 'Bank', w: 1, h: 2, produces: [], accepts: ['DIAMONDS'], converts: {}, production: {}, color: '#a3a3a3', totalOfType: 2, monthlyClosureChance: 0, placement: 'tropicBank', minTownPop: 0, extraCount: 2 },
 ];
 
 export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES, ...TROPIC_INDUSTRY_TYPES].map((t) => [t.id, t]));
