@@ -54,6 +54,10 @@ export function drawOgfxGround(ctx, kind, hash, sx, sy, c) {
   const id = groundSpriteId(kind, hash, c);
   if (id < 0 || !packState.pack.sprites[id]) return false;
   const min = Math.min(c[0], c[1], c[2], c[3]);
+  // OpenGFX has slope sprites only for corners one level apart. A two-level spread would be drawn
+  // one level short, leaving a black wedge at the shared edge, so let the caller draw the true
+  // planes (drawSloped) instead.
+  if (Math.max(c[0], c[1], c[2], c[3]) - min > 1) return false;
   blitPack(ctx, id, sx, sy - HALF_H - S * min);
   return true;
 }
