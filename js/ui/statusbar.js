@@ -9,16 +9,19 @@ import { localizeMoneyText } from './newsMoney.js';
 import { currentCurrency } from './units.js';
 import { el, setText } from './dom.js';
 import { money, date } from './format.js';
+import { calculateCompanyValue } from '../simulation/loco/company.js';
 
 /**
- * Company value estimate: money - loan + vehicle values.
+ * Live company value with the same formula as the monthly history (OpenLoco calculateCompanyValue:
+ * cash - loan + 8 x recent profit + value of each of the player's vehicles), so the status bar,
+ * the graphs and the league agree. Rival vehicles (ownerId) are excluded.
  * @param {any} state
  * @returns {number}
  */
 export function companyValue(state) {
-  let v = state.company.money - state.company.loan;
-  for (const veh of state.vehicles) v += veh.value || 0;
-  return v;
+  const c = state.company;
+  if (!c || typeof c.money !== 'number') return (c && c.companyValue) || 0;
+  return calculateCompanyValue(c, state.vehicles.filter((v) => v.ownerId == null)).companyValue;
 }
 
 /**

@@ -54,7 +54,8 @@ export function updateMonthly1(game) {
   const c = ensureCompany(s.company);
   ensureEconomy(s);
   const ended = s.date.month === 0 ? { year: s.date.year - 1, month: 11 } : { year: s.date.year, month: s.date.month - 1 };
-  const vehicles = s.vehicles;
+  // the player's vehicles only: AI rivals' vehicles carry ownerId (aiCompanies) and have their own value/performance
+  const vehicles = s.vehicles.filter((v) => v.ownerId == null);
 
   // cargo delivered / distance histories
   pushHistory(c.cargoUnitsDeliveredHistory, c.cargoUnitsTotalDelivered);
@@ -106,6 +107,7 @@ function declareBankrupt(game, c) {
   c.bankrupt = true;
   notify(game.ctx, `${c.name} has been declared bankrupt!`, 'bad', undefined, undefined, 'company');
   for (const v of game.state.vehicles) {
+    if (v.ownerId != null) continue; // rivals' vehicles are not the player's
     if (findVehicle(game.state, v.id)) stopVehicle(game.ctx, v.id);
   }
 }

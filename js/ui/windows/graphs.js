@@ -8,6 +8,7 @@
 import { el, setText } from '../dom.js';
 import { money, monthName, num } from '../format.js';
 import { performanceToRating, RATING_NAMES, HISTORY_LENGTH } from '../../simulation/loco/company.js';
+import { companyValue } from '../statusbar.js';
 
 export const GRAPH_TABS = [
   ['value', 'Company value'],
@@ -61,16 +62,14 @@ export function ledgerSeries(company) {
 }
 
 /**
- * Player company value as shown in the status bar (money - loan + vehicle values); the stored
- * c.companyValue is only refreshed at month end (0 on day 0).
+ * Player company value as shown in the status bar (statusbar.js companyValue: the OpenLoco formula used
+ * for the monthly history, player vehicles only); the stored c.companyValue is only refreshed at month end.
  * @param {any} state
  * @param {any} c
  */
 export function liveCompanyValue(state, c) {
   if (!c || typeof c.money !== 'number') return (c && c.companyValue) || 0;
-  let v = c.money - (c.loan || 0);
-  for (const veh of (state && state.vehicles) || []) v += veh.value || 0;
-  return v;
+  return companyValue({ ...state, company: c });
 }
 
 /**
