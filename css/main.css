@@ -234,3 +234,13 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 
 /* ---- New Game: scenario description ---- */
 .scenario-desc { font-size: 12px; line-height: 1.4; opacity: 0.8; margin: 2px 0 8px; max-width: 280px; }
+
+/* ---- Bankruptcy dialogs (In trouble / Bankrupt) ---- */
+.win.trouble { border-color: rgba(251, 191, 36, 0.45); }
+.win.trouble .win-header { background: linear-gradient(180deg, rgba(120, 53, 15, 0.45), rgba(10, 15, 26, 0.6)); }
+.win.trouble .win-title { color: var(--warn); }
+.hint-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; color: #cbd5e1; }
+
+/* ---- Map window ---- */
+.map-win .map-frame { box-sizing: border-box; }
+.map-win canvas { image-rendering: pixelated; }

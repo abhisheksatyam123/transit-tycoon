@@ -26,6 +26,8 @@ import { openGoals } from './goals.js';
 import { openSettings } from './settings.js';
 import { openSubsidies } from './subsidies.js';
 import { openObjective } from './objective.js';
+import { openGraphs } from './graphs.js';
+import { openMap } from './map.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
@@ -54,6 +56,8 @@ const REGISTRY = {
   settings: openSettings,
   subsidies: openSubsidies,
   objective: openObjective,
+  graphs: openGraphs,
+  map: openMap,
 };
 
 /**

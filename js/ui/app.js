@@ -11,6 +11,7 @@ import { signedMoney, money } from './format.js';
 import { play } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
 import { createGameFast } from './scenarioSnapshot.js';
+import { checkBankruptcy } from './bankruptcy.js';
 
 export class App {
   /**
@@ -60,7 +61,7 @@ export class App {
       play('news');
       this.toast(`Goal complete: ${g.title}! +${money(g.reward)}`, 'good', false, 6000);
     });
-    on('month', () => this.onMonth());
+    on('month', () => { this.onMonth(); checkBankruptcy(this); });
   }
 
   /** Remove our game event listeners. */

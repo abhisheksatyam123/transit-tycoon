@@ -140,7 +140,7 @@ async function main() {
   /** @type {Record<string,()=>void>} */
   const shortcuts = {
     ' ': () => app.togglePause(),
-    v: () => app.open('vehicles'), f: () => app.open('finances'), t: () => app.open('towns'), b: () => app.open('stations'),
+    v: () => app.open('vehicles'), f: () => app.open('finances'), t: () => app.open('towns'), b: () => app.open('stations'), p: () => app.open('map'), e: () => app.open('graphs'),
     i: () => app.open('industries'), n: () => app.open('news'), h: () => app.open('help'),
     l: () => app.open('load'), x: () => app.open('traffic'), g: () => app.open('issues'), u: () => app.open('metro'), o: () => app.open('goals'), j: () => { app.renderer.showMetro = !app.renderer.showMetro; }, k: () => togglePack(renderer), m: () => toolbar.toggleSound(), q: () => app.setTool('query'),
   };

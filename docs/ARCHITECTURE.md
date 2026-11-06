@@ -226,6 +226,11 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - `nonStop` is not modelled: trains only stop at the station of their current order.
 - Commands: `game.modifyOrder(id, index, {load?, unload?})`, `game.skipToOrder(id, index)` (abandons the current stop; cargo stays aboard). Code: `simulation/orders.js` (`unload`, `loadingTick`, `normaliseOrders`), `simulation/cmdVehicle.js`, UI `ui/windows/orders.js`. Tests: `tests/orderTypes.test.js`.
 
+## Map, graphs, bankruptcy dialogs (T13/T14/T36)
+- `js/ui/windows/map.js` (key P): top-down map, one pixel per tile cached per mode (terrain, industries, routes, vehicles, towns; rebuilt at most every 3 s), live layer (vehicle dots, industry markers ≥ 5 px, viewport diamond) at ~4 fps; click/drag centres the main view.
+- `js/ui/windows/graphs.js` (key E): company value, income/expenses, cargo delivered, performance (OpenLoco rating titles) and league; data only from existing state (`companyValueHistory`, `ledger.history`, `cargoUnitsDeliveredHistory`, `performanceIndexHistory`); the player's current value is the live status-bar value.
+- `js/ui/bankruptcy.js`: on each month event the UI reads `numMonthsInTheRed` / `bankrupt` (loco/companyManager.js) and opens "In trouble!" at 3 and 6 months and "Bankrupt" (new / load game) once; no simulation change.
+
 ## Settings, inflation, subsidies, objectives (R15)
 - `js/simulation/settings.js`: `state.settings` (lazy; random worlds have none at day 0). Keys: `inflation`, `cargoPaymentPercent` (applied in `loco/economy.js` `calculateDeliveredCargoPayment`; Moscow uses 40 so its prebuilt network earns ~0.45M/month), `breakdowns` (`none`/`reduced`/`normal`, `loco/vehicle.js`), `subsidies`. UI: `ui/windows/settings.js`.
 - `js/simulation/prices.js`: every construction cost, vehicle price and running cost goes through OpenLoco inflation (`inflateCost`, scale 1.0 at game start).
