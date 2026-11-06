@@ -15,6 +15,7 @@ import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.j
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
+import { DIRS } from './constants.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -25,6 +26,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   const depot = findDepot(state, depotId);
   if (!depot) return { ok: false, error: 'Unknown depot' };
   if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId])) return { ok: false, error: 'Model not yet available' };
+  if (spec && MODEL_BY_ID[spec.modelId] && MODEL_BY_ID[spec.modelId].kind === 'tram' && !depotOnTram(state, depot)) return { ok: false, error: 'Trams need a road depot next to tram track' };
   const r = resolvePurchase(depot, spec || {}, state.date.year);
   if (!r.ok) return r;
   r.cost = vehiclePrice(state, r.cost); // inflated; recorded as v.value so sell-back stays consistent
@@ -458,4 +460,15 @@ export function removeWagons(ctx, id, n, opts = {}) {
   applyWagonDelta(state, v, wagon, -n, unit);
   v.value = (v.value || 0) - refund;
   return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
+}
+
+/** A road depot where trams can start: its tile or the tile it opens onto carries tram track. */
+function depotOnTram(state, depot) {
+  const { map } = state;
+  const t = map.tiles[depot.y * map.width + depot.x];
+  if (t.tram) return true;
+  const d = DIRS.find((q) => q.bit === depot.dir);
+  const nx = depot.x + (d ? d.dx : 0), ny = depot.y + (d ? d.dy : 0);
+  if (!d || nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) return false;
+  return !!map.tiles[ny * map.width + nx].tram;
 }

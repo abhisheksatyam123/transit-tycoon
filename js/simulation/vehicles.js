@@ -24,8 +24,17 @@ export function purchasable(model, year) {
 export function modelAvailable(state, model) {
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
+  if (model.optIn === 'tram') return !!state && hasTramTrack(state);
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
+}
+
+/** True when at least one tile of the map carries tram track. Lazy scan; tram models need it. */
+export function hasTramTrack(state) {
+  const tiles = state.map && state.map.tiles;
+  if (!tiles) return false;
+  for (let i = 0; i < tiles.length; i++) if (tiles[i].tram) return true;
+  return false;
 }
 
 /** True when at least one tile of the map is electrified (catenary). Lazy scan; electric models need it. */
@@ -55,6 +64,7 @@ export function resolvePurchase(depot, spec, year) {
   if (!purchasable(model, year)) return { ok: false, error: 'Model is obsolete' };
   const isTrain = model.kind === 'engine';
   const depotFor = isTrain ? 'rail' : model.kind === 'aircraft' ? 'air' : model.kind === 'ship' ? 'ship' : 'road';
+  // trams are bought in road depots (depotFor 'road'); the depot must touch tram track (checked in cmdVehicle)
   if (depot.kind !== depotFor) return { ok: false, error: 'Wrong depot type for this vehicle' };
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
@@ -95,7 +105,7 @@ export function createVehicle(state, depot, template, cost) {
   const v = {
     id: allocId(state), name: `${prefix} ${unit}`, unitNumber: unit,
     kind: model.kind === 'engine' ? 'train' : model.kind === 'aircraft' ? 'aircraft' : model.kind === 'ship' ? 'ship' : 'road',
-    roadType: model.kind === 'engine' || model.kind === 'aircraft' || model.kind === 'ship' ? null : model.kind,
+    roadType: model.kind === 'engine' || model.kind === 'aircraft' || model.kind === 'ship' ? null : model.kind, // 'tram' vehicles are kind 'road' running on the tram layer
     modelId: model.id, wagonModelId: template.wagonModelId, wagons: template.wagons,
     cargoId: template.cargoId, capacity: template.capacity,
     load: { amount: 0, sourceX: depot.x, sourceY: depot.y, sinceTick: state.tick, fromStationId: null },
@@ -155,7 +165,7 @@ export function getVehicleSegments(v) {
     for (let i = 0; i < v.wagons; i++) parts.push('wagon');
     if (v.flipped) parts.reverse();
   } else if (v.kind === 'aircraft') parts.push('aircraft');
-  else parts.push(v.roadType === 'bus' ? 'bus' : 'truck');
+  else parts.push(v.roadType === 'bus' || v.roadType === 'tram' ? 'bus' : 'truck');
   const fill = v.capacity > 0 ? v.load.amount / v.capacity : 0;
   const perWagon = v.wagons > 0 ? v.capacity / v.wagons : v.capacity;
   const out = [];

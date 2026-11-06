@@ -97,7 +97,7 @@ function buildOccupancy(state, cars, occ) {
   }
   for (const v of state.vehicles) {
     // loading buses/trucks stand in the stop bay and do not block the through lane
-    if (v.kind !== 'road' || v.state === 'loading' || !v.path || v.pathIndex >= v.path.length - 1) continue;
+    if (v.kind !== 'road' || v.roadType === 'tram' || v.state === 'loading' || !v.path || v.pathIndex >= v.path.length - 1) continue;
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
     add(occKey(a.y * W + a.x, linkBit(state.map, a.y * W + a.x, b.y * W + b.x)));
   }

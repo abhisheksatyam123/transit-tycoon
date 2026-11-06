@@ -11,7 +11,7 @@ import { getSetting } from './settings.js';
 
 /** Layer used by a vehicle kind. */
 export function layerOf(v) {
-  return v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : 'road';
+  return v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.roadType === 'tram' ? 'tram' : 'road';
 }
 
 /**

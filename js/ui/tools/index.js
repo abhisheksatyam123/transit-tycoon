@@ -3,6 +3,7 @@
  *   move(tile) on hover, down(tile) on left press, up(tile) on left release,
  *   key(event) for tool-specific keys (return true if consumed), cancel() on deactivate.
  */
+import { createTramTool } from './tram.js';
 import { createRailTool } from './rail.js';
 import { createRoadTool } from './road.js';
 import { createStationTool } from './station.js';
@@ -42,6 +43,7 @@ export function createTools(app) {
     rail: createRailTool(app),
     road: createRoadTool(app),
     oneWay: createOneWayTool(app),
+    tram: createTramTool(app),
     station: createStationTool(app),
     busStop: createBusStopTool(app),
     truckStop: createTruckStopTool(app),

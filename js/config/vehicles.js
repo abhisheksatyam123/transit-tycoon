@@ -39,6 +39,15 @@ export const VEHICLE_MODELS = [
   { id: 'trk_heavy', name: 'Heavy Hauler', kind: 'truck', introYear: 1965, speed: 88, capacity: 30, cost: 7800, running: 1300, reliability: 0.88, cargos: ['COAL', 'IORE', 'GRAI', 'WOOD', 'STEL'] },
 ];
 
+/**
+ * Trams (OpenTTD tram vehicles): run only on tram track (tile.tram), stop at bus stations on tram track.
+ * Gated by modelAvailable(): offered only once some tile carries tram track, and news:false.
+ */
+export const TRAM_VEHICLE_MODELS = [
+  { id: 'tram_horse', name: 'Horse Tram', kind: 'tram', optIn: 'tram', introYear: 1900, obsoleteYear: 1935, speed: 35, capacity: 36, cost: 3000, running: 600, reliability: 0.8, cargos: ['PASS'], news: false },
+  { id: 'tram_electric', name: 'Electric Tram', kind: 'tram', optIn: 'tram', introYear: 1925, speed: 60, capacity: 40, cost: 6000, running: 900, reliability: 0.88, cargos: ['PASS'], news: false },
+];
+
 /** Road/rail models plus aircraft (lookup and purchase only; VEHICLE_MODELS keeps its news list). */
 /**
  * T29 optional models (OpenTTD temperate armoured truck, Uhl). Kept out of VEHICLE_MODELS so obsoleteYear() and the
@@ -58,7 +67,7 @@ export const ELECTRIC_VEHICLE_MODELS = [
   { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS];
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

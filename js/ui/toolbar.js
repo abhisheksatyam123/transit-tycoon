@@ -28,6 +28,7 @@ export const TOOL_BUTTONS = [
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
   ['hq', 'Company HQ', 'hq', ''],
   ['oneWay', 'One-way road', 'oneWay', ''],
+  ['tram', 'Tram track', 'road', ''],
   ['dock', 'Dock', 'dock', ''],
   ['shipDepot', 'Ship Depot', 'shipDepot', ''],
   ['buoy', 'Buoy', 'buoy', ''],
@@ -67,7 +68,7 @@ const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load
  */
 export const TOOL_GROUPS = [
   ['rail', 'Rail+', 'electrify', ['electrify']],
-  ['road', 'Road+', 'oneWay', ['oneWay']],
+  ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy']],
   ['air', 'Air', 'airport', ['airport']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq']],

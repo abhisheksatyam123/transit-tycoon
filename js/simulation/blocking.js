@@ -24,7 +24,7 @@ export const BLOCK_TIMEOUT_TICKS = 3 * TICKS_PER_DAY;
 /** Occupancy layer of a vehicle ('rail' for trains, 'road' for road vehicles) or null. */
 export function occupancyLayer(v) {
   if (v.kind === 'train') return 'rail';
-  if (v.kind === 'road') return 'road';
+  if (v.kind === 'road' && v.roadType !== 'tram') return 'road'; // trams run on their own (unindexed) tram layer
   return null;
 }
 

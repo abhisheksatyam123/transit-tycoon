@@ -73,7 +73,7 @@ class MinHeap {
  * @param {{width:number,height:number,tiles:object[]}} map
  * @param {{x:number,y:number}} start
  * @param {{x:number,y:number}[]} goals
- * @param {'rail'|'road'} layer
+ * @param {'rail'|'road'|'tram'} layer
  * @param {{maxNodes?:number, avoidFirst?:{x:number,y:number}, electric?:boolean}} [opts] electric: rail only over electrified tiles (elec)
  * @returns {{x:number,y:number}[]|null} tiles from start to goal inclusive
  */

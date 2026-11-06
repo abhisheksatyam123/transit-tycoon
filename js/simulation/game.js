@@ -175,6 +175,7 @@ export class Game {
   buildRoadBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
   /** Player rail valley bridge between two heads on a straight line (see cmdTrack buildLandBridge). */
   buildLandBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
+  buildTram(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'tram', x0, y0, x1, y1, opts || {}); }
   buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}); }
   /** Build along an explicit 4-connected tile path (opts.loop = closed ring); see shapes.js. */
   buildRailPath(path, opts) { return buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...(opts || {}), path }); }

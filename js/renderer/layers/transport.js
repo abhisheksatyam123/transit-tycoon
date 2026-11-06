@@ -72,6 +72,40 @@ export function isStaircaseCorner(map, x, y, mask) {
  * @param {number} [y] tile y
  */
 export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
+  drawTransportBase(ctx, tile, sx, sy, c, map, x, y);
+  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot')) drawTramRails(ctx, tile, sx, sy);
+}
+
+/**
+ * Tram rails (OpenTTD tram track): two thin dark rails per axis bit, drawn over the road surface.
+ * Screen space; (sx,sy) is the iso tile centre.
+ */
+export function drawTramRails(ctx, tile, sx, sy) {
+  const HW = 16, HH = 8; // half tile width/height in px (iso)
+  const ends = [];
+  if (tile.tram & 1) ends.push([0, -1]);
+  if (tile.tram & 2) ends.push([1, 0]);
+  if (tile.tram & 4) ends.push([0, 1]);
+  if (tile.tram & 8) ends.push([-1, 0]);
+  ctx.save();
+  ctx.strokeStyle = '#3f2a1a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const [dx, dy] of ends) {
+    const ex = (dx - dy) * HW / 2, ey = (dx + dy) * HH / 2;
+    const len = Math.hypot(ex, ey) || 1;
+    const px = -ey / len * 2.2, py = ex / len * 2.2;
+    for (const s of [-1, 1]) {
+      ctx.moveTo(sx + s * px, sy + s * py);
+      ctx.lineTo(sx + ex + s * px, sy + ey + s * py);
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Road/rail/station ground of a tile (the body of drawTransport). */
+function drawTransportBase(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
   if (tile.bridgeDeck !== undefined) return; // drawn as elevated deck by drawLandBridgeDeck in objects pass
   // smooth net ribbons draw this road/rail surface (drawNetTile); terrain already drew the ground
   if (map && netDrawsSurface(map, tile, x, y)) return;

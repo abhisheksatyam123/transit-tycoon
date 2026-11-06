@@ -42,11 +42,16 @@ export function canAddBits(tile, layer, bits, deck = false) {
       return null;
     }
     if (b.type === 'depot') {
+      // tram track may run into a road depot's exit (the depot tile takes the tram bit facing its exit)
+      if (layer === 'tram' && b.kind === 'road') return (bits & ~b.dir) ? ERR.depot : null;
       if (b.kind !== layer || (bits & ~b.dir)) return ERR.depot;
       return null;
     }
   }
+  // tram track lies on road tiles (shared with road traffic) or free land; it never mixes with rail
+  if (layer === 'tram') return tile.rail ? ERR.crossing : null;
   const other = layer === 'rail' ? 'road' : 'rail';
+  if (layer !== 'rail' && layer !== 'road') return null;
   if (tile[other]) {
     const mine = straightAxis(tile[layer] | bits);
     const theirs = straightAxis(tile[other]);

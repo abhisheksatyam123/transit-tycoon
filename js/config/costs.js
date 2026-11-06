@@ -4,6 +4,8 @@ export const COSTS = {
   /** electrify (OpenTTD CMD_ELECTRIFY_TRACK): per rail tile; removal is free */
   electrify: 60,
   road: 90,
+  /** tram track (tile.tram): per tile, on road or free land */
+  tram: 110,
   /** player bridge: extra per water deck tile (on top of the heads' normal track cost) */
   bridgeRail: 300,
   bridgeRoad: 220,

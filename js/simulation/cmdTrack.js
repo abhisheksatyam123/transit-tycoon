@@ -299,7 +299,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     add(nx, ny, OPPOSITE[out]);
   }
   let cost = 0, changed = 0;
-  const base = layer === 'rail' ? COSTS.rail : COSTS.road;
+  const base = layer === 'rail' ? COSTS.rail : layer === 'tram' ? COSTS.tram : COSTS.road;
   const onLine = new Set(pts.map((p) => p.y * map.width + p.x));
   const isHwy = layer === 'road' && opts.highway === true;
   for (const [i, bits] of want) {
@@ -427,9 +427,14 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (b && b.type === 'station') { jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue; }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
       if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }
+      if (t.tram && !t.rail) {
+        jobs.push({ x, y, kind: 'tram' });
+        cost += COSTS.demolishTrack;
+        continue;
+      }
       if (t.rail || t.road) {
         jobs.push({ x, y, kind: 'track' });
-        cost += (t.rail ? COSTS.demolishTrack : 0) + (t.road ? COSTS.demolishTrack : 0);
+        cost += (t.rail ? COSTS.demolishTrack : 0) + (t.road ? COSTS.demolishTrack : 0) + (t.tram ? COSTS.demolishTrack : 0);
         continue;
       }
       if (t.terrain === 'forest' || t.terrain === 'rock') { jobs.push({ x, y, kind: 'clear' }); cost += clearingCost(t); }
@@ -464,6 +469,8 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       const town = findTown(state, t.building.townId);
       if (town) town.houses = town.houses.filter((h) => h.x !== j.x || h.y !== j.y);
       t.building = null; t.owner = null;
+    } else if (j.kind === 'tram') {
+      stripLayer(map, j.x, j.y, 'tram'); // a road tile keeps its road; only the tram bits go
     } else if (j.kind === 'track') {
       delete t.signal;
       delete t.elec;
@@ -471,6 +478,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; }
       stripLayer(map, j.x, j.y, 'rail');
       stripLayer(map, j.x, j.y, 'road');
+      stripLayer(map, j.x, j.y, 'tram');
       t.owner = null;
     } else clearTerrain(t);
   }
