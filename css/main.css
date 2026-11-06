@@ -362,16 +362,18 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .tm-menu { display: grid; grid-template-columns: 1fr; gap: 6px; }
 .tm-btn {
   display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left;
-  padding: 8px 12px; min-height: 44px; box-sizing: border-box;
+  padding: 8px 12px; min-height: 44px; box-sizing: border-box; min-width: 0; white-space: normal;
 }
 .tm-btn.primary { border-color: var(--accent-border, #38bdf8); }
 .tm-btn-label { font-weight: 700; font-size: 14px; }
+.tm-btn-label, .tm-btn-hint { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .tm-btn-hint { font-size: 11px; opacity: 0.7; }
 .tm-foot { margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .tm-foot p { margin: 0; line-height: 1.35; }
 /* wide (landscape phone, laptop): two columns so the panel stays short */
 @media (min-width: 620px) and (min-height: 500px) {
-  .tm-menu { grid-template-columns: 1fr 1fr; }
+  .tm-panel { width: min(600px, 100%); }
+  .tm-menu { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 /* short landscape phones: hide hints, tighten the head */
 @media (max-height: 460px) {

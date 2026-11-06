@@ -22,9 +22,11 @@ export function titleMenuOpen() { return !!current; }
 /**
  * Open the main menu over the app. Returns the existing handle if it is already open.
  * @param {import('./app.js').App} app
+ * @param {{loaded?: boolean}} [opts] loaded: the autosave is already the running game (restored at boot),
+ *   so Continue only closes the menu instead of loading it again
  * @returns {{close: () => void}}
  */
-export function openTitleMenu(app) {
+export function openTitleMenu(app, opts = {}) {
   if (current) return current;
   const prevFocus = /** @type {HTMLElement|null} */ (document.activeElement);
   const wasSpeed = app.speed > 0 ? app.speed : (app.prevSpeed || 1);
@@ -59,7 +61,7 @@ export function openTitleMenu(app) {
 
   const rows = [];
   if (hadAutosave) {
-    rows.push(btn('Continue', 'Resume your autosaved game', then(() => {
+    rows.push(btn('Continue', 'Resume your autosaved game', opts.loaded ? then(() => {}) : then(() => {
       const d = loadSlotData('autosave');
       if (!(d && app.loadFromString(d))) app.toast('Autosave could not be loaded', 'error');
     }), ' primary'));

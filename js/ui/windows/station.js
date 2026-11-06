@@ -41,7 +41,8 @@ export function openStation(app, id) {
       // B1: airports with an air depot (hangar, or a heliport's helipad) get Open hangar / Buy aircraft
       const hangarRow = el('div.btn-row');
       hangarRow.hidden = true;
-      let hangarDepot = null;
+      let hangarSig = '';
+      let hangarIdx = 0;
       const cdVia = el('div.list');
       body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, cdVia, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
         hangarRow,
@@ -103,24 +104,32 @@ export function openStation(app, id) {
           if (!acc.length) accepts.appendChild(el('span.empty', { text: 'Nothing' }));
           for (const c of acc) accepts.appendChild(cargoChip(c));
         }
-        // air depot on one of this station's tiles (hangar or helipad)
-        const depotId = (st.tiles || []).reduce((found, t) => {
-          if (found != null) return found;
+        // air depots on this station's tiles (hangar or helipad; international airports have two hangars)
+        const depotIds = [];
+        for (const t of st.tiles || []) {
           const tt = app.game.state.map.tiles[t.y * app.game.state.map.width + t.x];
-          return tt && tt.building && tt.building.depotId != null && tt.building.kind !== 'rail' ? tt.building.depotId : null;
-        }, null);
-        const dep = depotId != null ? app.findDepot(depotId) : null;
-        if (dep && dep.kind === 'air') {
-          if (hangarDepot !== depotId) {
-            hangarDepot = depotId;
+          const did = tt && tt.building && tt.building.depotId != null && tt.building.kind !== 'rail' ? tt.building.depotId : null;
+          if (did != null && !depotIds.includes(did) && (app.findDepot(did) || {}).kind === 'air') depotIds.push(did);
+        }
+        if (depotIds.length) {
+          const sig = depotIds.join(',');
+          if (hangarSig !== sig) {
+            hangarSig = sig;
+            hangarIdx = 0;
             hangarRow.textContent = '';
-            hangarRow.append(
-              el('button.btn', { type: 'button', text: 'Open hangar', onclick: () => app.open('depot', depotId) }),
-              el('button.btn.primary', { type: 'button', text: 'Buy aircraft…', onclick: () => app.open('buyVehicle', depotId) }));
+            const label = () => (depotIds.length > 1 ? `Open hangar (${(hangarIdx % depotIds.length) + 1}/${depotIds.length})` : 'Open hangar');
+            const openBtn = el('button.btn', { type: 'button', text: label(), onclick: () => {
+              const did = depotIds[hangarIdx % depotIds.length];
+              hangarIdx = (hangarIdx + 1) % depotIds.length; // next click opens the next hangar
+              openBtn.textContent = label();
+              app.open('depot', did);
+            } });
+            hangarRow.append(openBtn,
+              el('button.btn.primary', { type: 'button', text: 'Buy aircraft…', onclick: () => app.open('buyVehicle', depotIds[hangarIdx % depotIds.length]) }));
           }
           hangarRow.hidden = false;
         } else {
-          hangarDepot = null;
+          hangarSig = '';
           hangarRow.hidden = true;
         }
         const vs = app.game.state.vehicles.filter((v) => v.orders && v.orders.some((o) => o.stationId === id));

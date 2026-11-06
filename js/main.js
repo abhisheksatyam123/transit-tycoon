@@ -247,7 +247,12 @@ async function main() {
   const clampWindows = () => app.wm.clampAll();
   window.addEventListener('resize', clampWindows);
   window.addEventListener('orientationchange', () => setTimeout(clampWindows, 60));
-  if (scenario) { /* scenario toast shown above */ } else if (restored) app.toast('Continuing your autosaved game — New Game to start over', 'info');
+  if (scenario) { /* scenario toast shown above */ }
+  else if (restored) {
+    // F11: a restored autosave opens the title menu like a plain boot; Continue resumes the running game (no reload)
+    if (shouldShowTitle()) openTitleMenu(app, { loaded: true });
+    else app.toast('Continuing your autosaved game — New Game to start over', 'info');
+  }
   else if (shouldShowTitle()) openTitleMenu(app); // plain boot: title menu (replaces the help popup)
   else app.open('help');
 }
