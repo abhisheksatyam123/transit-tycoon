@@ -22,6 +22,8 @@ export const SETTING_GROUPS = [
 export const SETTING_META = [
   { key: 'gradients', group: 'construction', label: 'Gradients', type: 'check',
     help: 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus.' },
+  { key: 'pathCosts', group: 'construction', label: 'Realistic pathfinder costs', type: 'check',
+    help: 'Trains prefer flat routes, avoid unnecessary curves, bypass intermediate stations, and steer away from red signals or occupied tracks.' },
   { key: 'breakdowns', group: 'vehicles', label: 'Breakdowns', type: 'select',
     options: [['none', 'None'], ['reduced', 'Reduced'], ['normal', 'Normal']],
     help: 'How often vehicles break down and stop for a while. None = never.' },

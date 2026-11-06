@@ -7,6 +7,7 @@ import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { airLine, isRunwayCentre } from './aircraft.js';
 import { findShipPath, shipGoals } from './shipPath.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
+import { getSetting } from './settings.js';
 
 /** Layer used by a vehicle kind. */
 export function layerOf(v) {
@@ -107,7 +108,7 @@ export function needsElectric(v) {
 
 export function findVehiclePath(state, v, goals) {
   if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals);
-  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v) });
+  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
   if (!goals.length) return null;
   let best = goals[0];
   for (const g of goals) if (manhattan(v.tx, v.ty, g.x, g.y) < manhattan(v.tx, v.ty, best.x, best.y)) best = g;
@@ -129,7 +130,7 @@ export function planRoute(state, v, goals) {
     // the route leads back the way we came: reverse the consist and plan from the rear
     const saved = { history: v.history, flipped: v.flipped, tx: v.tx, ty: v.ty };
     const head = flipTrain(v);
-    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v) });
+    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
     if (alt) path = alt;
     else Object.assign(v, saved);
   }

@@ -2,8 +2,33 @@
  * A* pathfinder over the rail or road graph using a binary heap.
  * Depot tiles are endpoints only: they may be the start or a goal but are never passed through.
  */
-import { DIRS, OPPOSITE } from './constants.js';
+import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { oneWayAllows } from './network.js';
+import { vehiclesOn, trainInBlock, beginOccupancy } from './blocking.js';
+import { guardedBlock, isBlockWall } from './signals.js';
+import { isTypedSignal } from './pathSignals.js';
+
+/**
+ * OpenTTD YAPF-like rail cost constants.
+ * In OpenTTD, YAPF_TILE_LENGTH = 100:
+ *   rail_slope_penalty: 2 * YAPF_TILE_LENGTH (2 tiles)
+ *   rail_curve45_penalty: 1 * YAPF_TILE_LENGTH (1 tile)
+ *   rail_curve90_penalty: 6 * YAPF_TILE_LENGTH (6 tiles)
+ *   rail_station_penalty: 10 * YAPF_TILE_LENGTH (10 tiles)
+ *   rail_firstred_penalty: 10 * YAPF_TILE_LENGTH (10 tiles)
+ *   rail_firstred_exit_penalty: 100 * YAPF_TILE_LENGTH (100 tiles)
+ *   rail_pbs_cross_penalty: 3 * YAPF_TILE_LENGTH (3 tiles)
+ * In our grid, turns are 90-degree. With base straight cost = 1.0:
+ */
+export const RAIL_COSTS = {
+  STRAIGHT: 1.0,
+  CURVE: 1.0,            // OpenTTD rail_curve90_penalty = 6 * YAPF_TILE_LENGTH
+  SLOPE_UP: 2.0,         // OpenTTD rail_slope_penalty = 2 * YAPF_TILE_LENGTH
+  STATION_PASS: 10.0,    // OpenTTD rail_station_penalty = 10 * YAPF_TILE_LENGTH
+  OCCUPIED_BLOCK: 10.0,  // OpenTTD rail_firstred_penalty = 10 * YAPF_TILE_LENGTH
+  RESERVED_TILE: 3.0,    // OpenTTD rail_pbs_cross_penalty = 3 * YAPF_TILE_LENGTH
+};
+
 
 /** Minimal binary min-heap of node indices keyed by an external score array. */
 class MinHeap {
@@ -79,6 +104,12 @@ export function findPath(map, start, goals, layer, opts = {}) {
   const maxNodes = opts.maxNodes ?? n;
   const avoid = opts.avoidFirst ? opts.avoidFirst.y * width + opts.avoidFirst.x : -1;
   const electric = !!opts.electric && layer === 'rail';
+  const pathCostsActive = !!opts.pathCosts && layer === 'rail';
+  const simState = opts.state || null;
+  // occupancy index: the tick index when called from the vehicle tick, else built once for this search
+  const simCtx = pathCostsActive && simState ? (opts.ctx || { state: simState, occupancy: beginOccupancy(simState) }) : null;
+  const currentVeh = opts.vehicle || null;
+  const currentVehId = currentVeh ? currentVeh.id : -1;
   let expanded = 0;
   while (heap.size > 0) {
     const cur = heap.pop();
@@ -104,10 +135,62 @@ export function findPath(map, start, goals, layer, opts = {}) {
       if (electric && !nt.elec) continue; // electric locomotives: non-electrified track is impassable
       // one-way roads (T42): both the tile left and the tile entered must allow this travel direction
       if (layer === 'road' && (tile.oneWay || nt.oneWay) && !(oneWayAllows(tile, d.dx, d.dy) && oneWayAllows(nt, d.dx, d.dy))) continue;
-      // turning costs a little more so straight routes are preferred
       const prev = came[cur];
       let step = 1;
-      if (prev >= 0 && prev !== cur - (ni - cur)) step = 1.2;
+      if (!pathCostsActive) {
+        if (prev >= 0 && prev !== cur - (ni - cur)) step = 1.2;
+      } else {
+        // YAPF-like cost model for rail
+        if (prev >= 0 && prev !== cur - (ni - cur)) {
+          step += RAIL_COSTS.CURVE;
+        }
+        // Uphill slope penalty
+        const curH = tile.height || 0;
+        const nxtH = nt.height || 0;
+        if (nxtH > curH) {
+          step += (nxtH - curH) * RAIL_COSTS.SLOPE_UP;
+        }
+        // Station penalty for passing THROUGH a station that is not the goal
+        if (nt.building && nt.building.type === 'station' && !goalSet.has(ni)) {
+          step += RAIL_COSTS.STATION_PASS;
+        }
+        // Occupied-block and red signal penalties
+        if (simCtx) {
+          let tileOccupied = false;
+          // Path-signal reservations
+          if (simState && simState.resv) {
+            const owner = simState.resv[ni];
+            if (owner !== undefined && owner !== currentVehId) {
+              tileOccupied = true;
+              step += RAIL_COSTS.RESERVED_TILE;
+            }
+          }
+          // Direct vehicle occupancy on tile
+          const vList = vehiclesOn(simCtx, 'rail', nx, ny);
+          if (vList) {
+            for (const o of vList) {
+              if (o.id !== currentVehId) {
+                tileOccupied = true;
+                break;
+              }
+            }
+          }
+          // Signal block occupancy / red signal ahead
+          const toB = simState ? guardedBlock(simState, ni) : -1;
+          const fromB = simState ? guardedBlock(simState, cur) : -1;
+          let blockOccupied = false;
+          if (toB >= 0 && toB !== fromB) {
+            // Train entering a guarded signal block from outside or another block
+            const blocker = trainInBlock(simCtx, currentVeh, toB);
+            if (blocker) {
+              blockOccupied = true;
+            }
+          }
+          if (blockOccupied || tileOccupied) {
+            step += RAIL_COSTS.OCCUPIED_BLOCK;
+          }
+        }
+      }
       const ng = g[cur] + step;
       if (seen[ni] !== gen || ng < g[ni]) {
         seen[ni] = gen;
