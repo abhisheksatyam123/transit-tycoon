@@ -16,6 +16,7 @@ import { gradeSepSprite } from '../sprites/gradeSep.js';
 import { metroPlazaGround } from '../sprites/metroPlaza.js';
 import { metroEntranceSprite } from '../sprites/metro.js';
 import { blit } from '../sprites/canvas.js';
+import { HALF_W, HALF_H, HEIGHT_STEP } from '../iso.js';
 import { tunnelPortalSprite } from '../sprites/tunnelPortal.js';
 import { straightAxis } from '../../simulation/network.js';
 
@@ -73,31 +74,41 @@ export function isStaircaseCorner(map, x, y, mask) {
  */
 export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
   drawTransportBase(ctx, tile, sx, sy, c, map, x, y);
-  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot')) drawTramRails(ctx, tile, sx, sy);
 }
 
+/** Tram rails go on top of every road surface (incl. smooth net ribbons): the ground cache calls this last. */
+export function drawTramOverlay(ctx, tile, sx, sy, c) {
+  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot') && tile.bridgeDeck === undefined) drawTramRails(ctx, tile, sx, sy, c);
+}
+
+/** Edge (corner pair) per direction bit for the corner heights [hN,hE,hS,hW]. */
+const TRAM_EDGE = { 1: [0, 1], 2: [1, 2], 4: [2, 3], 8: [3, 0] };
+
 /**
- * Tram rails (OpenTTD tram track): two thin dark rails per axis bit, drawn over the road surface.
- * Screen space; (sx,sy) is the iso tile centre.
+ * Tram rails (OpenTTD tram track): two thin dark rails per direction bit, from the tile centre to the
+ * tile edge, following the corner heights. (sx,sy) is the iso tile centre at height 0.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {any} tile
+ * @param {number} sx
+ * @param {number} sy
+ * @param {number[]} [c] corner heights [hN,hE,hS,hW] (levels)
  */
-export function drawTramRails(ctx, tile, sx, sy) {
-  const HW = 16, HH = 8; // half tile width/height in px (iso)
-  const ends = [];
-  if (tile.tram & 1) ends.push([0, -1]);
-  if (tile.tram & 2) ends.push([1, 0]);
-  if (tile.tram & 4) ends.push([0, 1]);
-  if (tile.tram & 8) ends.push([-1, 0]);
+export function drawTramRails(ctx, tile, sx, sy, c = [0, 0, 0, 0]) {
+  const hc = (c[0] + c[1] + c[2] + c[3]) / 4 * HEIGHT_STEP;
   ctx.save();
-  ctx.strokeStyle = '#3f2a1a';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#3a2f28';
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  for (const [dx, dy] of ends) {
-    const ex = (dx - dy) * HW / 2, ey = (dx + dy) * HH / 2;
+  for (const [bit, dx, dy] of [[1, 0, -1], [2, 1, 0], [4, 0, 1], [8, -1, 0]]) {
+    if (!(tile.tram & bit)) continue;
+    const [a, b] = TRAM_EDGE[bit];
+    const he = (c[a] + c[b]) / 2 * HEIGHT_STEP;
+    const ex = (dx - dy) * HALF_W / 2, ey = (dx + dy) * HALF_H / 2;
     const len = Math.hypot(ex, ey) || 1;
-    const px = -ey / len * 2.2, py = ex / len * 2.2;
+    const px = -ey / len * 3, py = ex / len * 3; // rail gauge ~6 px
     for (const s of [-1, 1]) {
-      ctx.moveTo(sx + s * px, sy + s * py);
-      ctx.lineTo(sx + ex + s * px, sy + ey + s * py);
+      ctx.moveTo(sx + s * px, sy - hc + s * py);
+      ctx.lineTo(sx + ex + s * px, sy + ey - he + s * py);
     }
   }
   ctx.stroke();

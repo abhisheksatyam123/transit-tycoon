@@ -47,7 +47,7 @@ export function hasElectrifiedTrack(state) {
 
 /** Display prefix per vehicle class. */
 function classOf(model) {
-  return model.kind === 'engine' ? 'Train' : model.kind === 'bus' ? 'Bus' : model.kind === 'aircraft' ? 'Aircraft' : model.kind === 'ship' ? 'Ship' : 'Truck';
+  return model.kind === 'engine' ? 'Train' : model.kind === 'bus' ? 'Bus' : model.kind === 'aircraft' ? 'Aircraft' : model.kind === 'ship' ? 'Ship' : model.kind === 'tram' ? 'Tram' : 'Truck';
 }
 
 /**

@@ -177,7 +177,10 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   if (inBounds(map, x + d.dx, y + d.dy)) {
     const nt = map.tiles[(y + d.dy) * map.width + x + d.dx];
     if (nt[kind] && !canAddBits(nt, kind, OPPOSITE[dir])) nt[kind] |= OPPOSITE[dir];
-    if (kind === 'road' && nt.tram) t.tram = dir; // a road depot on tram track: trams enter/leave through its exit
+    if (kind === 'road' && nt.tram) {
+      t.tram = dir; // a road depot on tram track: trams enter/leave through its exit
+      nt.tram |= OPPOSITE[dir]; // the tram track next to it must open toward the depot too (else trams are lost)
+    }
   }
   state.depots.push({ id, kind, x, y, dir });
   spend(state.company, 'construction', cost);

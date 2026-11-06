@@ -313,6 +313,7 @@ const PART_KIND = { loco: 'loco', wagon: 'wagon', bus: 'bus', truck: 'truck' };
 export function drawPackSegment(ctx, seg, sx, sy, fill) {
   const kind = PART_KIND[seg.part] || 'truck';
   const info = seg._info || {};
+  if (info.roadType === 'tram') return false; // no OpenGFX tram sprites: procedural trams (sprites/trams.js)
   const colour = vehicleColour(info.livery, info.id | 0);
   const dir = seg.ang !== undefined ? dirFromAng(seg.ang) : dirFromBit(seg.dir);
   return drawPackVehicle(ctx, kind, info.modelId || '', dir, sx, sy, {

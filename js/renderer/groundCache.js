@@ -8,7 +8,7 @@
  */
 import { HALF_W, HALF_H, HEIGHT_STEP } from './iso.js';
 import { drawGround } from './layers/terrain.js';
-import { drawTransport } from './layers/transport.js';
+import { drawTransport, drawTramOverlay } from './layers/transport.js';
 import { drawNetTile } from './net/drawTile.js';
 import { setSpriteLod } from './sprites/canvas.js';
 
@@ -147,6 +147,7 @@ export class GroundCache {
         drawGround(ctx, m, x, y, sx, sy, 0, c);
         drawTransport(ctx, tile, sx, sy, c, m, x, y);
         drawNetTile(ctx, m, x, y, sx, sy, this.heights);
+        if (tile.tram) drawTramOverlay(ctx, tile, sx, sy, c);
       }
     }
     return rec;

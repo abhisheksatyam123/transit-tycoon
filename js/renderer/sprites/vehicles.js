@@ -8,6 +8,7 @@ import { makeSprite, SpriteCache } from './canvas.js';
 import { orient } from './iso3d.js';
 import { setCargoColorMap } from './cargoColors.js';
 import { drawBus, drawTrolley, drawTruck } from './buses.js';
+import { drawTram } from './trams.js';
 import { drawEngine, drawMetroCar, drawWagon, ENGINE_FAMILY } from './trains.js';
 
 const cache = new SpriteCache();
@@ -61,7 +62,8 @@ function drawPart(ctx, part, dir, cargo, fill, info) {
     if (metro) drawMetroCar(ctx, axis, s, liv, false);
     else drawWagon(ctx, axis, s, cargo, fill);
   } else if (part === 'bus') {
-    if (info && info.livery === 'trolley') drawTrolley(ctx, axis, s, hv % 4);
+    if (info && info.roadType === 'tram') drawTram(ctx, axis, s, mid === 'tram_electric', liv);
+    else if (info && info.livery === 'trolley') drawTrolley(ctx, axis, s, hv % 4);
     else drawBus(ctx, axis, s, BUS_VARIANT[mid] !== undefined ? BUS_VARIANT[mid] : 0, hv % 4, liv);
   } else {
     const body = TRUCK_BODY[mid] || (cargo === 'WOOD' ? 'logs' : cargo === 'LVST' ? 'cattle' : cargo === 'OIL' ? 'tank' : 'bulk');

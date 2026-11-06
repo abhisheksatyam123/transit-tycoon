@@ -287,7 +287,7 @@ export function arriveAtStation(ctx, v, st) {
   const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   if (!st.arrived[key]) {
     st.arrived[key] = true;
-    const what = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'aircraft' : v.kind === 'ship' ? 'ship' : v.roadType === 'bus' ? 'bus' : 'truck';
+    const what = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'aircraft' : v.kind === 'ship' ? 'ship' : v.roadType === 'bus' ? 'bus' : v.roadType === 'tram' ? 'tram' : 'truck';
     notify(ctx, `Citizens celebrate... First ${what} arrives at ${st.name}!`, 'good', st.x, st.y);
   }
   ctx.emit('vehicleArrived', { vehicle: v, station: st });
