@@ -98,7 +98,7 @@ export function coordsOk(map, ...coords) {
  * Standard money check + result helper.
  * @returns {{ok:false,error:string}|null}
  */
-export function checkMoney(state, cost) {
-  if (cost > state.company.money) return { ok: false, error: ERR.money };
+export function checkMoney(state, cost, company = state.company) {
+  if (cost > company.money) return { ok: false, error: ERR.money };
   return null;
 }

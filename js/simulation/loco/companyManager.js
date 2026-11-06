@@ -13,7 +13,7 @@ import { evaluateGoals, rollGoalMonth } from '../goals.js';
 import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
-import { propertyUpkeep, closeLedgerMonth, spend } from '../economy.js';
+import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend } from '../economy.js';
 import { INTEREST_RATE } from '../constants.js';
 import { findVehicle } from '../state.js';
 import { stopVehicle } from '../cmdVehicle.js';
@@ -84,6 +84,7 @@ export function updateMonthly1(game) {
   const monthlyInterest = Math.trunc((c.loan * Math.round(INTEREST_RATE * 100)) / 1200);
   spend(c, 'interest', monthlyInterest);
   spend(c, 'property', inflateCost(s, COST_INDEX.property, propertyUpkeep(s)));
+  for (const r of s.rivals || []) spend(r, 'property', inflateCost(s, COST_INDEX.property, upkeepFor(s, r.id)));
 
   // bankruptcy: 3 / 6 months warnings, 9 months declared
   if (!c.bankrupt) {

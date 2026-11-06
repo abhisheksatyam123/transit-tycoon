@@ -7,6 +7,8 @@ import { vehicleTick } from '../movement.js';
 import { beginOccupancy, syncOccupancy } from '../blocking.js';
 import { vehiclesYearly } from '../vehicleLife.js';
 import { trafficTick, trafficDaily } from '../traffic.js';
+import { companyById } from '../owner.js';
+import { spend } from '../economy.js';
 import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } from './vehicle.js';
 
 /** VehicleManager::tick: VehicleHead::updateBreakdown + motion for every vehicle (plus background road traffic). */
@@ -32,8 +34,18 @@ export function updateDaily(game) {
 /** VehicleManager::updateMonthly: running costs, profit history, value decay. */
 export function updateMonthly(game) {
   let total = 0;
-  for (const v of game.state.vehicles) total += vehicleMonthly(game.ctx, v);
+  // AI rivals' running costs are charged to their own company (ownerId); the player's total is unchanged
+  const rivalTotals = new Map();
+  for (const v of game.state.vehicles) {
+    const cost = vehicleMonthly(game.ctx, v);
+    if (v.ownerId != null) rivalTotals.set(v.ownerId, (rivalTotals.get(v.ownerId) || 0) + cost);
+    else total += cost;
+  }
   chargeRunning(game.ctx, total);
+  for (const [ownerId, cost] of rivalTotals) {
+    const r = companyById(game.state, ownerId);
+    if (r) spend(r, 'running', cost);
+  }
 }
 
 /** Yearly vehicle bookkeeping (called from CompanyManager::updateYearly): profit rollover, new-model news. */

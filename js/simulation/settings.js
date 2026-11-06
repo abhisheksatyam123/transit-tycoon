@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS = {
   extraIndustries: false,
   /** T29 OpenLoco farm fields: farms plant field tiles around themselves and production scales with them. Off by default. */
   farmFields: false,
+  /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */
+  aiCompanies: 0,
 };
 
 /** Read a setting (state.settings value or the default). */

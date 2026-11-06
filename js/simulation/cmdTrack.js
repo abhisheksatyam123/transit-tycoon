@@ -14,7 +14,8 @@ import { spend } from './economy.js';
 import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
 import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayout } from './aircraft.js';
-import { findTown } from './state.js';
+import { findTown, findStation } from './state.js';
+import { RIVAL_OWNED } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
 import { removeHQ } from './cmdHQ.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
@@ -353,6 +354,10 @@ function stripLayer(map, x, y, layer) {
  * Industries and water are skipped.
  * @returns {{ok:true,cost:number,tiles:number}|{ok:false,error:string}}
  */
+/** Owner id of a station/depot record (null = player, undefined = unknown). Demolishing rival assets is refused. */
+function ownerOfStation(state, id) { const st = findStation(state, id); return st ? (st.ownerId ?? null) : undefined; }
+function ownerOfDepot(state, id) { const d = state.depots.find((q) => q.id === id); return d ? (d.ownerId ?? null) : undefined; }
+
 export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
@@ -419,12 +424,16 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
         if (state.vehicles.some((v) => v.state === 'depot' && v.tx === x && v.ty === y)) {
           return { ok: false, error: 'Depot contains vehicles' };
         }
+        if (ownerOfDepot(state, t.building.depotId) != null) return { ok: false, error: RIVAL_OWNED };
         jobs.push({ x, y, kind: 'depot' }); cost += COSTS.demolishDepot; continue;
       }
       if ((b && b.type === 'station') || t.rail || t.road) {
         if (vehicleOnTile(state, x, y)) return { ok: false, error: ERR.vehicle };
       }
-      if (b && b.type === 'station') { jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue; }
+      if (b && b.type === 'station') {
+        if (ownerOfStation(state, b.stationId) != null) return { ok: false, error: RIVAL_OWNED };
+        jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue;
+      }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
       if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }
       if (t.tram && !t.rail) {

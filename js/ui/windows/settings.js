@@ -37,7 +37,7 @@ export function openSettings(app) {
         }
         if (m.type === 'select') {
           const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...m.options.map(([v, t]) => el('option', { value: v, text: t }))));
-          sel.addEventListener('change', () => setSetting(state(), m.key, sel.value));
+          sel.addEventListener('change', () => setSetting(state(), m.key, m.key === 'aiCompanies' ? Number(sel.value) : sel.value));
           return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); } };
         }
         const n = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: String(m.min), max: String(m.max), step: '1' }));

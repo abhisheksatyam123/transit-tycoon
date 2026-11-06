@@ -17,6 +17,7 @@ import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { DIRS } from './constants.js';
+import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 
 /**
@@ -27,16 +28,23 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   const { state } = ctx;
   const depot = findDepot(state, depotId);
   if (!depot) return { ok: false, error: 'Unknown depot' };
+  if (ownerMismatch(depot, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (!companyById(state, opts.owner ?? null)) return { ok: false, error: 'Unknown company' };
   if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId])) return { ok: false, error: 'Model not yet available' };
   if (spec && MODEL_BY_ID[spec.modelId] && MODEL_BY_ID[spec.modelId].kind === 'tram' && !depotOnTram(state, depot)) return { ok: false, error: 'Trams need a road depot next to tram track' };
   const r = resolvePurchase(depot, spec || {}, state.date.year);
   if (!r.ok) return r;
   r.cost = vehiclePrice(state, r.cost); // inflated; recorded as v.value so sell-back stays consistent
-  const money = checkMoney(state, r.cost);
+  const money = checkMoney(state, r.cost, companyById(state, opts.owner ?? null));
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost: r.cost, vehicle: null };
   const v = createVehicle(state, depot, r.template, r.cost);
-  spend(state.company, 'vehicles', r.cost);
+  if (opts.owner != null) {
+    stampOwner(state, v, opts.owner);
+    const rival = companyById(state, opts.owner);
+    if (rival) v.livery = rival.colour; // rival vehicles are drawn in the company colour (renderer reads info.livery)
+  }
+  spend(companyById(state, opts.owner ?? null), 'vehicles', r.cost);
   return { ok: true, cost: r.cost, vehicle: v };
 }
 
@@ -47,6 +55,7 @@ export function setOrders(ctx, id, orders, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
@@ -66,6 +75,7 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!v.orders[index]) return { ok: false, error: 'No such order' };
   const orders = v.orders.map((o) => ({ ...o }));
   const o = orders[index];
@@ -92,6 +102,7 @@ export function skipToOrder(ctx, id, index, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!v.orders.length || !Number.isInteger(index) || index < 0 || index >= v.orders.length) {
     return { ok: false, error: 'No such order' };
   }
@@ -120,6 +131,7 @@ export function skipToOrder(ctx, id, index, opts = {}) {
 export function startVehicle(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot' && v.state !== 'stopped') return { ok: false, error: 'Vehicle is already running' };
   if (!v.orders.length && v.goingToDepot == null) return { ok: false, error: 'Vehicle has no orders' };
   if (opts.dryRun) return { ok: true, cost: 0 };
@@ -136,6 +148,7 @@ export function startVehicle(ctx, id, opts = {}) {
 export function stopVehicle(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state === 'depot' || v.state === 'stopped') return { ok: false, error: 'Vehicle is already stopped' };
   if (opts.dryRun) return { ok: true, cost: 0 };
   if (v.state === 'loading') { v.state = 'running'; v.atStationId = null; v.path = []; }
@@ -151,6 +164,7 @@ export function sendToDepot(ctx, id, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state === 'depot') return { ok: false, error: 'Vehicle is already in a depot' };
   const goals = depotGoals(state, v);
   const path = goals.length ? findVehiclePath(state, v, goals) : null;
@@ -174,15 +188,16 @@ export function sellVehicle(ctx, id, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot' };
   if (opts.dryRun) return { ok: true, cost: -v.value };
   leaveOrderGroup(state, v);
   state.vehicles = state.vehicles.filter((x) => x !== v);
-  earn(state.company, v.value, 'vehicles');
+  earn(companyOf(state, v), v.value, 'vehicles');
   // keep the ledger byType as net expense for vehicles
-  state.company.ledger.current.income -= v.value;
-  state.company.ledger.current.byType.vehicles -= 2 * v.value;
-  state.company.ledger.current.expenses -= v.value;
+  companyOf(state, v).ledger.current.income -= v.value;
+  companyOf(state, v).ledger.current.byType.vehicles -= 2 * v.value;
+  companyOf(state, v).ledger.current.expenses -= v.value;
   return { ok: true, cost: -v.value };
 }
 
@@ -196,6 +211,7 @@ export function cloneVehicle(ctx, id, opts = {}) {
   const { state } = ctx;
   const src = findVehicle(state, id);
   if (!src) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(src, opts)) return { ok: false, error: RIVAL_OWNED };
   const depot = findDepot(state, src.depotId);
   if (!depot) return { ok: false, error: 'Vehicle has no depot to clone it in' };
   const spec = { modelId: src.modelId, wagonModelId: src.wagonModelId || undefined, wagons: src.wagons || 0, cargoId: src.cargoId || undefined };
@@ -219,6 +235,7 @@ export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!v.orders[index]) return { ok: false, error: 'No such order' };
   const patch = {};
   for (const k of ['waitDays', 'travelDays']) {
@@ -237,6 +254,7 @@ export function setTimetableAutofill(ctx, id, on, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost: 0 };
   if (on && v.orders.length) { v.autofill = true; v.autofillLeft = v.orders.length; }
   else { delete v.autofill; delete v.autofillLeft; }
@@ -247,6 +265,7 @@ export function setTimetableAutofill(ctx, id, on, opts = {}) {
 export function resetLateness(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost: 0 };
   delete v.lateDays;
   return { ok: true, cost: 0 };
@@ -257,6 +276,7 @@ export function unshareOrders(ctx, id, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.orderGroup == null) return { ok: false, error: 'Orders are not shared' };
   if (opts.dryRun) return { ok: true, cost: 0 };
   leaveOrderGroup(state, v);
@@ -268,6 +288,7 @@ export function setServiceInterval(ctx, id, days, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   const n = Math.round(Number(days));
   if (!Number.isFinite(n) || n < 0 || n > MAX_SERVICE_INTERVAL) return { ok: false, error: `Interval must be 0..${MAX_SERVICE_INTERVAL} days` };
   if (opts.dryRun) return { ok: true, cost: 0 };
@@ -286,6 +307,7 @@ export function setServiceInterval(ctx, id, days, opts = {}) {
 export function reverseVehicle(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.kind !== 'train') return { ok: false, error: 'Only trains can be reversed' };
   if (v.state === 'depot') return { ok: false, error: 'Vehicle is in a depot' };
   if (v.state === 'loading') return { ok: false, error: 'Wait until the train has finished loading' };
@@ -348,6 +370,7 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot to refit' };
   const model = MODEL_BY_ID[v.modelId];
   const supported = refitCargos(v);
@@ -368,7 +391,7 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   if (opts.dryRun) return { ok: true, cost, cargoId, capacity };
   const money = checkMoney(state, cost);
   if (money) return money;
-  spend(state.company, 'vehicles', cost);
+  spend(companyOf(state, v), 'vehicles', cost);
   v.cargoId = cargoId;
   v.capacity = capacity;
   return { ok: true, cost, cargoId, capacity };
@@ -390,10 +413,11 @@ function consistWagonFor(v, year) {
  * Shared checks for changing a train's consist (add / remove wagons): a train, stopped in a depot,
  * empty, with a valid wagon model. Returns {ok, v, wagon, unit} where unit is the inflated price per wagon.
  */
-function consistCheck(ctx, id, n) {
+function consistCheck(ctx, id, n, opts = {}) {
   const { state } = ctx;
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.kind !== 'train') return { ok: false, error: 'Only trains have wagons' };
   if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its wagons' };
   if (!Number.isInteger(n) || n < 1) return { ok: false, error: 'Wagon count must be a positive whole number' };
@@ -435,7 +459,7 @@ function applyWagonDelta(state, v, wagon, delta, unit) {
  */
 export function addWagons(ctx, id, n, opts = {}) {
   const { state } = ctx;
-  const c = consistCheck(ctx, id, n);
+  const c = consistCheck(ctx, id, n, opts);
   if (!c.ok) return c;
   const { v, wagon, unit } = c;
   if (v.wagons + n > MAX_WAGONS) return { ok: false, error: `A train can have at most ${MAX_WAGONS} wagons` };
@@ -445,7 +469,7 @@ export function addWagons(ctx, id, n, opts = {}) {
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, wagons: v.wagons + n, capacity };
-  spend(state.company, 'vehicles', cost);
+  spend(companyOf(state, v), 'vehicles', cost);
   applyWagonDelta(state, v, wagon, n, unit);
   return { ok: true, cost, wagons: v.wagons, capacity: v.capacity };
 }
@@ -458,7 +482,7 @@ export function addWagons(ctx, id, n, opts = {}) {
  */
 export function removeWagons(ctx, id, n, opts = {}) {
   const { state } = ctx;
-  const c = consistCheck(ctx, id, n);
+  const c = consistCheck(ctx, id, n, opts);
   if (!c.ok) return c;
   const { v, wagon, unit } = c;
   if (n > v.wagons) return { ok: false, error: `Only ${v.wagons} wagon(s) to remove` };
@@ -468,7 +492,7 @@ export function removeWagons(ctx, id, n, opts = {}) {
   const fullPrice = (engine ? vehiclePrice(state, engine.cost) : 0) + (v.consist ? consistPrice(state, v) : unit * v.wagons);
   const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit * n) / fullPrice)) : 0;
   if (opts.dryRun) return { ok: true, cost: refund, wagons: v.wagons - n, capacity: wagon.capacity * (v.wagons - n) };
-  earn(state.company, refund, 'vehicles');
+  earn(companyOf(state, v), refund, 'vehicles');
   applyWagonDelta(state, v, wagon, -n, unit);
   v.value = (v.value || 0) - refund;
   return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
@@ -491,9 +515,10 @@ export function consistPrice(state, v) {
 }
 
 /** Consist check for a mixed-consist edit: a train stopped in a depot (no load requirement: cargo follows its wagon). */
-function trainInDepot(ctx, id) {
+function trainInDepot(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.kind !== 'train') return { ok: false, error: 'Only trains have wagons' };
   if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its wagons' };
   return { ok: true, v };
@@ -506,7 +531,7 @@ function trainInDepot(ctx, id) {
  */
 export function addWagonModel(ctx, id, modelId, opts = {}) {
   const { state } = ctx;
-  const c = trainInDepot(ctx, id);
+  const c = trainInDepot(ctx, id, opts);
   if (!c.ok) return c;
   const { v } = c;
   const wagon = MODEL_BY_ID[modelId];
@@ -522,7 +547,7 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
   if (money) return money;
   list.push({ modelId, cargoId });
   if (opts.dryRun) return { ok: true, cost, wagons: list.length, capacity: listCapacity(list) };
-  spend(state.company, 'vehicles', cost);
+  spend(companyOf(state, v), 'vehicles', cost);
   setWagonList(state, v, list);
   v.value = (v.value || 0) + cost;
   return { ok: true, cost, wagons: v.wagons, capacity: v.capacity };
@@ -535,7 +560,7 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
  */
 export function sellWagon(ctx, id, index, opts = {}) {
   const { state } = ctx;
-  const c = trainInDepot(ctx, id);
+  const c = trainInDepot(ctx, id, opts);
   if (!c.ok) return c;
   const { v } = c;
   const list = wagonList(v);
@@ -547,7 +572,7 @@ export function sellWagon(ctx, id, index, opts = {}) {
   const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit) / fullPrice)) : 0;
   list.splice(index, 1);
   if (opts.dryRun) return { ok: true, cost: refund, wagons: list.length, capacity: listCapacity(list) };
-  earn(state.company, refund, 'vehicles');
+  earn(companyOf(state, v), refund, 'vehicles');
   setWagonList(state, v, list);
   v.value = (v.value || 0) - refund;
   return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
@@ -559,7 +584,7 @@ export function sellWagon(ctx, id, index, opts = {}) {
  * @returns {{ok:true,index:number}|{ok:false,error:string}}
  */
 export function moveWagon(ctx, id, index, delta, opts = {}) {
-  const c = trainInDepot(ctx, id);
+  const c = trainInDepot(ctx, id, opts);
   if (!c.ok) return c;
   const { v } = c;
   const list = wagonList(v);

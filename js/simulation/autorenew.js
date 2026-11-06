@@ -14,6 +14,7 @@ import { resolvePurchase, createVehicle } from './vehicles.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
+import { companyOf } from './owner.js';
 import { notify } from './news.js';
 import { dayNumber } from './date.js';
 
@@ -46,7 +47,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);
-  if (checkMoney(state, diff)) {
+  if (checkMoney(state, diff, companyOf(state, v))) {
     const last = v.autoreplaceNagDay;
     if (last == null || dayNumber(state.date) - last >= NAG_DAYS) {
       v.autoreplaceNagDay = dayNumber(state.date);
@@ -81,7 +82,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
     }
   }
   // only the difference is paid; the resale value of the old vehicle is credited inside it
-  spend(state.company, 'vehicles', diff);
+  spend(companyOf(state, v), 'vehicles', diff);
   const oldName = MODEL_BY_ID[v.modelId] ? MODEL_BY_ID[v.modelId].name : v.modelId;
   const msg = reason === 'autorenew'
     ? `${v.name} was renewed (autorenew, ${oldName}).`

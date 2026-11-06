@@ -87,6 +87,8 @@ export function openNewGame(app) {
         el('option', { value: 'default', text: 'Default (normal)' }), el('option', { value: 'reduced', text: 'Reduced' }), el('option', { value: 'none', text: 'None' })));
       const extra = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const ai = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: '0', text: 'None (default)' }), el('option', { value: '1', text: '1 rival' }), el('option', { value: '2', text: '2 rivals' }), el('option', { value: '3', text: '3 rivals' })));
       const farms = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const eras = /** @type {HTMLSelectElement} */ (el('select.input', null,
@@ -102,7 +104,7 @@ export function openNewGame(app) {
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
-        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras),
+        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth),
         field('Town density', mgTowns), field('Industry density', mgInd));
       body.append(
@@ -138,6 +140,7 @@ export function openNewGame(app) {
         if (extra.value === 'on') settings.extraIndustries = true; // T29 opt-in
         if (farms.value === 'on') settings.farmFields = true; // T29 opt-in
         if (eras.value === 'on') settings.buildingEras = true; // gap #31b opt-in
+        if (Number(ai.value) > 0) settings.aiCompanies = Number(ai.value); // gap #25: only when > 0
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot

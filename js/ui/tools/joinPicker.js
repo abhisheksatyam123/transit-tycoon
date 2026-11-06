@@ -14,7 +14,10 @@ export function adjacentOwn(state, tiles) {
       const x = p.x + dx, y = p.y + dy;
       if (x < 0 || y < 0 || x >= m.width || y >= m.height) continue;
       const b = m.tiles[y * m.width + x].building;
-      if (b && b.type === 'station') return true;
+      if (b && b.type === 'station') {
+        const st = state.stations.find((q) => q.id === b.stationId);
+        if (!st || st.ownerId == null) return true; // rival stations (ownerId) are not ours
+      }
     }
   }
   return false;
@@ -22,7 +25,7 @@ export function adjacentOwn(state, tiles) {
 
 /** Our stations (any facility, as in OpenTTD) that the footprint could join (within spread). */
 export function joinChoices(state, kind, tiles) {
-  return state.stations.filter((st) => spreadOk(st, tiles))
+  return state.stations.filter((st) => st.ownerId == null && spreadOk(st, tiles))
     .map((st) => ({ id: st.id, name: st.name }));
 }
 

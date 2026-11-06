@@ -65,6 +65,13 @@ export function openVehicleDetail(app, id) {
         const v = app.findVehicle(id);
         if (v && v.kind === 'train') app.exec(g().reverseVehicle(id), { sound: 'click' });
       } });
+      // gap #25: a rival's vehicle is read-only (owner line, no action buttons)
+      if (app.findVehicle(id) && app.findVehicle(id).ownerId != null) {
+        const rv = app.findVehicle(id);
+        const rival = (app.game.state.rivals || []).find((r) => r.id === rv.ownerId);
+        body.appendChild(el('div.muted', { text: `Owned by ${rival ? rival.name : 'a rival company'}. Orders and sales are not available.` }));
+        return;
+      }
       body.appendChild(el('div.btn-row', null,
         startStop,
         el('button.btn', { type: 'button', text: 'Orders', onclick: () => app.open('orders', id) }),

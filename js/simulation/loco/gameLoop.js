@@ -14,6 +14,7 @@ import * as IndustryManager from './industryManager.js';
 import * as VehicleManager from './vehicleManager.js';
 import * as StationManager from './stationManager.js';
 import * as CompanyManager from './companyManager.js';
+import * as AiCompanies from '../aiCompanies.js';
 import * as MessageManager from './messageManager.js';
 import * as Economy from './economy.js';
 import * as Subsidies from '../subsidies.js';
@@ -56,6 +57,7 @@ export function tickDate(game) {
     CompanyManager.updateMonthly1(game);
     CompanyManager.updateMonthlyHeadquarters(game);
     VehicleManager.updateMonthly(game);
+    AiCompanies.updateMonthly(game); // gap #25 AI rivals (aiCompanies setting; no-op at 0)
     if (s.date.year <= 2029 && getSetting(s, 'inflation')) Economy.updateMonthly(game);
     Subsidies.updateMonthly(game); // transit-tycoon additions (OpenTTD subsidies, OpenLoco scenario objective)
     Objective.updateMonthly(game);

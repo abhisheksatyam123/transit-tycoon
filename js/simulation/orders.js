@@ -5,6 +5,7 @@ import { TICKS_PER_DAY } from './constants.js';
 import { earn } from './economy.js';
 import { calculateDeliveredCargoPayment } from './loco/economy.js';
 import { recordDelivery } from './loco/company.js';
+import { companyOf } from './owner.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, manhattan, findIndustry, nearestTown } from './state.js';
@@ -214,7 +215,8 @@ function deliverLoad(ctx, v, st) {
   let pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
   const mult = subsidyMultiplier(state, v.cargoId, load.sourceX, load.sourceY, st, ctx);
   if (mult !== 1) pay = Math.round(pay * mult);
-  recordDelivery(state.company, v.cargoId, load.amount, dist);
+  const payee = companyOf(state, v);
+  recordDelivery(payee, v.cargoId, load.amount, dist);
   creditDelivery(state, st, v.cargoId, load.amount);
   noteDelivery(state, v.cargoId, load.amount, v.id);
   const amount = load.amount;
@@ -225,7 +227,7 @@ function deliverLoad(ctx, v, st) {
   const feeder = load.feeder || 0;
   delete load.feeder;
   if (pay > 0) {
-    earn(state.company, pay);
+    earn(payee, pay);
     v.profitThisYear += pay - feeder;
     ctx.emit('income', { amount: pay, x: st.x, y: st.y, vehicleId: v.id, cargoId: v.cargoId, units: amount });
   }

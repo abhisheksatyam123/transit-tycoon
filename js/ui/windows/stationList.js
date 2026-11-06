@@ -116,7 +116,7 @@ export function openStationList(app) {
         sortSel.value = state.sort;
         filterSel.value = state.filter;
         setText(dirBtn, state.dir < 0 ? '▼' : '▲');
-        const all = app.game.state.stations;
+        const all = app.game.state.stations.filter((st) => st.ownerId == null); // player stations only (gap #25)
         const stations = sortStations(all, state);
         let waiting = 0;
         for (const st of all) waiting += stationStats(st).waiting;

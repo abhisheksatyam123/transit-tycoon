@@ -82,11 +82,20 @@ export function leagueRows(state) {
   const cos = [];
   if (state && state.company) cos.push({ c: state.company, player: true });
   for (const c of (state && state.companies) || []) if (c && c !== state.company) cos.push({ c, player: false });
-  return cos.map(({ c, player }) => {
+  // gap #25: AI rivals (state.rivals) are listed with their value and last-month profit
+  for (const r of (state && state.rivals) || []) cos.push({ c: r, player: false, rival: true });
+  return cos.map(({ c, player, rival }) => {
     const p = performanceTitle(c.performanceIndex);
-    const value = player ? liveCompanyValue(state, c) : (c.companyValue || 0);
-    return { name: c.name || 'Company', value, rating: p.rating, title: p.title, player, bankrupt: !!c.bankrupt };
+    const value = player ? liveCompanyValue(state, c) : (rival ? rivalValue(state, c) : (c.companyValue || 0));
+    return { name: c.name || 'Company', value, rating: p.rating, title: p.title, player, bankrupt: !!c.bankrupt, rival: !!rival, profit: rival && c.stats ? c.stats.profit : null, vehicles: rival && c.stats ? c.stats.vehicles : null };
   }).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+}
+
+/** Live value of a rival: cash minus loan plus the value of its fleet (vehicles carry ownerId). */
+function rivalValue(state, r) {
+  let v = (r.money || 0) - (r.loan || 0);
+  for (const veh of (state && state.vehicles) || []) if (veh.ownerId === r.id) v += veh.value || 0;
+  return v;
 }
 
 /** Theme colour from a CSS variable with a fallback (canvas cannot read var()). */
@@ -251,14 +260,15 @@ function monthLabels(n) {
 /** Fill the league table. */
 function listRows(table, rows) {
   table.replaceChildren();
-  const head = el('div.table-head', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr' } },
-    el('span', { text: 'Company' }), el('span', { text: 'Value' }), el('span', { text: 'Rating' }));
+  const head = el('div.table-head', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
+    el('span', { text: 'Company' }), el('span', { text: 'Value' }), el('span', { text: 'Rating' }), el('span', { text: 'Profit (last month)' }));
   table.appendChild(head);
   if (!rows.length) { table.appendChild(el('div.muted', { text: 'No companies' })); return; }
   rows.forEach((r, i) => {
-    table.appendChild(el('div.table-row', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr' } },
-      el('span.name', { text: `${i + 1}. ${r.name}${r.player ? ' (you)' : ''}${r.bankrupt ? ' — bankrupt' : ''}` }),
+    table.appendChild(el('div.table-row', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
+      el('span.name', { text: `${i + 1}. ${r.name}${r.player ? ' (you)' : ''}${r.rival ? ' (AI)' : ''}${r.bankrupt ? ' — bankrupt' : ''}` }),
       el('span.mono.num', { text: money(r.value) }),
-      el('span', { text: `${r.title} (${r.rating})` })));
+      el('span', { text: r.rival ? `${r.vehicles} vehicles` : `${r.title} (${r.rating})` }),
+      el('span.mono.num', { text: r.profit == null ? '—' : money(r.profit) })));
   });
 }

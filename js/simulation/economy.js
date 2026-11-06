@@ -73,17 +73,39 @@ export function repay(company, amount = LOAN_STEP) {
  * Count property (company-owned track/stations/depots) for upkeep.
  */
 export function propertyUpkeep(state) {
+  return upkeepFor(state, null);
+}
+
+/**
+ * Property upkeep of one owner (gap #25): ownerId null = the player. A station/depot tile counts for the
+ * owner of its station/depot record; rail/road is the player's when not a rival's station/depot tile.
+ * Rival road/rail is not tagged per owner in stage 1, so rivals pay station and depot tiles only.
+ */
+export function upkeepFor(state, ownerId) {
+  const owner = ownerId ?? null;
   let cost = 0;
   for (const t of state.map.tiles) {
-    if (t.owner !== 'company' && !(t.building && (t.building.type === 'station' || t.building.type === 'depot'))) continue;
-    if (t.building && t.building.type === 'station') cost += COSTS.upkeepStationTile;
-    else if (t.building && t.building.type === 'depot') cost += COSTS.upkeepDepot;
-    if (t.owner === 'company') {
+    const b = t.building;
+    const isStop = b && (b.type === 'station' || b.type === 'depot');
+    if (t.owner !== 'company' && !isStop) continue;
+    const tileOwner = isStop ? recordOwner(state, b) : null;
+    if (tileOwner !== owner) continue;
+    if (b && b.type === 'station') cost += COSTS.upkeepStationTile;
+    else if (b && b.type === 'depot') cost += COSTS.upkeepDepot;
+    if (t.owner === 'company' && owner === null) {
       if (t.rail) cost += COSTS.upkeepRail;
       if (t.road) cost += COSTS.upkeepRoad;
     }
   }
   return cost;
+}
+
+/** ownerId of the station or depot record a tile building points to (null = player). */
+function recordOwner(state, b) {
+  const rec = b.type === 'station'
+    ? state.stations.find((s) => s.id === b.stationId)
+    : state.depots.find((d) => d.id === b.depotId);
+  return rec && rec.ownerId != null ? rec.ownerId : null;
 }
 
 /**

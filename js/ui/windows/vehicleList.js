@@ -135,7 +135,7 @@ export function openVehicleList(app) {
       dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
       // mass start/stop act on the vehicles the current kind filter shows (gap #40)
       const massBtn = (label, start) => el('button.btn.sm', { type: 'button', text: label, title: `${label} the vehicles shown by the filter`, onclick: () => {
-        const ids = sortVehicles(app.game.state.vehicles, state).map((v) => v.id);
+        const ids = sortVehicles(app.game.state.vehicles.filter((v) => v.ownerId == null), state).map((v) => v.id);
         const r = app.game.massStartStop(ids, start);
         if (app.exec(r, { sound: start ? 'horn' : 'click' }) && r.count) app.toast(`${start ? 'Started' : 'Stopped'} ${r.count} vehicle${r.count === 1 ? '' : 's'}`, 'good');
         refresh();
@@ -174,7 +174,7 @@ export function openVehicleList(app) {
         const hasGroup = typeof state.group === 'number';
         renameGroupBtn.disabled = !hasGroup;
         deleteGroupBtn.disabled = !hasGroup;
-        const vs = sortVehicles(all, state);
+        const vs = sortVehicles(all.filter((v) => v.ownerId == null), state); // rivals are not listed (gap #25)
         setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
         listOrEmpty(list, vs, (v) => v.id,
           (v) => el('div.table-row', null,

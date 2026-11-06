@@ -6,6 +6,7 @@ import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { getTile, inBounds } from './map.js';
 import { spend } from './economy.js';
+import { companyById, stampOwner, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { straightAxis } from './network.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, canAddBits } from './trackRules.js';
 import { createStation, adjacentStations, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
@@ -55,6 +56,7 @@ export function vehicleOnTile(state, x, y) {
  */
 export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   const { state } = ctx;
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
   const map = state.map;
   if (axis !== 'x' && axis !== 'y') return { ok: false, error: 'Invalid axis' };
   length = Math.max(1, Math.min(10, Math.floor(length) || 1));
@@ -82,16 +84,18 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
     cost += COSTS.railStation + clearingCost(t);
   }
   cost = constructionTotal(state, factor === 1 ? cost : Math.round(cost * factor));
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, companyById(state, opts.owner ?? null));
   if (money) return money;
   // Merge rule unchanged: join the first adjacent station. Player builds (opts.player) are refused
   // when that merge would exceed STATION_SPREAD; scenario code is not limited.
   const join = joinTarget(state, opts, 'rail', tiles);
   if (join && join.error) return { ok: false, error: join.error };
-  const existing = join || adjacentStations(state, tiles)[0] || null;
+  if (join && ownerMismatch(join, opts)) return { ok: false, error: RIVAL_OWNED };
+  // a station of another company next door is not joined (OpenTTD builds a separate station)
+  const existing = join || adjacentStations(state, tiles).find((st) => !ownerMismatch(st, opts)) || null;
   if (opts.player && existing && !spreadOk(existing, tiles)) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
-  const st = existing || createStation(state, x, y);
+  const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   invalidateBlocks(ctx.state);
   tiles.forEach((p, i) => {
     const t = map.tiles[p.y * map.width + p.x];
@@ -108,7 +112,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   });
   refreshKinds(st);
   recomputeAcceptance(state, st);
-  spend(state.company, 'construction', cost);
+  spend(companyById(state, opts.owner ?? null), 'construction', cost);
   return { ok: true, cost, stationId: st.id };
 }
 
@@ -119,6 +123,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
  */
 export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   const { state } = ctx;
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
   const map = state.map;
   if (kind !== 'bus' && kind !== 'truck' && kind !== 'tram') return { ok: false, error: 'Invalid stop kind' };
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
@@ -144,14 +149,16 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   let cost = COSTS.roadStop + clearingCost(t);
   if (style) cost = Math.round(cost * styleById(kind, style).costFactor);
   cost = constructionTotal(state, cost);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, companyById(state, opts.owner ?? null));
   if (money) return money;
   const join = joinTarget(state, opts, kind, [{ x, y }]);
   if (join && join.error) return { ok: false, error: join.error };
-  const existing = join || adjacentStations(state, [{ x, y }])[0] || null;
+  if (join && ownerMismatch(join, opts)) return { ok: false, error: RIVAL_OWNED };
+  // a station of another company next door is not joined (OpenTTD builds a separate station)
+  const existing = join || adjacentStations(state, [{ x, y }]).find((st) => !ownerMismatch(st, opts)) || null;
   if (opts.player && existing && !spreadOk(existing, [{ x, y }])) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
-  const st = existing || createStation(state, x, y);
+  const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   clearTerrain(t);
   if (!t.road && kind !== 'tram') {
     t.road = AXIS_BITS[axis];
@@ -167,7 +174,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   st.tiles.push(style ? { x, y, kind, style } : { x, y, kind });
   refreshKinds(st);
   recomputeAcceptance(state, st);
-  spend(state.company, 'construction', cost);
+  spend(companyById(state, opts.owner ?? null), 'construction', cost);
   return { ok: true, cost, stationId: st.id };
 }
 
@@ -179,6 +186,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
  */
 export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   const { state } = ctx;
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
   const map = state.map;
   if (kind !== 'rail' && kind !== 'road') return { ok: false, error: 'Invalid depot kind' };
   if (![1, 2, 4, 8].includes(dir)) return { ok: false, error: 'Invalid direction' };
@@ -189,7 +197,7 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   if (t.rail || t.road) return { ok: false, error: ERR.track };
   let cost = (kind === 'rail' ? COSTS.depotRail : COSTS.depotRoad) + clearingCost(t);
   cost = constructionTotal(state, cost);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, companyById(state, opts.owner ?? null));
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, depotId: null };
   const id = allocId(state);
@@ -206,8 +214,8 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
       nt.tram |= OPPOSITE[dir]; // the tram track next to it must open toward the depot too (else trams are lost)
     }
   }
-  state.depots.push({ id, kind, x, y, dir });
-  spend(state.company, 'construction', cost);
+  state.depots.push(stampOwner(state, { id, kind, x, y, dir }, opts.owner ?? null));
+  spend(companyById(state, opts.owner ?? null), 'construction', cost);
   return { ok: true, cost, depotId: id };
 }
 
