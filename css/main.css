@@ -52,11 +52,11 @@ html, body {
 }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-#app { position: fixed; inset: 0; display: grid; grid-template-rows: var(--toolbar-h) 1fr var(--status-h); }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr var(--status-h); }
 
 /* ---- toolbar ---- */
 #toolbar {
-  display: flex; align-items: center; gap: 6px; padding: 0 8px; z-index: 20;
+  display: flex; align-items: center; gap: 6px; padding: 0 8px; z-index: 20; min-height: var(--toolbar-h);
   background: var(--panel); border-bottom: 1px solid var(--panel-border);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
 }
@@ -84,6 +84,14 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #toolbar.tb-fit-3 .tb-name, #toolbar.tb-fit-3 .tb-label { display: none; }
 #toolbar.tb-fit-3 .tb-btn { min-width: 30px; height: 34px; padding: 2px 3px; }
 #toolbar.tb-fit-3, #toolbar.tb-fit-3 .tb-group { gap: 2px; }
+/* tablets/phones: tight icons wrapped onto 2-3 rows instead of a horizontal scroll (fitToolbar caps the rows) */
+#toolbar.tb-fit-4 { flex-wrap: wrap; align-content: center; overflow-x: hidden; gap: 3px 2px; padding-top: 3px; padding-bottom: 3px; }
+#toolbar.tb-fit-4 .tb-name, #toolbar.tb-fit-4 .tb-label, #toolbar.tb-fit-4 .tb-sep { display: none; }
+#toolbar.tb-fit-4 .tb-group { gap: 2px; margin-right: 4px; }
+#toolbar.tb-fit-4 .tb-btn { min-width: 30px; height: 34px; padding: 2px 3px; }
+/* phones: same, but groups dissolve so buttons fill every row */
+#toolbar.tb-fit-4.tb-flat .tb-group { display: contents; }
+#toolbar.tb-fit-4.tb-flat .tb-brand { display: none; }
 
 /* ---- viewport ---- */
 #viewport { position: relative; overflow: hidden; }

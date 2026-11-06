@@ -127,16 +127,34 @@ export function createToolbar(root, app) {
 
 /** Density levels tried in order until every button fits (CSS: #toolbar.tb-fit-N). */
 const FIT_LEVELS = ['tb-fit-0', 'tb-fit-1', 'tb-fit-2', 'tb-fit-3'];
+/** Wrapped level (tight icons on several rows) for tablets/phones. */
+const WRAP_LEVEL = 'tb-fit-4';
+/** Height of one wrapped toolbar row in px (button 34 + row gap 3). */
+const WRAP_ROW_PX = 37;
 
 /**
- * Pick the roomiest toolbar density whose content fits the width (labels, small labels, icons, tight icons).
- * Below the tightest level the toolbar scrolls horizontally (phones).
+ * Pick the roomiest toolbar density whose content fits the width (labels, small labels, icons, tight icons),
+ * then tight icons wrapped onto up to 2 rows (3 on tall portrait screens, none on short landscape screens),
+ * first keeping button groups together, then with groups dissolved (phones).
+ * If even that does not fit, the single tight row scrolls horizontally.
  * @param {HTMLElement} root
  */
 function fitToolbar(root) {
+  const all = [...FIT_LEVELS, WRAP_LEVEL];
   for (const cls of FIT_LEVELS) {
-    root.classList.remove(...FIT_LEVELS);
+    root.classList.remove(...all, 'tb-flat');
     root.classList.add(cls);
     if (root.scrollWidth <= root.clientWidth + 1) return;
   }
+  const h = window.innerHeight || 800;
+  const maxRows = h < 500 ? 1 : h < 700 ? 2 : 3;
+  if (maxRows < 2) return;
+  const fits = () => root.scrollHeight <= maxRows * WRAP_ROW_PX + 8 && root.scrollWidth <= root.clientWidth + 1;
+  root.classList.remove(...all, 'tb-flat');
+  root.classList.add(WRAP_LEVEL);
+  if (fits()) return;
+  root.classList.add('tb-flat');
+  if (fits()) return;
+  root.classList.remove(WRAP_LEVEL, 'tb-flat');
+  root.classList.add('tb-fit-3');
 }
