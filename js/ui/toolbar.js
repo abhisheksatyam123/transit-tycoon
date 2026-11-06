@@ -142,7 +142,7 @@ const WRAP_ROW_PX = 37;
 
 /**
  * Pick the roomiest toolbar density whose content fits the width (labels, small labels, icons, tight icons),
- * then tight icons wrapped onto up to 2 rows (3 on tall portrait screens, none on short landscape screens),
+ * then tight icons wrapped onto up to 2 rows (3-4 on tall portrait screens, none on short landscape screens),
  * first keeping button groups together, then with groups dissolved (phones).
  * If even that does not fit, the single tight row scrolls horizontally.
  * @param {HTMLElement} root
@@ -155,7 +155,7 @@ function fitToolbar(root) {
     if (root.scrollWidth <= root.clientWidth + 1) return;
   }
   const h = window.innerHeight || 800;
-  const maxRows = h < 500 ? 1 : h < 700 ? 2 : 3;
+  const maxRows = h < 500 ? 1 : h < 700 ? 2 : h < 800 ? 3 : 4;
   if (maxRows < 2) return;
   const fits = () => root.scrollHeight <= maxRows * WRAP_ROW_PX + 8 && root.scrollWidth <= root.clientWidth + 1;
   root.classList.remove(...all, 'tb-flat');
