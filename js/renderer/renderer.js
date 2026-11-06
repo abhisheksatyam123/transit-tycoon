@@ -1,5 +1,7 @@
 import { shipPassable } from '../simulation/shipPath.js';
 import { drawLandBridgeDeck } from './sprites/landBridge.js';
+import { drawDeckBack, drawDeckFront } from './pack/bridgeDeck.js';
+import { packActive } from './pack/state.js';
 /**
  * Renderer: draws the visible part of the map each frame in painter's order.
  * For each diagonal d = x + y (back to front): ground + transport (+ underlays) of every tile
@@ -326,6 +328,12 @@ export class Renderer {
 
     for (let d = range.x0 + range.y0; d <= range.x1 + range.y1; d++) {
       const xa = Math.max(range.x0, d - range.y1), xb = Math.min(range.x1, d - range.y0);
+      // OpenGFX bridge decks: back (deck + pillars) under the vehicles of this diagonal (OTTD DrawBridgeMiddle)
+      if (packActive()) for (let x = xa; x <= xb; x++) {
+        const t = tiles[(d - x) * W + x];
+        const dsx = (2 * x - d) * HALF_W;
+        if (t && t.bridgeDeck !== undefined && !(dsx < r.x0 - 64 || dsx > r.x1 + 64)) drawDeckBack(ctx, t, dsx, d * HALF_H, this.heights.tileCorners(x, d - x));
+      }
       // vehicles on this diagonal
       const bucket = this.buckets[d];
       if (bucket && bucket.length) {
@@ -370,7 +378,10 @@ export class Renderer {
           }
         }
         if (tile.oneWay && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawOneWayArrow(ctx, sx, sy, tile.oneWay, tile.road | 0);
-        if (tile.bridgeDeck !== undefined && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawLandBridgeDeck(ctx, tile, sx, sy, this.heights, map, x, y);
+        if (tile.bridgeDeck !== undefined && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) {
+          if (packActive()) drawDeckFront(ctx, tile, sx, (x + y) * HALF_H);
+          else drawLandBridgeDeck(ctx, tile, sx, sy, this.heights, map, x, y);
+        }
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
         if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy);
         if (tile.tram && !tile.rail && (!tile.building || (tile.building.type === 'station' && tile.building.kind === 'tram')) && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawTramWires(ctx, tile, sx, sy, this.heights.tileCorners(x, y));
