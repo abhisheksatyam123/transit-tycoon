@@ -395,12 +395,12 @@ export function reconnectDeadEnds(map, maxLen = tl(15)) {
  * clear the chain, unless the leaf sits near a station/depot (kept) or the chain would reach a station,
  * depot or tunnel. Any length. @returns {number} tiles removed
  */
-export function pruneStubs(map, maxLen = tl(12)) {
+export function pruneStubs(map, maxLen = tl(12), keepNearStation = true) {
   let pruned = 0;
   const sig0 = terminalSignature(map);
   map.tiles.forEach((t, i) => {
     if (!t.rail || !isSurface(t) || degree(map, i) !== 1) return;
-    if (nearStationRail(map, i, tl(2))) return;
+    if (keepNearStation && nearStationRail(map, i, tl(2))) return;
     const chain = [];
     let prev = -1, cur = i, junction = -1;
     for (;;) {
@@ -618,6 +618,8 @@ export function cleanRail(state, bakedRail = null) {
   const prunedTiles = pruneSpurs(map) + pruneStubs(map, tl(25));
   const isolated = pruneIsolatedRail(map);
   const restored = restoreFromBake(map, bakedRail);
+  // restore can re-link a short spur that the first prune removed: prune again (terminal-safe)
+  const prunedAfterRestore = pruneStubs(map, tl(25), false);
   clearDangling(map);
-  return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
+  return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles: prunedTiles + prunedAfterRestore, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
 }
