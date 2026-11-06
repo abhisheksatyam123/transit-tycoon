@@ -121,6 +121,9 @@ const SOUNDS = {
   income: () => { tone('sine', 1320, 1320, 0.08, 0.18); tone('sine', 1760, 1760, 0.12, 0.16, 0.07); },
   error: () => { tone('square', 220, 180, 0.12, 0.15); tone('square', 160, 140, 0.16, 0.15, 0.12); },
   horn: () => { tone('sawtooth', 330, 320, 0.35, 0.12); tone('sawtooth', 415, 405, 0.35, 0.1); },
+  depart_train: () => { noise(0.05, 500, 0.35); tone('triangle', 90, 70, 0.07, 0.22); noise(0.05, 500, 0.3, 0.12); tone('triangle', 95, 75, 0.07, 0.2, 0.14); },
+  depart_road: () => { tone('sawtooth', 70, 60, 0.18, 0.1); noise(0.12, 300, 0.12); },
+  ding: () => { tone('sine', 1568, 1568, 0.4, 0.12); tone('sine', 2093, 2093, 0.5, 0.08, 0.04); },
   news: () => { tone('sine', 660, 660, 0.1, 0.15); tone('sine', 880, 880, 0.1, 0.15, 0.11); tone('sine', 990, 990, 0.16, 0.15, 0.22); },
 };
 
@@ -137,4 +140,26 @@ export function play(name) {
   if (fn) {
     try { fn(); } catch { /* ignore audio errors */ }
   }
+}
+
+/** Vehicle-sound budget: at most this many vehicle sounds per second across all vehicles. */
+const VEH_PER_SEC = 4;
+/** @type {number[]} timestamps (ms) of recent vehicle sounds */
+const vehStamps = [];
+
+/**
+ * Play a vehicle sound (departure, arrival ding) under a global budget of VEH_PER_SEC per second so that
+ * many vehicles don't spam. Callers only pass on-screen events (renderer / arrival events).
+ * @param {'depart_train'|'depart_road'|'ding'} name
+ */
+export function playVehicle(name) {
+  if (muted || !ctx || ctx.state !== 'running') return;
+  const now = performance.now();
+  while (vehStamps.length && now - vehStamps[0] > 1000) vehStamps.shift();
+  if (vehStamps.length >= VEH_PER_SEC) return;
+  if (lastPlayed[name] && now - lastPlayed[name] < 250) return;
+  vehStamps.push(now);
+  lastPlayed[name] = now;
+  const fn = SOUNDS[name];
+  if (fn) { try { fn(); } catch { /* ignore audio errors */ } }
 }

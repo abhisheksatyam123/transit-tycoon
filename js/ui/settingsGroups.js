@@ -53,6 +53,7 @@ export const SETTING_META = [
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */
 export const PREF_META = [
   { id: 'sound', group: 'interface', label: 'Sound effects', help: 'Build and vehicle sounds. Same as the toolbar sound button (M).' },
+  { id: 'fx', group: 'interface', label: 'Vehicle effects', help: 'Smoke, sparks and wakes from trains, buses, trucks and ships. Off = no vehicle particles.' },
   { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', help: 'Use the OpenGFX sprite pack. Off = procedural drawing. Same as K.' },
 ];
 

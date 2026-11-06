@@ -10,7 +10,7 @@ import { Toasts } from './toast.js';
 import { createTools } from './tools/index.js';
 import { openWindow } from './windows/index.js';
 import { signedMoney, money } from './format.js';
-import { play } from '../audio/sfx.js';
+import { play, playVehicle } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
 import { createGameFast } from './scenarioSnapshot.js';
 import { checkBankruptcy } from './bankruptcy.js';
@@ -55,6 +55,7 @@ export class App {
       this.renderer.addFloatingText(e.x, e.y, signedMoney(amt), amt >= 0 ? '#4ade80' : '#f87171');
       if (amt > 0) play('income');
     });
+    on('vehicleArrived', () => playVehicle('ding'));
     on('news', (n) => {
       const d = newsDisplay(newsLevel(loadNewsPrefs(), newsCategoryOf(n)));
       if (d.sound) play('news');

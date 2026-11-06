@@ -8,6 +8,7 @@ import { allSettings, setSetting, DEFAULT_SETTINGS } from '../../simulation/sett
 import { SETTING_GROUPS, SETTING_META, PREF_META, isChanged, matchesQuery } from '../settingsGroups.js';
 import { isMuted, setMuted } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
+import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -55,11 +56,12 @@ export function openSettings(app) {
           for (const p of PREF_META) {
             const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
             if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); app.ui.refreshToolbar?.(); });
+            else if (p.id === 'fx') i.addEventListener('change', () => { setFxOn(i.checked); });
             else i.addEventListener('change', () => { togglePack(app.renderer); });
             const row = el('div.set-row', null, el('label.set-line', { title: p.help }, i, el('span.set-label', { text: p.label })), el('span.set-help.muted', { text: p.help }));
             const item = { label: p.label, help: p.help, group: g.id };
             rows.push({ item, row, pref: true, sync: () => {
-              i.checked = p.id === 'sound' ? !isMuted() : savedGfxMode() === 'ogfx';
+              i.checked = p.id === 'sound' ? !isMuted() : p.id === 'fx' ? isFxOn() : savedGfxMode() === 'ogfx';
             } });
             inner.push(row);
           }

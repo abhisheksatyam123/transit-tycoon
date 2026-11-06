@@ -16,6 +16,7 @@ import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
 import { OVERLAY } from './palette.js';
 import { Smoke } from './particles.js';
+import { VehicleFx } from './vehicleFx.js';
 import { SMOKE } from './sprites/buildings.js';
 import { P } from './sprites/shapes.js';
 import { setSpriteLod } from './sprites/canvas.js';
@@ -41,6 +42,8 @@ export class Renderer {
     this.overlay = createOverlayState();
     this.floating = new FloatingTexts();
     this.smoke = new Smoke();
+    /** vehicle effects by type (vehicleFx.js); render-only */
+    this.vfx = new VehicleFx();
     this.frame = 0;
     this.dpr = 1;
     /** metro schematic overlay (key J); tunnel trains are shown only while on */
@@ -278,6 +281,7 @@ export class Renderer {
     const range = cam.visibleTileRange();
     const smokeOn = (this.frame & 7) === 0;
     const selV = this.overlay.selectedVehicleId;
+    this.vfx.begin(tiles, W, this.frame);
 
     // ground + transport come from cached chunks (below everything else)
     this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
@@ -308,7 +312,7 @@ export class Renderer {
           drawSegment(ctx, s, p.x, p.y, s._vid === selV);
           const scr = cam.worldToScreen(p.x, p.y - 6);
           this.segScreen.push({ x: scr.x, y: scr.y, id: s._vid });
-          if (smokeOn && s.part === 'loco' && s._run) this.smoke.emit(p.x, p.y - 14, 2, false);
+          this.vfx.segment(this.smoke, s, p.x, p.y, smokeOn);
         }
       }
       // road traffic on this diagonal
