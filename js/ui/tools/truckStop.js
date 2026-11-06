@@ -9,7 +9,7 @@ export function createTruckStopTool(app) {
   return createPlacementTool(app, {
     id: 'truckStop', label: 'Truck Stop', catchment: 3,
     hint: () => 'Truck stop: click a straight road tile (freight).',
-    command: (g, x, y, opts) => g.buildRoadStop(x, y, 'truck', opts),
+    command: (g, x, y, opts) => g.buildRoadStop(x, y, 'truck', { ...(opts || {}), player: true }),
     footprint: (x, y) => [{ x, y }],
   });
 }

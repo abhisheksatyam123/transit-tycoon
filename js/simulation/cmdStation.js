@@ -8,7 +8,8 @@ import { getTile, inBounds } from './map.js';
 import { spend } from './economy.js';
 import { straightAxis } from './network.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, canAddBits } from './trackRules.js';
-import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
+import { createStation, adjacentStations, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
+import { DEFAULT_STYLE, styleAvailable, styleById } from '../config/stationTypes.js';
 import { allocId, findStation } from './state.js';
 import { stationTileBits } from './stationLinks.js';
 import { refusalAt } from './townAuthority.js';
@@ -31,8 +32,11 @@ export function vehicleOnTile(state, x, y) {
 }
 
 /**
- * Build a rail station of `length` tiles along `axis` starting at (x,y) (extending +x or +y).
- * Tiles may be empty land or straight rail along the axis. Adjacent own station tiles merge.
+ * Build a rail station of `length` tiles along `axis` starting at (x,y) (extending +x or +y),
+ * as `opts.platforms` parallel platforms (default 1, stacked on the perpendicular axis) in one
+ * command. Tiles may be empty land or straight rail along the axis. Adjacent own station tiles
+ * merge, unless the merged station would exceed STATION_SPREAD (refused).
+ * `opts.style` picks a station style (config/stationTypes.js) available in the current year.
  * @returns {{ok:true,cost:number,stationId:number}|{ok:false,error:string}}
  */
 export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
@@ -40,8 +44,16 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   const map = state.map;
   if (axis !== 'x' && axis !== 'y') return { ok: false, error: 'Invalid axis' };
   length = Math.max(1, Math.min(10, Math.floor(length) || 1));
+  const platforms = Math.max(1, Math.min(6, Math.floor(opts.platforms) || 1));
+  const style = opts.style && opts.style !== DEFAULT_STYLE ? opts.style : null;
+  if (style && !styleAvailable('rail', style, state.date.year)) return { ok: false, error: 'Station style not available' };
+  const factor = style ? styleById('rail', style).costFactor : 1;
   const tiles = [];
-  for (let i = 0; i < length; i++) tiles.push(axis === 'x' ? { x: x + i, y } : { x, y: y + i });
+  for (let p = 0; p < platforms; p++) {
+    for (let i = 0; i < length; i++) {
+      tiles.push(axis === 'x' ? { x: x + i, y: y + p } : { x: x + p, y: y + i });
+    }
+  }
   const last = tiles[tiles.length - 1];
   if (!coordsOk(map, x, y, last.x, last.y)) return { ok: false, error: ERR.bounds };
   const refused = refusalAt(state, x, y);
@@ -55,21 +67,28 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
     if (t.rail && straightAxis(t.rail) !== axis) return { ok: false, error: ERR.track };
     cost += COSTS.railStation + clearingCost(t);
   }
-  cost = constructionTotal(state, cost);
+  cost = constructionTotal(state, factor === 1 ? cost : Math.round(cost * factor));
   const money = checkMoney(state, cost);
   if (money) return money;
-  const existing = adjacentStation(state, tiles);
+  // Merge rule unchanged: join the first adjacent station. Player builds (opts.player) are refused
+  // when that merge would exceed STATION_SPREAD; scenario code is not limited.
+  const existing = adjacentStations(state, tiles)[0] || null;
+  if (opts.player && existing && !spreadOk(existing, tiles)) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);
   invalidateBlocks(ctx.state);
   tiles.forEach((p, i) => {
     const t = map.tiles[p.y * map.width + p.x];
     clearTerrain(t);
-    t.rail = (t.rail | stationTileBits(axis, i, tiles.length)) & 0xf;
+    const idx = i % length;
+    t.rail = (t.rail | stationTileBits(axis, idx, length)) & 0xf;
     delete t.signal; // a signal cannot stay on a station tile
     t.building = { type: 'station', stationId: st.id, kind: 'rail', axis };
+    if (style) t.building.style = style;
     t.owner = 'company';
-    st.tiles.push({ x: p.x, y: p.y, kind: 'rail' });
+    const rec = { x: p.x, y: p.y, kind: 'rail' };
+    if (style) rec.style = style;
+    st.tiles.push(rec);
   });
   refreshKinds(st);
   recomputeAcceptance(state, st);
@@ -98,11 +117,15 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
     axis = straightAxis(t.road);
     if (!axis) return { ok: false, error: 'Road stops need a straight road' };
   } else axis = opts.axis === 'y' ? 'y' : 'x';
+  const style = opts.style && opts.style !== DEFAULT_STYLE ? opts.style : null;
+  if (style && !styleAvailable(kind, style, state.date.year)) return { ok: false, error: 'Station style not available' };
   let cost = COSTS.roadStop + clearingCost(t);
+  if (style) cost = Math.round(cost * styleById(kind, style).costFactor);
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
-  const existing = adjacentStation(state, [{ x, y }]);
+  const existing = adjacentStations(state, [{ x, y }])[0] || null;
+  if (opts.player && existing && !spreadOk(existing, [{ x, y }])) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);
   clearTerrain(t);
@@ -115,8 +138,9 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
     }
   }
   t.building = { type: 'station', stationId: st.id, kind, axis };
+  if (style) t.building.style = style;
   if (!t.owner) t.owner = 'company';
-  st.tiles.push({ x, y, kind });
+  st.tiles.push(style ? { x, y, kind, style } : { x, y, kind });
   refreshKinds(st);
   recomputeAcceptance(state, st);
   spend(state.company, 'construction', cost);

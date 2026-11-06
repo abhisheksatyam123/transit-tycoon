@@ -2,6 +2,7 @@
  * Stations: creation/merge, catchment, coverage index, acceptance and ratings.
  */
 import { CATCHMENT, ACCEPT_THRESHOLD, TICKS_PER_DAY, DIRS } from './constants.js';
+import { tileRadius } from '../config/stationTypes.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { allocId, findStation } from './state.js';
 import { stationName } from './naming.js';
@@ -54,7 +55,7 @@ export function catchmentTiles(state, st) {
   if (!st || st.tiles.length === 0) return [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const t of st.tiles) {
-    const r = t.radius ?? CATCHMENT[t.kind] ?? 3;
+    const r = t.radius ?? tileRadius(t) ?? CATCHMENT[t.kind] ?? 3;
     x0 = Math.min(x0, t.x - r); y0 = Math.min(y0, t.y - r);
     x1 = Math.max(x1, t.x + r); y1 = Math.max(y1, t.y + r);
   }
@@ -64,7 +65,7 @@ export function catchmentTiles(state, st) {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       for (const t of st.tiles) {
-        const r = t.radius ?? CATCHMENT[t.kind] ?? 3;
+        const r = t.radius ?? tileRadius(t) ?? CATCHMENT[t.kind] ?? 3;
         if (Math.abs(t.x - x) <= r && Math.abs(t.y - y) <= r) { out.push({ x, y }); break; }
       }
     }
@@ -224,4 +225,43 @@ export function markPickup(state, st, cargoId, speedKmh) {
 /** Tiles of the station of the given kind. */
 export function stationTilesOfKind(st, kind) {
   return st.tiles.filter((t) => t.kind === kind);
+}
+
+/** Max bounding-box side (tiles) of one station (OpenTTD station_spread default). */
+export const STATION_SPREAD = 12;
+
+/**
+ * True when the bounding box of a station's tiles plus `extra` fits in STATION_SPREAD.
+ * @param {{tiles:{x:number,y:number}[]}} st station record (may be null: only `extra`)
+ * @param {{x:number,y:number}[]} extra tiles about to be added
+ */
+export function spreadOk(st, extra) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const all = [...(st ? st.tiles : []), ...extra];
+  for (const p of all) {
+    x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+    x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+  }
+  return x1 - x0 + 1 <= STATION_SPREAD && y1 - y0 + 1 <= STATION_SPREAD;
+}
+
+/**
+ * Own stations 4-adjacent to any of the tiles (deduplicated, in scan order).
+ * @returns {object[]}
+ */
+export function adjacentStations(state, tiles) {
+  const { map } = state;
+  const out = [];
+  for (const p of tiles) {
+    for (const d of DIRS) {
+      const nx = p.x + d.dx, ny = p.y + d.dy;
+      if (!inBounds(map, nx, ny)) continue;
+      const b = map.tiles[ny * map.width + nx].building;
+      if (b && b.type === 'station') {
+        const st = findStation(state, b.stationId);
+        if (st && !out.includes(st)) out.push(st);
+      }
+    }
+  }
+  return out;
 }
