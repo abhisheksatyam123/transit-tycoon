@@ -62,17 +62,24 @@ export function buildAirport(ctx, x, y, opts = {}) {
   }
   const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   if (!existing) st.name = airportName(state, x, y, type.name);
-  const depotTile = tiles.find((p) => p.part === type.depotPart);
-  const depotId = allocId(state);
-  const depot = { id: depotId, kind: 'air', x: depotTile.x, y: depotTile.y, dir: 4 };
-  if (tagged) depot.airportType = typeId;
-  state.depots.push(stampOwner(state, depot, opts.owner ?? null));
+  // one air depot per hangar tile (international: two); the first one is the build's depotId
+  const depotIds = new Map();
+  let depotId = null;
+  for (const p of tiles) {
+    if (p.part !== type.depotPart) continue;
+    const id = allocId(state);
+    if (depotId === null) depotId = id;
+    depotIds.set(`${p.x},${p.y}`, id);
+    const depot = { id, kind: 'air', x: p.x, y: p.y, dir: 4 };
+    if (tagged) depot.airportType = typeId;
+    state.depots.push(stampOwner(state, depot, opts.owner ?? null));
+  }
   for (const p of tiles) {
     const t = map.tiles[p.y * map.width + p.x];
     clearTerrain(t);
     const building = { type: 'station', stationId: st.id, kind: 'airport', part: p.part, dx: p.dx, dy: p.dy };
     if (tagged) building.airportType = typeId;
-    if (p.part === type.depotPart) building.depotId = depotId;
+    if (p.part === type.depotPart) building.depotId = depotIds.get(`${p.x},${p.y}`);
     t.building = building;
     t.owner = opts.owner != null ? 'rival' : 'company'; // rival airport tiles: no player upkeep (economy.js)
     st.tiles.push({ x: p.x, y: p.y, kind: 'airport' });
@@ -120,5 +127,5 @@ export function demolishAirport(ctx, ox, oy) {
     removeStationTile(ctx, x, y);
     t.building = null; t.owner = null;
   }
-  for (const d of state.depots.filter((q) => q.kind === 'air' && q.x === ox && q.y === oy)) removeDepot(ctx, d.id);
+  for (const d of state.depots.filter((q) => q.kind === 'air' && q.x >= ox && q.x < ox + type.w && q.y >= oy && q.y < oy + type.h)) removeDepot(ctx, d.id);
 }

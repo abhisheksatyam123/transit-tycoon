@@ -8,7 +8,7 @@
  *  - commuter:     5x4 (OTTD), from 1983, catchment 4. Small planes and helicopters.
  *  - metropolitan: 6x6 (OTTD), from 1980, catchment 6. All planes and helicopters.
  *  - international: 7x7 (OTTD), from 1990, catchment 8. All planes and helicopters (OTTD's second hangar is
- *                  not modelled: one depot per airport).
+ *                  two hangars, one at each end of the footprint (OTTD's second hangar).
  *  - helidepot:    2x2 (OTTD), from 1976, catchment 4. Helicopters only, hangar + helipad.
  *  - helistation:  4x2 (OTTD), from 1980, catchment 4. Helicopters only, hangar + helipads.
  * The FTA state machine of OpenTTD is not ported: every type reuses the aircraft movement in aircraft.js.
@@ -74,13 +74,14 @@ const METRO_LAYOUT = gridLayout([
   'AAAAAA',
   'AAAAAA',
 ]);
+// two hangars (OTTD international has two air depots): top-left and bottom-left
 const INTERNATIONAL_LAYOUT = gridLayout([
   'HAAATTW',
   'AAAATTT',
   'RRRRRRR',
   'AAAAAAA',
   'AAAAAAA',
-  'AAAAAAA',
+  'HAAAAAA',
   'AAAAAAA',
 ]);
 const HELIDEPOT_LAYOUT = gridLayout([

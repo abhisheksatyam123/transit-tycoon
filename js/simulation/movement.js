@@ -14,6 +14,7 @@ import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { isHelicopter } from './airportTypes.js';
+import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
@@ -70,7 +71,7 @@ export function vehicleTick(ctx, v) {
     case 'running':
       if (v.kind === 'ship') { moveShip(ctx, v); return; }
       move(ctx, v);
-      if (v.kind === 'aircraft') v.alt = altitudeAt(v, isHelicopter(v));
+      if (v.kind === 'aircraft') { v.alt = altitudeAt(v, isHelicopter(v)); if (v.hold) v.alt = 1; } // holding: cruise height
       return;
     default:
   }
@@ -334,10 +335,22 @@ function onPathEnd(ctx, v) {
     return;
   }
   const order = currentOrder(v);
+  if (v.kind === 'aircraft' && v.hold && (v.tx !== v.hold.x || v.ty !== v.hold.y)) { // holding loop corner
+    const hst = order && findStation(state, order.stationId);
+    const ab = state.map.tiles[v.hold.y * state.map.width + v.hold.x].building;
+    if (hst && ab && airSlotFree(state, v, hst, ab)) { delete v.hold; replan(ctx, v); return; }
+    holdFlyLeg(state, v, v.hold.x, v.hold.y);
+    return;
+  }
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);
     if (st && stopMode(order) === 'via') { advanceOrder(v); replan(ctx, v); return; } // go via: reached, no stop
     if (st) {
+      if (v.kind === 'aircraft') { // no free terminal (or runway busy): circle until there is one
+        if (!airSlotFree(state, v, st, b)) { holdFlyLeg(state, v, v.tx, v.ty); return; }
+        delete v.hold;
+        airTookRunway(state, v, st);
+      }
       if (v.kind === 'aircraft' && maybeCrashLanding(ctx, v, st)) return; // landing crash: vehicle removed
       arriveAtStation(ctx, v, st); return;
     }
