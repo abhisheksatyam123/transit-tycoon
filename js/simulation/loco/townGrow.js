@@ -159,6 +159,44 @@ function buildInitialRoad(game, town) {
   return false;
 }
 
+/**
+ * M3 (Moscow only): monthly repair of a town's core road network. Any core road piece that is not on
+ * the town's largest network piece is joined to it by a short road (<= REPAIR_MAX_LEN tiles), mirroring
+ * OpenTTD towns that only grow from connected road. Returns the number of joins laid.
+ */
+const REPAIR_MAX_LEN = 24;
+export function repairTownRoads(state, town, labels) {
+  const { map } = state;
+  const W = map.width, R = TOWN_CORE_RADIUS, R2 = R * R;
+  const inCore = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= R2;
+  const count = new Map();
+  for (let y = town.y - R; y <= town.y + R; y++) for (let x = town.x - R; x <= town.x + R; x++) {
+    if (x < 0 || y < 0 || x >= W || y >= map.height || !inCore(x, y)) continue;
+    const l = labels[y * W + x];
+    if (l >= 0) count.set(l, (count.get(l) || 0) + 1);
+  }
+  if (count.size < 2) return 0;
+  let main = -1, best = -1;
+  for (const [l, c] of count) if (c > best || (c === best && l < main)) { best = c; main = l; }
+  const prot = protectedTiles(state);
+  const allowed = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= 4 * R2 && !(prot && prot[y * W + x]);
+  let joins = 0;
+  for (const [l] of count) {
+    if (l === main) continue;
+    const sources = [], goals = new Set();
+    for (let y = town.y - 2 * R; y <= town.y + 2 * R; y++) for (let x = town.x - 2 * R; x <= town.x + 2 * R; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= map.height || (x - town.x) ** 2 + (y - town.y) ** 2 > 4 * R2) continue;
+      const i = y * W + x;
+      if (labels[i] === l && map.tiles[i].road) sources.push({ x, y });
+      else if (labels[i] === main && map.tiles[i].road) goals.add(i);
+    }
+    if (!sources.length || !goals.size) continue;
+    const path = findRoadPath(map, sources, goals, { x: town.x, y: town.y }, allowed);
+    if (path && path.length <= REPAIR_MAX_LEN) { layRoadPath(state, path); joins++; }
+  }
+  return joins;
+}
+
 /** constructBuilding: house (or upgrade) on a random side of the road tile (x, y) heading `dir`. */
 function constructBuilding(game, town, x, y, dir) {
   const { state, rng } = game;

@@ -5,6 +5,8 @@
  * called from TileManager.tick on the day change because StationManager (R12a) has no town link.
  */
 import { rollTownStats } from '../townGrowth.js';
+import { repairTownRoads } from './townGrow.js';
+import { labelComponents } from '../diagIssue.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
 import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown } from './town.js';
@@ -21,7 +23,10 @@ export function tick(game) {
 /** TownManager::updateMonthly: Town::updateMonthly for every town. */
 export function updateMonthly(game) {
   const s = game.state;
+  // M3 (Moscow only): keep each town's core roads on one network (see townGrow.repairTownRoads)
+  let labels = s.scenario === 'moscow' ? labelComponents(s.map, 'road', () => true) : null;
   for (const town of s.towns) {
+    if (labels && repairTownRoads(s, town, labels)) labels = labelComponents(s.map, 'road', () => true);
     updateMonthlyTown(town);
     if (town.fundMonths > 0) town.buildSpeed = FUND_BUILD_SPEED; // fund new buildings (townAuthority.js)
     rollTownStats(s, town);
