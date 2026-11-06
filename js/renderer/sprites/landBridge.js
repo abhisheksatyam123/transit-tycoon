@@ -14,8 +14,9 @@ export function drawLandBridgeDeck(ctx, tile, sx, groundSy, heights, map, x, y) 
   const deckSy = (x + y) * HALF_H - h * HEIGHT_STEP;
   const groundY = (x + y) * HALF_H - gh * HEIGHT_STEP;
 
-  const onRoad = !tile.rail && !!tile.road; // road bridge: road surface on the deck, same pillars
-  const axis = straightAxis(onRoad ? tile.road : tile.rail) || ((onRoad ? tile.road : tile.rail) === 5 ? 'x' : 'y');
+  const onRoad = tile.overBridge ? tile.overBridge === 'road' : (!tile.rail && !!tile.road); // road bridge: road surface on the deck, same pillars
+  const deckBits = onRoad ? tile.road : tile.rail;
+  const axis = straightAxis(deckBits) || (deckBits === 5 ? 'x' : 'y');
 
   // 1. Pillars down to the ground
   ctx.save();
@@ -56,7 +57,7 @@ export function drawLandBridgeDeck(ctx, tile, sx, groundSy, heights, map, x, y) 
 
   // 3. Rails at height h (flat)
   const c = [h, h, h, h];
-  const s = onRoad ? roadSprite(tile.road, 3, 0) : railSprite(tile.rail);
+  const s = onRoad ? roadSprite(deckBits, 3, 0) : railSprite(deckBits);
   if (s) {
     drawSloped(ctx, s, sx, (x + y) * HALF_H, c);
   }

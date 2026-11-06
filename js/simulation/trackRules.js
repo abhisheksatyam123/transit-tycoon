@@ -19,6 +19,7 @@ export const ERR = {
   track: 'Track or road in the way',
   vehicle: 'Vehicle in the way',
   tunnel: 'Tunnel in the way: build beside it or at its portals',
+  bridge: 'Bridge in the way: build beside it or at its ends',
 };
 
 /**
@@ -27,6 +28,7 @@ export const ERR = {
  */
 export function canAddBits(tile, layer, bits, deck = false) {
   if (!tile) return ERR.bounds;
+  if (tile.overBridge) return ERR.bridge;
   if (tile.terrain === 'water' && !deck) return ERR.water;
   // a tunnel's underground run takes no surface track; a portal only continues along its own axis
   if (tile.playerTunnel && tile.tunnel && bits) return ERR.tunnel;

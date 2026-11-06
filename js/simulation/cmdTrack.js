@@ -449,7 +449,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   applyDemolishPenalty(state, jobs);
   for (const j of jobs) {
     const t = map.tiles[j.y * map.width + j.x];
-    delete t.oneWay; // T42: demolished tiles lose their one-way flag
+    if (!t.overBridge) delete t.oneWay; // T42: demolished tiles lose their one-way flag (ground track under a deck keeps it)
     if (j.kind === 'depot') {
       const layer = t.building.kind;
       removeDepot(ctx, t.building.depotId);
@@ -472,6 +472,14 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else if (j.kind === 'tram') {
       stripLayer(map, j.x, j.y, 'tram'); // a road tile keeps its road; only the tram bits go
     } else if (j.kind === 'track') {
+      if (t.overBridge) {
+        // OpenTTD-style: the deck above ground track goes, the ground track of the other layer stays
+        const ol = t.overBridge;
+        delete t.overBridge; delete t.bridgeDeck; delete t.playerBridge;
+        if (ol === 'rail') { delete t.signal; delete t.elec; }
+        stripLayer(map, j.x, j.y, ol);
+        continue;
+      }
       delete t.signal;
       delete t.elec;
       if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }

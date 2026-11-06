@@ -17,6 +17,8 @@ import { invalidateBlocks } from './signals.js';
  * - Length n >= 3
  * - First and last tiles are the heads: equal height h, land, free or carrying straight track on that axis
  * - Every tile between is land (or water) with height < h, and free (no building, industry, station, depot, track, road)
+ *   of the bridge's own layer. Ground track of the other layer (road under a rail bridge, rail under a road bridge) may
+ *   be crossed at any height not above h; the deck then sits on tile[layer] and tile.overBridge = layer.
  * - Max length MAX_BRIDGE_LENGTH
  * @param {object} map
  * @param {{x:number,y:number}[]} pts
@@ -43,22 +45,38 @@ export function planLandBridge(map, pts, layer = 'rail') {
   const h = a.height;
 
   for (const t of [a, b]) {
-    if (t.building || t[other] || (t[layer] & ~AXIS_BITS[axis])) {
+    if (t.building || t[other] || t.overBridge || (t[layer] & ~AXIS_BITS[axis])) {
       return { ok: false, error: 'Bridge heads need a free tile or straight track on the axis' };
     }
   }
 
   const deck = new Set();
+  const over = new Map(); // tile index -> bridge layer, for deck tiles above ground track of the other layer
   for (let k = 1; k < n - 1; k++) {
     const t = tiles[k];
     if (t.building) return { ok: false, error: 'Bridge is blocked by a building' };
-    if (t.rail || t.road) return { ok: false, error: 'Bridge is blocked by track or road' };
-    if (t.height >= h) return { ok: false, error: 'Bridge must run higher than the valley floor' };
-    deck.add(pts[k].y * map.width + pts[k].x);
+    if (t[layer]) return { ok: false, error: 'Bridge is blocked by track or road' };
+    if (t.tunnel || t.playerTunnel) return { ok: false, error: 'Bridge is blocked by a tunnel' };
+    if (t.bridgeDeck !== undefined || t.playerBridge) return { ok: false, error: 'Bridge is blocked by another bridge' };
+    const i = pts[k].y * map.width + pts[k].x;
+    if (t[other]) {
+      // OpenTTD-style: the deck runs over ground track of the other layer; that tile keeps its own track
+      if (t.height >= h) return { ok: false, error: 'Bridge must clear the road or track below' };
+      over.set(i, layer);
+    } else if (t.height >= h) {
+      return { ok: false, error: 'Bridge must run higher than the valley floor' };
+    }
+    deck.add(i);
   }
 
-  return { ok: true, deck, height: h };
+  return { ok: true, deck, over, height: h };
 }
+
+/**
+ * Layer of the bridge deck on a tile that also carries ground track of the other layer ('rail'|'road'), else null.
+ * Only set for deck tiles over a road or rail (OpenTTD-style); valley and water decks have no overBridge.
+ */
+export const overBridgeLayer = (t) => (t && t.bridgeDeck !== undefined && t.overBridge) || null;
 
 /** A tile belongs to a player-built land bridge deck or head. */
 export const isPlayerLandBridge = (t) => !!(t && (t.playerBridge || t.bridgeDeck !== undefined));
@@ -74,7 +92,7 @@ export const isPlayerLandBridge = (t) => !!(t && (t.playerBridge || t.bridgeDeck
 export function landBridgeCells(map, x, y) {
   const t = map.tiles[y * map.width + x];
   if (!t || !isPlayerLandBridge(t)) return [];
-  const layer = t.rail ? 'rail' : 'road';
+  const layer = overBridgeLayer(t) || (t.rail ? 'rail' : 'road');
   if (!t[layer]) return [];
 
   const axis = straightAxis(t[layer]);
@@ -160,8 +178,12 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     clearTerrain(t);
     t[layer] |= bits;
     t.playerBridge = 1;
-    if (plan.deck.has(i)) {
-      t.bridgeDeck = plan.height;
+    if (plan.deck.has(i)) t.bridgeDeck = plan.height;
+    if (plan.over.has(i)) {
+      // ground track of the other layer stays as it is; the deck is only added above it
+      t.overBridge = plan.over.get(i);
+      if (!t.owner) t.owner = 'company';
+      continue;
     }
     delete t.signal;
     if (!t.owner) t.owner = 'company';

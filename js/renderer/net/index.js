@@ -19,8 +19,9 @@ const cache = new WeakMap();
 export const RIBBON_MARGIN = 0.5;
 
 function bitsOf(t, kind) {
-  if (kind === 'rail') return (t.tunnel || t.bridgeDeck !== undefined) ? 0 : (t.rail | 0);
-  return t.road | 0;
+  // OpenTTD-style deck over track (tile.overBridge = deck layer): the deck is drawn apart, the ground track stays
+  if (kind === 'rail') return (t.tunnel || (t.bridgeDeck !== undefined && t.overBridge !== 'road')) ? 0 : (t.rail | 0);
+  return t.overBridge === 'road' ? 0 : (t.road | 0);
 }
 
 /**

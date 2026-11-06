@@ -78,7 +78,7 @@ export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
 
 /** Tram rails go on top of every road surface (incl. smooth net ribbons): the ground cache calls this last. */
 export function drawTramOverlay(ctx, tile, sx, sy, c) {
-  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot') && tile.bridgeDeck === undefined) drawTramRails(ctx, tile, sx, sy, c);
+  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot') && (tile.bridgeDeck === undefined || tile.overBridge === 'rail')) drawTramRails(ctx, tile, sx, sy, c);
 }
 
 /** Edge (corner pair) per direction bit for the corner heights [hN,hE,hS,hW]. */
@@ -117,6 +117,10 @@ export function drawTramRails(ctx, tile, sx, sy, c = [0, 0, 0, 0]) {
 
 /** Road/rail/station ground of a tile (the body of drawTransport). */
 function drawTransportBase(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
+  if (tile.overBridge) {
+    // deck over ground track: only the ground layer is drawn here, the deck by drawLandBridgeDeck (objects pass)
+    return drawTransportBase(ctx, { ...tile, [tile.overBridge]: 0, bridgeDeck: undefined, overBridge: undefined }, sx, sy, c, map, x, y);
+  }
   if (tile.bridgeDeck !== undefined) return; // drawn as elevated deck by drawLandBridgeDeck in objects pass
   // smooth net ribbons draw this road/rail surface (drawNetTile); terrain already drew the ground
   if (map && netDrawsSurface(map, tile, x, y)) return;
