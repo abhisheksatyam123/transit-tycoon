@@ -18,6 +18,8 @@ export const TOOL_BUTTONS = [
   ['demolish', 'Demolish', 'demolish', '8'],
   ['query', 'Query', 'query', '9'],
   ['airport', 'Airport', 'airport', '0'],
+  ['terraform', 'Terraform', 'terraform', 'Z'],
+  ['plant', 'Plant trees', 'plant', 'Y'],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */

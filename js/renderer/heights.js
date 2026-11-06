@@ -33,21 +33,32 @@ export class Heights {
 
   /** Recompute all vertex heights from the current tile heights/terrain. */
   rebuild() {
+    for (let cy = 0; cy <= this.H; cy++) for (let cx = 0; cx <= this.W; cx++) this.vertex(cx, cy);
+  }
+
+  /** Recompute one vertex from its four surrounding tiles. */
+  vertex(cx, cy) {
     const { W, H, cw, data } = this;
     const tiles = this.map.tiles;
-    for (let cy = 0; cy <= H; cy++) {
-      for (let cx = 0; cx <= W; cx++) {
-        let water = false;
-        for (let dy = -1; dy <= 0 && !water; dy++) {
-          for (let dx = -1; dx <= 0; dx++) {
-            const x = cx + dx, y = cy + dy;
-            if (x < 0 || y < 0 || x >= W || y >= H) continue;
-            if (tiles[y * W + x].terrain === 'water') { water = true; break; }
-          }
-        }
-        const t = tiles[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];
-        data[cy * cw + cx] = water ? 0 : t.height;
+    let water = false;
+    for (let dy = -1; dy <= 0 && !water; dy++) {
+      for (let dx = -1; dx <= 0; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        if (tiles[y * W + x].terrain === 'water') { water = true; break; }
       }
+    }
+    const t = tiles[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];
+    data[cy * cw + cx] = water ? 0 : t.height;
+  }
+
+  /**
+   * Recompute the vertices touched by tile rectangle x0..x1, y0..y1 (after terraforming).
+   * Tile (x,y) feeds vertices (x..x+1, y..y+1), so the range is widened by one vertex on the far side.
+   */
+  refreshArea(x0, y0, x1, y1) {
+    for (let cy = Math.max(0, y0); cy <= Math.min(this.H, y1 + 1); cy++) {
+      for (let cx = Math.max(0, x0); cx <= Math.min(this.W, x1 + 1); cx++) this.vertex(cx, cy);
     }
   }
 

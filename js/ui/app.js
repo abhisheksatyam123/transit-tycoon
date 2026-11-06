@@ -203,6 +203,8 @@ export class App {
       this.renderer.addFloatingText(o.x, o.y, signedMoney(-res.cost), '#fca5a5');
     }
     this.minimap.lastBase = -Infinity;
+    // terraform: vertex heights are cached in Heights; refresh the touched area before the chunk rebuild
+    if (res.area && this.renderer.heights) { const a = res.area; this.renderer.heights.refreshArea(a.x0, a.y0, a.x1, a.y1); }
     this.renderer.invalidateGround();
     return true;
   }

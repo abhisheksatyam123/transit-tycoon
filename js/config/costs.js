@@ -8,6 +8,10 @@ export const COSTS = {
   depotRoad: 900,
   clearForest: 60,
   clearRock: 120,
+  /** terraform: per height level moved on one tile corner (raise/lower/level, neighbours included) */
+  terraformStep: 60,
+  /** plant trees: per grass tile turned into forest */
+  plantTree: 25,
   demolishTrack: 40,
   demolishStation: 300,
   demolishDepot: 400,

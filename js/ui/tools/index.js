@@ -12,6 +12,7 @@ import { createDepotTool } from './depot.js';
 import { createDemolishTool } from './demolish.js';
 import { createQueryTool } from './query.js';
 import { createAirportTool } from './airport.js';
+import { createTerraformTool, createPlantTool } from './terraform.js';
 
 /**
  * @typedef {Object} Tool
@@ -42,5 +43,7 @@ export function createTools(app) {
     demolish: createDemolishTool(app),
     query: createQueryTool(app),
     airport: createAirportTool(app),
+    terraform: createTerraformTool(app),
+    plant: createPlantTool(app),
   };
 }

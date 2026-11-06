@@ -14,6 +14,7 @@ import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
+import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import * as vcmd from './cmdVehicle.js';
@@ -146,6 +147,10 @@ export class Game {
   /** Build a road along a shape path. opts: { highway?: boolean } */
   buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }); }
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
+  /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */
+  terraform(op, rect, opts) { return terraform(this.ctx, op, rect, opts); }
+  estimateTerraform(op, rect) { return estimateTerraform(this.state, op, rect); }
+  planTerraform(op, rect) { return planTerraform(this.state, op, rect); }
   buildRailStation(x, y, axis, length, opts) { return buildRailStation(this.ctx, x, y, axis, length, opts); }
   buildRoadStop(x, y, kind, opts) { return buildRoadStop(this.ctx, x, y, kind, opts); }
   buildDepot(x, y, kind, dir, opts) { return buildDepot(this.ctx, x, y, kind, dir, opts); }

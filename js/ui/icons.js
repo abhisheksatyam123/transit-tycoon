@@ -16,6 +16,8 @@ const PATHS = {
   truck: '<path d="M2 6h11v10H2zM13 9h4l3 4v3h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="16" cy="18" r="2"/>',
   railDepot: '<path d="M3 21V9l9-6 9 6v12M8 21v-7h8v7M8 17.5h8"/>',
   roadDepot: '<path d="M3 21V9l9-6 9 6v12M7 21v-8h10v8M10 13v8M14 13v8"/>',
+  terraform: '<path d="M2 19l5-7 4 4 3-4 8 7zM2 21h20"/><path d="M12 3v5M9.5 5.5L12 3l2.5 2.5"/>',
+  plant: '<path d="M12 21v-7M12 14c-4 0-6-3-6-6 3 0 6 2 6 6zM12 12c3 0 5-3 5-6-3 0-5 2-5 6z"/><path d="M6 21h12"/>',
   demolish: '<path d="M14 4l6 6-9 9H5v-6zM4 21h16M11 7l6 6"/>',
   query: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M11 8v.01M11 11v3"/>',
   vehicles: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17" cy="18" r="1.5"/>',

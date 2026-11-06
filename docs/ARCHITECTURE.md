@@ -250,3 +250,12 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - Frame budget: ground chunks build within `BUILD_BUDGET_MS` per frame (placeholder diamond until built, `renderer/groundCache.js`); the Issues badge scan is cached per month and rescanned in idle time (`ui/diagCache.js`); toolbar density adapts to its content width (`ui/toolbar.js fitToolbar`).
 - Moscow day-0 snapshot (W8): the default Moscow game (scenario moscow, seed 1, other options at defaults) is prebaked to `assets/scenarios/moscow-day0.json` (+ `.meta.json` with sha256) by `bun run snapshot:moscow` (`tools/moscow/snapshot.js`). `js/ui/scenarioSnapshot.js` `createGameFast` is used by `main.js initialGame` and `App.newGame`: exact default request -> fetch + `Game.deserialize` (~0.1 s), any failure (404, parse, version) -> `Game.create`. Regenerate with `bun run snapshot:moscow` after any change to the Moscow bake, scenario build code, landmarks, or save format; `tests/moscowSnapshot.test.js` fails with "stale snapshot" when it no longer matches a fresh build, and also checks that deserialize + stepDays matches a fresh build.
 - Web QA scripts (outside the repo): `scratchpad/e2e/webqa.mjs`, `hitch.mjs`, `w2/*.mjs`, run via `withserver.sh` (temporary server).
+
+## Terraform + cost preview (T12)
+- Height model: one integer height 0..7 per tile (its N corner, see `renderer/heights.js`). Neighbour rule: all 8-adjacent tiles differ by at most 1 level.
+- `js/simulation/cmdTerraform.js`: `terraform(ctx, op, rect, opts)` for `raise|lower|level|plant`; `estimateTerraform` and `planTerraform` are pure and shared by the command and the UI preview.
+- Raise/lower seed the rectangle; a worklist relaxes the free neighbours into `[max(nb)-1, min(nb)+1]`. Water, buildings and track are never modified; a change touching them (or water edges) is refused with nothing applied. Level pins the rectangle to the start tile height.
+- Costs: `COSTS.terraformStep` (60) per level moved on one tile, `COSTS.plantTree` (25) per grass tile, inflated via `constructionTotal`.
+- Renderer: after a terraform, `app.exec` calls `Heights.refreshArea` for the changed area (+1 vertex border) before the ground chunk invalidation.
+- Tools: Terraform (`Z`, C cycles raise/lower/level) and Plant trees (`Y`). The drag hint shows the live cost or the refusal reason; the overlay is red when invalid.
+- Trees are forest terrain; demolish clears forest back to grass.
