@@ -117,7 +117,7 @@ export function railStationCanopy(axis, tint = null, style = null) {
 export function roadStopSprite(kind, axis, tint = null, style = null) {
   const key = style ? `rs:${kind}:${axis}:${style}:${tint}` : tint ? `rs:${kind}:${axis}:${tint}` : `rs:${kind}:${axis}`;
   return cache.get(key, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
-    const roof = tint || (kind === 'bus' ? '#1e6fd9' : '#d97706');
+    const roof = tint || (kind === 'bus' ? '#1e6fd9' : kind === 'tram' ? '#0f766e' : '#d97706');
     const bays = axis === 'x' ? [[-0.3, 0.34, 0.3, 0.48]] : [[0.34, -0.3, 0.48, 0.3]];
     if (style === 'covered') {
       // Covered truck stop: an arched grey barn-style roof over the bay, closed on both sides.
@@ -158,7 +158,7 @@ export function roadStopSprite(kind, axis, tint = null, style = null) {
       ctx.fillStyle = '#9ca3af'; ctx.fillRect(sx - 0.5, sy - 16, 1, 16);
       ctx.fillStyle = roof; ctx.beginPath(); ctx.arc(sx, sy - 17, 3, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = 'bold 4px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(kind === 'bus' ? 'B' : 'T', sx, sy - 15.5);
+      ctx.fillText(kind === 'bus' ? 'B' : kind === 'tram' ? 'TR' : 'T', sx, sy - 15.5);
     }
   }));
 }

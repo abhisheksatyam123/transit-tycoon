@@ -8,6 +8,7 @@ import { createRailTool } from './rail.js';
 import { createRoadTool } from './road.js';
 import { createStationTool } from './station.js';
 import { createBusStopTool } from './busStop.js';
+import { createTramStopTool } from './tramStop.js';
 import { createTruckStopTool } from './truckStop.js';
 import { createDepotTool } from './depot.js';
 import { createDemolishTool } from './demolish.js';
@@ -46,6 +47,7 @@ export function createTools(app) {
     tram: createTramTool(app),
     station: createStationTool(app),
     busStop: createBusStopTool(app),
+    tramStop: createTramStopTool(app),
     truckStop: createTruckStopTool(app),
     railDepot: createDepotTool(app, 'rail'),
     roadDepot: createDepotTool(app, 'road'),

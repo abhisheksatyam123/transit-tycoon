@@ -11,7 +11,7 @@ import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP } from './loco/veh
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
-import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
+import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
@@ -291,7 +291,7 @@ function onPathEnd(ctx, v) {
     return;
   }
   const order = currentOrder(v);
-  if (order && b && b.type === 'station' && b.stationId === order.stationId && b.kind === stopKindFor(v)) {
+  if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);
     if (st) { arriveAtStation(ctx, v, st); return; }
   }

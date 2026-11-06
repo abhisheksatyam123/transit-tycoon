@@ -15,7 +15,7 @@ import { adjacentOwn, joinChoices, openJoinPicker } from './joinPicker.js';
  * @property {(x:number,y:number)=>{x:number,y:number}[]} footprint
  * @property {number} [catchment] radius to preview, if a station
  * @property {(e:KeyboardEvent)=>boolean} [key] handle tool keys; return true if consumed
- * @property {'rail'|'bus'|'truck'} [joinKind] station kind; enables Ctrl+click distant join
+ * @property {'rail'|'bus'|'truck'|'tram'} [joinKind] station kind; enables Ctrl+click distant join
  */
 
 /**

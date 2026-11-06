@@ -115,7 +115,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt) {
       if (b.kind === 'rail' && b.metro && tile.tunnel) blit(ctx, metroEntranceSprite(b.axis === 'y' ? 'y' : 'x', b.color), sx, sy);
       else if (b.kind === 'rail' && b.style === 'brick' && packActive()) return null; // OpenGFX station building drawn by transport layer
       else if (b.kind === 'rail') blit(ctx, railStationCanopy(b.axis === 'y' ? 'y' : 'x', stationTint(b), b.style || null), sx, sy);
-      else blit(ctx, roadStopSprite(b.kind === 'truck' ? 'truck' : 'bus', b.axis === 'y' ? 'y' : 'x', stationTint(b), b.style || null), sx, sy);
+      else blit(ctx, roadStopSprite(b.kind === 'truck' ? 'truck' : b.kind === 'tram' ? 'tram' : 'bus', b.axis === 'y' ? 'y' : 'x', stationTint(b), b.style || null), sx, sy);
       return null;
     case 'landmark':
       if (b.lm3d) { if (b.front) drawLm3d(ctx, b.id, x, y, sx, sy); }

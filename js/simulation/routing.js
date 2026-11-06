@@ -21,7 +21,13 @@ export function stopKindFor(v) {
   if (v.kind === 'train') return 'rail';
   if (v.kind === 'aircraft') return 'airport';
   if (v.kind === 'ship') return 'ship';
+  if (v.roadType === 'tram') return 'tram'; // trams: tram stops, and bus stops too (see stopKindOk)
   return v.cargoId === 'PASS' || v.cargoId === 'MAIL' ? 'bus' : 'truck';
+}
+
+/** True when a station tile of kind `k` is a stop for vehicle `v`. Trams also stop at bus stops on tram track. */
+export function stopKindOk(v, k) {
+  return k === stopKindFor(v) || (v.roadType === 'tram' && k === 'bus');
 }
 
 /**
@@ -36,7 +42,7 @@ export function orderGoals(state, v) {
   const kind = stopKindFor(v);
   if (kind === 'airport') return airGoals(state, st);
   if (kind === 'ship') return shipGoals(state.map, st);
-  return st.tiles.filter((t) => t.kind === kind).map((t) => ({ x: t.x, y: t.y }));
+  return st.tiles.filter((t) => stopKindOk(v, t.kind)).map((t) => ({ x: t.x, y: t.y }));
 }
 
 /** Aircraft goals: the runway centre tiles of an airport station. */

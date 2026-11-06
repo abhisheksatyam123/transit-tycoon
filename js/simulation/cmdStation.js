@@ -17,15 +17,14 @@ import { invalidateBlocks } from './signals.js';
 
 /**
  * Distant join (OpenTTD station picker): the station the player chose with Ctrl+click via
- * opts.joinStationId. Only player builds are checked; the chosen station must exist, be of the
- * build kind and stay within the spread limit. Returns null when no join was requested,
+ * opts.joinStationId. Only player builds are checked; the chosen station must exist and stay within the spread limit. Returns null when no join was requested,
  * the station record when valid, or {error} when refused.
  */
 export function joinTarget(state, opts, kind, tiles) {
   if (!opts || opts.joinStationId == null) return null;
   const st = findStation(state, opts.joinStationId);
   if (!st) return { error: 'No such station to join' };
-  if (!st.kinds || !st.kinds[kind]) return { error: 'Station cannot take this kind of stop' };
+  // OpenTTD: any facility may join any own station within spread (a bus stop can join a rail station)
   if (!spreadOk(st, tiles)) return { error: 'Station too spread out' };
   return st;
 }
@@ -121,7 +120,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
 export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   const { state } = ctx;
   const map = state.map;
-  if (kind !== 'bus' && kind !== 'truck') return { ok: false, error: 'Invalid stop kind' };
+  if (kind !== 'bus' && kind !== 'truck' && kind !== 'tram') return { ok: false, error: 'Invalid stop kind' };
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
   const refused = refusalAt(state, x, y);
   if (refused) return { ok: false, error: refused };
@@ -130,7 +129,13 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail) return { ok: false, error: ERR.track };
   let axis;
-  if (t.road) {
+  if (kind === 'tram') {
+    // tram stop: straight tram track only (trams stop there; buses do not); no road bits are added
+    if (!t.tram) return { ok: false, error: 'Tram stops need tram track' };
+    axis = straightAxis(t.tram);
+    if (!axis) return { ok: false, error: 'Tram stops need a straight tram track' };
+    if (t.road && (t.road & ~AXIS_BITS[axis])) return { ok: false, error: 'Tram stops need a straight tram track' };
+  } else if (t.road) {
     axis = straightAxis(t.road);
     if (!axis) return { ok: false, error: 'Road stops need a straight road' };
   } else axis = opts.axis === 'y' ? 'y' : 'x';
@@ -148,7 +153,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);
   clearTerrain(t);
-  if (!t.road) {
+  if (!t.road && kind !== 'tram') {
     t.road = AXIS_BITS[axis];
     for (const d of DIRS) {
       if (!(t.road & d.bit)) continue;

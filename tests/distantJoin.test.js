@@ -39,13 +39,15 @@ describe('distant join (Ctrl+click station picker)', () => {
     expect(r.ok).toBe(false);
   });
 
-  test('refuses a join into a station of the wrong kind', () => {
+  test('a rail station may join a bus-only station (any facility, as in OpenTTD)', () => {
     const g = flatGame();
     const bus = g.buildRoadStop(10, 24, 'bus', { axis: 'x' });
     expect(bus.ok).toBe(true);
     const rail = g.buildRailStation(13, 24, 'x', 1, { player: true, joinStationId: bus.stationId });
-    expect(rail.ok).toBe(false);
-    expect(rail.error).toMatch(/kind/);
+    expect(rail.ok).toBe(true);
+    expect(rail.stationId).toBe(bus.stationId);
+    const st = g.state.stations.find((s) => s.id === bus.stationId);
+    expect(st.kinds.rail && st.kinds.bus).toBe(true);
   });
 
   test('the join survives save and load', () => {
@@ -64,6 +66,6 @@ describe('distant join (Ctrl+click station picker)', () => {
     expect(adjacentOwn(g.state, tiles)).toBe(false);
     expect(joinChoices(g.state, 'rail', tiles).map((c) => c.id)).toEqual([a.stationId]);
     expect(joinChoices(g.state, 'rail', [{ x: 30, y: 24 }]).map((c) => c.id)).toEqual([]);
-    expect(joinChoices(g.state, 'bus', tiles)).toEqual([]);
+    expect(joinChoices(g.state, 'bus', tiles).map((c) => c.id)).toEqual([a.stationId]); // any facility joins
   });
 });

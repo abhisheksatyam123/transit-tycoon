@@ -15,6 +15,7 @@ export const TOOL_BUTTONS = [
   ['station', 'Station', 'station', '3'],
   ['busStop', 'Bus Stop', 'bus', '4'],
   ['truckStop', 'Truck Stop', 'truck', '5'],
+  ['tramStop', 'Tram Stop', 'bus', ''],
   ['railDepot', 'Rail Depot', 'railDepot', '6'],
   ['roadDepot', 'Road Depot', 'roadDepot', '7'],
   ['demolish', 'Demolish', 'demolish', '8'],
@@ -58,7 +59,7 @@ export const WINDOW_BUTTONS = [
 ];
 
 /** Tools shown as top-level buttons; every other tool lives in a flyout group. */
-const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
+const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'tramStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
 /** Windows shown as top-level buttons; the rest live in flyout groups. */
 const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load', 'help', 'newGame'];
 

@@ -20,9 +20,9 @@ export function adjacentOwn(state, tiles) {
   return false;
 }
 
-/** Our stations of `kind` that the footprint could join (within spread). */
+/** Our stations (any facility, as in OpenTTD) that the footprint could join (within spread). */
 export function joinChoices(state, kind, tiles) {
-  return state.stations.filter((st) => st.kinds && st.kinds[kind] && spreadOk(st, tiles))
+  return state.stations.filter((st) => spreadOk(st, tiles))
     .map((st) => ({ id: st.id, name: st.name }));
 }
 
