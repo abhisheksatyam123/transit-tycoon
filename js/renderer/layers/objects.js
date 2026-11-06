@@ -4,6 +4,7 @@
  */
 import { houseSprite, STYLES, industrySprite, industryStyle, industryPiece, railStationCanopy, roadStopSprite, depotSprite } from '../sprites/buildings.js';
 import { fieldSprite } from '../sprites/industries.js';
+import { drawOgfxField } from '../pack/fields.js';
 import { treeCluster } from '../sprites/terrain.js';
 import { styleById } from '../../config/stationTypes.js';
 import { metroEntranceSprite } from '../sprites/metro.js';
@@ -60,7 +61,7 @@ function industryMemo(style, piece, variant) {
  * @param {(id:number)=>any} industryById
  * @returns {string|null} industry piece name (for smoke emitters) or null
  */
-export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt) {
+export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt, fieldIsField) {
   const b = tile.building;
   if (b && (b.type === 'house' || b.type === 'industry') && packActive()) {
     const r = drawOgfxBuilding(ctx, tile, x, y, sx, sy, industryById);
@@ -68,6 +69,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt) {
   }
   if (!b) {
     if (tile.field !== undefined && !tile.rail && !tile.road) { // T29 farm field (opt-in farmFields)
+      if (packActive() && fieldIsField && drawOgfxField(ctx, x, y, sx, sy, fieldIsField)) return null; // T-IA OpenGFX field + fences
       blit(ctx, fieldSprite(x + y), sx, sy);
       return null;
     }

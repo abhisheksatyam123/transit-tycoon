@@ -10,7 +10,12 @@ import { subtileOffset } from './subtile.js';
 /** Concrete ground drawn where a layout has no entry (OpenTTD SPR_CONCRETE_GROUND). */
 export const SPR_CONCRETE_GROUND = 1420;
 
-/** Our industry type id -> OpenTTD layout family in INDUSTRY_LAYOUTS. */
+/**
+ * Our industry type id -> OpenTTD layout family in INDUSTRY_LAYOUTS (T-IA).
+ * Exact footprint match only (tile sprites cannot be rotated): bank 1x2 and paper mill 3x4 use the OpenTTD footprints.
+ * Not mapped (procedural): printing works (OTTD 4x4, ours 3x2), food plant (OTTD 3x4/4x3, ours 3x3), building materials
+ * (no OTTD equivalent). Quarry has no OTTD equivalent: coal mine art (3x3, exact) stays as a reuse.
+ */
 export const INDUSTRY_OTTD = {
   coal_mine: 'coal_mine',
   power_station: 'power_station',
@@ -22,10 +27,9 @@ export const INDUSTRY_OTTD = {
   factory: 'factory',
   iron_mine: 'iron_mine',
   steel_mill: 'steel_mill',
-  // T-IN reuse (exact footprint match only, else procedural): quarry 3x3 -> coal mine, paper mill 4x3 -> steel mill, food plant 3x3 -> farm
+  bank: 'bank',
   quarry: 'coal_mine',
-  paper_mill: 'steel_mill',
-  food_plant: 'farm',
+  paper_mill: 'paper_mill',
 };
 
 /** Layout entries of variant v that lie in the w x h footprint, as a Map key "dx,dy" -> gfx. */
@@ -51,11 +55,8 @@ export function industryLayout(typeId, w, h, id) {
   if (m !== undefined) return m;
   const fam = INDUSTRY_LAYOUTS[INDUSTRY_OTTD[typeId]] || [];
   // Exact footprint only: OpenTTD X extent must be our h, Y extent our w. No same-size layout -> null (procedural).
-  const exact = fam.filter((v) => {
-    const ex = Math.max(...v.map((e) => e[0] + 1));
-    const ey = Math.max(...v.map((e) => e[1] + 1));
-    return ex === h && ey === w;
-  });
+  const fits = (v) => Math.max(...v.map((e) => e[0] + 1)) === h && Math.max(...v.map((e) => e[1] + 1)) === w;
+  let exact = fam.filter(fits);
   m = exact.length ? coverage(exact[Math.abs(id | 0) % exact.length], w, h) : null;
   // A layout must cover every footprint tile, else use procedural drawing.
   if (m && m.size !== w * h) m = null;
