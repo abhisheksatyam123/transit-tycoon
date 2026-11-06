@@ -58,9 +58,43 @@ function platform(ctx, u0, v0, u1, v1) {
  * @param {'x'|'y'} axis
  * @returns {import('./canvas.js').Sprite}
  */
-export function railStationCanopy(axis, tint = null) {
-  return cache.get(tint ? `sc:${axis}:${tint}` : `sc:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
+export function railStationCanopy(axis, tint = null, style = null) {
+  const key = style ? `sc:${axis}:${style}:${tint}` : tint ? `sc:${axis}:${tint}` : `sc:${axis}`;
+  return cache.get(key, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
     const sides = axis === 'x' ? [[-0.5, 0.3, 0.5, 0.5], [-0.5, -0.5, 0.5, -0.3]] : [[0.3, -0.5, 0.5, 0.5], [-0.5, -0.5, -0.3, 0.5]];
+    if (style === 'wooden') {
+      // Wooden halt: a small open shelter (two posts and a thin lean-to roof) on the far side only.
+      const [u0, v0, u1, v1] = sides[0];
+      for (const k of [-0.35, 0.35]) {
+        const [x, y] = axis === 'x' ? P(k, (v0 + v1) / 2, 3) : P((u0 + u1) / 2, k, 3);
+        ctx.fillStyle = '#5b4030';
+        ctx.fillRect(x - 0.8, y - 11, 1.6, 11);
+      }
+      poly(ctx, [u0, v0, 11, u1, v0, 11, u1, v1, 11, u0, v1, 11], tint || '#8a5a2b', 'rgba(0,0,0,0.35)');
+      return;
+    }
+    if (style === 'brick') {
+      // Brick station: a solid brick building along one platform with a pitched slate roof.
+      const [u0, v0, u1, v1] = sides[0];
+      const bu0 = axis === 'x' ? -0.45 : u0, bu1 = axis === 'x' ? 0.45 : u1;
+      const bv0 = axis === 'x' ? v0 : -0.45, bv1 = axis === 'x' ? v1 : 0.45;
+      box(ctx, bu0, bv0, bu1, bv1, 0, 13, tint || '#9b3d2e');
+      gableRoof(ctx, bu0 - 0.04, bv0 - 0.04, bu1 + 0.04, bv1 + 0.04, 13, 6, axis === 'x' ? 'u' : 'v', '#3f3f46');
+      return;
+    }
+    if (style === 'modern') {
+      // Modern concrete: tall flat canopy on slim pillars with a glass front.
+      for (const [u0, v0, u1, v1] of sides) {
+        poly(ctx, [u0, v0, 18, u1, v0, 18, u1, v1, 18, u0, v1, 18], tint || '#9aa3ad', 'rgba(0,0,0,0.35)');
+        poly(ctx, axis === 'x' ? [u0, v1, 12, u1, v1, 12, u1, v1, 17, u0, v1, 17] : [u1, v0, 12, u1, v1, 12, u1, v1, 17, u1, v0, 17], 'rgba(186,230,253,0.4)');
+        for (const k of [-0.45, 0.45]) {
+          const [x, y] = axis === 'x' ? P(k, (v0 + v1) / 2, 3) : P((u0 + u1) / 2, k, 3);
+          ctx.fillStyle = '#374151';
+          ctx.fillRect(x - 0.6, y - 18, 1.2, 18);
+        }
+      }
+      return;
+    }
     for (const [u0, v0, u1, v1] of sides) {
       const pu = axis === 'x' ? 0 : (u0 + u1) / 2, pv = axis === 'x' ? (v0 + v1) / 2 : 0;
       for (const k of [-0.3, 0.3]) {
@@ -80,11 +114,35 @@ export function railStationCanopy(axis, tint = null) {
  * @param {'x'|'y'} axis
  * @returns {import('./canvas.js').Sprite}
  */
-export function roadStopSprite(kind, axis, tint = null) {
-  return cache.get(tint ? `rs:${kind}:${axis}:${tint}` : `rs:${kind}:${axis}`, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
+export function roadStopSprite(kind, axis, tint = null, style = null) {
+  const key = style ? `rs:${kind}:${axis}:${style}:${tint}` : tint ? `rs:${kind}:${axis}:${tint}` : `rs:${kind}:${axis}`;
+  return cache.get(key, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
     const roof = tint || (kind === 'bus' ? '#1e6fd9' : '#d97706');
     const bays = axis === 'x' ? [[-0.3, 0.34, 0.3, 0.48]] : [[0.34, -0.3, 0.48, 0.3]];
+    if (style === 'covered') {
+      // Covered truck stop: an arched grey barn-style roof over the bay, closed on both sides.
+      for (const [u0, v0, u1, v1] of bays) {
+        box(ctx, u0, v0, u1, v1, 0, 9, '#8b8f96');
+        gableRoof(ctx, u0 - 0.03, v0 - 0.03, u1 + 0.03, v1 + 0.03, 9, 5, axis === 'x' ? 'u' : 'v', roof);
+      }
+      return;
+    }
     for (const [u0, v0, u1, v1] of bays) {
+      if (style === 'shelter') {
+        // Bus shelter: open posts and a low olive roof, no back wall.
+        ctx.fillStyle = '#4b5563';
+        for (const [u, v] of [[u0 + 0.02, v0 + 0.02], [u1 - 0.02, v0 + 0.02], [u0 + 0.02, v1 - 0.02], [u1 - 0.02, v1 - 0.02]]) {
+          const [x, y] = P(u, v, 0); ctx.fillRect(x - 0.6, y - 10, 1.2, 10);
+        }
+        poly(ctx, [u0, v0, 10, u1, v0, 10, u1, v1, 10, u0, v1, 10], roof, 'rgba(0,0,0,0.35)');
+        continue;
+      }
+      if (style === 'modern') {
+        // Modern bus station: a tall glass hall with a flat blue canopy.
+        box(ctx, u0, v0, u1, v1, 0, 15, '#a9d6ec'); // glass hall (box shades need #rrggbb)
+        poly(ctx, [u0, v0, 16, u1, v0, 16, u1, v1, 16, u0, v1, 16], roof, 'rgba(0,0,0,0.35)');
+        continue;
+      }
       box(ctx, u0, v0, u1, v1, 0, 1.5, '#b8b4aa');
       ctx.fillStyle = '#374151';
       const ends = axis === 'x' ? [[u0 + 0.03, (v0 + v1) / 2], [u1 - 0.03, (v0 + v1) / 2]] : [[(u0 + u1) / 2, v0 + 0.03], [(u0 + u1) / 2, v1 - 0.03]];

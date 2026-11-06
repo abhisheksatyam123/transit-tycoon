@@ -102,8 +102,13 @@ export function drawPackTransport(ctx, tile, sx, sy, c, diag = false) {
 /** Rail station (kind rail) or road stop (bus/truck). */
 function drawStation(ctx, b, tile, sx, sy, c) {
   if (b.kind === 'rail') {
-    const ids = railStationIds(b.axis === 'y' ? 'y' : 'x');
-    return drawStack(ctx, ids, sx, sy, c);
+    const axis = b.axis === 'y' ? 'y' : 'x';
+    // Brick style: OpenGFX station building (SPR_RAIL_PLATFORM_BUILDING_X/Y) on top of the platform.
+    if (b.style === 'brick') {
+      const ids = [...railStationIds(axis), axis === 'y' ? 1074 : 1073];
+      if (drawStack(ctx, ids, sx, sy, c)) return true;
+    }
+    return drawStack(ctx, railStationIds(axis), sx, sy, c);
   }
   if (b.kind === 'bus' || b.kind === 'truck') {
     const mask = tile.road | 0;

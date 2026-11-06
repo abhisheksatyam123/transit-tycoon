@@ -16,6 +16,21 @@ import { refusalAt } from './townAuthority.js';
 import { invalidateBlocks } from './signals.js';
 
 /**
+ * Distant join (OpenTTD station picker): the station the player chose with Ctrl+click via
+ * opts.joinStationId. Only player builds are checked; the chosen station must exist, be of the
+ * build kind and stay within the spread limit. Returns null when no join was requested,
+ * the station record when valid, or {error} when refused.
+ */
+export function joinTarget(state, opts, kind, tiles) {
+  if (!opts || opts.joinStationId == null) return null;
+  const st = findStation(state, opts.joinStationId);
+  if (!st) return { error: 'No such station to join' };
+  if (!st.kinds || !st.kinds[kind]) return { error: 'Station cannot take this kind of stop' };
+  if (!spreadOk(st, tiles)) return { error: 'Station too spread out' };
+  return st;
+}
+
+/**
  * True when a non-depot vehicle occupies (x,y) (head, next tile or trailing tiles).
  */
 export function vehicleOnTile(state, x, y) {
@@ -72,7 +87,9 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   if (money) return money;
   // Merge rule unchanged: join the first adjacent station. Player builds (opts.player) are refused
   // when that merge would exceed STATION_SPREAD; scenario code is not limited.
-  const existing = adjacentStations(state, tiles)[0] || null;
+  const join = joinTarget(state, opts, 'rail', tiles);
+  if (join && join.error) return { ok: false, error: join.error };
+  const existing = join || adjacentStations(state, tiles)[0] || null;
   if (opts.player && existing && !spreadOk(existing, tiles)) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);
@@ -124,7 +141,9 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
-  const existing = adjacentStations(state, [{ x, y }])[0] || null;
+  const join = joinTarget(state, opts, kind, [{ x, y }]);
+  if (join && join.error) return { ok: false, error: join.error };
+  const existing = join || adjacentStations(state, [{ x, y }])[0] || null;
   if (opts.player && existing && !spreadOk(existing, [{ x, y }])) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);

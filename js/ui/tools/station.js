@@ -35,15 +35,15 @@ export function createStationTool(app) {
     return { x, y, length, platforms: 1 };
   };
   const tool = createPlacementTool(app, {
-    id: 'station', label: 'Rail Station', catchment: RADIUS,
+    id: 'station', label: 'Rail Station', catchment: RADIUS, joinKind: 'rail',
     hint: () => {
       const s = styleById('rail', style);
       const drag = dragStart ? ' Drag a rectangle: long side = length, short side = platforms.' : '';
-      return `Rail station: axis ${axis.toUpperCase()}, length ${length}, style ${s.name}. R rotates, [ ] length, S style.${drag}`;
+      return `Rail station: axis ${axis.toUpperCase()}, length ${length}, style ${s.name}. R rotates, [ ] length, S style, Ctrl+click joins a distant station.${drag}`;
     },
     command: (g, x, y, opts) => {
-      const p = plan(x, y);
-      return g.buildRailStation(p.x, p.y, axis, p.length, { ...(opts || {}), platforms: p.platforms, style, player: true });
+      const p = (opts && opts.plan) || plan(x, y);
+      return g.buildRailStation(p.x, p.y, axis, p.length, { ...(opts || {}), plan: undefined, platforms: p.platforms, style, player: true });
     },
     footprint: (x, y) => {
       const p = plan(x, y);
@@ -69,7 +69,7 @@ export function createStationTool(app) {
   tool.down = (t) => { dragStart = { x: t.x, y: t.y }; base.down(t); };
   tool.move = (t) => base.move(t);
   tool.up = (t) => {
-    try { base.up(t); } finally { dragStart = null; }
+    try { base.up({ ...t, plan: plan(t.x, t.y) }); } finally { dragStart = null; }
   };
   tool.cancel = () => { dragStart = null; base.cancel(); };
   return tool;

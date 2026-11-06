@@ -4,6 +4,7 @@
  */
 import { money } from '../format.js';
 import { catchmentAround } from './geometry.js';
+import { adjacentOwn, joinChoices, openJoinPicker } from './joinPicker.js';
 
 /**
  * @typedef {Object} PlacementOptions
@@ -14,6 +15,7 @@ import { catchmentAround } from './geometry.js';
  * @property {(x:number,y:number)=>{x:number,y:number}[]} footprint
  * @property {number} [catchment] radius to preview, if a station
  * @property {(e:KeyboardEvent)=>boolean} [key] handle tool keys; return true if consumed
+ * @property {'rail'|'bus'|'truck'} [joinKind] station kind; enables Ctrl+click distant join
  */
 
 /**
@@ -49,9 +51,19 @@ export function createPlacementTool(app, o) {
     move(t) { hover = t; refresh(); },
     down() {},
     up(t) {
-      const res = o.command(app.game, t.x, t.y);
       lastKey = '';
-      app.exec(res, { x: t.x, y: t.y, sound: 'build' });
+      const run = (joinStationId) => {
+        const opts = {};
+        if (t.plan) opts.plan = t.plan;
+        if (joinStationId != null) opts.joinStationId = joinStationId;
+        const res = o.command(app.game, t.x, t.y, opts);
+        app.exec(res, { x: t.x, y: t.y, sound: 'build' });
+      };
+      // OpenTTD distant join: Ctrl+click on a spot with no adjacent station of ours opens a picker.
+      const choices = o.joinKind && t.ctrl && !adjacentOwn(app.game.state, o.footprint(t.x, t.y))
+        ? joinChoices(app.game.state, o.joinKind, o.footprint(t.x, t.y)) : [];
+      if (choices.length) openJoinPicker(app, { x: t.cx, y: t.cy, choices, onPick: run });
+      else run(null);
       hover = t;
       refresh();
     },

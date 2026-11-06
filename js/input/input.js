@@ -117,7 +117,8 @@ export function setupInput(app, canvas, shortcuts) {
     const t = app.renderer.pickTile(p.x, p.y);
     if (app.tool) {
       const clamped = clampTile(t);
-      app.tool.up(clamped);
+      // ctrl and the screen point let a station tool open its distant-join picker (ui/tools/joinPicker.js)
+      app.tool.up({ ...clamped, ctrl: !!(e.ctrlKey || e.metaKey), cx: e.clientX, cy: e.clientY });
       lastTile = { x: -1, y: -1 };
     } else click(p);
   };
