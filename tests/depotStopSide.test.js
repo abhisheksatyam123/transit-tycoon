@@ -21,7 +21,7 @@ describe('depot exit vs drive-through stop side', () => {
     expect(onlyStopSideNeighbour(g, 24, 18, 'road')).toBe(true);
     expect(autoDepotDir(g, 24, 18, 'road')).toBe(0);
     // the UI's default exit (S) would face empty land: the depot tool refuses with the hint, places nothing
-    expect(depotUiRefusal(g, 24, 18, 'road')).toBe('Depot exit would face the side of a road stop');
+    expect(depotUiRefusal(g, 24, 18, 'road')).toBe(STOP_SIDE_ERR);
     expect(g.state.depots.length).toBe(0);
     expect(g.state.map.tiles[18 * 96 + 24].road | 0).toBe(0);
     // the core keeps the old empty-land rule for a deliberate exit into bare ground

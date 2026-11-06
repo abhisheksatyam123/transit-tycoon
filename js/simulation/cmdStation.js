@@ -180,7 +180,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   return { ok: true, cost, stationId: st.id };
 }
 
-export const STOP_SIDE_ERR = 'Depot exit would face the side of a road stop';
+export const STOP_SIDE_ERR = 'Depot exit would face the side of a station: place it beside plain track or road';
 
 /** True when the tile next to (x,y) in direction `dir` is a stop that a depot exit cannot join from its side. */
 export function exitFacesStopSide(map, x, y, kind, dir) {
