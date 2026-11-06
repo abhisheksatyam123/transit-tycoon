@@ -17,7 +17,8 @@ export function companyRows(state) {
     vehicles: veh(null).length, stations: stn(null), profit: lastYear(c), bankrupt: !!c.bankrupt });
   for (const r of state.rivals || []) {
     rows.push({ name: r.name, colour: r.colour, player: false, money: r.money, loan: r.loan, value: r.companyValue ?? (r.money - r.loan),
-      vehicles: veh(r.id).length, stations: stn(r.id), profit: lastYear(r), bankrupt: !!r.bankrupt });
+      vehicles: veh(r.id).length, stations: stn(r.id), profit: lastYear(r), bankrupt: !!r.bankrupt,
+    id: r.id, offer: r.takeoverOffer ? r.takeoverOffer.price : null });
   }
   return rows;
 }
@@ -37,7 +38,7 @@ export function openCompanies(app) {
         if (s === sig) return;
         sig = s;
         clear(table);
-        const head = ['Company', 'Money', 'Loan', 'Value', 'Vehicles', 'Stations', 'Last-year profit'];
+        const head = ['Company', 'Money', 'Loan', 'Value', 'Vehicles', 'Stations', 'Last-year profit', 'Takeover'];
         const tbl = el('table.ledger');
         tbl.appendChild(el('tr', null, head.map((h) => el('th', { text: h }))));
         for (const r of rows) {
@@ -49,7 +50,8 @@ export function openCompanies(app) {
             el('td.mono' + (r.value < 0 ? '.neg' : ''), { text: money(r.value) }),
             el('td.mono', { text: String(r.vehicles) }),
             el('td.mono', { text: String(r.stations) }),
-            el('td.mono' + (r.profit < 0 ? '.neg' : '.pos'), { text: money(r.profit) })));
+            el('td.mono' + (r.profit < 0 ? '.neg' : '.pos'), { text: money(r.profit) }),
+            el('td', null, r.offer == null ? null : el('button', { text: 'Buy for ' + money(r.offer), onclick: () => app.game.acceptTakeover(r.id) }))));
         }
         table.appendChild(tbl);
       };

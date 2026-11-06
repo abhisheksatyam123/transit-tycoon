@@ -20,7 +20,7 @@ function airportDepotPart(b) {
   return airportType(airportTypeId(b)).depotPart;
 }
 import { findTown, findStation } from './state.js';
-import { RIVAL_OWNED } from './owner.js';
+import { RIVAL_OWNED, companyById } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
 import { removeHQ } from './cmdHQ.js';
 import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile removes the whole HQ
@@ -321,7 +321,9 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   }
   if (changed === 0) return { ok: false, error: ERR.built };
   cost = constructionTotal(state, cost);
-  const money = checkMoney(state, cost);
+  const payee = companyById(state, opts.owner ?? null);
+  if (opts.owner != null && !payee) return { ok: false, error: 'Unknown company' };
+  const money = checkMoney(state, cost, payee || state.company);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: n };
   for (const [i, bits] of want) {
@@ -330,11 +332,11 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (layer === 'rail' && (t.rail | bits) !== t.rail) delete t.signal; // new rail bits: signal no longer on straight track
     t[layer] |= bits;
     if (isHwy) t.highway = 1;
-    if (!t.owner) t.owner = 'company';
+    if (!t.owner) t.owner = opts.owner != null ? 'rival' : 'company'; // rival roads: no player upkeep (economy.js)
   }
   for (const i of want.keys()) pruneOneWay(map.tiles[i]); // T42: a junction or rail crossing is never one-way
   invalidateBlocks(state);
-  spend(state.company, 'construction', cost);
+  spend(payee || state.company, 'construction', cost);
   return { ok: true, cost, tiles: n };
 }
 

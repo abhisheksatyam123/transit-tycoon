@@ -11,6 +11,7 @@ import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney, coordsOk } from './trackRules.js';
 import { headquarterVariation } from './loco/company.js';
+import { companyById } from './owner.js';
 import { notify } from './news.js';
 
 /** Footprint size of a headquarters (tiles). */
@@ -33,9 +34,9 @@ export function hqPrice(state) {
 }
 
 /** Site check (pure). @returns {string} error or '' */
-export function hqSiteError(state, x, y) {
+export function hqSiteError(state, x, y, owner = null) {
   const map = state.map;
-  const hq = state.company.hq;
+  const hq = (companyById(state, owner) || state.company).hq;
   if (!coordsOk(map, x, y, x + HQ_SIZE - 1, y + HQ_SIZE - 1)) return HQ_ERR.bounds;
   if (hq && hq.x === x && hq.y === y) return HQ_ERR.same;
   let hmin = 99, hmax = -99;
@@ -51,15 +52,16 @@ export function hqSiteError(state, x, y) {
 }
 
 /** Pure estimate for the UI: {ok, cost, error}. */
-export function estimateHQ(state, x, y) {
+export function estimateHQ(state, x, y, owner = null) {
   const cost = hqPrice(state);
-  const err = hqSiteError(state, x, y) || (checkMoney(state, cost) || {}).error || '';
+  const err = hqSiteError(state, x, y, owner) || (checkMoney(state, cost, companyById(state, owner) || state.company) || {}).error || '';
   return { ok: !err, cost, error: err || null };
 }
 
 /** Remove the HQ (all four tiles and the company record). Idempotent. */
-export function removeHQ(state) {
-  const hq = state.company.hq;
+export function removeHQ(state, owner = null) {
+  const company = companyById(state, owner) || state.company;
+  const hq = company.hq;
   if (!hq) return;
   const map = state.map;
   for (let dy = 0; dy < HQ_SIZE; dy++) for (let dx = 0; dx < HQ_SIZE; dx++) {
@@ -68,11 +70,11 @@ export function removeHQ(state) {
     const t = map.tiles[y * map.width + x];
     if (t.building && t.building.type === 'hq') { t.building = null; t.owner = null; }
   }
-  delete state.company.hq;
+  delete company.hq;
 }
 
-function setLevel(state, level) {
-  const hq = state.company.hq;
+function setLevel(state, level, company = state.company) {
+  const hq = company.hq;
   hq.level = level;
   const map = state.map;
   for (let dy = 0; dy < HQ_SIZE; dy++) for (let dx = 0; dx < HQ_SIZE; dx++) {
@@ -89,14 +91,16 @@ function setLevel(state, level) {
  */
 export function buildHQ(ctx, x, y, opts = {}) {
   const { state } = ctx;
-  const err = hqSiteError(state, x, y);
+  const owner = opts.owner ?? null;
+  const c = companyById(state, owner);
+  if (!c) return { ok: false, error: 'Unknown company' };
+  const err = hqSiteError(state, x, y, owner);
   if (err) return { ok: false, error: err };
   const cost = hqPrice(state);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, c);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost };
-  removeHQ(state);
-  const c = state.company;
+  removeHQ(state, owner);
   const level = headquarterVariation(c);
   c.hq = { x, y, level };
   const map = state.map;
@@ -116,12 +120,20 @@ export function buildHQ(ctx, x, y, opts = {}) {
  */
 export function updateHQ(ctx) {
   const { state } = ctx;
-  const hq = state.company.hq;
+  updateCompanyHQ(ctx, state.company, null);
+  for (const r of state.rivals || []) if (!r.bankrupt) updateCompanyHQ(ctx, r, r.id);
+}
+
+/** One company's HQ level update (the player's, or a rival's by id). */
+function updateCompanyHQ(ctx, company, owner) {
+  const { state } = ctx;
+  const hq = company.hq;
   if (!hq) return;
-  const level = Math.min(HQ_MAX_LEVEL, headquarterVariation(state.company));
+  const level = Math.min(HQ_MAX_LEVEL, headquarterVariation(company));
   if (level === hq.level) return;
   const grew = level > hq.level;
-  setLevel(state, level);
-  if (grew) notify(ctx, `${state.company.name}'s headquarters grew to level ${level}: the company is performing well.`, 'good', undefined, undefined, 'company');
-  else notify(ctx, `${state.company.name}'s headquarters shrank to level ${level}.`, 'info', undefined, undefined, 'company');
+  setLevel(state, level, company);
+  if (owner != null) return; // rivals' HQ level changes are not news
+  if (grew) notify(ctx, `${company.name}'s headquarters grew to level ${level}: the company is performing well.`, 'good', undefined, undefined, 'company');
+  else notify(ctx, `${company.name}'s headquarters shrank to level ${level}.`, 'info', undefined, undefined, 'company');
 }

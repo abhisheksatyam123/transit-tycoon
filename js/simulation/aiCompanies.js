@@ -28,6 +28,8 @@ import { listModels } from './queries.js';
 import { straightAxis } from './network.js';
 import { companyById } from './owner.js';
 import { pushNews } from './news.js';
+import { buildFreightRoute, addFreightTrucks } from './aiFreight.js';
+import { buildHQ, hqPrice, hqSiteError, removeHQ } from './cmdHQ.js';
 
 export const AI_NAMES = ['Northern Lines', 'Velox Transit', 'Iron Coach Co.'];
 export const AI_COLOURS = ['#d9482b', '#2b7fd9', '#3aa35a'];
@@ -44,6 +46,9 @@ export const BANKRUPT_MONTHS = 12;
 export const MAX_BUSES_PER_ROUTE = 6;
 const WAITING_FOR_BUS = 30;
 const MAX_ROUTES = 8;
+/** Freight: a rival needs this much cash and at least 2 bus routes before a truck route; at most this many. */
+const FREIGHT_BUDGET = 3 * ROUTE_BUDGET;
+const MAX_FREIGHT_ROUTES = 2;
 /** Served-town radius: a town with a station within this manhattan distance of its centre counts as served. */
 const SERVED_RADIUS = 10;
 
@@ -79,9 +84,12 @@ export function updateMonthly(game) {
     chargeInterest(r);
     manageLoan(r);
     sellUnprofitable(ctx, r);
-    if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildRoute(ctx, r);
+    if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
     addBuses(ctx, r);
+    addFreightTrucks(ctx, r);
+    buildRivalHQ(ctx, r);
     refreshStats(state, r);
+    updateTakeover(ctx, r);
     if (r.negValueMonths >= BANKRUPT_MONTHS) windUp(ctx, r);
   }
 }
@@ -141,6 +149,76 @@ function refreshStats(state, r) {
   r.negValueMonths = r.companyValue < 0 ? (r.negValueMonths || 0) + 1 : 0;
   r.valueHistory.unshift(r.companyValue);
   if (r.valueHistory.length > 120) r.valueHistory.length = 120;
+}
+
+/** One new route per month: buses or freight, whichever the rival has fewer of (bus first on a tie). */
+function buildNewRoute(ctx, r) {
+  const freight = r.routes.filter((q) => q.freight).length;
+  const bus = r.routes.length - freight;
+  // freight roads are long and cost more: only with a spare reserve, and once bus routes exist
+  const freightOk = bus >= 2 && r.money >= FREIGHT_BUDGET && freight < MAX_FREIGHT_ROUTES;
+  if (freightOk && bus > freight) { if (buildFreightRoute(ctx, r)) return; }
+  if (!buildRoute(ctx, r) && freightOk) buildFreightRoute(ctx, r);
+}
+
+/** Rival HQ: built once, near the largest town centre, when the rival can pay for it with a reserve. */
+function buildRivalHQ(ctx, r) {
+  const { state } = ctx;
+  // a rival HQ only when cash is well above the route budget and the company is healthy (its cost is sunk value)
+  if (r.hq || r.money < hqPrice(state) + 4 * ROUTE_BUDGET || (r.companyValue || 0) < 2 * hqPrice(state)) return;
+  const towns = [...state.towns].sort((a, b) => (b.population || 0) - (a.population || 0) || a.id - b.id);
+  for (const t of towns.slice(0, 3)) {
+    for (let R = 2; R <= 8; R++) for (let y = t.y - R; y <= t.y + R; y++) for (let x = t.x - R; x <= t.x + R; x++) {
+      if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) !== R) continue;
+      if (hqSiteError(state, x, y, r.id)) continue;
+      const res = buildHQ(ctx, x, y, { owner: r.id });
+      if (res.ok) return;
+    }
+  }
+}
+
+/**
+ * Takeover offer (OpenTTD): a rival that has been in negative value for half its bankruptcy window can be
+ * bought. The price is its company value (min 0). The offer lapses when its value recovers.
+ */
+export const TAKEOVER_LEAD = 6;
+function updateTakeover(ctx, r) {
+  const { state } = ctx;
+  if (r.negValueMonths === 0) { delete r.takeoverOffer; return; }
+  if (r.takeoverOffer || r.negValueMonths < BANKRUPT_MONTHS - TAKEOVER_LEAD) return;
+  r.takeoverOffer = { price: Math.max(0, r.companyValue || 0) };
+  pushNews(state, `${r.name} is near bankruptcy: it can be bought for ${r.takeoverOffer.price}. Use the Companies window to make an offer.`, 'info', undefined, undefined, 'company');
+}
+
+/**
+ * Accept a takeover offer: the player pays the price and takes over the rival's vehicles, stations, depots
+ * and HQ, its cash and its loan. The rival is then closed (no wind-up, no tile clearing).
+ * @returns {{ok:true,price:number}|{ok:false,error:string}}
+ */
+export function acceptTakeover(ctx, rivalId) {
+  const { state } = ctx;
+  const r = (state.rivals || []).find((q) => q.id === rivalId);
+  if (!r || r.bankrupt) return { ok: false, error: 'No such company' };
+  if (!r.takeoverOffer) return { ok: false, error: 'No takeover offer' };
+  const price = r.takeoverOffer.price;
+  if (price > state.company.money) return { ok: false, error: 'Not enough money for the takeover' };
+  spend(state.company, 'property', price);
+  for (const v of state.vehicles) if (v.ownerId === r.id) delete v.ownerId;
+  for (const st of state.stations) if (st.ownerId === r.id) delete st.ownerId;
+  for (const d of state.depots) if (d.ownerId === r.id) delete d.ownerId;
+  // the rival's HQ: the player keeps it when they have none; otherwise it is removed (one HQ per company)
+  if (r.hq && !state.company.hq) {
+    state.company.hq = r.hq;
+    for (const t of state.map.tiles) if (t.building && t.building.type === 'hq' && t.building.level != null) t.owner = null;
+  } else removeHQ(state, r.id);
+  delete r.hq;
+  earn(state.company, Math.max(0, r.money), 'income');
+  state.company.loan = (state.company.loan || 0) + (r.loan || 0);
+  r.money = 0; r.loan = 0;
+  r.bankrupt = true; r.taken = true; r.vehicles = []; r.stations = []; r.depots = []; r.routes = [];
+  delete r.takeoverOffer;
+  pushNews(state, `You took over ${r.name} for ${price}.`, 'good', undefined, undefined, 'company');
+  return { ok: true, price };
 }
 
 /**

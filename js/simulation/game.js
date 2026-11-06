@@ -11,6 +11,7 @@ import { generateIndustries, placeExtraIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
+import { acceptTakeover } from './aiCompanies.js';
 import { buildObject, estimateObject } from './cmdObject.js';
 import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
@@ -209,6 +210,8 @@ export class Game {
   /** Company HQ with top-left tile (x,y) (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ). opts.dryRun = check only. */
   buildHQ(x, y, opts) { return buildHQ(this.ctx, x, y, opts); }
   estimateHQ(x, y) { return estimateHQ(this.state, x, y); }
+  /** Buy a rival that has a takeover offer (aiCompanies.js). */
+  acceptTakeover(rivalId) { return acceptTakeover(this.ctx, rivalId); }
   /** Placeable object on tile (x,y): type 'transmitter' | 'lighthouse' | 'owned' (cmdObject.js). */
   buildObject(type, x, y, opts) { return buildObject(this.ctx, type, x, y, opts); }
   estimateObject(type, x, y) { return estimateObject(this.state, type, x, y); }
