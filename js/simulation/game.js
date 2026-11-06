@@ -94,8 +94,9 @@ function createEditorGame(game, o) {
     if (Object.keys(mg).length) state.mapgen = mg;
     generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
   } else {
-    // flat land at height 1 (height 0 reads as sea level, so towns and industries would refuse it)
-    for (const t of state.map.tiles) t.height = 1;
+    // flat land at height 1 (height 0 reads as sea level, so towns and industries would refuse it);
+    // no water at all: an empty flat map is land everywhere (OpenTTD flat-world editor map)
+    for (const t of state.map.tiles) { t.terrain = 'grass'; t.height = 1; }
   }
   state.traffic = createTraffic(state);
   recomputeAllAcceptance(state);

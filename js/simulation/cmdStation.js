@@ -180,6 +180,18 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   return { ok: true, cost, stationId: st.id };
 }
 
+export const STOP_SIDE_ERR = 'Depot exit would face the side of a road stop';
+
+/** True when the tile next to (x,y) in direction `dir` is a stop that a depot exit cannot join from its side. */
+export function exitFacesStopSide(map, x, y, kind, dir) {
+  const d = DIRS.find((q) => q.bit === dir);
+  if (!d || !inBounds(map, x + d.dx, y + d.dy)) return false;
+  const nt = map.tiles[(y + d.dy) * map.width + x + d.dx];
+  const b = nt && nt.building;
+  if (!b || b.type !== 'station' || b.axis == null) return false;
+  return !!(OPPOSITE[dir] & ~AXIS_BITS[b.axis]); // a stop only takes links along its own axis
+}
+
 /**
  * Build a rail or road depot on empty land with its exit facing `dir`.
  * The depot tile gets the `dir` bit; the adjacent tile gets the opposite bit if it
@@ -198,6 +210,8 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   if (objectError(t)) return { ok: false, error: objectError(t) };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail || t.road) return { ok: false, error: ERR.track };
+  // OpenTTD: a drive-through stop cannot be entered from its side, so an exit facing one is unusable
+  if (exitFacesStopSide(map, x, y, kind, dir)) return { ok: false, error: STOP_SIDE_ERR };
   let cost = (kind === 'rail' ? COSTS.depotRail : COSTS.depotRoad) + clearingCost(t);
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost, companyById(state, opts.owner ?? null));

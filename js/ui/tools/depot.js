@@ -4,6 +4,7 @@ import { DIR_NAMES, NEXT_DIR } from './geometry.js';
 import { DIRS, OPPOSITE } from '../../simulation/constants.js';
 import { canAddBits } from '../../simulation/trackRules.js';
 import { inBounds } from '../../simulation/map.js';
+import { exitFacesStopSide, STOP_SIDE_ERR } from '../../simulation/cmdStation.js';
 
 /**
  * Exit direction for a depot at (x,y): the first neighbour whose track of `kind` can take a connection back
@@ -18,6 +19,24 @@ export function autoDepotDir(game, x, y, kind) {
     if (nt && nt[kind] && !canAddBits(nt, kind, OPPOSITE[d.bit])) return d.bit;
   }
   return 0;
+}
+
+/** True when a road stop (not a plain road) is the only road beside (x,y): a depot here cannot connect. */
+export function onlyStopSideNeighbour(game, x, y, kind) {
+  const map = game.state.map;
+  let stop = false;
+  for (const d of DIRS) {
+    const nx = x + d.dx, ny = y + d.dy;
+    if (!inBounds(map, nx, ny)) continue;
+    if (exitFacesStopSide(map, x, y, kind, d.bit)) stop = true;
+    else if (map.tiles[ny * map.width + nx][kind] && !canAddBits(map.tiles[ny * map.width + nx], kind, OPPOSITE[d.bit])) return false;
+  }
+  return stop;
+}
+
+/** Refusal the depot tool gives without an explicit R: the only road beside is a stop side. Null when allowed. */
+export function depotUiRefusal(game, x, y, kind) {
+  return autoDepotDir(game, x, y, kind) || !onlyStopSideNeighbour(game, x, y, kind) ? null : STOP_SIDE_ERR;
 }
 
 /**
@@ -45,6 +64,10 @@ export function createDepotTool(app, kind) {
     command: (g, x, y, opts) => {
       const r = resolve(x, y);
       auto = r.connected && !explicit ? r.dir : 0;
+      if (!explicit && !r.connected) {
+        const refusal = depotUiRefusal(g, x, y, kind);
+        if (refusal) return { ok: false, error: refusal };
+      }
       if (!opts?.dryRun && !r.connected) app.toast('Depot exit is not connected to a road', 'warn');
       return g.buildDepot(x, y, kind, r.dir, opts);
     },

@@ -24,6 +24,7 @@ const NB8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1
 
 /** Error messages for terraform commands. */
 export const TERRA_ERR = {
+  water: 'Cannot terraform water: sea and lakes stay as they are',
   edge: 'Next to water: shore cannot be changed',
   structure: 'Tile occupied by a building',
   max: 'Maximum height reached',
@@ -36,7 +37,7 @@ export const TERRA_ERR = {
 /** Why a tile may not change height ('' when it may). */
 function blockReason(map, x, y) {
   const t = map.tiles[y * map.width + x];
-  if (t.terrain === 'water') return ERR.water;
+  if (t.terrain === 'water') return TERRA_ERR.water;
   if (objectError(t)) return objectError(t);
   if (t.building) return TERRA_ERR.structure;
   if (t.tunnel || t.tunnelPortal) return TERRA_ERR.tunnel;
