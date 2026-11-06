@@ -71,7 +71,15 @@ export function clearTints() { tints.clear(); maskData.clear(); }
  * @returns {boolean} false if the sprite is not in the pack
  */
 export function blitPack(ctx, id, x, y, colour) {
-  const pack = packState.pack;
+  return blitPackFrom(packState.pack, ctx, id, x, y, colour);
+}
+
+/**
+ * Same as blitPack but from an explicit pack (the base pack or the EXTRA pack, pack/extra.js).
+ * @param {object|null} pack loaded pack (sprites, atlases, masks)
+ * @returns {boolean}
+ */
+export function blitPackFrom(pack, ctx, id, x, y, colour) {
   if (!pack) return false;
   const s = pack.sprites[id];
   if (!s) return false;

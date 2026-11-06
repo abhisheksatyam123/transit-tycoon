@@ -9,6 +9,7 @@ import { HALF_W, HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
 import { packActive } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
+import { drawCanalPack, drawRiverPack, extraActive } from '../pack/extra.js';
 
 /** Fast array memo of sprites (avoids string-key allocation per tile per frame). */
 const KINDS = ['grass', 'forest', 'desert', 'rock', 'snow', 'water'];
@@ -47,6 +48,10 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   const k = KIND_INDEX[tile.terrain] ?? 0;
   // canal and lock water (tile.canal) follows the terrain heights too (a lock tile is a slope): procedural water
   const flowing = !!(tile.river || tile.canal);
+  // EXTRA pack (canal dikes/locks, river slopes; pack/extra.js): drawn in place of the procedural water when present
+  // locks and tram overlays stay procedural until their OpenGFX anchors are verified (lead review, EX round 2)
+  if (tile.canal && !tile.lock && extraActive() && drawCanalPack(ctx, map, x, y, sx, sy, c, null)) return;
+  if (tile.river && !tile.canal && extraActive() && c.some((h) => h !== c[0]) && drawRiverPack(ctx, sx, sy, c)) return;
   // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
   if (packActive() && k === 5 && !flowing) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;

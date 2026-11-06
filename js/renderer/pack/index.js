@@ -3,7 +3,7 @@
  * ('tt.gfx' = 'ogfx' | 'procedural'; default OpenGFX = the OpenTTD look; procedural is the
  * alternative with smooth diagonals and avenue classes) and exposes the toggle used by key K.
  */
-import { loadOpenGfx } from './loader.js';
+import { loadOpenGfx, loadExtraPack } from './loader.js';
 import { packState } from './state.js';
 import { clearTints } from './draw.js';
 
@@ -24,6 +24,14 @@ export async function initPack(renderer) {
   packState.pack = pack;
   packState.enabled = savedGfxMode() === 'ogfx';
   renderer.setPackEnabled(packState.enabled && !!pack);
+  // the extra pack (canals, locks, river slopes, tram overlays) loads in the background: the first frame
+  // is drawn without it, and the ground cache is rebuilt once it arrives
+  if (pack) {
+    loadExtraPack().then((extra) => {
+      packState.extra = extra;
+      renderer.setPackEnabled(packState.enabled && !!pack);
+    });
+  }
   return pack;
 }
 

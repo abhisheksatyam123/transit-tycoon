@@ -36,6 +36,21 @@ function toCanvas(img) {
  * @returns {Promise<OgfxPack|null>}
  */
 export async function loadOpenGfx(base = 'assets/opengfx/') {
+  return loadPack(base);
+}
+
+/**
+ * Load the EXTRA pack (canal/lock/river/tram sprites, keys like 'canal_water.0', see tools/ogfx/extract_extra.js).
+ * Separate folder so the base atlases stay untouched. Null when missing.
+ * @param {string} [base] default 'assets/opengfx/extra/'
+ * @returns {Promise<OgfxPack|null>}
+ */
+export async function loadExtraPack(base = 'assets/opengfx/extra/') {
+  return loadPack(base);
+}
+
+/** @param {string} base folder URL with manifest.json @returns {Promise<OgfxPack|null>} */
+async function loadPack(base) {
   try {
     const res = await fetch(base + 'manifest.json', { cache: 'no-cache' });
     if (!res.ok) return null;
