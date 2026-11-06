@@ -15,6 +15,7 @@ function hasTimetableOrders(v) {
 }
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
 import { refitCargos } from '../../simulation/cmdVehicle.js';
+import { groupList } from '../../simulation/cmdGroup.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -78,6 +79,14 @@ export function openVehicleDetail(app, id) {
         el('button.btn', { type: 'button', text: 'Clone', title: 'Buy a copy of this vehicle in its depot (copies orders)', onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: false }), { sound: 'horn' }) }),
         el('button.btn', { type: 'button', text: 'Clone (share orders)', title: "Buy a copy that shares this vehicle's order list", onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: true }), { sound: 'horn' }) })));
       body.appendChild(el('div.btn-row', null, svcLabel, svcBtns));
+      // vehicle group selector (OpenTTD group window): ungrouped or one of the company's groups
+      const groupSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Vehicle group', title: 'Vehicle group' }));
+      let groupSig = '';
+      groupSel.onchange = () => {
+        const val = groupSel.value === 'none' ? null : Number(groupSel.value);
+        app.exec(g().addVehicleToGroup(id, val), { quiet: true, sound: 'click' });
+      };
+      body.appendChild(el('div.row-actions', null, el('span.muted.small', { text: 'Group' }), groupSel));
       // Refit (OpenTTD refit): only for a vehicle stopped in its depot; options = cargos its model supports
       const refitRow = el('div.refit-row');
       const refitSel = /** @type {HTMLSelectElement} */ (el('select.input.refit-sel', { title: 'Cargo to carry after refit (vehicle must be in a depot and empty)' }));
@@ -109,6 +118,14 @@ export function openVehicleDetail(app, id) {
         set['Profit this year'](money(v.profitThisYear));
         set['Profit last year'](money(v.profitLastYear));
         set['Value'](money(v.value));
+        const groups = groupList(app.game.state);
+        const sig = groups.map((x) => x.id + ':' + x.name).join('|');
+        if (sig !== groupSig) {
+          groupSig = sig;
+          groupSel.replaceChildren(el('option', { value: 'none', text: 'Ungrouped' }),
+            ...groups.map((x) => el('option', { value: String(x.id), text: x.name })));
+        }
+        groupSel.value = v.groupId != null && groups.some((x) => x.id === v.groupId) ? String(v.groupId) : 'none';
         const o = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
         const st = o ? app.findStation(o.stationId) : null;
         set['Next order'](st ? `${st.name}${orderFlagText(o)}` : 'No orders');

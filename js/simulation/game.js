@@ -36,6 +36,7 @@ import { setSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setAutoreplace } from './autoreplace.js';
+import * as gcmd from './cmdGroup.js';
 
 
 /**
@@ -197,6 +198,12 @@ export class Game {
   /** Rename commands (cmdRename.js): name is validated and stored in the entity's name field. */
   renameStation(id, name, opts) { return renameStation(this.ctx, id, name, opts); }
   renameVehicle(id, name, opts) { return renameVehicle(this.ctx, id, name, opts); }
+  /** Vehicle groups (cmdGroup.js): create / rename / delete a group; assign vehicles. */
+  createGroup(name, opts) { return gcmd.createGroup(this.ctx, name, opts); }
+  renameGroup(id, name, opts) { return gcmd.renameGroup(this.ctx, id, name, opts); }
+  deleteGroup(id, opts) { return gcmd.deleteGroup(this.ctx, id, opts); }
+  addVehicleToGroup(vehicleId, groupId, opts) { return gcmd.addVehicleToGroup(this.ctx, vehicleId, groupId, opts); }
+  addSharedVehiclesToGroup(vehicleId, groupId, opts) { return gcmd.addSharedVehiclesToGroup(this.ctx, vehicleId, groupId, opts); }
   renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }
   /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
   townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }

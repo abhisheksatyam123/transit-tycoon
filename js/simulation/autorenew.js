@@ -63,6 +63,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   nv.orders = v.orders.map((o) => ({ ...o }));
   nv.orderIndex = v.orderIndex || 0;
   if (v.orderGroup != null) nv.orderGroup = v.orderGroup;
+  if (v.groupId != null) nv.groupId = v.groupId; // the replacement stays in the vehicle group
   if (v.serviceIntervalDays) { nv.serviceIntervalDays = v.serviceIntervalDays; nv.lastServiceDay = v.lastServiceDay; }
   nv.profitThisYear = v.profitThisYear || 0;
   nv.profitLastYear = v.profitLastYear || 0;

@@ -200,6 +200,7 @@ export function cloneVehicle(ctx, id, opts = {}) {
   v.orders = src.orders.map((o) => ({ ...o }));
   v.orderIndex = 0;
   applyServiceInterval(state, v, src.serviceIntervalDays || 0);
+  if (src.groupId != null) v.groupId = src.groupId; // clones join the source's vehicle group
   if (opts.shareOrders) joinSharedOrders(state, v, src, (s) => allocId(s));
   return { ok: true, cost: r.cost, vehicle: v };
 }
