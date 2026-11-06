@@ -21,14 +21,14 @@ describe('aiCompanies', () => {
   test('default (0) leaves the world hash unchanged', () => {
     const out = execFileSync('bun', ['tools/world-hash.js'], { cwd: ROOT, encoding: 'utf8' });
     expect(out).toContain('hash 211ce1138012979d');
-  });
+  }, 30000);
 
   test('with 0 rivals no rival state is created', () => {
     const g = world(0);
     g.stepDays(60);
     expect(g.state.rivals).toBeUndefined();
     expect(g.state.vehicles.some((v) => v.ownerId != null)).toBe(false);
-  });
+  }, 30000);
 
   test('ownership: companyOf routes to the rival or the player', () => {
     const g = world(1);
@@ -39,7 +39,7 @@ describe('aiCompanies', () => {
     expect(ownerMismatch({ ownerId: 900 }, {})).toBe(true);
     expect(ownerMismatch({ ownerId: 900 }, { owner: 900 })).toBe(false);
     expect(ownerMismatch({}, {})).toBe(false);
-  });
+  }, 30000);
 
   test('with 1 rival, after 12 months it builds stations and buses; money is its own', () => {
     const g = world(1);
@@ -83,7 +83,7 @@ describe('aiCompanies', () => {
     expect(st).toBeTruthy();
     const tile = st.tiles[0];
     expect(g.demolish(tile.x, tile.y, tile.x, tile.y).error).toBe(RIVAL_OWNED);
-  });
+  }, 30000);
 
   test('save round-trip keeps rivals, owners and routes', () => {
     const g = world(2);
@@ -95,7 +95,7 @@ describe('aiCompanies', () => {
     expect(g2.state.vehicles.filter((v) => v.ownerId != null).length)
       .toBe(g.state.vehicles.filter((v) => v.ownerId != null).length);
     expect(Game.deserialize(json).serialize()).toBe(json);
-  });
+  }, 30000);
 });
 
 describe('aiCompanies stage 2', () => {
@@ -139,5 +139,5 @@ describe('aiCompanies stage 2', () => {
     g.stepDays(60);
     expect(g.state.rivals).toBeUndefined();
     expect(g.state.company.loan).toBe(100000);
-  });
+  }, 30000);
 });

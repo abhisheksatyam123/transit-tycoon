@@ -24,6 +24,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
   const typeId = opts.type && AIRPORT_TYPES[opts.type] ? opts.type : DEFAULT_AIRPORT_TYPE;
   const type = airportType(typeId);
   const tagged = typeId !== DEFAULT_AIRPORT_TYPE; // city stays untagged
+  if (type.introYear && (state.date?.year ?? 0) < type.introYear) return { ok: false, error: `${type.name} not yet available (from ${type.introYear})` };
   if (!coordsOk(map, x, y, x + type.w - 1, y + type.h - 1)) return { ok: false, error: ERR.bounds };
   const tiles = type.layout.map((p) => ({ x: x + p.dx, y: y + p.dy, dx: p.dx, dy: p.dy, part: p.part }));
   let cost = type.cost, minH = Infinity, maxH = -Infinity;
@@ -74,7 +75,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
   refreshKinds(st);
   recomputeAcceptance(state, st);
   spend(state.company, 'construction', cost);
-  return { ok: true, cost, stationId: st.id, depotId };
+  return { ok: true, cost, stationId: st.id, depotId, area: { x0: x, y0: y, x1: x + type.w - 1, y1: y + type.h - 1 } };
 }
 
 /** "<nearest town> Airport" (or "Heliport"), made unique. */

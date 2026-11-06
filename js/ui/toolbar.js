@@ -9,6 +9,16 @@ import { openTitleMenu } from './titleMenu.js';
 import { icon } from './icons.js';
 import { scanIssues } from './diagCache.js';
 import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
+import { AIRPORT_TOOL_TYPE } from './tools/airport.js';
+import { AIRPORT_TYPES } from '../simulation/airportTypes.js';
+
+/** "Available from <year>" when an airport tool's type is not introduced in `year`, else null. */
+export function airportLocked(toolId, year) {
+  const type = AIRPORT_TOOL_TYPE[toolId];
+  const t = type && AIRPORT_TYPES[type];
+  if (!t || !t.introYear || year >= t.introYear) return null;
+  return `${t.name} not yet available: available from ${t.introYear}`;
+}
 import { screenshotCanvas, giantScreenshot } from './screenshot.js';
 
 /** Build tool buttons: [toolId, label, icon, shortcut]. */
@@ -28,6 +38,11 @@ export const TOOL_BUTTONS = [
   ['airport', 'Airport', 'airport', '0'],
   ['smallAirport', 'Small airport', 'airport', ''],
   ['heliport', 'Heliport', 'airport', ''],
+  ['commuterAirport', 'Commuter airport', 'airport', ''],
+  ['metroAirport', 'Metropolitan airport', 'airport', ''],
+  ['intlAirport', 'International airport', 'airport', ''],
+  ['helidepot', 'Helidepot', 'airport', ''],
+  ['helistation', 'Helistation', 'airport', ''],
   ['terraform', 'Terraform', 'terraform', 'Z'],
   ['plant', 'Plant trees', 'plant', 'Y'],
   ['foundTown', 'Found town', 'foundTown', ''],
@@ -80,7 +95,7 @@ export const TOOL_GROUPS = [
   ['rail', 'Rail+', 'electrify', ['electrify']],
   ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
-  ['air', 'Air', 'airport', ['airport', 'smallAirport', 'heliport']],
+  ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news']],
@@ -258,7 +273,11 @@ export function createToolbar(root, app) {
       }
       const [, tl, ti, tk] = /** @type {any} */ (toolInfo.get(m));
       toolIds.push(m);
-      const b = flyItem(ti, tl, tk, () => { closeFlyouts(); play('click'); app.setTool(m); });
+      const b = flyItem(ti, tl, tk, () => {
+        const late = airportLocked(m, app.game.state.date.year);
+        if (late) { closeFlyouts(); play('error'); app.toast(late, 'error', true); return; }
+        closeFlyouts(); play('click'); app.setTool(m);
+      });
       b.dataset.tool = m;
       if (tk) titled.push([b, tl, 'tool:' + m]);
       items.push(b);
@@ -306,7 +325,20 @@ export function createToolbar(root, app) {
   root.appendChild(sep());
   root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, cat(winBtns.slice(0, 2), groupBtn('lists'), groupBtn('stats'), groupBtn('shots'), winBtns.slice(2), sound)));
 
+  /** Greys out airport tools whose type is not introduced yet (tooltip: available from <year>). */
+  const applyAirAvailability = () => {
+    const year = app.game.state.date.year;
+    for (const g of groups) for (const b of g.items) {
+      const tid = b.dataset.tool;
+      const late = tid ? airportLocked(tid, year) : null;
+      b.classList.toggle('tb-locked', !!late);
+      b.setAttribute('aria-disabled', late ? 'true' : 'false');
+      if (late) b.title = late;
+      else if (tid && AIRPORT_TOOL_TYPE[tid]) b.title = toolInfo.get(tid)[1];
+    }
+  };
   const refresh = () => {
+    applyAirAvailability();
     for (const b of speedBtns) b.classList.toggle('active', Number(b.dataset.speed) === app.speed);
     const cur = app.tool ? app.tool.id : null;
     for (const b of toolBtns) b.classList.toggle('active', !!cur && cur === b.dataset.tool);
@@ -323,6 +355,7 @@ export function createToolbar(root, app) {
     }
   };
   refresh();
+  setInterval(applyAirAvailability, 1000); // cheap; picks up the year change within a second
   fitToolbar(root);
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => fitToolbar(root)).observe(root);
   else window.addEventListener('resize', () => fitToolbar(root));

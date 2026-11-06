@@ -25,7 +25,7 @@ export function crashChance(state, v, st) {
   const model = vehicleModel(v);
   // OTTD: the 3276 jet value applies only on SHORT_STRIP airports (small); elsewhere the level formula
   const b = st ? getTile(state.map, st.x, st.y)?.building : null;
-  const shortStrip = b && b.kind === 'airport' && airportTypeId(b) === 'small';
+  const shortStrip = b && b.kind === 'airport' && (airportTypeId(b) === 'small' || airportTypeId(b) === 'commuter');
   if (shortStrip && model && (model.shape === 'jet' || model.shape === 'widebody')) return 3276;
   return Math.floor((0x4000 << (level === 'normal' ? 2 : 1)) / 1500);
 }

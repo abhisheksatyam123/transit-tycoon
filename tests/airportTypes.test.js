@@ -4,6 +4,7 @@ import { Game } from '../js/simulation/game.js';
 import { AIRPORT_TYPES, airportTypeId, vehicleFitsAirport } from '../js/simulation/airportTypes.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
 import { serializeState } from '../js/simulation/save.js';
+import { catchRadius } from '../js/simulation/stations.js';
 import { createHash } from 'node:crypto';
 
 /** Clear, flat, town-free game with money. */
@@ -180,5 +181,106 @@ describe('save/load and world hash', () => {
     g.stepDays(60);
     const h = createHash('sha256').update(serializeState(g.state)).digest('hex').slice(0, 16);
     expect(h).toBe('211ce1138012979d');
+  });
+});
+
+describe('new airport types (OpenTTD sizes, years, catchment, aircraft)', () => {
+  /** 1995: all new types (commuter 1983 .. international 1990) are open; Tu-134 still buyable. */
+  const newGame = () => { const g = freshGame(); g.state.date.year = 1995; return g; };
+  const NEW = ['commuter', 'metropolitan', 'international', 'helidepot', 'helistation'];
+  test('OpenTTD footprints, years and catchments', () => {
+    expect([AIRPORT_TYPES.commuter.w, AIRPORT_TYPES.commuter.h, AIRPORT_TYPES.commuter.introYear, AIRPORT_TYPES.commuter.catchment]).toEqual([5, 4, 1983, 4]);
+    expect([AIRPORT_TYPES.metropolitan.w, AIRPORT_TYPES.metropolitan.h, AIRPORT_TYPES.metropolitan.introYear, AIRPORT_TYPES.metropolitan.catchment]).toEqual([6, 6, 1980, 6]);
+    expect([AIRPORT_TYPES.international.w, AIRPORT_TYPES.international.h, AIRPORT_TYPES.international.introYear, AIRPORT_TYPES.international.catchment]).toEqual([7, 7, 1990, 8]);
+    expect([AIRPORT_TYPES.helidepot.w, AIRPORT_TYPES.helidepot.h, AIRPORT_TYPES.helidepot.introYear, AIRPORT_TYPES.helidepot.catchment]).toEqual([2, 2, 1976, 4]);
+    expect([AIRPORT_TYPES.helistation.w, AIRPORT_TYPES.helistation.h, AIRPORT_TYPES.helistation.introYear, AIRPORT_TYPES.helistation.catchment]).toEqual([4, 2, 1980, 4]);
+  });
+
+  test('each new type builds its full footprint, tagged, with an air depot, and costs more for more tiles', () => {
+    for (const type of NEW) {
+      const game = newGame(); // one airport per game: neighbours would join the station
+      const t = AIRPORT_TYPES[type];
+      const r = build(game, type);
+      expect(r.cost).toBe(t.cost);
+      let n = 0;
+      for (let dy = 0; dy < t.h; dy++) for (let dx = 0; dx < t.w; dx++) {
+        const b = game.tile(r.x + dx, r.y + dy).building;
+        expect(b.kind).toBe('airport');
+        expect(b.airportType).toBe(type);
+        n++;
+      }
+      expect(n).toBe(t.w * t.h);
+      expect(game.tile(r.x + t.w, r.y).building).toBeNull();
+      expect(game.state.depots.find((d) => d.id === r.depotId).kind).toBe('air');
+    }
+    expect(AIRPORT_TYPES.helidepot.cost).toBeLessThan(AIRPORT_TYPES.commuter.cost);
+    expect(AIRPORT_TYPES.international.cost).toBeGreaterThan(AIRPORT_TYPES.metropolitan.cost);
+  });
+
+  test('a build before the intro year is refused, and allowed from it', () => {
+    const game = newGame();
+    const spot = findSpot(game, 'commuter'); // 1995: open
+    game.state.date.year = 1975;
+    expect(game.buildAirport(spot.x, spot.y, { type: 'commuter' }).ok).toBe(false);
+    expect(game.buildAirport(spot.x, spot.y, { type: 'commuter', dryRun: true }).ok).toBe(false);
+    game.state.date.year = 1983;
+    expect(game.buildAirport(spot.x, spot.y, { type: 'commuter', dryRun: true }).ok).toBe(true);
+    expect(game.buildAirport(spot.x, spot.y, { type: 'helidepot', dryRun: true }).ok).toBe(true);
+  });
+
+  test('helidepot and helistation take helicopters only; commuter refuses large planes', () => {
+    for (const type of ['helidepot', 'helistation']) {
+      expect(vehicleFitsAirport(MODEL_BY_ID.ac_tu134, type)).toBe(false);
+      expect(vehicleFitsAirport(MODEL_BY_ID.ac_li2, type)).toBe(false);
+      expect(vehicleFitsAirport(MODEL_BY_ID.ac_tricario, type)).toBe(true);
+    }
+    expect(vehicleFitsAirport(MODEL_BY_ID.ac_tu134, 'commuter')).toBe(true);   // 80 seats
+    expect(vehicleFitsAirport(MODEL_BY_ID.ac_il86, 'commuter')).toBe(false);   // 300 seats
+    expect(vehicleFitsAirport(MODEL_BY_ID.ac_tricario, 'commuter')).toBe(true);
+    expect(vehicleFitsAirport(MODEL_BY_ID.ac_il86, 'metropolitan')).toBe(true);
+    expect(vehicleFitsAirport(MODEL_BY_ID.ac_il86, 'international')).toBe(true);
+  });
+
+  test('a plane cannot be ordered to a helidepot', () => {
+    const game = newGame();
+    const hd = build(game, 'helidepot');
+    const city = build(game, 'city', hd);
+    const plane = game.buyVehicle(city.depotId, { modelId: 'ac_tu134' });
+    expect(plane.ok).toBe(true);
+    const st = game.state.stations.find((s) => s.id === hd.stationId);
+    expect(game.setOrders(plane.vehicle.id, [{ stationId: st.id }]).ok).toBe(false);
+  });
+
+  test('catchment radius follows the type (commuter 4, metropolitan 6, international 8)', () => {
+    for (const [type, radius] of [['commuter', 4], ['metropolitan', 6], ['international', 8]]) {
+      const game = newGame();
+      const r = build(game, type);
+      expect(catchRadius(game.state, { kind: 'airport', x: r.x, y: r.y })).toBe(radius);
+    }
+  });
+
+  test('aircraft fly between a metropolitan and a commuter airport and earn money', () => {
+    const game = newGame();
+    const metro = build(game, 'metropolitan');
+    const commuter = build(game, 'commuter', metro);
+    const mSt = game.state.stations.find((s) => s.id === metro.stationId);
+    const cSt = game.state.stations.find((s) => s.id === commuter.stationId);
+    expect(mSt.id).not.toBe(cSt.id);
+    mSt.cargo.PASS = [{ amount: 400, sourceX: mSt.x, sourceY: mSt.y, sinceTick: 0 }];
+    mSt.accepts = { PASS: true, MAIL: true };
+    cSt.accepts = { PASS: true, MAIL: true };
+    const v = game.buyVehicle(metro.depotId, { modelId: 'ac_tu134' }).vehicle; // 80 seats: the commuter limit
+    expect(game.setOrders(v.id, [{ stationId: mSt.id }, { stationId: cSt.id }]).ok).toBe(true);
+    expect(game.startVehicle(v.id).ok).toBe(true);
+    const money0 = game.state.company.money;
+    let flew = false;
+    for (let t = 0; t < 3000 && game.state.company.money <= money0; t++) {
+      game.step();
+      // monthly town/industry passes recompute acceptance from houses in the catchment (none here): hold it
+      cSt.accepts = { PASS: true, MAIL: true };
+      if (v.alt > 0 && v.state === 'running') flew = true;
+    }
+    expect(flew).toBe(true);
+    expect(game.state.company.money).toBeGreaterThan(money0);
   });
 });

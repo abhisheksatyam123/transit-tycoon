@@ -89,6 +89,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   background: transparent; border: 1px solid transparent; color: #cbd5e1; font: inherit; font-size: 12px;
   text-align: left; cursor: pointer; touch-action: manipulation; white-space: nowrap;
 }
+.tb-fly-item.tb-locked { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
 .tb-fly-item:hover { background: var(--btn-hover); color: #f8fafc; }
 .tb-fly-item.active { background: rgba(14, 165, 233, 0.26); border-color: var(--accent); color: #fff; }
 .tb-fly-item svg { flex-shrink: 0; }

@@ -18,7 +18,7 @@ const STEPS = [
 
 const KEYS = [
   ['Right / middle drag, WASD, arrows', 'Pan'], ['Wheel, + / -', 'Zoom'], ['Space', 'Pause'],
-  ['1 – 9', 'Build tools'], ['0', 'Airport (6×4, R rotates runway; small and heliport in the Air group)'], ['R', 'Rotate station / depot'], ['[ ]', 'Station length'],
+  ['1 – 9', 'Build tools'], ['0', 'Airport (6×4, R rotates runway; other airport types in the Air group)'], ['R', 'Rotate station / depot'], ['[ ]', 'Station length'],
   ['Esc', 'Cancel tool / close window'], ['V F T B I N O H L', 'Vehicles, Finances, Towns, Stations, Industries, News, Goals, Help, Load'],
   ['P E', 'Map (terrain, industries, routes, vehicles, towns), Company graphs and league'],
   ['Z (C cycles) Y', 'Terraform raise / lower / level, Plant trees'],

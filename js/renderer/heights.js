@@ -9,6 +9,7 @@
  * Screen: tile (x,y) top corner N = (x,y) screen top, E = (x+1,y) right, S bottom, W left.
  */
 import { HEIGHT_STEP } from './iso.js';
+import { airportType, airportTypeId } from '../simulation/airportTypes.js';
 
 /** Clamp v into [lo, hi]. @param {number} v @param {number} lo @param {number} hi */
 function clamp(v, lo, hi) {
@@ -34,6 +35,28 @@ export class Heights {
   /** Recompute all vertex heights from the current tile heights/terrain. */
   rebuild() {
     for (let cy = 0; cy <= this.H; cy++) for (let cx = 0; cx <= this.W; cx++) this.vertex(cx, cy);
+    this.flattenAirports();
+  }
+
+  /**
+   * Airport footprints are drawn on one flat level: the highest vertex of the footprint (OpenTTD levels
+   * airports; the simulation still allows a 1-level step). Only the render vertices change; the sim
+   * heights are untouched. Each footprint is found from its airport tiles (origin = tile minus dx,dy).
+   */
+  flattenAirports() {
+    const { W, H, map } = this;
+    const origins = new Map();
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const b = map.tiles[y * W + x].building;
+      if (!b || b.type !== 'station' || b.kind !== 'airport') continue;
+      const ox = x - (b.dx | 0), oy = y - (b.dy | 0);
+      origins.set(oy * W + ox, { ox, oy, type: airportType(airportTypeId(b)) });
+    }
+    for (const { ox, oy, type } of origins.values()) {
+      let top = -Infinity;
+      for (let cy = oy; cy <= oy + type.h; cy++) for (let cx = ox; cx <= ox + type.w; cx++) top = Math.max(top, this.cornerH(cx, cy));
+      for (let cy = oy; cy <= oy + type.h; cy++) for (let cx = ox; cx <= ox + type.w; cx++) this.data[cy * this.cw + cx] = top;
+    }
   }
 
   /** Recompute one vertex from its four surrounding tiles. */
@@ -63,6 +86,7 @@ export class Heights {
     for (let cy = Math.max(0, y0); cy <= Math.min(this.H, y1 + 1); cy++) {
       for (let cx = Math.max(0, x0); cx <= Math.min(this.W, x1 + 1); cx++) this.vertex(cx, cy);
     }
+    this.flattenAirports();
   }
 
   /**
