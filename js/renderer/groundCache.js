@@ -15,6 +15,11 @@ import { setSpriteLod } from './sprites/canvas.js';
 export const CHUNK = 16;
 /** Max chunk canvases alive at once (a scale-2 chunk is ~2048x1312 px, ~10 MB). */
 export const MAX_CHUNKS = 24;
+/** Per-frame time budget (ms) for building chunks: the first one is always built, more only within budget,
+ *  so startup / fast pans spread chunk rasterising over frames instead of one 200-300 ms frame. */
+export const BUILD_BUDGET_MS = 10;
+/** Placeholder fill for a chunk that is still waiting to be built (flat grass diamond). */
+const PLACEHOLDER = '#5b7f3a';
 const PAD_TOP = HALF_H + 8 * HEIGHT_STEP;
 const PAD_BOTTOM = HALF_H + 10 * HEIGHT_STEP;
 const TERRAIN_CODE = { grass: 1, forest: 2, desert: 3, rock: 4, snow: 5, water: 6 };
@@ -147,6 +152,21 @@ export class GroundCache {
     return rec;
   }
 
+  /** Flat diamond in the ground colour where a not-yet-built chunk goes (avoids holes). */
+  placeholder(ctx, cx, cy) {
+    const m = this.map;
+    const x0 = cx * CHUNK, y0 = cy * CHUNK;
+    const x1 = Math.min(m.width, x0 + CHUNK) - 1, y1 = Math.min(m.height, y0 + CHUNK) - 1;
+    ctx.fillStyle = PLACEHOLDER;
+    ctx.beginPath();
+    ctx.moveTo((x0 - y0) * HALF_W, (x0 + y0) * HALF_H - HALF_H);
+    ctx.lineTo((x1 - y0) * HALF_W + HALF_W, (x1 + y0) * HALF_H);
+    ctx.lineTo((x1 - y1) * HALF_W, (x1 + y1) * HALF_H + HALF_H);
+    ctx.lineTo((x0 - y1) * HALF_W - HALF_W, (x0 + y1) * HALF_H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   /** Release least-recently-drawn chunks (not drawn this frame) until within MAX_CHUNKS. */
   trim() {
     let live = this.liveCount();
@@ -178,6 +198,7 @@ export class GroundCache {
     const cx0 = Math.floor(range.x0 / CHUNK), cx1 = Math.floor(range.x1 / CHUNK);
     const cy0 = Math.floor(range.y0 / CHUNK), cy1 = Math.floor(range.y1 / CHUNK);
     let built = 0;
+    const t0 = performance.now();
     for (let s = cx0 + cy0; s <= cx1 + cy1; s++) {
       for (let cx = Math.max(cx0, s - cy1); cx <= Math.min(cx1, s - cy0); cx++) {
         const cy = s - cx;
@@ -187,9 +208,11 @@ export class GroundCache {
         if (!rec || rec.scale !== scale || rec.sig === -1 || checkSig) {
           const sig = this.signature(cx, cy);
           if (!rec || rec.scale !== scale || rec.sig !== sig) {
-            if (!rec || built < buildBudget) {
+            if (built === 0 || (built < buildBudget && performance.now() - t0 < BUILD_BUDGET_MS)) {
               use = this.build(cx, cy, sig);
               built++;
+            } else if (!rec) {
+              this.placeholder(ctx, cx, cy); // built in a later frame
             }
           } else if (rec.scale === scale) {
             rec.sig = sig;

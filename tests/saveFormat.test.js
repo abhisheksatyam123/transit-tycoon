@@ -47,4 +47,23 @@ describe('save format', () => {
     expect(serializeState(rnd)).toBe(JSON.stringify(rnd));
     expect(JSON.stringify(back)).toBe(JSON.stringify(rnd));
   });
+  test('packed traffic cars and station parcels round-trip exactly (scratch fields dropped)', () => {
+    const g = Game.create({ scenario: 'moscow', seed: 1 });
+    g.stepDays(5);
+    expect(g.state.traffic.cars.length).toBeGreaterThan(0);
+    const st = g.state;
+    const back = parseState(serializeState(st));
+    const strip = (c) => Object.fromEntries(Object.entries(c).filter(([k]) => k[0] !== '_'));
+    expect(JSON.stringify(back.traffic.cars)).toBe(JSON.stringify(st.traffic.cars.map(strip)));
+    expect(JSON.stringify(back.stations)).toBe(JSON.stringify(st.stations));
+  }, 30000);
+
+  test('plain (unpacked) cars and parcels still load', () => {
+    const g = Game.create({ scenario: 'moscow', seed: 1 });
+    const legacy = JSON.parse(serializeState(g.state));
+    expect(parseState(JSON.stringify(legacy)).stations.length).toBe(g.state.stations.length);
+    legacy.traffic.cars = [{ id: 1, townId: 0, path: [3, 4, 5], i: 0, t: 0, speed: 0.1, wait: 0, born: 0, kind: 'car', color: 2 }];
+    const back = parseState(JSON.stringify(legacy));
+    expect(back.traffic.cars[0].path).toEqual([3, 4, 5]);
+  });
 });

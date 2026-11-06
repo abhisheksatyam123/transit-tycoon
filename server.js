@@ -37,6 +37,20 @@ export function resolvePath(pathname) {
   return full;
 }
 
+/** Text types worth compressing (images are already compressed). */
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.md', '.txt']);
+/** gzip cache: path -> { etag, body } (rebuilt when the file changes). */
+const gzCache = new Map();
+
+/** gzip a file once per version. */
+async function gzipped(path, file, etag) {
+  const hit = gzCache.get(path);
+  if (hit && hit.etag === etag) return hit.body;
+  const body = Bun.gzipSync(new Uint8Array(await file.arrayBuffer()), { level: 6 });
+  gzCache.set(path, { etag, body });
+  return body;
+}
+
 const server = Bun.serve({
   port: PORT,
   // TT_HOST, not HOST: conda (and some toolchains) export HOST=<target triple>, which made listen fail with EAGAIN
@@ -48,7 +62,14 @@ const server = Bun.serve({
     const file = Bun.file(path);
     if (!(await file.exists())) return new Response('Not found', { status: 404 });
     const type = MIME[extname(path).toLowerCase()] || 'application/octet-stream';
-    return new Response(file, { headers: { 'Content-Type': type, 'Cache-Control': 'no-cache' } });
+    // ETag from size + mtime: reloads revalidate with 304 instead of re-downloading (matters over LAN/Tailscale)
+    const etag = `"${file.size.toString(36)}-${Math.floor(file.lastModified).toString(36)}"`;
+    const headers = { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag, Vary: 'Accept-Encoding' };
+    if (req.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers });
+    if (COMPRESSIBLE.has(extname(path).toLowerCase()) && file.size > 1024 && /\bgzip\b/.test(req.headers.get('accept-encoding') || '')) {
+      return new Response(await gzipped(path, file, etag), { headers: { ...headers, 'Content-Encoding': 'gzip' } });
+    }
+    return new Response(file, { headers });
   },
 });
 

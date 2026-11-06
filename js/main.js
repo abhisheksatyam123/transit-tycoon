@@ -59,19 +59,47 @@ async function initialGame() {
 /** Autosave; warns once per session when the browser storage quota is exceeded. */
 let autosaveWarned = false;
 let autosaveBusy = false;
+/** game.serialize() cost of the last autosave (ms): big games (Moscow ~150 ms) save less often. */
+let lastSerializeMs = 0;
+let monthsSinceSave = 0;
+/** Months between autosaves when a save is expensive (> SLOW_SAVE_MS); cheap saves stay monthly. */
+const SLOW_SAVE_MONTHS = 3;
+const SLOW_SAVE_MS = 40;
+
 /**
- * Compression runs in a worker; a month that ends while a save is in flight is skipped.
+ * Save now (compression runs in a worker; skipped while a save is in flight).
  * @param {any} app
  */
 function autosave(app) {
   if (autosaveBusy) return;
   autosaveBusy = true;
-  saveToSlotAsync('autosave', app.game).then((r) => {
+  monthsSinceSave = 0;
+  const t0 = performance.now();
+  const pending = saveToSlotAsync('autosave', app.game); // serialize runs synchronously inside
+  lastSerializeMs = performance.now() - t0;
+  pending.then((r) => {
     if (!r.ok && r.quota && !autosaveWarned) {
       autosaveWarned = true;
       app.toast('Autosave skipped: save too large for browser storage', 'error');
     }
   }).finally(() => { autosaveBusy = false; });
+}
+
+/** Run fn in browser idle time (its own task, not in the frame that ran the monthly game logic). */
+function whenIdle(fn) {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => fn(), { timeout: 3000 });
+  else setTimeout(fn, 50);
+}
+
+/**
+ * Month ended: autosave in idle time. Expensive saves (large maps) only every SLOW_SAVE_MONTHS months
+ * while the game runs; hiding the tab, pausing and closing the page also save (see main()).
+ * @param {any} app
+ */
+function onMonthAutosave(app) {
+  monthsSinceSave++;
+  if (lastSerializeMs > SLOW_SAVE_MS && monthsSinceSave < SLOW_SAVE_MONTHS) return;
+  whenIdle(() => autosave(app));
 }
 
 /** Boot the app. */
@@ -101,7 +129,11 @@ async function main() {
     if (t) hintEl.textContent = `${t.label}: ${t.hint}`;
   };
   app.ui.onNews = () => statusbar.flashNews();
-  app.onMonth = () => autosave(app);
+  app.onMonth = () => onMonthAutosave(app);
+  // save when the player leaves the tab or pauses (no gameplay to interrupt), if anything happened since
+  const setSpeed = app.setSpeed.bind(app);
+  app.setSpeed = (v) => { setSpeed(v); if (v === 0 && monthsSinceSave > 0) whenIdle(() => autosave(app)); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden && monthsSinceSave > 0) autosave(app); });
 
   /** @type {Record<string,()=>void>} */
   const shortcuts = {

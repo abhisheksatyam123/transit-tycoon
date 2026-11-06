@@ -225,3 +225,9 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - `js/simulation/prices.js`: every construction cost, vehicle price and running cost goes through OpenLoco inflation (`inflateCost`, scale 1.0 at game start).
 - `js/simulation/subsidies.js`: monthly offers (own PRNG per month, never `game.rng`), awarded on first matching delivery in `orders.js` `unload()`, x2 payment for 12 months. UI: `ui/windows/subsidies.js`.
 - `js/simulation/objective.js`: OpenLoco-style scenario objective (`companyValue`/`vehicleProfit`/`performanceIndex`/`cargoDelivery`, time limit), won/lost dialog `ui/windows/objective.js`; Moscow default: company value 40M within 10 years. New Game "Scenario options" pass `opts.settings`, `opts.objective`, `opts.maxLoan` to `Game.create`.
+
+## Web delivery and smoothness (R17)
+- `server.js`: binds `TT_HOST` (default 0.0.0.0; not `HOST`, which conda sets to a target triple), gzip for text files (cached per ETag), ETag/304 revalidation. Dev only: start with `bun server.js` when needed, nothing runs as a service.
+- Saves: scenario saves are packed (`save.js`: tiles-rle-v1, traffic cars columnar with varint paths, station parcels-v1); random worlds keep the classic JSON. Autosave (`main.js`): LZ compression in `ui/saveWorker.js`; runs in idle time after the month tick, every 3 months when serialize is slow (> 40 ms), and on pause / tab hidden / unload.
+- Frame budget: ground chunks build within `BUILD_BUDGET_MS` per frame (placeholder diamond until built, `renderer/groundCache.js`); the Issues badge scan is cached per month and rescanned in idle time (`ui/diagCache.js`); toolbar density adapts to its content width (`ui/toolbar.js fitToolbar`).
+- Web QA scripts (outside the repo): `scratchpad/e2e/webqa.mjs`, `hitch.mjs`, `w2/*.mjs`, run via `withserver.sh` (temporary server).

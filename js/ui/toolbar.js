@@ -119,5 +119,24 @@ export function createToolbar(root, app) {
     for (const b of toolBtns) b.classList.toggle('active', !!app.tool && app.tool.id === b.dataset.tool);
   };
   refresh();
+  fitToolbar(root);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => fitToolbar(root)).observe(root);
+  else window.addEventListener('resize', () => fitToolbar(root));
   return { refresh, toggleSound };
+}
+
+/** Density levels tried in order until every button fits (CSS: #toolbar.tb-fit-N). */
+const FIT_LEVELS = ['tb-fit-0', 'tb-fit-1', 'tb-fit-2', 'tb-fit-3'];
+
+/**
+ * Pick the roomiest toolbar density whose content fits the width (labels, small labels, icons, tight icons).
+ * Below the tightest level the toolbar scrolls horizontally (phones).
+ * @param {HTMLElement} root
+ */
+function fitToolbar(root) {
+  for (const cls of FIT_LEVELS) {
+    root.classList.remove(...FIT_LEVELS);
+    root.classList.add(cls);
+    if (root.scrollWidth <= root.clientWidth + 1) return;
+  }
 }

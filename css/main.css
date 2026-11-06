@@ -75,6 +75,15 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .tb-btn svg { flex-shrink: 0; }
 .tb-label { font-size: 10px; line-height: 1.1; white-space: nowrap; }
 .tb-btn.muted { color: #64748b; }
+/* density levels chosen by toolbar.js fitToolbar() (content-based, so adding buttons never overflows) */
+#toolbar.tb-fit-1 .tb-name { display: none; }
+#toolbar.tb-fit-1 .tb-btn { min-width: 40px; padding: 2px 4px; }
+#toolbar.tb-fit-1 .tb-label { font-size: 9.5px; }
+#toolbar.tb-fit-2 .tb-name, #toolbar.tb-fit-2 .tb-label { display: none; }
+#toolbar.tb-fit-2 .tb-btn { min-width: 36px; height: 36px; }
+#toolbar.tb-fit-3 .tb-name, #toolbar.tb-fit-3 .tb-label { display: none; }
+#toolbar.tb-fit-3 .tb-btn { min-width: 30px; height: 34px; padding: 2px 3px; }
+#toolbar.tb-fit-3, #toolbar.tb-fit-3 .tb-group { gap: 2px; }
 
 /* ---- viewport ---- */
 #viewport { position: relative; overflow: hidden; }
