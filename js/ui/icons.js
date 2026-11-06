@@ -13,6 +13,8 @@ const PATHS = {
   station: '<path d="M3 10h18M5 10V7l7-4 7 4v3M6 10v8M18 10v8M3 20h18M9 14h6"/>',
   dock: '<path d="M3 15h18M5 15v-4h14v4M8 11V6M16 11V6M3 19c3 2 6-2 9 0s6-2 9 0"/>',
   shipDepot: '<path d="M3 19c3 2 6-2 9 0s6-2 9 0M6 15V9l6-4 6 4v6"/>',
+  canal: '<path d="M3 8c3 2 6-2 9 0s6-2 9 0M3 16c3 2 6-2 9 0s6-2 9 0"/><path d="M3 5h18M3 19h18" stroke-dasharray="2 2"/>',
+  lock: '<path d="M5 19h14M5 15h14M8 19V9M16 19V9M8 9l4-3 4 3"/><path d="M12 6v13"/>',
   buoy: '<path d="M12 3v12M9 15h6M7 18h10"/><circle cx="12" cy="6" r="2"/>',
   airport: '<path d="M10.5 3h3v7l7 4v2l-7-2v5l2.5 2v1.5L12 20.5l-3 .5V19.5l2.5-2v-5l-7 2v-2l7-4z"/>',
   bus: '<rect x="5" y="4" width="14" height="13" rx="2"/><path d="M5 11h14M8 20v-3M16 20v-3"/><circle cx="8.5" cy="14" r="1"/><circle cx="15.5" cy="14" r="1"/>',

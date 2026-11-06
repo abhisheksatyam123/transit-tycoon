@@ -47,7 +47,7 @@ export class Heights {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const u = tiles[y * W + x];
         if (u.terrain !== 'water') continue;
-        if (!u.river) { water = true; break; } // flowing rivers (tile.river) keep the terrain vertex heights
+        if (!u.river && !u.canal) { water = true; break; } // flowing rivers (tile.river) keep the terrain vertex heights
       }
     }
     const t = tiles[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];

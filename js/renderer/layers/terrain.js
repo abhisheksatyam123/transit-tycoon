@@ -45,10 +45,12 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   const tile = map.tiles[y * W + x];
   const hash = tileHash(x, y);
   const k = KIND_INDEX[tile.terrain] ?? 0;
+  // canal and lock water (tile.canal) follows the terrain heights too (a lock tile is a slope): procedural water
+  const flowing = !!(tile.river || tile.canal);
   // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
-  if (packActive() && k === 5 && !tile.river) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
+  if (packActive() && k === 5 && !flowing) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;
-  } else if (packActive() && !tile.river) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
+  } else if (packActive() && !flowing) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     // Flat land next to water is plain land in OpenTTD; the OpenGFX shore sprites (4062..) are for
     // sloped coast tiles only, which our flat-water vertex model does not produce (pack/water.js unused).
@@ -60,9 +62,50 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
     const i = f * TERRAIN_VARIANTS + (hash % TERRAIN_VARIANTS);
     drawSloped(ctx, waters[i] || (waters[i] = waterTop(f, hash % TERRAIN_VARIANTS)), sx, sy, c);
     drawShore(ctx, map, x, y, sx, sy, c);
+    if (tile.canal) drawCanal(ctx, map, x, y, sx, sy, c, tile.lock);
   } else {
     drawSloped(ctx, top(k, hash % TERRAIN_VARIANTS), sx, sy, c);
   }
+}
+
+/** Point on the tile surface at fractions (u along +x, v along +y); corners N,E,S,W in heights c. */
+function surfPt(sx, sy, c, u, v) {
+  const N = [sx, sy - HALF_H - S * c[0]], E = [sx + HALF_W, sy - S * c[1]];
+  const Sp = [sx, sy + HALF_H - S * c[2]], Wp = [sx - HALF_W, sy - S * c[3]];
+  return [
+    (1 - u) * (1 - v) * N[0] + u * (1 - v) * E[0] + u * v * Sp[0] + (1 - u) * v * Wp[0],
+    (1 - u) * (1 - v) * N[1] + u * (1 - v) * E[1] + u * v * Sp[1] + (1 - u) * v * Wp[1],
+  ];
+}
+
+/**
+ * Canal banks (stone edge where the canal meets land) and, on a lock tile (tile.lock), the two gates across the
+ * channel at the lower and upper ends. Procedural in both render modes (the OpenGFX atlas has no canal set).
+ */
+function drawCanal(ctx, map, x, y, sx, sy, c, lock) {
+  const W = map.width, H = map.height, t = map.tiles;
+  const land = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < H && !t[ny * W + nx].canal && t[ny * W + nx].terrain !== 'water';
+  ctx.strokeStyle = '#6b5a45';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  const edge = (u0, v0, u1, v1) => { const a = surfPt(sx, sy, c, u0, v0), b = surfPt(sx, sy, c, u1, v1); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); };
+  if (land(x, y - 1)) edge(0, 0, 1, 0);
+  if (land(x + 1, y)) edge(1, 0, 1, 1);
+  if (land(x, y + 1)) edge(0, 1, 1, 1);
+  if (land(x - 1, y)) edge(0, 0, 0, 1);
+  ctx.stroke();
+  if (!lock) return;
+  // gates: across the channel (perpendicular to the lock direction), near both ends of the tile
+  const alongX = lock.dir === 2 || lock.dir === 8;
+  ctx.strokeStyle = '#3a2e22';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (const a of [0.12, 0.88]) {
+    const p = alongX ? [[a, 0], [a, 1]] : [[0, a], [1, a]];
+    const q0 = surfPt(sx, sy, c, p[0][0], p[0][1]), q1 = surfPt(sx, sy, c, p[1][0], p[1][1]);
+    ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q1[0], q1[1]);
+  }
+  ctx.stroke();
 }
 
 /**

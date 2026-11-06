@@ -24,6 +24,7 @@ import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import { buildDock, buildShipDepot, buildBuoy } from './cmdShip.js';
+import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
@@ -218,6 +219,10 @@ export class Game {
   buildDock(x, y, opts) { return buildDock(this.ctx, x, y, opts); }
   buildShipDepot(x, y, opts) { return buildShipDepot(this.ctx, x, y, opts); }
   buildBuoy(x, y, opts) { return buildBuoy(this.ctx, x, y, opts); }
+  /** Canal along a straight line (x0,y0)-(x1,y1) on flat land (cmdCanal.js). */
+  buildCanal(x0, y0, x1, y1, opts) { return buildCanal(this.ctx, x0, y0, x1, y1, opts); }
+  /** Lock with middle tile (x,y) on a straight inclined slope (cmdCanal.js). */
+  buildLock(x, y, opts) { return buildLock(this.ctx, x, y, opts); }
   buyVehicle(depotId, spec, opts) { return vcmd.buyVehicle(this.ctx, depotId, spec, opts); }
   setOrders(id, orders, opts) { return vcmd.setOrders(this.ctx, id, orders, opts); }
   /** Change the load/unload flags of one order: flags {load?, unload?}. */

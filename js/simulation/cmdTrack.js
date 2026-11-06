@@ -19,6 +19,7 @@ import { RIVAL_OWNED } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
 import { removeHQ } from './cmdHQ.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
+import { lockParts } from './cmdCanal.js';
 
 /**
  * Plan player bridges for a line. A bridge is a straight run of water tiles (its deck) between two
@@ -407,6 +408,13 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
     }
   }
+  // a canal lock (its three water tiles) is removed as a whole
+  for (const c of [...cells]) {
+    const lp = map.tiles[c.y * map.width + c.x].lock ? lockParts(map, c.x, c.y) : null;
+    for (const q of lp || []) {
+      if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
+    }
+  }
   for (const c of cells) {
     if (c.x < 0 || c.y < 0 || c.x >= map.width || c.y >= map.height) continue;
     const x = c.x, y = c.y;
@@ -445,6 +453,10 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
         jobs.push({ x, y, kind: 'track' });
         cost += (t.rail ? COSTS.demolishTrack : 0) + (t.road ? COSTS.demolishTrack : 0) + (t.tram ? COSTS.demolishTrack : 0);
         continue;
+      }
+      if (t.canal && !b) {
+        if (vehicleOnTile(state, x, y)) return { ok: false, error: ERR.vehicle };
+        jobs.push({ x, y, kind: 'canal' }); cost += COSTS.demolishCanal; continue;
       }
       if (t.terrain === 'forest' || t.terrain === 'rock') { jobs.push({ x, y, kind: 'clear' }); cost += clearingCost(t); }
   }
@@ -497,6 +509,9 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       stripLayer(map, j.x, j.y, 'road');
       stripLayer(map, j.x, j.y, 'tram');
       t.owner = null;
+    } else if (j.kind === 'canal') {
+      // canal or lock tile: back to land at its own height (no sea link is left behind)
+      delete t.canal; delete t.lock; t.terrain = 'grass';
     } else clearTerrain(t);
   }
   invalidateBlocks(state);

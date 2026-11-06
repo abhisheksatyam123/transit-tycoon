@@ -24,6 +24,10 @@ export const COSTS = {
   /** plant trees: per grass tile turned into forest */
   plantTree: 25,
   demolishTrack: 40,
+  /** canal (OpenTTD CMD_BUILD_CANAL): per water tile dug on flat land; lock (DoBuildLock): per lock tile */
+  canal: 250,
+  lock: 400,
+  demolishCanal: 40,
   /** block signal (OpenTTD CMD_BUILD_SIGNALS): per two-way signal on a straight rail tile; removal refund */
   signal: 60,
   demolishSignal: 20,

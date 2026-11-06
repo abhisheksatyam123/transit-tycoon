@@ -33,6 +33,8 @@ export const TOOL_BUTTONS = [
   ['dock', 'Dock', 'dock', ''],
   ['shipDepot', 'Ship Depot', 'shipDepot', ''],
   ['buoy', 'Buoy', 'buoy', ''],
+  ['canal', 'Canal', 'canal', ''],
+  ['lock', 'Lock', 'lock', ''],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */
@@ -70,7 +72,7 @@ const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load
 export const TOOL_GROUPS = [
   ['rail', 'Rail+', 'electrify', ['electrify']],
   ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
-  ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy']],
+  ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],

@@ -21,6 +21,7 @@ import { createHQTool } from './hq.js';
 import { createSignalTool } from './signal.js';
 import { createOneWayTool } from './oneWay.js';
 import { createShipTool } from './ship.js';
+import { createCanalTool, createLockTool } from './canal.js';
 
 /**
  * @typedef {Object} Tool
@@ -64,5 +65,7 @@ export function createTools(app) {
     dock: createShipTool(app, 'dock'),
     shipDepot: createShipTool(app, 'shipDepot'),
     buoy: createShipTool(app, 'buoy'),
+    canal: createCanalTool(app),
+    lock: createLockTool(app),
   };
 }

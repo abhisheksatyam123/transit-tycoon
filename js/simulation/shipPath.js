@@ -6,6 +6,7 @@
  */
 import { DIRS } from './constants.js';
 import { SHIP_ACCEL_TICKS } from '../config/ships.js';
+import { lockParts } from './cmdCanal.js';
 
 /** Buoy and depot tiles and bridge decks are water; other buildings and land are not passable. */
 export function shipPassable(map, idx) {
@@ -13,6 +14,21 @@ export function shipPassable(map, idx) {
   if (!t || t.terrain !== 'water') return false;
   const b = t.building;
   return !b || b.type === 'depot' || (b.type === 'station' && b.kind === 'buoy');
+}
+
+/**
+ * May a ship step from tile index a to adjacent index b? Ordinary water (sea, lakes, rivers) always may.
+ * Canal and lock water (tile.canal) only joins water at the same height, except that a lock's lower, middle and
+ * upper tiles link to each other (OpenTTD locks change the water level this way). Old saves have no canals.
+ */
+export function shipStepOk(map, a, b) {
+  const ta = map.tiles[a], tb = map.tiles[b];
+  if (!ta.canal && !tb.canal) return true;
+  if (ta.height === tb.height) return true;
+  if (!ta.lock || !tb.lock) return false;
+  const W = map.width;
+  const parts = lockParts(map, a % W, (a - (a % W)) / W) || [];
+  return parts.some((p) => p.x === b % W && p.y === (b - (b % W)) / W);
 }
 
 /** Binary min-heap of [priority, index] pairs (ties broken by index, so results are deterministic). */
@@ -86,6 +102,7 @@ export function findShipPath(map, start, goals) {
       const j = ny * W + nx;
       if (closed[j]) continue;
       if (!goalSet.has(j) && !shipPassable(map, j)) continue;
+      if (!shipStepOk(map, i, j)) continue;
       const ng = g[i] + 1;
       if (ng < g[j]) {
         g[j] = ng; parent[j] = i;
