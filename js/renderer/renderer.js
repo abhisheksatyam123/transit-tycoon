@@ -24,6 +24,8 @@ import { P } from './sprites/shapes.js';
 import { setSpriteLod } from './sprites/canvas.js';
 import { invalidateNet } from './net/index.js';
 import { GroundCache } from './groundCache.js';
+import { setArcticClimate } from './pack/arctic.js';
+import { isArctic, snowLineOf } from '../simulation/climate.js';
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
@@ -111,6 +113,8 @@ export class Renderer {
     setOverlayHeights(this.heights);
     if (!this.ground) this.ground = new GroundCache();
     this.ground.reset(m, this.heights);
+    // sub-arctic climate (opt-in): snow line and flag for the ground drawing; temperate games leave it off
+    setArcticClimate(isArctic(game.state), snowLineOf(game.state));
     this.carBuckets = [];
     for (let i = 0; i < m.width + m.height; i++) { this.buckets.push([]); this.carBuckets.push([]); }
   }

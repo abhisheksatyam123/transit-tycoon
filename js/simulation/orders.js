@@ -366,7 +366,7 @@ function creditDelivery(state, st, cargoId, amount) {
     }
   }
   const town = nearestTown(state, st.x, st.y);
-  if (town) recordTownDelivery(town, cargoId, amount);
+  if (town) recordTownDelivery(town, cargoId, amount, state);
 }
 
 /**

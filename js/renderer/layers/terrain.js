@@ -9,6 +9,7 @@ import { HALF_W, HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
 import { packActive } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
+import { arcticActive, drawArcticSnow } from '../pack/arctic.js';
 import { drawCanalPack, drawRiverPack, extraActive } from '../pack/extra.js';
 
 /** Fast array memo of sprites (avoids string-key allocation per tile per frame). */
@@ -53,6 +54,11 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   if (tile.canal && extraActive() && drawCanalPack(ctx, map, x, y, sx, sy, c, tile.lock ?? null)) return;
   if (tile.river && !tile.canal && extraActive() && c.some((h) => h !== c[0]) && drawRiverPack(ctx, sx, sy, c)) return;
   // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
+  // sub-arctic (opt-in, pack/arctic.js): tiles at or above the snow line get OpenGFX snowy ground (OpenTTD DrawClearLandTile)
+  if (arcticActive() && k !== 5 && !flowing && drawArcticSnow(ctx, sx, sy, c)) {
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
+  }
   if (packActive() && k === 5 && !flowing) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;
   } else if (packActive() && !flowing) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)

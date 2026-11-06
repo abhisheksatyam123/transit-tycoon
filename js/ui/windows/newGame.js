@@ -101,12 +101,15 @@ export function openNewGame(app) {
       const mgSmooth = sel([['normal', 'Normal (default)'], ['smooth', 'Smooth'], ['rough', 'Rough']]);
       const mgTowns = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
+      const mgClimate = sel([['temperate', 'Temperate (default)'], ['arctic', 'Sub-arctic (snow above the snow line)']]);
+      const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High']]);
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
         field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth),
-        field('Town density', mgTowns), field('Industry density', mgInd));
+        field('Town density', mgTowns), field('Industry density', mgInd),
+        field('Climate', mgClimate), field('Snow line', mgSnow));
       body.append(
         field('Scenario', scenario),
         desc,
@@ -144,7 +147,7 @@ export function openNewGame(app) {
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
-        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, smoothness: mgSmooth.value, townDensity: mgTowns.value, industryDensity: mgInd.value });
+        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, smoothness: mgSmooth.value, townDensity: mgTowns.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) });
         if (Object.keys(mg).length) opts.mapgen = mg;
         win.close();
         app.newGame(opts);

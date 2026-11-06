@@ -49,6 +49,15 @@ export async function loadExtraPack(base = 'assets/opengfx/extra/') {
   return loadPack(base);
 }
 
+/**
+ * Load the ARCTIC pack (snowy ground for the sub-arctic climate; assets/opengfx/arctic, keys like 'snow.3.15').
+ * @param {string} [base] default 'assets/opengfx/arctic/'
+ * @returns {Promise<OgfxPack|null>}
+ */
+export async function loadArcticPack(base = 'assets/opengfx/arctic/') {
+  return loadPack(base);
+}
+
 /** @param {string} base folder URL with manifest.json @returns {Promise<OgfxPack|null>} */
 async function loadPack(base) {
   try {
