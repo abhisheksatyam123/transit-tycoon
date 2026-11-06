@@ -13,8 +13,8 @@ export const SPR_CONCRETE_GROUND = 1420;
 /**
  * Our industry type id -> OpenTTD layout family in INDUSTRY_LAYOUTS (T-IA).
  * Exact footprint match only (tile sprites cannot be rotated): bank 1x2 and paper mill 3x4 use the OpenTTD footprints.
- * Not mapped (procedural): printing works (OTTD 4x4, ours 3x2), food plant (OTTD 3x4/4x3, ours 3x3), building materials
- * (no OTTD equivalent). Quarry has no OTTD equivalent: coal mine art (3x3, exact) stays as a reuse.
+ * printing works (OTTD 4x4 layout with 4 empty corners; footprint 4x4) and food plant (OTTD 4x3 exact; footprint 4x3).
+ * Quarry: OTTD coal mine variant 1 (3x3, full coverage) reused. Building materials: no OTTD analogue, procedural.
  */
 export const INDUSTRY_OTTD = {
   coal_mine: 'coal_mine',
@@ -30,7 +30,12 @@ export const INDUSTRY_OTTD = {
   bank: 'bank',
   quarry: 'coal_mine',
   paper_mill: 'paper_mill',
+  printing_works: 'printing_works',
+  food_plant: 'food_plant',
 };
+
+/** Layouts whose OpenTTD shape has empty tiles inside the footprint; those tiles draw concrete ground. */
+const HOLEY = new Set(['printing_works']);
 
 /** Layout entries of variant v that lie in the w x h footprint, as a Map key "dx,dy" -> gfx. */
 function coverage(variant, w, h) {
@@ -59,7 +64,7 @@ export function industryLayout(typeId, w, h, id) {
   let exact = fam.filter(fits);
   m = exact.length ? coverage(exact[Math.abs(id | 0) % exact.length], w, h) : null;
   // A layout must cover every footprint tile, else use procedural drawing.
-  if (m && m.size !== w * h) m = null;
+  if (m && m.size !== w * h && !HOLEY.has(typeId)) m = null;
   memo.set(key, m);
   return m;
 }

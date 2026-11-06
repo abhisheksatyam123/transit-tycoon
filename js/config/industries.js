@@ -36,9 +36,9 @@ export const EXTRA_INDUSTRY_TYPES = [
   // town; 'extraRural' = anywhere (spacing rules as usual). extraCount = how many are placed on a new map.
   { id: 'quarry', name: 'Quarry', w: 3, h: 3, produces: ['STON'], accepts: [], converts: {}, production: { STON: 100 }, color: '#78716c', totalOfType: 2, monthlyClosureChance: 40, placement: 'extraRural', extraCount: 2 },
   { id: 'paper_mill', name: 'Paper Mill', w: 3, h: 4, produces: ['PAPR'], accepts: ['WOOD'], converts: { WOOD: 'PAPR' }, production: {}, color: '#d6d3d1', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
-  { id: 'printing_works', name: 'Printing Works', w: 3, h: 2, produces: ['GOOD'], accepts: ['PAPR'], converts: { PAPR: 'GOOD' }, production: {}, color: '#7c3aed', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
+  { id: 'printing_works', name: 'Printing Works', w: 4, h: 4, produces: ['GOOD'], accepts: ['PAPR'], converts: { PAPR: 'GOOD' }, production: {}, color: '#7c3aed', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
   { id: 'building_materials', name: 'Building Materials Plant', w: 3, h: 3, produces: ['BMAT'], accepts: ['STON'], converts: { STON: 'BMAT' }, production: {}, color: '#a8a29e', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
-  { id: 'food_plant', name: 'Food Processing Plant', w: 3, h: 3, produces: ['FOOD'], accepts: ['GRAI', 'LVST'], converts: { GRAI: 'FOOD', LVST: 'FOOD' }, production: {}, color: '#f97316', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
+  { id: 'food_plant', name: 'Food Processing Plant', w: 4, h: 3, produces: ['FOOD'], accepts: ['GRAI', 'LVST'], converts: { GRAI: 'FOOD', LVST: 'FOOD' }, production: {}, color: '#f97316', totalOfType: 2, monthlyClosureChance: 0, placement: 'extraTown', extraCount: 2 },
 ];
 export const EXTRA_TOWN_RADIUS = 16;
 

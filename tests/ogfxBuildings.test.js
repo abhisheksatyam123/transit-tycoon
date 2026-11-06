@@ -57,7 +57,8 @@ test('industry layouts cover the footprint and are deterministic', () => {
       const b = industryLayout(typeId, w, h, 7);
       expect(a === null ? null : [...a.entries()]).toEqual(b === null ? null : [...b.entries()]);
       if (a === null) continue; // no same-size OpenTTD layout: drawn procedurally
-      expect(a.size).toBe(w * h);
+      if (typeId === 'printing_works') expect(a.size).toBe(12); // OpenTTD 4x4 layout: 4 empty corners (concrete ground)
+      else expect(a.size).toBe(w * h);
       for (const [key, g] of a) {
         const [dx, dy] = key.split(',').map(Number);
         expect(dx).toBeLessThan(w);
