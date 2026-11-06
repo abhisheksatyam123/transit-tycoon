@@ -201,9 +201,12 @@ export function openGraphs(app) {
         canvas.hidden = onLeague;
         table.hidden = !onLeague;
         if (state.tab === 'value') {
-          const vals = chronological(c.companyValueHistory);
+          const now = liveCompanyValue(app.game.state, c);
+          // no month end recorded yet: plot the live value as a single "now" point (no invented history)
+          const hist = chronological(c.companyValueHistory);
+          const vals = hist.length ? hist : [now];
           setText(sumLabel, 'Company value now');
-          setText(sumValue, money(liveCompanyValue(app.game.state, c)));
+          setText(sumValue, money(now));
           drawChart(canvas, { labels: monthLabels(vals.length), series: [{ name: 'Company value', color: p.accent, values: vals }] });
         } else if (state.tab === 'finance') {
           const s = ledgerSeries(c);

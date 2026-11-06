@@ -20,6 +20,7 @@ import { planIndustries, namedSiteFootprint } from './moscowIndustry.js';
 import { recomputePopulation } from '../towns.js';
 import { cleanRail } from './moscowRail.js';
 import { cleanRoad } from './moscowRoad.js';
+import { replan } from '../movement.js';
 
 /** Starting company money for the real-city game. */
 export const MOSCOW_MONEY = 4_000_000;
@@ -162,6 +163,31 @@ export function thinBuildings(state, kremlin) {
   return removed;
 }
 
+/** Re-plan prebuilt vehicles left in 'lost' state; returns the count that found a route. */
+function replanLost(game, log) {
+  const { state } = game;
+  let fixed = 0, still = 0;
+  for (const v of state.vehicles) {
+    if (v.state !== 'lost') continue;
+    if (replan(game.ctx, v)) fixed++; else still++;
+  }
+  if (fixed) log.push(`vehicles: re-planned ${fixed} prebuilt vehicles left lost after road joins`);
+  if (still) log.push(`vehicles: ${still} prebuilt vehicles still have no route`);
+  return fixed;
+}
+
+/** Mark each station as already having had its first arrival for every vehicle kind that serves it. */
+function markServedStations(state) {
+  const stations = new Map(state.stations.map((st) => [st.id, st]));
+  for (const v of state.vehicles) {
+    const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : 'road';
+    for (const o of v.orders || []) {
+      const st = stations.get(o.stationId);
+      if (st && st.arrived) st.arrived[key] = true;
+    }
+  }
+}
+
 /**
  * Build the whole Moscow scenario onto a freshly created game (state.map is replaced).
  * @param {object} game Game instance (from Game.create with no generation)
@@ -219,6 +245,10 @@ export function buildMoscow(game, map) {
   state.metro = { lines: metro.map((m) => ({ ref: m.ref, name: m.name, nameEn: m.nameEn, color: m.color, ring: m.ring, stationIds: m.stationIds, vehicleIds: m.vehicleIds })) };
   const air = buildAirports(game, map, log);
   state.scenarioMeta = { metro, bus, air, focus: { x: kremlin.x, y: kremlin.y }, landmarks };
+  // prebuilt vehicles were routed before the last road joins/prunes: re-plan any left lost, so day 0 starts clean
+  const replanned = replanLost(game, log);
+  // stations served by prebuilt vehicles start with their first-arrival news already seen (no launch spam)
+  markServedStations(state);
   state.scenarioLog = log;
   const population = state.towns.reduce((a, t) => a + (t.population || 0), 0);
   return { towns: state.towns.length, population, houses, streets: streets.laid, metro, bus, industries, landmarks: landmarks.length, log };

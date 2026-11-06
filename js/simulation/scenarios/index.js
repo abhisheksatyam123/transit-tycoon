@@ -8,7 +8,7 @@ import { initGoals } from '../goals.js';
 /** Selectable scenarios (ids are stored in state.scenario). */
 export const SCENARIOS = [
   { id: 'random', name: 'Random world', description: 'Procedurally generated world', defaults: {} },
-  { id: 'moscow', name: 'Moscow (real map)', description: 'Moscow inside the MKAD ring built from OpenStreetMap data: Moskva river, Kremlin, Garden Ring, TTK, MKAD, radial avenues, metro lines, districts', defaults: { objective: { type: 'companyValue', target: 40000000, timeLimitYears: 10 } } },
+  { id: 'moscow', name: 'Moscow (real map)', description: 'Moscow inside the MKAD ring built from OpenStreetMap data: Moskva river, Kremlin, Garden Ring, TTK, MKAD, radial avenues, metro lines, districts', defaults: { objective: { type: 'companyValue', target: 200000000, timeLimitYears: 10 } } },
 ];
 
 /** Scenario ids. */
