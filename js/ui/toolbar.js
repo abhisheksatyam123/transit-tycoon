@@ -5,6 +5,7 @@
  */
 import { hotkeyTitle, currentOverrides, effectiveKeys, onHotkeysChanged, keyLabel } from './hotkeys.js';
 import { el } from './dom.js';
+import { openTitleMenu } from './titleMenu.js';
 import { icon } from './icons.js';
 import { scanIssues } from './diagCache.js';
 import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
@@ -267,7 +268,9 @@ export function createToolbar(root, app) {
   const sep = () => el('div.tb-sep');
   const cat = (...xs) => xs.flat().filter(Boolean);
 
-  root.appendChild(el('div.tb-brand', null, el('span.tb-logo', { text: 'TT' }), el('span.tb-name', { text: 'Transit Tycoon' })));
+  // Main menu entry: the "TT" logo button (always visible, also on phones where the brand text hides)
+  root.appendChild(el('button.tb-menu-btn', { type: 'button', text: 'TT', title: 'Main menu (title screen)', 'aria-label': 'Main menu', onclick: () => openTitleMenu(app) }));
+  root.appendChild(el('div.tb-brand', null, el('span.tb-name', { text: 'Transit Tycoon' })));
   root.appendChild(el('div.tb-group', { 'aria-label': 'Speed' }, speedBtns));
   root.appendChild(sep());
   root.appendChild(el('div.tb-group', { 'aria-label': 'Build tools' }, cat(toolBtns, groupBtn('rail'), groupBtn('road'), groupBtn('water'), groupBtn('air'), groupBtn('landscape'))));

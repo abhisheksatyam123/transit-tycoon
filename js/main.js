@@ -20,6 +20,7 @@ import { TOOL_BUTTONS } from './ui/toolbar.js';
 import { runWithLoading, buildingLabel } from './ui/loading.js';
 import { createGameFast } from './ui/scenarioSnapshot.js';
 import { initPack, togglePack } from './renderer/pack/index.js';
+import { openTitleMenu } from './ui/titleMenu.js';
 
 const WINDOW_REFRESH_MS = 250;
 const STATUS_REFRESH_MS = 200;
@@ -235,7 +236,20 @@ async function main() {
   window.addEventListener('resize', clampWindows);
   window.addEventListener('orientationchange', () => setTimeout(clampWindows, 60));
   if (scenario) { /* scenario toast shown above */ } else if (restored) app.toast('Continuing your autosaved game — New Game to start over', 'info');
+  else if (shouldShowTitle()) openTitleMenu(app); // plain boot: title menu (replaces the help popup)
   else app.open('help');
+}
+
+/**
+ * Title menu on a plain boot. Not with `?scenario=` or `?notitle=1`; under automation (navigator.webdriver)
+ * only with `?title=1`, so existing e2e scripts keep their map + How-to-play boot.
+ * @returns {boolean}
+ */
+function shouldShowTitle() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('scenario') || q.get('notitle') === '1') return false;
+  if (q.get('title') === '1') return true;
+  return !navigator.webdriver;
 }
 
 /** Storage key: set once the player closes the auto-opened Goals window (never auto-open again). */

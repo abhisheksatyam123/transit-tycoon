@@ -331,3 +331,51 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .hk-fixed .hk-label { opacity: 0.85; }
 .hk-conflict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px; margin-top: 6px; border: 1px solid #b96; border-radius: 4px; }
 .hk-conflict[hidden] { display: none; }
+
+/* ---- title screen / main menu (titleMenu.js) ---- */
+.tb-menu-btn {
+  font: 800 12px var(--mono); color: #0b1220; background: linear-gradient(135deg, #38bdf8, #0284c7);
+  border: 0; border-radius: 6px; padding: 5px 7px; margin-right: 2px; cursor: pointer; flex-shrink: 0; align-self: center;
+}
+.tb-menu-btn:focus-visible { outline: 2px solid #f8fafc; outline-offset: 2px; }
+.tm-overlay {
+  position: fixed; inset: 0; z-index: 900; display: flex; align-items: center; justify-content: center;
+  padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+  background: rgba(3, 6, 12, 0.62); backdrop-filter: blur(1.5px);
+}
+.tm-panel {
+  width: min(440px, 100%); max-height: 100%; overflow: auto; box-sizing: border-box;
+  background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); padding: 14px 16px 12px; color: #e2e8f0;
+}
+.tm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.tm-logo {
+  font: 800 22px var(--mono); color: #0b1220; background: linear-gradient(135deg, #38bdf8, #0284c7);
+  border-radius: 10px; padding: 8px 10px; flex-shrink: 0;
+}
+.tm-title h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
+.tm-title p { margin: 2px 0 0; }
+.tm-menu { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.tm-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left;
+  padding: 8px 12px; min-height: 44px; box-sizing: border-box;
+}
+.tm-btn.primary { border-color: var(--accent-border, #38bdf8); }
+.tm-btn-label { font-weight: 700; font-size: 14px; }
+.tm-btn-hint { font-size: 11px; opacity: 0.7; }
+.tm-foot { margin-top: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.tm-foot p { margin: 0; line-height: 1.35; }
+/* wide (landscape phone, laptop): two columns so the panel stays short */
+@media (min-width: 620px) and (min-height: 500px) {
+  .tm-menu { grid-template-columns: 1fr 1fr; }
+}
+/* short landscape phones: hide hints, tighten the head */
+@media (max-height: 460px) {
+  .tm-head { margin-bottom: 6px; }
+  .tm-logo { font-size: 16px; padding: 5px 7px; }
+  .tm-title h1 { font-size: 17px; }
+  .tm-title p, .tm-btn-hint { display: none; }
+  .tm-btn { min-height: 36px; padding: 6px 10px; }
+  .tm-panel { padding: 10px 12px 8px; }
+  .tm-foot { margin-top: 6px; }
+}
