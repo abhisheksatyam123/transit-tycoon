@@ -19,6 +19,7 @@ import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 import { cdApplies, cargodistOn, loadFilter, nextHop, noteLeg, CD_CARGOS } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle } from './routing.js';
+import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
@@ -432,7 +433,7 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
 function recordArrival(ctx, v, order) {
   const { state } = ctx;
   if (!order) return;
-  if (order.waitDays > 0 || v.autofill) v.arriveTick = state.tick;
+  if (order.waitDays > 0 || v.autofill || (v.orderGroup != null && timetableSeparationOn(state))) v.arriveTick = state.tick;
   else delete v.arriveTick;
   if (v.departTick == null || !(order.travelDays > 0 || v.autofill)) return;
   const idx = v.orderIndex % v.orders.length;
@@ -469,6 +470,14 @@ export function loadingTick(ctx, v) {
     && state.tick - v.arriveTick < order.waitDays * TICKS_PER_DAY) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
+  }
+  // timetable start date and separation: hold until the departure slot (lazy; absent = no hold)
+  if (order && !v.intermediate && (v.ttStart != null || v.orderGroup != null)) {
+    const hold = departureHoldUntil(state, v, v.orderIndex % v.orders.length);
+    if (hold != null && state.tick < hold) {
+      v.loadingTicks = FULL_LOAD_RETRY;
+      return false;
+    }
   }
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)

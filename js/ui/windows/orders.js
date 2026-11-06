@@ -6,7 +6,9 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
-import { unloadMode, stopMode } from '../../simulation/orders.js';
+import { unloadMode, stopMode, hasTimetable } from '../../simulation/orders.js';
+import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
+import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
@@ -76,7 +78,22 @@ export function openOrders(app, id) {
           ...sts.map((st) => el('option', { value: String(st.id), text: st.name })));
         pickBtn.disabled = !sts.length;
       };
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), needs2, hint);
+      // OpenTTD timetable start: days from now (0 = now); blank clears. Spread evenly over the shared group.
+      const startIn = el('input.input', { type: 'number', min: '0', max: '3650', step: '1', title: 'Timetable start date: days from now (blank = no start date)', placeholder: 'days', 'aria-label': 'Timetable start in days', style: 'width:5em',
+        onchange: (e) => {
+          const raw = String(e.target.value).trim();
+          const n = Number(raw);
+          if (raw === '') app.exec(app.game.setTimetableStart(id, null), { quiet: true, sound: 'click' });
+          else if (!Number.isFinite(n) || n < 0) app.toast('Start date must be 0 or more days from now', 'error', true);
+          else app.exec(app.game.setTimetableStart(id, app.game.state.tick + Math.round(n) * TICKS_PER_DAY), { quiet: true, sound: 'click' });
+        } });
+      const startLabel = el('span.muted.small', { text: '' });
+      const spreadBtn = el('button.btn.sm', { type: 'button', text: 'Spread evenly', title: 'Set the start dates of all vehicles sharing these orders so they are evenly spaced over the timetable round (needs a complete timetable)',
+        onclick: () => app.exec(app.game.spreadTimetableStart(id), { quiet: true, sound: 'click' }) });
+      const totalLabel = el('div.muted.small.tt-total', { text: '' });
+      const lateLine = el('div.small.tt-late', { text: '' });
+      const ttRow = el('div.btn-row', null, el('span.small', { text: 'Start date: ' }), startIn, el('span.small', { text: ' days from now ' }), startLabel, spreadBtn);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
 
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
@@ -112,6 +129,16 @@ export function openOrders(app, id) {
         setText(autofillBtn, v.autofill ? 'Autofill: on (recording)' : 'Autofill timetable');
         autofillBtn.classList.toggle('active', !!v.autofill);
         resetBtn.hidden = v.lateDays == null;
+        const st = app.game.state;
+        const tc = timetableComplete(v);
+        const roundDays = Math.round(roundTicks(v.orders) / TICKS_PER_DAY);
+        setText(totalLabel, roundDays > 0 ? `Total time: ${roundDays} day${roundDays === 1 ? '' : 's'}${tc ? '' : ' (incomplete: every order needs a travel time)'}` : '');
+        setText(startLabel, v.ttStart != null ? (v.ttStart > st.tick ? `starts in ${Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)} days` : 'started') : 'no start date');
+        if (document.activeElement !== startIn) startIn.value = v.ttStart != null && v.ttStart > st.tick ? String(Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)) : '';
+        spreadBtn.disabled = !tc;
+        spreadBtn.title = tc ? spreadBtn.title : 'Needs a complete timetable: every order needs a travel time';
+        const late = v.lateDays;
+        setText(lateLine, !v.orders.some(hasTimetable) ? '' : late == null ? 'This vehicle is on time' : late > 0 ? `This vehicle is running ${late} day${late === 1 ? '' : 's'} late` : `This vehicle is running ${-late} day${late === -1 ? '' : 's'} early`);
         const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId }));
         listOrEmpty(list, items, (it) => it.key,
           (it) => el('div.order-row', null,

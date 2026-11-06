@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   planeCrashes: 'off',
   /** cargo distribution for passengers and mail (OpenTTD cargodist, simplified): 'off' | 'asymmetric' | 'symmetric'. Off by default. */
   cargodist: 'off',
+  /** timetable separation: vehicles on a complete timetable with shared orders depart at their evenly spaced slots. Off by default. */
+  timetableSeparation: false,
 };
 
 /** Read a setting (state.settings value or the default). */

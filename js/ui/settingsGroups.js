@@ -34,6 +34,8 @@ export const SETTING_META = [
     help: 'New vehicles service at the nearest depot every N days (0 = off). Existing vehicles keep theirs; change them in the vehicle window.' },
   { key: 'inflation', group: 'economy', label: 'Inflation', type: 'check',
     help: 'Costs and cargo payments rise every month.' },
+  { key: 'timetableSeparation', group: 'vehicles', label: 'Timetable separation', type: 'check',
+    help: 'Vehicles on a complete timetable with shared orders depart at evenly spaced slots (start date + round offsets), so buses on one line keep even gaps. Off = depart as soon as loaded.' },
   { key: 'cargodist', group: 'economy', label: 'Cargo distribution (passengers/mail)', type: 'select',
     options: [['off', 'Off'], ['asymmetric', 'Asymmetric'], ['symmetric', 'Symmetric']],
     help: 'Passengers and mail get destinations (OpenTTD cargodist): a station routes them by the link graph of your vehicle routes, so they ride via transfers. Off = classic pickup from any vehicle.' },

@@ -20,6 +20,8 @@ import { MODEL_BY_ID } from '../config/vehicles.js';
 import { DIRS } from './constants.js';
 import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
+import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
+import { TICKS_PER_DAY } from './constants.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -265,6 +267,38 @@ export function setTimetableAutofill(ctx, id, on, opts = {}) {
   if (on && v.orders.length) { v.autofill = true; v.autofillLeft = v.orders.length; }
   else { delete v.autofill; delete v.autofillLeft; }
   return { ok: true, cost: 0 };
+}
+
+/**
+ * Timetable start date (OpenTTD CmdSetTimetableStart): absolute tick, or null to clear. Before it the vehicle
+ * waits at its first timetabled stop.
+ */
+export function setTimetableStart(ctx, id, startTick, opts = {}) {
+  const v = findVehicle(ctx.state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (startTick != null && (!Number.isFinite(Number(startTick)) || Number(startTick) < 0)) return { ok: false, error: 'Bad start date' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  if (startTick == null) delete v.ttStart;
+  else v.ttStart = Math.round(Number(startTick));
+  return { ok: true, cost: 0 };
+}
+
+/**
+ * Spread the start dates of all vehicles sharing this order list evenly over the timetable round
+ * (OpenTTD Ctrl+click on the start date). Needs a complete timetable (every order has travel days).
+ */
+export function spreadTimetableStart(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (!timetableComplete(v)) return { ok: false, error: 'Timetable incomplete: every order needs a travel time before spreading' };
+  const T = roundTicks(v.orders);
+  const mem = orderGroupMembers(state, v);
+  if (opts.dryRun) return { ok: true, cost: 0, count: mem.length };
+  mem.forEach((w, k) => { w.ttStart = state.tick + Math.round(k * T / mem.length); });
+  return { ok: true, cost: 0, count: mem.length, spacingDays: T / mem.length / TICKS_PER_DAY };
 }
 
 /** Clear the recorded lateness of a vehicle (OpenTTD reset lateness). */

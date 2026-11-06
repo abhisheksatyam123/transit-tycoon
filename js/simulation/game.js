@@ -284,6 +284,10 @@ export class Game {
   setTimetableAutofill(id, on, opts) { return vcmd.setTimetableAutofill(this.ctx, id, on, opts); }
   /** Clear a vehicle's recorded lateness. */
   resetLateness(id, opts) { return vcmd.resetLateness(this.ctx, id, opts); }
+  /** Timetable start date: absolute tick (null clears). Before it the vehicle waits at its first stop. */
+  setTimetableStart(id, startTick, opts) { return vcmd.setTimetableStart(this.ctx, id, startTick, opts); }
+  /** Spread the start dates of the shared-order group evenly over the timetable round (needs a complete timetable). */
+  spreadTimetableStart(id, opts) { return vcmd.spreadTimetableStart(this.ctx, id, opts); }
   borrow(amount) { return borrow(this.state.company, amount); }
   repay(amount) { return repay(this.state.company, amount); }
 
