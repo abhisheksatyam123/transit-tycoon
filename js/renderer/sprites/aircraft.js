@@ -27,6 +27,8 @@ export const AIRCRAFT_GEOM = {
   ac_il86: { L: 0.84, S: 0.74, fuse: 10, fin: 26, kind: 'jet', eng: 'wing', nEng: 2, tail: 'fin', sweep: 0.12, wide: true },
   ac_b777: { L: 0.92, S: 0.84, fuse: 11, fin: 28, kind: 'jet', eng: 'wing', nEng: 1, tail: 'fin', sweep: 0.13, wide: true },
   ac_a320: { L: 0.74, S: 0.68, fuse: 8, fin: 22, kind: 'jet', eng: 'wing', nEng: 1, tail: 'fin', sweep: 0.1 },
+  ac_tricario: { L: 0.5, S: 0.5, fuse: 7, fin: 12, kind: 'heli', eng: 'none', nEng: 1, tail: 'fin', sweep: 0, rotor: 0.62 },
+  ac_guru_x2: { L: 0.6, S: 0.56, fuse: 8, fin: 14, kind: 'heli', eng: 'none', nEng: 1, tail: 'fin', sweep: 0, rotor: 0.7 },
   ac_ssj100: { L: 0.64, S: 0.6, fuse: 7, fin: 21, kind: 'jet', eng: 'rear', nEng: 1, tail: 'fin', sweep: 0.1 },
 };
 
@@ -87,6 +89,7 @@ export function aircraftSprite(modelId, heading, livery, flat) {
   const g = aircraftGeom(modelId);
   return cache.get(key, () => makeSprite(AIRCRAFT_SIZE, AIRCRAFT_SIZE, AIRCRAFT_SIZE / 2, AIRCRAFT_SIZE / 2, (ctx) => {
     if (flat) drawShadow(ctx, g, h);
+    else if (g.kind === 'heli') drawHelicopter(ctx, g, h, LIVERIES[lv]);
     else drawPlane(ctx, g, h, LIVERIES[lv]);
   }));
 }
@@ -136,6 +139,13 @@ function drawShadow(ctx, g, h) {
   const L = g.L, S = g.S;
   ctx.globalAlpha = 1;
   const sh = 'rgba(0,0,0,0.32)';
+  if (g.kind === 'heli') { // rotor disc shadow
+    const R = g.rotor;
+    const disc = [];
+    for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; disc.push([Math.cos(a) * R, Math.sin(a) * R, 0]); }
+    fillPts(ctx, Q, disc, sh);
+    return;
+  }
   fillPts(ctx, Q, wingPts(g, 1, 0), sh);
   fillPts(ctx, Q, wingPts(g, -1, 0), sh);
   strokePts(ctx, Q, [[-L / 2, 0, 0], [L / 2, 0, 0]], sh, g.fuse * 0.9);
@@ -160,6 +170,43 @@ function wingPts(g, s, z) {
 }
 
 /** Full plane with livery. */
+/**
+ * Procedural helicopter: cabin, tail boom, skids and a main rotor disc (drawn edge-on to the view
+ * as a thin ellipse so it reads as spinning). Used for helicopter models; OpenGFX has no helicopter
+ * sprites in the atlas, so this is the sprite for both render modes.
+ */
+function drawHelicopter(ctx, g, h, lv) {
+  const Q = frame(h);
+  const L = g.L;
+  const zc = 9; // cabin centre height
+  const body = lv.body, stripe = lv.stripe;
+  // tail boom and tail rotor
+  strokePts(ctx, Q, [[-L * 0.1, 0, zc + 1], [-L * 0.62, 0, zc + 2.5]], lv.tail, 2.2);
+  strokePts(ctx, Q, [[-L * 0.6, 0, zc + 2.5], [-L * 0.6, 0, zc + 7]], '#334155', 1.2);
+  // skids (both sides)
+  for (const s of [1, -1]) {
+    strokePts(ctx, Q, [[-L * 0.22, s * 0.16, 2], [L * 0.22, s * 0.16, 2]], '#334155', 1.4);
+    strokePts(ctx, Q, [[-L * 0.14, s * 0.16, 2], [-L * 0.14, s * 0.16, 5]], '#334155', 1);
+    strokePts(ctx, Q, [[L * 0.14, s * 0.16, 2], [L * 0.14, s * 0.16, 5]], '#334155', 1);
+  }
+  // cabin: rounded body approximated by a stack of ellipses-as-strokes
+  strokePts(ctx, Q, [[-L * 0.22, 0, zc], [L * 0.28, 0, zc]], body, g.fuse * 1.5);
+  strokePts(ctx, Q, [[-L * 0.2, 0, zc - 1.6], [L * 0.26, 0, zc - 1.6]], stripe, Math.max(1.4, g.fuse * 0.35));
+  // windscreen (front)
+  strokePts(ctx, Q, [[L * 0.24, 0, zc + 1.4], [L * 0.3, 0, zc + 0.6]], '#0f172a', Math.max(2, g.fuse * 0.5));
+  // mast and main rotor disc (flat ellipse seen at a slant), plus the blades as a thin line
+  strokePts(ctx, Q, [[0, 0, zc + 2], [0, 0, zc + 5]], '#475569', 1.6);
+  const R = g.rotor;
+  const disc = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    disc.push([Math.cos(a) * R, Math.sin(a) * R * 0.18, zc + 5.5]);
+  }
+  fillPts(ctx, Q, disc, 'rgba(15,23,42,0.22)');
+  strokePts(ctx, Q, [[-R, 0, zc + 5.5], [R, 0, zc + 5.5]], 'rgba(226,232,240,0.85)', 1.1);
+  strokePts(ctx, Q, [[0, -R * 0.9, zc + 5.5], [0, R * 0.9, zc + 5.5]], 'rgba(226,232,240,0.7)', 0.9);
+}
+
 function drawPlane(ctx, g, h, lv) {
   const Q = frame(h);
   const L = g.L, S = g.S;

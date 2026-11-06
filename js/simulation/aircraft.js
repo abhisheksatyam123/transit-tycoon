@@ -1,3 +1,5 @@
+import { airportLayoutFor, airportTypeId, AIRPORT_TYPES } from './airportTypes.js';
+
 /**
  * Aircraft helpers: straight-line (Bresenham) flight paths, altitude ramp and the
  * airport footprint layout. Aircraft ignore track/road connectivity entirely.
@@ -32,41 +34,32 @@ export const RAMP_FRACTION = 0.15;
  * @param {{path:object[],pathIndex:number,progress:number}} v
  * @returns {number}
  */
-export function altitudeAt(v) {
+export function altitudeAt(v, heli = false) {
   const n = v.path.length - 1;
   if (n <= 0) return 0;
   const f = (v.pathIndex + v.progress) / n;
   if (f <= 0 || f >= 1) return 0;
-  const up = f / RAMP_FRACTION, down = (1 - f) / RAMP_FRACTION;
+  // helicopters lift off vertically: the ramp is about two tiles long, not a fraction of the route
+  const ramp = heli ? Math.min(RAMP_FRACTION, 2 / n) : RAMP_FRACTION;
+  const up = f / ramp, down = (1 - f) / ramp;
   return Math.max(0, Math.min(1, up, down));
 }
 
 /**
- * Airport footprint layout (AIRPORT_W x AIRPORT_H, origin top-left).
- * Row 0: hangar, apron, apron, apron, terminal, control tower.
- * Row 1: apron x4, terminal x2 (cols 4-5).
- * Row 2: runway (all 6 tiles); the runway centre is (dx 2, dy 2).
- * Row 3: apron x6.
+ * Airport footprint layout for a type (default city: 6x4, origin top-left). See airportTypes.js.
+ * @param {string} [typeId]
  * @returns {{dx:number,dy:number,part:string}[]}
  */
-export function airportLayout() {
-  const L = [];
-  const cells = {
-    '0,0': 'hangar', '0,4': 'terminal', '0,5': 'tower',
-    '1,4': 'terminal', '1,5': 'terminal',
-  };
-  for (let dy = 0; dy < 4; dy++) {
-    for (let dx = 0; dx < 6; dx++) {
-      const key = `${dy},${dx}`;
-      let part = cells[key];
-      if (!part) part = dy === 2 ? 'runway' : 'apron';
-      L.push({ dx, dy, part });
-    }
-  }
-  return L;
+export function airportLayout(typeId) {
+  return airportLayoutFor(typeId || 'city');
 }
 
-/** True when a tile is the runway centre of an airport (goal tile for aircraft). */
+/**
+ * True when a tile is the goal of an airport type (runway centre, or the heliport's helipad).
+ * @param {object} b tile building
+ */
 export function isRunwayCentre(b) {
-  return !!b && b.type === 'station' && b.kind === 'airport' && b.part === 'runway' && b.dx === 2 && b.dy === 2;
+  if (!b || b.type !== 'station' || b.kind !== 'airport') return false;
+  const t = AIRPORT_TYPES[airportTypeId(b)];
+  return b.part === t.goal.part && b.dx === t.goal.dx && b.dy === t.goal.dy;
 }

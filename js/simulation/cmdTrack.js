@@ -13,7 +13,12 @@ import { straightAxis } from './network.js';
 import { spend } from './economy.js';
 import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
 import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
-import { airportLayout } from './aircraft.js';
+import { airportLayoutFor, airportTypeId, airportType } from './airportTypes.js';
+
+/** Part name of the air depot tile for an airport building (hangar, or helipad for a heliport). */
+function airportDepotPart(b) {
+  return airportType(airportTypeId(b)).depotPart;
+}
 import { findTown, findStation } from './state.js';
 import { RIVAL_OWNED } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
@@ -404,7 +409,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     const ox = c.x - b.dx, oy = c.y - b.dy;
     if (seenAirport.has(`${ox},${oy}`)) continue;
     seenAirport.add(`${ox},${oy}`);
-    for (const p of airportLayout()) {
+    for (const p of airportLayoutFor(airportTypeId(b))) {
       const q = { x: ox + p.dx, y: oy + p.dy };
       if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
     }
@@ -422,7 +427,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     const t = map.tiles[y * map.width + x];
     const b = t.building;
     if (b && b.type === 'station' && b.kind === 'airport') {
-      if (b.part === 'hangar' && state.vehicles.some((v) => v.state === 'depot' && v.tx === x && v.ty === y)) {
+      if (b.part === airportDepotPart(b) && state.vehicles.some((v) => v.state === 'depot' && v.tx === x && v.ty === y)) {
         return { ok: false, error: 'Depot contains vehicles' };
       }
       if (vehicleOnTile(state, x, y)) return { ok: false, error: ERR.vehicle };
@@ -481,7 +486,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       t.building = null; t.owner = null;
     } else if (j.kind === 'station') {
       const kind = t.building.kind;
-      const hangarDepot = kind === 'airport' && t.building.part === 'hangar' ? t.building.depotId : null;
+      const hangarDepot = kind === 'airport' && t.building.part === airportDepotPart(t.building) ? t.building.depotId : null;
       removeStationTile(ctx, j.x, j.y);
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;

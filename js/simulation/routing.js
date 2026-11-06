@@ -5,6 +5,7 @@ import { findPath } from './pathfinder.js';
 import { findStation, manhattan } from './state.js';
 import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { airLine, isRunwayCentre } from './aircraft.js';
+import { airportTypeId, isHelicopter, vehicleFitsAirport } from './airportTypes.js';
 import { findShipPath, shipGoals } from './shipPath.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { getSetting } from './settings.js';
@@ -40,25 +41,39 @@ export function orderGoals(state, v) {
   const st = findStation(state, order.stationId);
   if (!st) return [];
   const kind = stopKindFor(v);
-  if (kind === 'airport') return airGoals(state, st);
+  if (kind === 'airport') return airGoals(state, st, v);
   if (kind === 'ship') return shipGoals(state.map, st);
   return st.tiles.filter((t) => stopKindOk(v, t.kind)).map((t) => ({ x: t.x, y: t.y }));
 }
 
-/** Aircraft goals: the runway centre tiles of an airport station. */
-function airGoals(state, st) {
+/**
+ * Aircraft goals: the runway centre tiles (or helipads) of an airport station that this vehicle may use.
+ * Planes never take a heliport; small airports only take small planes; helicopters use any.
+ */
+function airGoals(state, st, v) {
   const { map } = state;
+  const model = v && MODEL_BY_ID[v.modelId];
   const out = [];
   for (const t of st.tiles) {
-    if (t.kind === 'airport' && isRunwayCentre(map.tiles[t.y * map.width + t.x].building)) out.push({ x: t.x, y: t.y });
+    if (t.kind !== 'airport') continue;
+    const b = map.tiles[t.y * map.width + t.x].building;
+    if (isRunwayCentre(b) && (!model || vehicleFitsAirport(model, airportTypeId(b)))) out.push({ x: t.x, y: t.y });
   }
   return out;
+}
+
+/** True when a station has a goal this aircraft may use (a plane has no goal at a heliport). */
+export function stationFitsVehicle(state, st, v) {
+  if (v.kind !== 'aircraft') return true;
+  return airGoals(state, st, v).length > 0;
 }
 
 /** Goal tiles: company depots of the vehicle's kind (or one depot when depotId given). */
 export function depotGoals(state, v, depotId) {
   const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
-  return state.depots.filter((d) => d.kind === kind && (depotId === undefined || d.id === depotId))
+  const model = v.kind === 'aircraft' ? MODEL_BY_ID[v.modelId] : null;
+  return state.depots.filter((d) => d.kind === kind && (depotId === undefined || d.id === depotId)
+    && (!model || vehicleFitsAirport(model, airportTypeId(d))))
     .map((d) => ({ x: d.x, y: d.y }));
 }
 

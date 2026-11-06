@@ -13,6 +13,7 @@ import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
+import { isHelicopter } from './airportTypes.js';
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
 import { servicePerformed } from './service.js';
@@ -61,7 +62,7 @@ export function vehicleTick(ctx, v) {
     case 'running':
       if (v.kind === 'ship') { moveShip(ctx, v); return; }
       move(ctx, v);
-      if (v.kind === 'aircraft') v.alt = altitudeAt(v);
+      if (v.kind === 'aircraft') v.alt = altitudeAt(v, isHelicopter(v));
       return;
     default:
   }
@@ -276,7 +277,7 @@ function onPathEnd(ctx, v) {
   const t = state.map.tiles[v.ty * state.map.width + v.tx];
   const b = t.building;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) {
-    const hangar = b && b.type === 'station' && b.part === 'hangar';
+    const hangar = b && b.type === 'station' && (b.part === 'hangar' || b.part === 'helipad');
     if (b && ((b.type === 'depot' && b.depotId === v.goingToDepot) || (hangar && b.depotId === v.goingToDepot))) {
       if (v.serviceTrip) { serviceAtDepot(ctx, v); return; }
       enterDepot(ctx, v, b.depotId);

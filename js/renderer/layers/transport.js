@@ -10,6 +10,7 @@ import { drawSloped } from '../slope.js';
 import { drawPackTransport } from '../pack/transport.js';
 import { landmarkGround, landmarkGroundKind } from '../sprites/landmarks.js';
 import { airportGround } from '../sprites/airport.js';
+import { airportTypeId } from '../../simulation/airportTypes.js';
 import { CORNER, BITS, reflectMask } from '../sprites/roadDiag.js';
 import { netDrawsSurface } from '../net/drawTile.js';
 import { gradeSepSprite } from '../sprites/gradeSep.js';
@@ -174,11 +175,11 @@ function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
     return;
   }
   if (b && b.type === 'station' && b.kind === 'airport') {
-    drawSloped(ctx, airportGround(b.part === 'runway' ? 'runway' : 'apron', 'x'), sx, sy, c);
+    drawSloped(ctx, airportGround(b.part === 'runway' ? 'runway' : b.part === 'helipad' ? 'helipad' : 'apron', 'x'), sx, sy, c);
     return;
   }
   if (b && b.type === 'depot' && b.kind === 'air') {
-    drawSloped(ctx, airportGround('apron', 'x'), sx, sy, c);
+    drawSloped(ctx, airportGround(airportTypeId(b) === 'heliport' ? 'helipad' : 'apron', 'x'), sx, sy, c);
     return;
   }
   if (b && b.type === 'depot') return; // depot sprite includes its own apron

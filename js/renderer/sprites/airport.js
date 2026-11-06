@@ -19,8 +19,20 @@ export function airportGround(part, axis) {
   const a = axis === 'y' ? 'y' : 'x';
   return cache.get(`ag:${part}:${a}`, () => makeSprite(TILE_W, TILE_H + 8, HALF_W, HALF_H + 8, (ctx) => {
     if (part === 'runway') drawRunway(ctx, a);
+    else if (part === 'helipad') drawHelipad(ctx);
     else drawApron(ctx);
   }));
+}
+
+/** Helipad: painted square with a white H, on apron concrete. */
+function drawHelipad(ctx) {
+  drawApron(ctx);
+  quad(ctx, -0.36, -0.36, 0.36, 0.36, 0.015, '#e5e7eb', '#d1d5db');
+  ctx.strokeStyle = '#1e3a8a';
+  ctx.lineWidth = 0.9;
+  line(ctx, -0.18, -0.2, -0.18, 0.2, 0.03);
+  line(ctx, 0.18, -0.2, 0.18, 0.2, 0.03);
+  line(ctx, -0.18, 0, 0.18, 0, 0.03);
 }
 
 /** @param {CanvasRenderingContext2D} ctx */

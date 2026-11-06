@@ -17,7 +17,7 @@ import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
-import { stopKindOk } from './routing.js';
+import { stopKindOk, stationFitsVehicle } from './routing.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
@@ -384,6 +384,9 @@ export function normaliseOrders(state, v, orders, kindOf) {
     const hasStop = kind === 'ship' ? st.tiles.some((t) => t.kind === 'dock' || t.kind === 'buoy') : st.tiles.some((t) => stopKindOk(v, t.kind));
     if (!hasStop) {
       return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind === 'ship' ? 'dock or buoy' : kind + ' stop'}` };
+    }
+    if (!stationFitsVehicle(state, st, v)) {
+      return { ok: false, error: `${st.name} cannot take this aircraft (planes need an airport, small airports only take small planes)` };
     }
     const load = o.load === undefined ? (o.full ? 'full' : 'normal') : o.load;
     const unload = o.unload === undefined ? 'normal' : o.unload;

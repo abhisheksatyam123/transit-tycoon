@@ -1,8 +1,9 @@
 /**
- * Airport command: a 6x4 footprint (see aircraft.js airportLayout) of station tiles with
- * building.kind 'airport', a hangar tile that also registers an air depot, and removal.
+ * Airport command: a footprint of station tiles with building.kind 'airport' (city 6x4, small 4x3,
+ * heliport 1x1; see airportTypes.js), a hangar (or helipad) tile that also registers an air depot,
+ * and removal. City is the default: its records carry no `airportType` field (saves unchanged).
  */
-import { AIRPORT_W, AIRPORT_H } from './constants.js';
+import { airportType, airportTypeId, AIRPORT_TYPES, DEFAULT_AIRPORT_TYPE } from './airportTypes.js';
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { spend } from './economy.js';
@@ -10,10 +11,9 @@ import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRu
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findTown, nearestTown } from './state.js';
 import { removeStationTile, removeDepot } from './cmdStation.js';
-import { airportLayout } from './aircraft.js';
 
 /**
- * Build an airport with its top-left footprint corner at (x,y).
+ * Build an airport with its top-left footprint corner at (x,y). opts.type: airport type id (default city).
  * Houses inside the footprint are demolished (costs money); water, rail, road, industries and
  * other stations block. Joins an adjacent station, else creates "<nearest town> Airport".
  * @returns {{ok:true,cost:number,stationId:number|null,depotId:number|null}|{ok:false,error:string}}
@@ -21,9 +21,12 @@ import { airportLayout } from './aircraft.js';
 export function buildAirport(ctx, x, y, opts = {}) {
   const { state } = ctx;
   const map = state.map;
-  if (!coordsOk(map, x, y, x + AIRPORT_W - 1, y + AIRPORT_H - 1)) return { ok: false, error: ERR.bounds };
-  const tiles = airportLayout().map((p) => ({ x: x + p.dx, y: y + p.dy, dx: p.dx, dy: p.dy, part: p.part }));
-  let cost = COSTS.airport, minH = Infinity, maxH = -Infinity;
+  const typeId = opts.type && AIRPORT_TYPES[opts.type] ? opts.type : DEFAULT_AIRPORT_TYPE;
+  const type = airportType(typeId);
+  const tagged = typeId !== DEFAULT_AIRPORT_TYPE; // city stays untagged
+  if (!coordsOk(map, x, y, x + type.w - 1, y + type.h - 1)) return { ok: false, error: ERR.bounds };
+  const tiles = type.layout.map((p) => ({ x: x + p.dx, y: y + p.dy, dx: p.dx, dy: p.dy, part: p.part }));
+  let cost = type.cost, minH = Infinity, maxH = -Infinity;
   const houses = [];
   for (const p of tiles) {
     const t = map.tiles[p.y * map.width + p.x];
@@ -38,7 +41,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
     if (t.rail || t.road) return { ok: false, error: ERR.track };
     cost += clearingCost(t);
   }
-  if (maxH - minH > 1) return { ok: false, error: 'Airport needs flat land (heights differ by more than 1)' };
+  if (maxH - minH > 1) return { ok: false, error: `${type.name} needs flat land (heights differ by more than 1)` };
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
@@ -51,15 +54,18 @@ export function buildAirport(ctx, x, y, opts = {}) {
     t.building = null; t.owner = null;
   }
   const st = existing || createStation(state, x, y);
-  if (!existing) st.name = airportName(state, x, y);
-  const hangar = tiles.find((p) => p.part === 'hangar');
+  if (!existing) st.name = airportName(state, x, y, type.name);
+  const depotTile = tiles.find((p) => p.part === type.depotPart);
   const depotId = allocId(state);
-  state.depots.push({ id: depotId, kind: 'air', x: hangar.x, y: hangar.y, dir: 4 });
+  const depot = { id: depotId, kind: 'air', x: depotTile.x, y: depotTile.y, dir: 4 };
+  if (tagged) depot.airportType = typeId;
+  state.depots.push(depot);
   for (const p of tiles) {
     const t = map.tiles[p.y * map.width + p.x];
     clearTerrain(t);
     const building = { type: 'station', stationId: st.id, kind: 'airport', part: p.part, dx: p.dx, dy: p.dy };
-    if (p.part === 'hangar') building.depotId = depotId;
+    if (tagged) building.airportType = typeId;
+    if (p.part === type.depotPart) building.depotId = depotId;
     t.building = building;
     t.owner = 'company';
     st.tiles.push({ x: p.x, y: p.y, kind: 'airport' });
@@ -70,10 +76,10 @@ export function buildAirport(ctx, x, y, opts = {}) {
   return { ok: true, cost, stationId: st.id, depotId };
 }
 
-/** "<nearest town> Airport", made unique. */
-function airportName(state, x, y) {
+/** "<nearest town> Airport" (or "Heliport"), made unique. */
+function airportName(state, x, y, typeName) {
   const town = nearestTown(state, x, y);
-  const base = `${town ? town.name : 'Metro'} Airport`;
+  const base = `${town ? town.name : 'Metro'} ${typeName === 'Heliport' ? 'Heliport' : 'Airport'}`;
   const used = new Set(state.stations.map((s) => s.name));
   if (!used.has(base)) return base;
   for (let i = 2; ; i++) if (!used.has(`${base} ${i}`)) return `${base} ${i}`;
@@ -98,7 +104,9 @@ export function hangarBusy(state, ox, oy) {
 export function demolishAirport(ctx, ox, oy) {
   const { state } = ctx;
   const map = state.map;
-  for (const p of airportLayout()) {
+  const origin = map.tiles[oy * map.width + ox].building;
+  const type = airportType(airportTypeId(origin));
+  for (const p of type.layout) {
     const x = ox + p.dx, y = oy + p.dy;
     const t = map.tiles[y * map.width + x];
     if (!t.building || t.building.type !== 'station' || t.building.kind !== 'airport') continue;

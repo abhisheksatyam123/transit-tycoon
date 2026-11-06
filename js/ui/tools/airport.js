@@ -1,22 +1,37 @@
-/** Airport tool: 6x4 footprint (runway along x, terminal/tower NE, hangar NW). Click to build. */
+/**
+ * Airport tools: City (6x4, the original), Small (4x3, from 1930, small planes only) and Heliport
+ * (1x1 helipad, from 1963, helicopters only). Click to build; the footprint preview shows the cost.
+ */
 import { createPlacementTool } from './placement.js';
+import { AIRPORT_TYPES, airportType } from '../../simulation/airportTypes.js';
 
-/** Footprint size (tiles). */
-export const AIRPORT_W = 6;
-export const AIRPORT_H = 4;
+/** Footprint size (tiles) of the City airport (kept for existing callers). */
+export const AIRPORT_W = AIRPORT_TYPES.city.w;
+export const AIRPORT_H = AIRPORT_TYPES.city.h;
+
+/** Tool ids for the airport types. */
+export const AIRPORT_TOOL_TYPE = { airport: 'city', smallAirport: 'small', heliport: 'heliport' };
 
 /**
  * @param {import('../app.js').App} app
+ * @param {string} [typeId] airport type ('city' | 'small' | 'heliport')
  * @returns {import('./index.js').Tool}
  */
-export function createAirportTool(app) {
+export function createAirportTool(app, typeId = 'city') {
+  const t = airportType(typeId);
+  const id = Object.keys(AIRPORT_TOOL_TYPE).find((k) => AIRPORT_TOOL_TYPE[k] === typeId) || 'airport';
+  const hints = {
+    city: `Airport (${t.w}×${t.h}): runway E-W, hangar NW, terminal NE. Needs free land (houses are demolished).`,
+    small: `Small airport (${t.w}×${t.h}, from ${t.introYear}): short runway, small planes only. Helicopters too.`,
+    heliport: 'Heliport (1×1, from 1963): helicopters only. Planes cannot use it.',
+  };
   return createPlacementTool(app, {
-    id: 'airport', label: 'Airport', catchment: 6,
-    hint: () => `Airport (${AIRPORT_W}×${AIRPORT_H}): runway E-W, hangar NW, terminal NE. Needs free land (houses are demolished).`,
-    command: (g, x, y, opts) => g.buildAirport(x, y, { ...(opts || {}) }),
+    id, label: t.name, catchment: typeId === 'heliport' ? 3 : 6,
+    hint: () => hints[typeId],
+    command: (g, x, y, opts) => g.buildAirport(x, y, { ...(opts || {}), type: typeId }),
     footprint: (x, y) => {
       const out = [];
-      for (let j = 0; j < AIRPORT_H; j++) for (let i = 0; i < AIRPORT_W; i++) out.push({ x: x + i, y: y + j });
+      for (let j = 0; j < t.h; j++) for (let i = 0; i < t.w; i++) out.push({ x: x + i, y: y + j });
       return out;
     },
   });

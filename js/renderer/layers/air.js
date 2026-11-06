@@ -6,6 +6,13 @@ import { aircraftSprite, headingIndex, liveryIndex } from '../sprites/aircraft.j
 import { blit } from '../sprites/canvas.js';
 import { packActive } from '../pack/state.js';
 import { drawPackAircraft } from '../pack/vehicles.js';
+import { MODEL_BY_ID } from '../../config/vehicles.js';
+
+/** True for a helicopter model id. */
+function isHeliModel(id) {
+  const m = MODEL_BY_ID[id];
+  return !!(m && m.helicopter);
+}
 
 /** World px of lift at full altitude (alt = 1). */
 export const ALT_PX = 60;
@@ -65,6 +72,7 @@ export function drawAircraftLayer(ctx, segs, toScreen, selV) {
       ctx.ellipse(p.x, p.y - alt * ALT_PX, 18, 9, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (!(packActive() && drawPackAircraft(ctx, s._model, h, p.x, p.y - alt * ALT_PX, undefined))) blit(ctx, aircraftSprite(s._model, h, lv, false), p.x, p.y - alt * ALT_PX);
+    // helicopters have no OpenGFX sprite in the atlas: always the procedural rotor model
+    if (!(packActive() && !isHeliModel(s._model) && drawPackAircraft(ctx, s._model, h, p.x, p.y - alt * ALT_PX, undefined))) blit(ctx, aircraftSprite(s._model, h, lv, false), p.x, p.y - alt * ALT_PX);
   }
 }

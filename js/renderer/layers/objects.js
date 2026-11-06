@@ -11,6 +11,7 @@ import { metroEntranceSprite } from '../sprites/metro.js';
 import { drawLandmark } from '../sprites/landmarks.js';
 import { drawLm3d } from '../sprites/lm3d.js';
 import { airportObject } from '../sprites/airport.js';
+import { airportTypeId } from '../../simulation/airportTypes.js';
 import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
 import { shipDockSprite, buoySprite, shipDepotSprite, shipSegmentSprite } from '../sprites/ships.js';
@@ -129,7 +130,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt, field
       if ((b.dx | 0) === 1 && (b.dy | 0) === 1) blit(ctx, hqSprite(b.level | 0), sx, sy - HALF_H);
       return null;
     case 'depot':
-      if (b.kind === 'air') { blit(ctx, airportObject('hangar', (x + y) | 0), sx, sy); return null; }
+      if (b.kind === 'air') { if (airportTypeId(b) !== 'heliport') blit(ctx, airportObject('hangar', (x + y) | 0), sx, sy); return null; }
       if (b.kind === 'ship') {
         if (packActive() && drawPackShipDepot(ctx, b.dir || 4, sx, sy, waterAt)) return null;
         blit(ctx, shipDepotSprite(), sx, sy); return null;
