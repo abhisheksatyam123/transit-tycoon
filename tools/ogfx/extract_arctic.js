@@ -12,6 +12,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng } from './png.js';
+import { readSpriteDefs } from './pnml.js';
+import { ARCTIC_HOUSES } from '../../js/renderer/pack/arctic_house_table.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -67,6 +69,22 @@ const pieces = [];
 for (const s of SETS) {
   groundRects.slice(0, STRIDE).forEach((r, off) => pieces.push({ key: String(BASE_ID + STRIDE * s.density + off), order: BASE_ID + STRIDE * s.density + off, file: s.file, ...r }));
 }
+// Sub-arctic rocky ground (arctic-0073-rough-land.pnml: spr96 = rocks-arctic.png, 19 groundtile sprites, ids 96..114,
+// OpenTTD SPR_FLAT_ROCKY_LAND_*-like slopes). Keys are the OpenGFX ids themselves; order 200000+ keeps the others unchanged.
+for (let off = 0; off < STRIDE; off++) {
+  pieces.push({ key: String(96 + off), order: 200000 + off, file: 'sprites/png/terrain/rocks-arctic.png', ...groundRects[off] });
+}
+// Sub-arctic town houses + their garden ground (table/town_land.h, see arctic_house_table.js). Original OpenGFX ids
+// as keys, appended after the snow ground (order 100000+) so the existing ground entries keep their ids and atlas slots.
+// Company colour (palette 198..205) masks are kept, like the base extractor.
+const houseIds = new Set();
+for (const h of ARCTIC_HOUSES) for (const p of h.pairs) { if (p[0] > 0) houseIds.add(p[0]); if (p[1] > 0) houseIds.add(p[1]); }
+const defs = readSpriteDefs(SRC);
+for (const id of [...houseIds].sort((a, b) => a - b)) {
+  const d = defs.get(id);
+  if (!d) throw new Error(`house sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(id), order: 100000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
 
 // ---- pack (same layout as extract_extra.js) ----
 const srcCache = new Map();
@@ -92,25 +110,38 @@ const placed = [];
 for (const p of pieces) {
   const src = loadSrc(p.file);
   const rgba = new Uint8Array(p.w * p.h * 4);
+  const ccMask = new Uint8Array(p.w * p.h);
+  let cc = false;
   for (let yy = 0; yy < p.h; yy++) for (let xx = 0; xx < p.w; xx++) {
     const sx = p.x + xx, sy = p.y + yy;
     if (sx < 0 || sy < 0 || sx >= src.width || sy >= src.height) continue;
     const si = sy * src.width + sx, di = (yy * p.w + xx) * 4;
     rgba.set(src.rgba.subarray(si * 4, si * 4 + 4), di);
     if (src.palIdx && src.palIdx[si] === 0) rgba[di + 3] = 0;
+    if (src.palIdx && src.palIdx[si] >= 198 && src.palIdx[si] <= 205) { ccMask[yy * p.w + xx] = 255; cc = true; }
   }
+  p.ccMask = cc ? ccMask : null;
+  p.cc = cc;
   const pos = place(p.w, p.h);
   placed.push({ ...p, rgba, ...pos });
 }
 const H = Math.max(1, atlases[0].h);
 const buf = new Uint8Array(ATLAS_W * H * 4);
+const maskBuf = new Uint8Array(ATLAS_W * H * 4);
 for (const p of placed) {
   for (let yy = 0; yy < p.h; yy++) buf.set(p.rgba.subarray(yy * p.w * 4, (yy + 1) * p.w * 4), ((p.y + yy) * ATLAS_W + p.x) * 4);
-  manifest.sprites[p.key] = [p.ai, p.x, p.y, p.w, p.h, p.xo, p.yo, 0];
+  if (p.cc) for (let yy = 0; yy < p.h; yy++) for (let xx = 0; xx < p.w; xx++) {
+    const v = p.ccMask[yy * p.w + xx];
+    const o = ((p.y + yy) * ATLAS_W + p.x + xx) * 4;
+    maskBuf[o] = maskBuf[o + 1] = maskBuf[o + 2] = v; maskBuf[o + 3] = 255;
+  }
+  manifest.sprites[p.key] = [p.ai, p.x, p.y, p.w, p.h, p.xo, p.yo, p.cc ? 1 : 0];
 }
 mkdirSync(OUT, { recursive: true });
 const png = encodePng(ATLAS_W, H, buf);
 writeFileSync(join(OUT, 'atlas0.png'), png);
-manifest.atlases.push({ file: 'atlas0.png', cc: null, w: ATLAS_W, h: H });
+const hasCc = maskBuf.some((v) => v);
+if (hasCc) writeFileSync(join(OUT, 'atlas0_cc.png'), encodePng(ATLAS_W, H, maskBuf));
+manifest.atlases.push({ file: 'atlas0.png', cc: hasCc ? 'atlas0_cc.png' : null, w: ATLAS_W, h: H });
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest));
 console.log(`arctic sprites ${placed.length}, atlas ${ATLAS_W}x${H}, ${(png.length / 1024).toFixed(1)} KB PNG`);

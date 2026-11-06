@@ -8,6 +8,8 @@ import { HOUSE_TABLE } from './ottd_tables.js';
 import { tileHash } from '../sprites/canvas.js';
 import { subtileOffset } from './subtile.js';
 import { arcticState, snowSpriteId } from './arctic.js';
+import { ARCTIC_HOUSES } from './arctic_house_table.js';
+import { blitPackFrom } from './draw.js';
 
 /** Concrete ground used when a house has no ground sprite. */
 const SPR_CONCRETE = 1420;
@@ -83,6 +85,8 @@ export function houseSprites(b, x, y, year = gameYear) {
  * @returns {boolean} drawn
  */
 export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
+  // sub-arctic games (arctic pack loaded): OpenTTD's sub-arctic houses, below or above the snow line (pack/arctic_house_table.js)
+  if (arcticState.on && arcticState.pack && drawArcticHouse(ctx, b, x, y, topX, topY, snow)) return true;
   const s = houseSprites(b, x, y);
   if (!s) return false;
   const [ox, oy] = subtileOffset(s[2], s[3]);
@@ -91,5 +95,35 @@ export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
     ? snowSpriteId(snow, [0, 0, 0, 0]) : s[0];
   blitPack(ctx, ground, topX, topY);
   blitPack(ctx, s[1], topX + ox, topY + oy, b.colour || DEFAULT_CC);
+  return true;
+}
+
+/** Population buckets per level (1..4) for the sub-arctic house pools (OpenTTD population, see arctic_house_table.js). */
+const ARCTIC_POP_MAX = [25, 90, 150, Infinity];
+
+/**
+ * Sub-arctic house for a tile (OpenTTD _original_house_specs ClimateSubarcticBelowSnow / AboveSnow). The house class follows
+ * the snow line (snow >= 0 = above the line). Ids come from the ARCTIC pack; the pick is deterministic per tile hash.
+ * @returns {boolean} drawn (false = no arctic sprite, the caller falls back to the temperate set)
+ */
+function drawArcticHouse(ctx, b, x, y, topX, topY, snow) {
+  const pack = arcticState.pack;
+  const cls = snow >= 0 ? 'above' : 'below';
+  const level = Math.max(1, Math.min(4, b.level | 0 || 1));
+  const maxPop = ARCTIC_POP_MAX[level - 1];
+  const minPop = level === 1 ? -1 : ARCTIC_POP_MAX[level - 2];
+  let pool = ARCTIC_HOUSES.filter((h) => h.snow === cls && h.pop > minPop && h.pop <= maxPop);
+  if (!pool.length) pool = ARCTIC_HOUSES.filter((h) => h.snow === cls);
+  if (!pool.length) return false;
+  const hash = tileHash(x, y);
+  const h = pool[(hash >>> 4) % pool.length];
+  const [, building, dx, dy] = h.pairs[hash & 3];
+  if (!pack.sprites[String(building)]) return false;
+  // garden ground: concrete below the line; the flat snow sprite above it (OpenTTD DrawClearLandTile density)
+  const groundId = cls === 'above' ? snowSpriteId(snow, [0, 0, 0, 0]) : 1420;
+  if (!pack.sprites[String(groundId)]) return false;
+  const [ox, oy] = subtileOffset(dx, dy);
+  blitPackFrom(pack, ctx, String(groundId), topX, topY);
+  blitPackFrom(pack, ctx, String(building), topX + ox, topY + oy, b.colour || DEFAULT_CC);
   return true;
 }

@@ -12,6 +12,8 @@ import { makeSprite } from '../sprites/canvas.js';
 import { drawSloped } from '../slope.js';
 import { snowDensity } from '../../simulation/climate.js';
 
+/** OpenGFX rocky ground group base (arctic pack ids 96..114, arctic-0073-rough-land.pnml spr96 rocks-arctic.png). */
+const ROCK_BASE = 96;
 /** Snow density group base ids (OpenTTD table/sprites.h SPR_FLAT_*_SNOW_DESERT_TILE) and the 19-sprite group stride. */
 const SNOW_BASE = 4493, SNOW_STRIDE = 19;
 /** OpenTTD _slope_to_sprite_offset (landscape.cpp), indexed by slope bits (W=1,S=2,E=4,N=8). 0 = flat / not a 1-level slope. */
@@ -73,6 +75,21 @@ function arcticTop(density) {
   }
   arcticState.top[density] = t;
   return t;
+}
+
+/**
+ * Rocky ground for a flat-ish clear tile (render-only decoration, OpenTTD MP_CLEAR rough/rocky land): the OpenGFX rocks
+ * sprite with the slope offset of the corners. Steeper than one level: false (the caller keeps grass).
+ * @returns {boolean} drawn
+ */
+export function drawArcticRock(ctx, sx, sy, c) {
+  const pack = arcticState.pack;
+  const min = Math.min(c[0], c[1], c[2], c[3]);
+  const max = Math.max(c[0], c[1], c[2], c[3]);
+  if (!pack || max - min > 1) return false;
+  const id = String(ROCK_BASE + SLOPE_OFFSET[slopeBits(c)]);
+  if (!pack.sprites[id]) return false;
+  return blitPackFrom(pack, ctx, id, sx, sy - HALF_H - S * min);
 }
 
 /** Active when the game is arctic, the arctic pack is loaded and the OpenGFX toggle is on. */

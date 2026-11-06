@@ -9,7 +9,7 @@ import { HALF_W, HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
 import { packActive } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
-import { arcticActive, drawArcticSnow } from '../pack/arctic.js';
+import { arcticActive, drawArcticSnow, drawArcticRock } from '../pack/arctic.js';
 import { drawCanalPack, drawRiverPack, extraActive } from '../pack/extra.js';
 
 /** Fast array memo of sprites (avoids string-key allocation per tile per frame). */
@@ -59,6 +59,11 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     return;
   }
+  // sub-arctic rocky ground (render-only, a few percent of clear grass away from towns and roads; arctic games only)
+  if (arcticActive() && k === 0 && !flowing && rockTile(map, x, y, hash) && drawArcticRock(ctx, sx, sy, c)) {
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
+  }
   if (packActive() && k === 5 && !flowing) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;
   } else if (packActive() && !flowing) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
@@ -77,6 +82,22 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   } else {
     drawSloped(ctx, top(k, hash % TERRAIN_VARIANTS), sx, sy, c);
   }
+}
+
+/**
+ * Rocky ground placement (render-only, no state): ~4% of plain grass tiles whose 3x3 neighbourhood has no building,
+ * road, rail or tram, so towns and networks stay clean.
+ */
+function rockTile(map, x, y, hash) {
+  if (((hash >>> 12) % 100) >= 4) return false;
+  const W = map.width, H = map.height, t = map.tiles;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+    const n = t[ny * W + nx];
+    if (n.building || n.road || n.rail || n.tram || n.bridgeDeck) return false;
+  }
+  return true;
 }
 
 /** Point on the tile surface at fractions (u along +x, v along +y); corners N,E,S,W in heights c. */
