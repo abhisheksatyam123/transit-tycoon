@@ -31,6 +31,7 @@ import { openObjective } from './objective.js';
 import { openGraphs } from './graphs.js';
 import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
+import { openCompanies } from './companies.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
@@ -64,6 +65,7 @@ const REGISTRY = {
   graphs: openGraphs,
   map: openMap,
   autoreplace: openAutoreplace,
+  companies: openCompanies,
 };
 
 /**

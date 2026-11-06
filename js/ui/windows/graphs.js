@@ -198,7 +198,8 @@ export function openGraphs(app) {
       const summary = el('div.kv-grid');
       const canvas = el('canvas', { style: { maxWidth: '100%', margin: '4px 0' } });
       const table = el('div.list.scroll.table', { style: { maxHeight: '240px' } });
-      body.append(tabs, summary, canvas, table);
+      const leagueBtn = el('button.btn.sm', { type: 'button', text: 'Company window…', onclick: () => app.open('companies') });
+      body.append(tabs, summary, canvas, table, leagueBtn);
       const sumLabel = el('span.kv-label'), sumValue = el('span.kv-value.mono');
       summary.append(sumLabel, sumValue);
 

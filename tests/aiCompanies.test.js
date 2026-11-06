@@ -97,3 +97,47 @@ describe('aiCompanies', () => {
     expect(Game.deserialize(json).serialize()).toBe(json);
   });
 });
+
+describe('aiCompanies stage 2', () => {
+  test('a rival with routes and buses earns: value grows after 2 years on seed 15', () => {
+    const g = Game.create({ seed: 15, width: 96, height: 96, townCount: 8 });
+    setSetting(g.state, 'aiCompanies', 1);
+    g.stepDays(365);
+    const r1 = g.state.rivals[0];
+    const v1 = r1.companyValue;
+    g.stepDays(365);
+    const r = g.state.rivals[0];
+    expect(r.bankrupt).toBeFalsy();
+    expect(r.companyValue).toBeGreaterThan(v1);
+    expect(r.stats.profit).toBeGreaterThan(0);
+    // no bus is stranded: every rival bus is running or stopped at a depot, none lost
+    expect(g.state.vehicles.filter((v) => v.ownerId === r.id && v.state === 'lost').length).toBe(0);
+  }, 120000);
+
+  test('bankruptcy: a rival below zero for 12 months is wound up cleanly', () => {
+    const g = world(1);
+    g.stepDays(120);
+    const r = g.state.rivals[0];
+    expect(r.vehicles.length).toBeGreaterThan(0);
+    // force a sustained deficit: no cash and a huge loan keep the value negative
+    r.money = -1000000; r.loan = 2000000;
+    r.companyValue = -1; r.negValueMonths = 0;
+    g.stepDays(400);
+    expect(r.bankrupt).toBe(true);
+    expect(g.state.vehicles.some((v) => v.ownerId === r.id)).toBe(false);
+    expect(g.state.stations.some((s) => s.ownerId === r.id)).toBe(false);
+    expect(g.state.depots.some((d) => d.ownerId === r.id)).toBe(false);
+    expect(g.state.news.some((n) => /bankrupt/.test(n.text))).toBe(true);
+    // a wound-up company does not come back or build again
+    const n = g.state.stations.length;
+    g.stepDays(60);
+    expect(g.state.stations.length).toBe(n);
+  }, 120000);
+
+  test('setting 0 with the stage-2 code: world hash unchanged', () => {
+    const g = world(0);
+    g.stepDays(60);
+    expect(g.state.rivals).toBeUndefined();
+    expect(g.state.company.loan).toBe(100000);
+  });
+});
