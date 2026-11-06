@@ -146,15 +146,30 @@ export function generateTowns(state, rng, count) {
       site = { x, y };
     }
     if (!site) break;
-    const town = {
-      id: allocId(state), name: townName(rng, used), x: site.x, y: site.y, population: 0, houses: [],
-      layout: townLayoutFor(site.x, site.y),
-      passengersLastMonth: 0, passengersTransported: 0, goodsDelivered: 0, growthCounter: 0,
-      mailLastMonth: 0, passengersThisMonth: 0, transportedThisMonth: 0, mailThisMonth: 0,
-      goodsThisMonth: 0, deliveredPassThisMonth: 0,
-    };
-    state.towns.push(town);
-    buildTownLayout(state, rng, town, rng.int(1, 3));
-    recomputePopulation(state, town);
+    createTown(state, rng, site.x, site.y, used);
   }
+}
+
+/**
+ * Create one town at (x,y): name, record, road grid and houses. Shared by the map generator and the
+ * player's Found town command (cmdFound.js). Caller validates the site.
+ * @param {object} state
+ * @param {object} rng seeded RNG (game.rng or a generation rng)
+ * @param {number} x
+ * @param {number} y
+ * @param {Set<string>} [used] town names already taken
+ * @returns {object} town record
+ */
+export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) => t.name))) {
+  const town = {
+    id: allocId(state), name: townName(rng, used), x, y, population: 0, houses: [],
+    layout: townLayoutFor(x, y),
+    passengersLastMonth: 0, passengersTransported: 0, goodsDelivered: 0, growthCounter: 0,
+    mailLastMonth: 0, passengersThisMonth: 0, transportedThisMonth: 0, mailThisMonth: 0,
+    goodsThisMonth: 0, deliveredPassThisMonth: 0,
+  };
+  state.towns.push(town);
+  buildTownLayout(state, rng, town, rng.int(1, 3));
+  recomputePopulation(state, town);
+  return town;
 }

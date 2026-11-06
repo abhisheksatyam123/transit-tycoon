@@ -47,8 +47,10 @@ export function openSettings(app) {
         setSetting(state(), 'serviceIntervalDays', v);
       });
       const autorenew = check('autorenew');
+      const treeGrowth = check('treeGrowth');
       body.append(
         row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running'),
+        row('Tree growth', treeGrowth, 'Forests slowly spread to free grass next to them (a few tiles a month)'),
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
         row('Cargo payment %', payment, 'Percent of the standard cargo payment rate'),
         row('Breakdowns', breakdowns),
@@ -64,6 +66,7 @@ export function openSettings(app) {
         inflation.checked = !!s.inflation;
         subsidies.checked = !!s.subsidies;
         autorenew.checked = !!s.autorenew;
+        treeGrowth.checked = !!s.treeGrowth;
         if (document.activeElement !== payment) payment.value = String(s.cargoPaymentPercent);
         if (document.activeElement !== serviceDays) serviceDays.value = String(s.serviceIntervalDays || 0);
         breakdowns.value = s.breakdowns;

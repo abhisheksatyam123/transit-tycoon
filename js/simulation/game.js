@@ -15,6 +15,7 @@ import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
+import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import { townAction } from './townAuthority.js';
@@ -153,6 +154,12 @@ export class Game {
   terraform(op, rect, opts) { return terraform(this.ctx, op, rect, opts); }
   estimateTerraform(op, rect) { return estimateTerraform(this.state, op, rect); }
   planTerraform(op, rect) { return planTerraform(this.state, op, rect); }
+  /** Found a town at tile (x,y) (OpenTTD CMD_FOUND_TOWN). Charges COSTS.foundTown; opts.dryRun = check only. */
+  foundTown(x, y, opts) { return foundTown(this.ctx, x, y, opts); }
+  /** Fund a new industry of typeId with top-left tile (x,y) (OpenTTD CMD_BUILD_INDUSTRY). */
+  fundIndustry(typeId, x, y, opts) { return fundIndustry(this.ctx, typeId, x, y, opts); }
+  /** Pure cost/validity preview: kind 'town'|'industry' (typeId for industry). */
+  estimateFound(kind, x, y, typeId) { return estimateFound(this.state, kind, x, y, typeId); }
   buildRailStation(x, y, axis, length, opts) { return buildRailStation(this.ctx, x, y, axis, length, opts); }
   buildRoadStop(x, y, kind, opts) { return buildRoadStop(this.ctx, x, y, kind, opts); }
   buildDepot(x, y, kind, dir, opts) { return buildDepot(this.ctx, x, y, kind, dir, opts); }

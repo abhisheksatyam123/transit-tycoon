@@ -33,4 +33,12 @@ export const COSTS = {
   advertiseLarge: 9000,
   statue: 35000,
   fundBuildings: 48000,
+  /** found a town (OpenTTD CMD_FOUND_TOWN): flat price for a new town centre, scaled by inflation */
+  foundTown: 40000,
+};
+
+/** fund a new industry (OpenTTD CMD_BUILD_INDUSTRY): base price per industry type id, before inflation. */
+export const INDUSTRY_FUND_COSTS = {
+  coal_mine: 90000, power_station: 120000, forest: 60000, sawmill: 80000, oil_wells: 110000,
+  refinery: 160000, farm: 70000, factory: 130000, iron_mine: 90000, steel_mill: 150000,
 };

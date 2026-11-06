@@ -10,6 +10,7 @@ import { openTownList } from './townList.js';
 import { openIndustryList } from './industryList.js';
 import { openStationList } from './stationList.js';
 import { openDepot } from './depot.js';
+import { openFundIndustry } from './fundIndustry.js';
 import { openBuyVehicle } from './buyVehicle.js';
 import { openVehicleList } from './vehicleList.js';
 import { openVehicleDetail } from './vehicleDetail.js';
@@ -34,6 +35,7 @@ const REGISTRY = {
   tileInfo: openTileInfo,
   station: openStation,
   town: openTown,
+  fundIndustry: openFundIndustry,
   industry: openIndustry,
   towns: openTownList,
   industries: openIndustryList,

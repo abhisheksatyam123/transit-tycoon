@@ -144,7 +144,7 @@ async function main() {
     i: () => app.open('industries'), n: () => app.open('news'), h: () => app.open('help'),
     l: () => app.open('load'), x: () => app.open('traffic'), g: () => app.open('issues'), u: () => app.open('metro'), o: () => app.open('goals'), j: () => { app.renderer.showMetro = !app.renderer.showMetro; }, k: () => togglePack(renderer), m: () => toolbar.toggleSound(), q: () => app.setTool('query'),
   };
-  for (const [id, , , key] of TOOL_BUTTONS) shortcuts[key] = () => app.setTool(id);
+  for (const [id, , , key] of TOOL_BUTTONS) if (key) shortcuts[key.toLowerCase()] = () => app.setTool(id); // e.key is lower-cased in input.js
   const input = setupInput(app, canvas, shortcuts);
 
   let lastWin = 0, lastStatus = 0, lastSel = 0;

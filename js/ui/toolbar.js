@@ -20,6 +20,8 @@ export const TOOL_BUTTONS = [
   ['airport', 'Airport', 'airport', '0'],
   ['terraform', 'Terraform', 'terraform', 'Z'],
   ['plant', 'Plant trees', 'plant', 'Y'],
+  ['foundTown', 'Found town', 'foundTown', ''],
+  ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */

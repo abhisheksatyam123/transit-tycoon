@@ -19,6 +19,7 @@ import * as Economy from './economy.js';
 import * as Subsidies from '../subsidies.js';
 import * as Objective from '../objective.js';
 import { getSetting } from '../settings.js';
+import * as TreeGrowth from '../treeGrowth.js';
 
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
 export const DAY_INCREMENT = 682;
@@ -58,6 +59,7 @@ export function tickDate(game) {
     if (s.date.year <= 2029 && getSetting(s, 'inflation')) Economy.updateMonthly(game);
     Subsidies.updateMonthly(game); // transit-tycoon additions (OpenTTD subsidies, OpenLoco scenario objective)
     Objective.updateMonthly(game);
+    TreeGrowth.updateMonthly(game); // gap #33 tree spread (setting treeGrowth, off by default)
     if (s.date.month % 3 === 0) CompanyManager.updateQuarterly(game); // January, April, July, October
     if (newYear) {
       CompanyManager.updateYearly(game);
