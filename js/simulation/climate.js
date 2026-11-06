@@ -55,3 +55,95 @@ export function townGrowthAllowed(state, town) {
   if (!t || t.height < snowLineOf(state)) return true;
   return (town.foodLastMonth || 0) > 0;
 }
+
+// ---- sub-tropical (opt-in 'tropic'; OpenTTD landscape.cpp CreateDesertOrRainForest, CalculateDesertLine) ----
+
+/** Desert share of the map (OpenTTD desert_coverage default 35 %). */
+export const DESERT_COVERAGE = 0.35;
+
+/** @returns {boolean} true only for an explicit sub-tropical game (lazy, absent otherwise). */
+export function isTropic(state) {
+  return !!(state && state.mapgen && state.mapgen.climate === 'tropic');
+}
+
+/**
+ * Desert line (OpenTTD CalculateDesertLine): the lowest height level L such that the land below L covers about
+ * DESERT_COVERAGE of all tiles (at least level 1). Derived from the heights, so it needs no save data.
+ */
+export function desertLine(map) {
+  const hist = new Array(9).fill(0);
+  for (const t of map.tiles) if (t.terrain !== 'water') hist[Math.min(8, t.height | 0)]++;
+  const want = DESERT_COVERAGE * map.tiles.length;
+  let below = 0;
+  for (let L = 1; L <= 8; L++) {
+    below += hist[L - 1];
+    if (below >= want) return L;
+  }
+  return 8;
+}
+
+const zoneCache = new WeakMap();
+
+/**
+ * Sub-tropical zones of a map, derived deterministically (no save data). Per tile: 0 = other land or water,
+ * 1 = desert, 2 = rainforest. Desert (OpenTTD _make_desert_or_rainforest_data test): land below the desert line whose
+ * 3x3 block is all land below the line. Rainforest: non-desert land with no desert in its 3x3 block.
+ * Cached per map object; call tropicZonesReset after the terrain or heights change.
+ * @param {{width:number,height:number,tiles:any[]}} map
+ * @returns {Uint8Array} zone per tile index
+ */
+export function tropicZones(map) {
+  const cached = zoneCache.get(map);
+  if (cached) return cached;
+  const W = map.width, H = map.height, T = map.tiles;
+  const line = desertLine(map);
+  const zone = new Uint8Array(W * H);
+  const dry = (j) => T[j].terrain !== 'water' && T[j].height < line;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (!dry(i)) continue;
+    let desert = true;
+    for (let dy = -1; dy <= 1 && desert; dy++) for (let dx = -1; dx <= 1 && desert; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (!dry(ny * W + nx)) desert = false;
+    }
+    if (desert) zone[i] = 1;
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (T[i].terrain === 'water' || zone[i] === 1) continue;
+    let rain = true;
+    for (let dy = -1; dy <= 1 && rain; dy++) for (let dx = -1; dx <= 1 && rain; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (zone[ny * W + nx] === 1) rain = false;
+    }
+    if (rain) zone[i] = 2;
+  }
+  zoneCache.set(map, zone);
+  return zone;
+}
+
+/** Forget the cached zones of a map (after terrain or height edits). */
+export function tropicZonesReset(map) { zoneCache.delete(map); }
+
+/** Zone of one tile: 0 other land / water, 1 desert, 2 rainforest (0 outside the map). */
+export function tropicZoneAt(map, x, y) {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return 0;
+  return tropicZones(map)[y * map.width + x];
+}
+
+/**
+ * Sub-tropical town growth rule (OpenTTD town_cmd.cpp: a town in the desert needs FOOD and WATER to grow). WATER is not
+ * a cargo in this game, so only the FOOD half applies: a town centred in the desert grows only if it received FOOD last
+ * month. Towns outside the desert, and every town in other climates, always may grow.
+ * @param {any} state
+ * @param {{x:number,y:number,foodLastMonth?:number}} town
+ * @returns {boolean}
+ */
+export function tropicGrowthAllowed(state, town) {
+  if (!isTropic(state) || !town) return true;
+  if (tropicZoneAt(state.map, town.x, town.y) !== 1) return true;
+  return (town.foodLastMonth || 0) > 0;
+}

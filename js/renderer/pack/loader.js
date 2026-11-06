@@ -58,6 +58,15 @@ export async function loadArcticPack(base = 'assets/opengfx/arctic/') {
   return loadPack(base);
 }
 
+/**
+ * Load the TROPIC pack (desert ground for the sub-tropical climate; assets/opengfx/tropic, keys = OpenGFX ids 312..387).
+ * @param {string} [base] default 'assets/opengfx/tropic/'
+ * @returns {Promise<OgfxPack|null>}
+ */
+export async function loadTropicPack(base = 'assets/opengfx/tropic/') {
+  return loadPack(base);
+}
+
 /** @param {string} base folder URL with manifest.json @returns {Promise<OgfxPack|null>} */
 async function loadPack(base) {
   try {

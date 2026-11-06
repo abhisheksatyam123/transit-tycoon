@@ -7,9 +7,11 @@ import { terrainTop, waterTop, TERRAIN_VARIANTS, WATER_FRAMES } from '../sprites
 import { tileHash } from '../sprites/canvas.js';
 import { HALF_W, HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
-import { packActive } from '../pack/state.js';
+import { packActive, packState } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
 import { arcticActive, drawArcticSnow, drawArcticRock } from '../pack/arctic.js';
+import { tropicActive, drawTropicDesert } from '../pack/tropic.js';
+import { tropicZoneAt } from '../../simulation/climate.js';
 import { drawCanalPack, drawRiverPack, extraActive } from '../pack/extra.js';
 
 /** Fast array memo of sprites (avoids string-key allocation per tile per frame). */
@@ -56,6 +58,11 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
   // sub-arctic (opt-in, pack/arctic.js): tiles at or above the snow line get OpenGFX snowy ground (OpenTTD DrawClearLandTile)
   if (arcticActive() && k !== 5 && !flowing && drawArcticSnow(ctx, sx, sy, c)) {
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
+  }
+  // sub-tropical (opt-in, pack/tropic.js): OpenTTD desert ground in the desert zone (and on desert terrain)
+  if (tropicActive(packState.enabled) && (k === 2 || (k === 0 && tropicZoneAt(map, x, y) === 1)) && !flowing && drawTropicDesert(ctx, sx, sy, c, hash)) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     return;
   }

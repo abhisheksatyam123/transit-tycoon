@@ -16,7 +16,7 @@
  *  - populationCapacity -> population (sum of house pop).
  */
 import { growForTick } from './townGrow.js';
-import { townGrowthAllowed } from '../climate.js';
+import { townGrowthAllowed, tropicGrowthAllowed } from '../climate.js';
 import { recomputePopulation } from '../towns.js';
 
 export const HISTORY_LEN = 20 * 12;
@@ -60,7 +60,7 @@ export function tickTown(game, town) {
   ensureTown(town);
   recalculateSize(town);
   // sub-arctic (opt-in): a town centred above the snow line grows only if it got food last month (climate.js)
-  const grew = townGrowthAllowed(game.state, town) ? growForTick(game, town) : false;
+  const grew = townGrowthAllowed(game.state, town) && tropicGrowthAllowed(game.state, town) ? growForTick(game, town) : false;
   if (grew) {
     recomputePopulation(game.state, town);
     recalculateSize(town);

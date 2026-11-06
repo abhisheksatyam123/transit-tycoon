@@ -53,7 +53,8 @@ async function initialGame() {
       createGameFast({ scenario: req.scenario, seed: req.seed }));
     return { game, restored: false, scenario: true };
   }
-  const data = new URLSearchParams(location.search).get('climate') === 'arctic' ? null : loadSlotData('autosave');
+  const clim = new URLSearchParams(location.search).get('climate');
+  const data = clim === 'arctic' || clim === 'tropic' ? null : loadSlotData('autosave');
   if (data) {
     try {
       return { game: Game.deserialize(data), restored: true, scenario: false };
@@ -62,8 +63,7 @@ async function initialGame() {
     }
   }
   // ?climate=arctic: a random sub-arctic map (opt-in; default games keep the temperate climate)
-  const q = new URLSearchParams(location.search);
-  const mapgen = q.get('climate') === 'arctic' ? { climate: 'arctic' } : undefined;
+  const mapgen = clim === 'arctic' || clim === 'tropic' ? { climate: clim } : undefined;
   return { game: Game.create({ seed: Math.floor(Math.random() * 1e9), mapgen }), restored: false, scenario: false };
 }
 

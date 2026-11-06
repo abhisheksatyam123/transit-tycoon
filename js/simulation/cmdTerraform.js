@@ -11,6 +11,7 @@
  *
  * estimateTerraform is pure (no mutation) and shared by the command and the UI preview.
  */
+import { tropicZonesReset } from './climate.js';
 import { COSTS } from '../config/costs.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
@@ -192,6 +193,7 @@ export function terraform(ctx, op, rect, opts = {}) {
     if (c.terrain) t.terrain = c.terrain;
     else t.height = c.to;
   }
+  tropicZonesReset(map); // sub-tropical zones depend on heights and water (climate.js)
   spend(state.company, 'construction', state.editor ? 0 : cost);
   return { ok: true, cost, tiles: p.changes.length, area: p.area };
 }

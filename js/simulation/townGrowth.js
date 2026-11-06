@@ -3,7 +3,7 @@
  */
 import { recomputePopulation } from './towns.js';
 import { pushNews } from './news.js';
-import { isArctic } from './climate.js';
+import { isArctic, isTropic } from './climate.js';
 
 /** Population milestones that trigger news. */
 export const MILESTONES = [500, 1000, 2000, 3000, 5000, 8000, 12000];
@@ -39,5 +39,5 @@ export function recordTownDelivery(town, cargoId, amount, state = null) {
   if (cargoId === 'GOOD' || cargoId === 'FOOD' || cargoId === 'BMAT') { town.goodsThisMonth += amount; town.goodsDelivered += amount; } // FOOD/BMAT: T-IN
   else if (cargoId === 'PASS' || cargoId === 'MAIL') town.deliveredPassThisMonth += amount;
   // sub-arctic (opt-in): food delivered this month is kept for the snow-line growth rule (climate.js); lazy field
-  if (cargoId === 'FOOD' && isArctic(state)) town.foodThisMonth = (town.foodThisMonth || 0) + amount;
+  if (cargoId === 'FOOD' && (isArctic(state) || isTropic(state))) town.foodThisMonth = (town.foodThisMonth || 0) + amount;
 }

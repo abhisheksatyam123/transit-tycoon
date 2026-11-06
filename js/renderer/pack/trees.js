@@ -8,7 +8,8 @@ import { blitPack } from './draw.js';
 import { HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { packState } from './state.js';
 import { arcticState } from './arctic.js';
-import { snowDensity } from '../../simulation/climate.js';
+import { snowDensity, tropicZoneAt } from '../../simulation/climate.js';
+import { tropicState, TREE_LAYOUT_RAINFOREST, TREE_LAYOUT_SUB_TROPICAL, TREE_LAYOUT_CACTUS } from './tropic.js';
 
 /** Ported from OpenTTD tree_land.h `_tree_layout_xy` (GPL-2.0). [X, Y] in 0..15 tile units. */
 const LAYOUT_XY = [
@@ -166,10 +167,18 @@ export function drawOgfxTrees(ctx, x, y, hash, sx, sy) {
   const arctic = arcticState.on && arcticState.pack;
   const density = arctic ? snowDensity(min, arcticState.line) : -1;
   const treeType = arctic ? h % TREE_COUNT_SUB_ARCTIC : h % TREE_COUNT_TEMPERATE;
-  const index = (tmp & 3) + (treeType << 2);
+  let index = (tmp & 3) + (treeType << 2);
   let sprites;
   if (!arctic) sprites = TREE_LAYOUT[index];
   else sprites = density >= 2 ? TREE_LAYOUT_SUB_ARCTIC_SNOW[index] : TREE_LAYOUT_SUB_ARCTIC[index];
+  // sub-tropical games (opt-in, pack/tropic.js): rainforest rows in the rainforest zone, cactus in the desert, else sub-tropical
+  if (tropicState.on && tropicState.map && !arctic) {
+    const zone = tropicZoneAt(tropicState.map, x, y);
+    const rows = zone === 2 ? TREE_LAYOUT_RAINFOREST : zone === 1 ? TREE_LAYOUT_CACTUS : TREE_LAYOUT_SUB_TROPICAL;
+    const types = rows.length >> 2;
+    index = (tmp & 3) + ((h % types) << 2);
+    sprites = rows[index];
+  }
   const pos = LAYOUT_XY[(tmp >> 2) & 3];
   // tree count 1..4 (OpenTTD GetTreeCount), deterministic from the hash
   const count = 1 + ((h >>> 3) & 3);
