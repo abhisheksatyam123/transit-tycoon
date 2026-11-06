@@ -263,6 +263,7 @@ export class App {
   inspectTile(x, y, forceInfo = false) {
     if (!this.game.inBounds(x, y)) return;
     const b = this.game.tile(x, y).building;
+    if (b && b.type === 'hq') return this.open('finances'); // T31: the HQ opens the company window
     if (!forceInfo && b) {
       if (b.type === 'depot') return this.open('depot', b.depotId);
       if (b.type === 'station' && b.kind === 'airport' && b.part === 'hangar' && b.depotId != null) return this.open('depot', b.depotId);

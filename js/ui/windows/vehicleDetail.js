@@ -66,6 +66,7 @@ export function openVehicleDetail(app, id) {
         startStop,
         el('button.btn', { type: 'button', text: 'Orders', onclick: () => app.open('orders', id) }),
         el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'vehicle', id) }),
+        el('button.btn', { type: 'button', text: 'Autoreplace…', title: 'Model replacement rules (applied when stopped in a depot)', onclick: () => app.open('autoreplace') }),
         reverseBtn,
         el('button.btn', { type: 'button', text: 'Send to depot', onclick: () => app.exec(g().sendToDepot(id), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Center', onclick: () => { const v = app.findVehicle(id); if (v) app.centerOn(v.tx, v.ty); } }),

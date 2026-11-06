@@ -10,6 +10,7 @@
  * every monthly manager ran): company.pendingLedger holds the month being closed.
  */
 import { evaluateGoals, rollGoalMonth } from '../goals.js';
+import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
 import { propertyUpkeep, closeLedgerMonth, spend } from '../economy.js';
 import { INTEREST_RATE } from '../constants.js';
@@ -110,6 +111,7 @@ function declareBankrupt(game, c) {
 export function updateMonthlyHeadquarters(game) {
   const c = ensureCompany(game.state.company);
   c.hqVariation = headquarterVariation(c);
+  updateHQ(game.ctx); // T31: HQ level follows the performance index (cmdHQ.js)
 }
 
 /** CompanyManager::updateQuarterly: only AI thoughts are updated in OpenLoco, so nothing to do for the player company. */

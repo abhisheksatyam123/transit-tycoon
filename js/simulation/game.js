@@ -10,6 +10,7 @@ import { generateTowns } from './towns.js';
 import { generateIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
+import { buildHQ, estimateHQ } from './cmdHQ.js';
 import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
@@ -34,6 +35,7 @@ import { tick as locoTick } from './loco/gameLoop.js';
 import { setSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
+import { setAutoreplace } from './autoreplace.js';
 
 
 /**
@@ -166,6 +168,9 @@ export class Game {
   foundTown(x, y, opts) { return foundTown(this.ctx, x, y, opts); }
   /** Fund a new industry of typeId with top-left tile (x,y) (OpenTTD CMD_BUILD_INDUSTRY). */
   fundIndustry(typeId, x, y, opts) { return fundIndustry(this.ctx, typeId, x, y, opts); }
+  /** Company HQ with top-left tile (x,y) (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ). opts.dryRun = check only. */
+  buildHQ(x, y, opts) { return buildHQ(this.ctx, x, y, opts); }
+  estimateHQ(x, y) { return estimateHQ(this.state, x, y); }
   /** Pure cost/validity preview: kind 'town'|'industry' (typeId for industry). */
   estimateFound(kind, x, y, typeId) { return estimateFound(this.state, kind, x, y, typeId); }
   buildRailStation(x, y, axis, length, opts) { return buildRailStation(this.ctx, x, y, axis, length, opts); }
@@ -205,6 +210,8 @@ export class Game {
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   /** Service interval in days for one vehicle (0 = off). */
   setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
+  /** Autoreplace rule (T18b): replace model oldModelId with newModelId in depots (null clears). */
+  setAutoreplace(oldModelId, newModelId, opts) { return setAutoreplace(this.state, oldModelId, newModelId, opts); }
   /** Timetable of one order: {waitDays, travelDays} (days; 0 clears). Shared orders: all members. */
   setOrderTimetable(id, orderIndex, times, opts) { return vcmd.setOrderTimetable(this.ctx, id, orderIndex, times, opts); }
   /** Timetable autofill on/off for one vehicle. */

@@ -51,7 +51,7 @@ export function openSettings(app) {
       const gradients = check('gradients');
       body.append(
         row('Gradients (hills slow vehicles)', gradients, 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus'),
-        row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running'),
+        row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Model-to-model replacement is set in the Autoreplace window. Off = old vehicles keep running'),
         row('Tree growth', treeGrowth, 'Forests slowly spread to free grass next to them (a few tiles a month)'),
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
         row('Cargo payment %', payment, 'Percent of the standard cargo payment rate'),

@@ -38,6 +38,8 @@ export const COSTS = {
   fundBuildings: 48000,
   /** found a town (OpenTTD CMD_FOUND_TOWN): flat price for a new town centre, scaled by inflation */
   foundTown: 40000,
+  /** company headquarters (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ): flat price, inflated; relocating costs the same */
+  buildHQ: 60000,
 };
 
 /** fund a new industry (OpenTTD CMD_BUILD_INDUSTRY): base price per industry type id, before inflation. */

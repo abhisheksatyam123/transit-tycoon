@@ -15,6 +15,7 @@ import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayout } from './aircraft.js';
 import { findTown } from './state.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
+import { removeHQ } from './cmdHQ.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
 
 /**
@@ -283,6 +284,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       }
       if (b && b.type === 'station') { jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue; }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
+      if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }
       if (t.rail || t.road) {
         jobs.push({ x, y, kind: 'track' });
         cost += (t.rail ? COSTS.demolishTrack : 0) + (t.road ? COSTS.demolishTrack : 0);
@@ -313,6 +315,8 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;
       if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; }
+    } else if (j.kind === 'hq') {
+      removeHQ(state); // T31: no refund
     } else if (j.kind === 'house') {
       const town = findTown(state, t.building.townId);
       if (town) town.houses = town.houses.filter((h) => h.x !== j.x || h.y !== j.y);

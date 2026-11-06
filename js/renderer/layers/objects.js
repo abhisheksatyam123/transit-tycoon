@@ -8,6 +8,7 @@ import { metroEntranceSprite } from '../sprites/metro.js';
 import { drawLandmark } from '../sprites/landmarks.js';
 import { drawLm3d } from '../sprites/lm3d.js';
 import { airportObject } from '../sprites/airport.js';
+import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
 import { drawPackSegment } from '../pack/vehicles.js';
 import { getPoseMap, smoothPose, angleFromBit, poseCovered } from '../net/pose.js';
@@ -94,6 +95,9 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
     case 'landmark':
       if (b.lm3d) { if (b.front) drawLm3d(ctx, b.id, x, y, sx, sy); }
       else if ((b.dx | 0) === (b.w | 0) - 1 && (b.dy | 0) === (b.h | 0) - 1) drawLandmark(ctx, b, sx, sy);
+      return null;
+    case 'hq': // T31: drawn once from the front tile (dx=dy=1); footprint centre sits half a tile up-screen
+      if ((b.dx | 0) === 1 && (b.dy | 0) === 1) blit(ctx, hqSprite(b.level | 0), sx, sy - HALF_H);
       return null;
     case 'depot':
       if (b.kind === 'air') { blit(ctx, airportObject('hangar', (x + y) | 0), sx, sy); return null; }

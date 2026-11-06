@@ -22,6 +22,7 @@ export const TOOL_BUTTONS = [
   ['plant', 'Plant trees', 'plant', 'Y'],
   ['foundTown', 'Found town', 'foundTown', ''],
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
+  ['hq', 'Company HQ', 'hq', ''],
   ['signal', 'Signal', 'signal', ''],
   ['oneWay', 'One-way road', 'oneWay', ''],
 ];

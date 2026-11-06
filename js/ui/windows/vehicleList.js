@@ -81,7 +81,8 @@ export function openVehicleList(app) {
       } });
       const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
         el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel,
-        massBtn('Start all', true), massBtn('Stop all', false));
+        massBtn('Start all', true), massBtn('Stop all', false),
+        el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
       const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span'));
       const list = el('div.list.scroll.table');
       body.append(summary, controls, head, list);

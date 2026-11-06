@@ -19,6 +19,6 @@ export function vehiclesYearly(ctx, year) {
   // era news (OpenLoco/OpenTTD new-vehicle news): fires once, when the model's intro year starts. Starting a
   // game never fires it (the yearly hook runs on the year change only), so a 1920 start gets no burst.
   for (const m of ALL_VEHICLE_MODELS) {
-    if (m.introYear === year) notify(ctx, `New vehicle available: ${m.name} (${m.speed} km/h).`, 'good');
+    if (m.introYear === year) notify(ctx, `New vehicle available: ${m.name} (${m.speed} km/h) — open Autoreplace to upgrade.`, 'good');
   }
 }
