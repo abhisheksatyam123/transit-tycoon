@@ -7,9 +7,9 @@
  *  - history (Uint8 x 240 months, historySize == history.length), historyMinPopulation, size (0..4 TownSize),
  *    buildSpeed (1..4), companyRating (-1000..1000, default 500; one player company => single value).
  *  - OpenLoco's grow() walks a random road and constructs buildings along it (up to 75 steps, kBuildSpeedToGrowthPerTick
- *    = {0,1,3,5,7,9,12,16,22} grow calls per town tick). TT's unit of growth is townGrowth.growOnce() (one new house /
+ *    = {0,1,3,5,7,9,12,16,22} grow calls per town tick). TT's unit of growth is townGrow.growForTick() (one new house /
  *    upgrade / street extension). To keep the pace of the original game on TT's tile scale we use TT_STEP_CHANCE: the
- *    probability that a town tick performs one growOnce for buildSpeed 1..4 (~0.4 .. 1.6 steps per month; a town
+ *    probability that a town tick performs one growth step for buildSpeed 1..4 (~0.4 .. 1.6 steps per month; a town
  *    ticks every 8*127 = 1016 ticks ~ 3.15x per month).
  *  - cargoInfluenceFlags/monthlyCargoDelivered: TT has no region influence cargo; the "influence cargo" is the town's
  *    own passengers+goods delivered/transported this month (as in the original TT: served towns grow faster).
@@ -54,7 +54,7 @@ export function recalculateSize(town) {
   town.size = size;
 }
 
-/** Town::tick: recalculateSize, then grow (TT: growOnce) according to buildSpeed. */
+/** Town::tick: recalculateSize, then grow (TT: growForTick) according to buildSpeed. */
 export function tickTown(game, town) {
   ensureTown(town);
   recalculateSize(town);

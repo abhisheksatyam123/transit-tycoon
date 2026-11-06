@@ -29,17 +29,18 @@ export function hideLoading() {
 }
 
 /**
- * Show the overlay, wait two frames so it paints, run the blocking `fn`, then hide it.
+ * Show the overlay, wait two frames so it paints, run `fn` (blocking or async), hide it once it settles.
  * @template T
  * @param {string} text
- * @param {() => T} fn
+ * @param {() => T | Promise<T>} fn
  * @returns {Promise<T>}
  */
 export function runWithLoading(text, fn) {
   showLoading(text);
   return new Promise((resolve, reject) => {
+    // fn may be async (snapshot fetch): keep the overlay until its promise settles
     const go = () => {
-      try { resolve(fn()); } catch (err) { reject(err); } finally { hideLoading(); }
+      Promise.resolve().then(fn).then(resolve, reject).finally(hideLoading);
     };
     requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(go, 0)));
   });

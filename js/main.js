@@ -16,6 +16,7 @@ import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
 import { TOOL_BUTTONS } from './ui/toolbar.js';
 import { runWithLoading, buildingLabel } from './ui/loading.js';
+import { createGameFast } from './ui/scenarioSnapshot.js';
 import { initPack, togglePack } from './renderer/pack/index.js';
 
 const WINDOW_REFRESH_MS = 250;
@@ -42,7 +43,7 @@ async function initialGame() {
   const req = scenarioFromUrl();
   if (req) {
     const game = await runWithLoading(buildingLabel(req.scenario), () =>
-      Game.create({ scenario: req.scenario, seed: req.seed }));
+      createGameFast({ scenario: req.scenario, seed: req.seed }));
     return { game, restored: false, scenario: true };
   }
   const data = loadSlotData('autosave');

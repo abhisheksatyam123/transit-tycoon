@@ -9,6 +9,7 @@
     "test": "bun test",
     "check": "bun tools/check-imports.js",
     "simulate": "bun tools/simulate-city.js",
-    "simulate:moscow": "bun tools/simulate-city.js --scenario moscow --years 1"
+    "simulate:moscow": "bun tools/simulate-city.js --scenario moscow --years 1",
+    "snapshot:moscow": "bun tools/moscow/snapshot.js"
   }
 }

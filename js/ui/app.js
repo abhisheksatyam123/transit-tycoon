@@ -10,6 +10,7 @@ import { openWindow } from './windows/index.js';
 import { signedMoney, money } from './format.js';
 import { play } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
+import { createGameFast } from './scenarioSnapshot.js';
 
 export class App {
   /**
@@ -96,7 +97,7 @@ export class App {
    * @param {{seed?:number,width?:number,height?:number,townCount?:number,startYear?:number,industryCount?:number}} opts
    */
   async newGame(opts) {
-    const game = await runWithLoading(buildingLabel(opts && opts.scenario), () => this.GameClass.create(opts));
+    const game = await runWithLoading(buildingLabel(opts && opts.scenario), () => createGameFast(opts, this.GameClass));
     this.setGame(game);
     if (game.state.scenario) this.announceScenario(game);
     else this.toast(`New game started (seed ${game.state.seed})`, 'good');
