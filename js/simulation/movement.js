@@ -7,8 +7,11 @@ import { landSpeedStep, airSpeedStep, DIAGONAL_STEP } from './loco/vehicleMotion
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
-import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute } from './routing.js';
+import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath } from './routing.js';
 import { altitudeAt } from './aircraft.js';
+import { servicePerformed } from './service.js';
+import { dayNumber } from './date.js';
+import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
 import { notify } from './news.js';
 
@@ -38,6 +41,7 @@ export function vehicleTick(ctx, v) {
         advanceOrder(v);
         v.atStationId = null;
         v.state = 'running';
+        if (v.serviceDue) startServiceTrip(ctx, v); // the stop is finished: service before the next order
         replan(ctx, v);
       }
       return;
@@ -128,6 +132,7 @@ function onPathEnd(ctx, v) {
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) {
     const hangar = b && b.type === 'station' && b.part === 'hangar';
     if (b && ((b.type === 'depot' && b.depotId === v.goingToDepot) || (hangar && b.depotId === v.goingToDepot))) {
+      if (v.serviceTrip) { serviceAtDepot(ctx, v); return; }
       enterDepot(ctx, v, b.depotId);
       return;
     }
@@ -157,6 +162,42 @@ export function enterDepot(ctx, v, depotId) {
   v.progress = 0;
   v.history = [{ x: v.tx, y: v.ty }];
   v.flipped = false;
-  v.reliability = v.baseReliability ?? v.reliability;
-  v.breakdownTicks = 0;
+  if (v.serviceIntervalDays) servicePerformed(ctx.state, v);
+  else {
+    v.reliability = v.baseReliability ?? v.reliability;
+    v.breakdownTicks = 0;
+  }
+}
+
+/**
+ * Service at a depot without stopping (OpenTTD service-at-depot): reliability restored, the interval
+ * restarts and the vehicle leaves again on its orders. Called when a service trip reaches the depot.
+ */
+function serviceAtDepot(ctx, v) {
+  servicePerformed(ctx.state, v);
+  v.goingToDepot = null;
+  v.atStationId = null;
+  replan(ctx, v);
+}
+
+/**
+ * Send a vehicle with a due service to the nearest reachable depot of its kind (OpenTTD: the nearest depot
+ * is chosen by the pathfinder, goals are all depots of the vehicle's kind). Only when breakdowns are enabled.
+ * Sets goingToDepot and serviceTrip; the vehicle then resumes its orders without entering the depot.
+ * Without a reachable depot the due service is postponed by one full interval.
+ * @returns {boolean} true when a service trip was started
+ */
+export function startServiceTrip(ctx, v) {
+  const { state } = ctx;
+  if (getSetting(state, 'breakdowns') === 'none' || v.goingToDepot != null) return false;
+  const goals = depotGoals(state, v);
+  const path = goals.length ? findVehiclePath(state, v, goals) : null;
+  if (!path) { v.serviceDue = false; v.lastServiceDay = dayNumber(state.date); return false; }
+  const end = path[path.length - 1];
+  const depot = state.depots.find((d) => d.x === end.x && d.y === end.y);
+  if (!depot) return false;
+  v.goingToDepot = depot.id;
+  v.serviceTrip = true;
+  v.serviceDue = false;
+  return true;
 }

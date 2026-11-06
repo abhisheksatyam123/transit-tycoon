@@ -6,6 +6,7 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool } from '../tools/addOrder.js';
 import { unloadMode } from '../../simulation/orders.js';
+import { sharers } from '../../simulation/sharedOrders.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
@@ -28,8 +29,10 @@ export function openOrders(app, id) {
       const list = el('div.list.orders');
       const addBtn = el('button.btn.primary', { type: 'button', text: '+ Add order' });
       const startBtn = el('button.btn', { type: 'button', text: 'Start vehicle', onclick: () => app.exec(app.game.startVehicle(id), { sound: 'horn' }) });
+      const sharedLabel = el('div.muted.small.shared-orders', { text: '' });
+      const unshareBtn = el('button.btn.sm', { type: 'button', text: 'Unshare', title: 'Give this vehicle its own copy of the order list', onclick: () => app.exec(app.game.unshareOrders(id), { quiet: true, sound: 'click' }) });
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), hint);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), hint);
 
       const edit = (fn) => {
         const v = app.findVehicle(id);
@@ -51,6 +54,10 @@ export function openOrders(app, id) {
         addBtn.classList.toggle('active', adding);
         setText(addBtn, adding ? 'Click a station… (Esc)' : '+ Add order');
         startBtn.hidden = !(v.state === 'depot' || v.state === 'stopped');
+        const n = sharers(app.game.state, v).length;
+        sharedLabel.hidden = !n;
+        unshareBtn.hidden = !n;
+        setText(sharedLabel, n ? `Shared with ${n} other vehicle${n === 1 ? '' : 's'}` : '');
         const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId }));
         listOrEmpty(list, items, (it) => it.key,
           (it) => el('div.order-row', null,

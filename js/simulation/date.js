@@ -29,3 +29,17 @@ export function formatDate(date) {
 export function daysInMonth(date) {
   return MONTH_DAYS[date.month];
 }
+
+/** Absolute day number of a date (365-day years): used for service intervals. */
+export function dayNumber(date) {
+  let n = date.year * 365 + date.day - 1;
+  for (let m = 0; m < date.month; m++) n += MONTH_DAYS[m];
+  return n;
+}
+
+/** Inverse of dayNumber. */
+export function dateFromDayNumber(n) {
+  let year = Math.floor(n / 365), rem = n - year * 365, month = 0;
+  while (month < 11 && rem >= MONTH_DAYS[month]) { rem -= MONTH_DAYS[month]; month++; }
+  return { year, month, day: rem + 1 };
+}

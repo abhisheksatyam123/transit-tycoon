@@ -7,6 +7,7 @@ import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText } from '../../simulation/orders.js';
+import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -30,7 +31,7 @@ export function openVehicleDetail(app, id) {
     onClose: () => { if (app.renderer.overlay.selectedVehicleId === id && app.followId !== id) app.renderer.overlay.selectedVehicleId = null; },
     build(body, win) {
       app.renderer.overlay.selectedVehicleId = id;
-      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Value', 'Next order', 'Altitude']);
+      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service']);
       const loadBar = bar(0);
       body.appendChild(loadBar);
       const startStop = el('button.btn', { type: 'button' });
@@ -40,6 +41,15 @@ export function openVehicleDetail(app, id) {
         if (v.state === 'stopped' || v.state === 'depot') app.exec(g().startVehicle(id), { sound: 'horn' });
         else app.exec(g().stopVehicle(id), { sound: 'click' });
       });
+      const svcLabel = el('span.muted.small', { text: 'Service' });
+      const setSvc = (days) => {
+        const v = app.findVehicle(id);
+        if (v) app.exec(g().setServiceInterval(id, Math.max(0, days)), { quiet: true, sound: 'click' });
+      };
+      const svcBtns = el('span.row-actions', null,
+        el('button.btn.sm', { type: 'button', text: '−7', title: 'Shorter interval: service more often', onclick: () => { const v = app.findVehicle(id); if (v) setSvc((v.serviceIntervalDays || 0) - 7); } }),
+        el('button.btn.sm', { type: 'button', text: '+7', title: 'Longer interval: service less often (from off: every 7 days)', onclick: () => { const v = app.findVehicle(id); if (v) setSvc((v.serviceIntervalDays || 0) + 7); } }),
+        el('button.btn.sm', { type: 'button', text: 'Off', title: 'No scheduled servicing', onclick: () => setSvc(0) }));
       const followBtn = el('button.btn', { type: 'button', text: 'Follow', onclick: () => app.follow(app.followId === id ? null : id) });
       body.appendChild(el('div.btn-row', null,
         startStop,
@@ -50,6 +60,10 @@ export function openVehicleDetail(app, id) {
         el('button.btn.danger', { type: 'button', text: 'Sell', title: 'Vehicle must be stopped in a depot', onclick: () => {
           if (app.exec(g().sellVehicle(id), { sound: 'click' })) win.close();
         } })));
+      body.appendChild(el('div.btn-row', null,
+        el('button.btn', { type: 'button', text: 'Clone', title: 'Buy a copy of this vehicle in its depot (copies orders)', onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: false }), { sound: 'horn' }) }),
+        el('button.btn', { type: 'button', text: 'Clone (share orders)', title: "Buy a copy that shares this vehicle's order list", onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: true }), { sound: 'horn' }) })));
+      body.appendChild(el('div.btn-row', null, svcLabel, svcBtns));
       return () => {
         const v = app.findVehicle(id);
         if (!v) { win.close(); return; }
@@ -71,6 +85,10 @@ export function openVehicleDetail(app, id) {
         set['Next order'](st ? `${st.name}${orderFlagText(o)}` : 'No orders');
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');
         followBtn.classList.toggle('active', app.followId === id);
+        set['Service interval'](v.serviceIntervalDays ? `every ${v.serviceIntervalDays} days` : 'Off');
+        set['Last service'](v.serviceIntervalDays && v.lastServiceDay != null
+          ? formatDate(dateFromDayNumber(v.lastServiceDay)) + (v.serviceDue || v.serviceTrip ? ' · due' : '') : '—');
+        setText(svcLabel, v.serviceIntervalDays ? 'Service interval' : 'Service: off');
       };
     },
   });

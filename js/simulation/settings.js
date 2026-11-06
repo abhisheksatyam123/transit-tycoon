@@ -14,6 +14,11 @@ export const DEFAULT_SETTINGS = {
   breakdowns: 'normal',
   /** subsidies offered monthly */
   subsidies: true,
+  /**
+   * default service interval in days for NEW vehicles (0 = off). Only read when a vehicle is bought, so
+   * the default can change without touching existing vehicles. Kept at 0 so existing games are unchanged.
+   */
+  serviceIntervalDays: 0,
 };
 
 /** Read a setting (state.settings value or the default). */

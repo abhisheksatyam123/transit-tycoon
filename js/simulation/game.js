@@ -161,6 +161,12 @@ export class Game {
   stopVehicle(id, opts) { return vcmd.stopVehicle(this.ctx, id, opts); }
   sendToDepot(id, opts) { return vcmd.sendToDepot(this.ctx, id, opts); }
   sellVehicle(id, opts) { return vcmd.sellVehicle(this.ctx, id, opts); }
+  /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
+  cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
+  /** Leave the shared order list (keeps the current orders). */
+  unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
+  /** Service interval in days for one vehicle (0 = off). */
+  setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
   borrow(amount) { return borrow(this.state.company, amount); }
   repay(amount) { return repay(this.state.company, amount); }
 

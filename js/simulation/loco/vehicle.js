@@ -17,6 +17,7 @@ import { vehicleModel } from '../vehicles.js';
 import { notify } from '../news.js';
 import { getSetting } from '../settings.js';
 import { runningCost } from '../prices.js';
+import { dayNumber } from '../date.js';
 
 export const RELIABILITY_SCALE = 25600; // 100% * 256
 export const RELIABILITY_LOSS_PER_DAY = 4; // kReliabilityLossPerDay
@@ -60,6 +61,10 @@ export function vehicleDaily(ctx, v, rng, year) {
     return;
   }
   v.age++;
+  // service interval (OpenTTD NeedsServicing): once due, the vehicle services at the nearest depot after its current stop
+  if (v.serviceIntervalDays && !v.serviceDue && !v.serviceTrip && ctx && ctx.state
+      && getSetting(ctx.state, 'breakdowns') !== 'none'
+      && dayNumber(ctx.state.date) - (v.lastServiceDay ?? 0) >= v.serviceIntervalDays) v.serviceDue = true;
   if (v.age === v.maxAge) notify(ctx, `${v.name} is getting old and should be replaced.`, 'bad', v.tx, v.ty);
   if (v.reliability === 0) return;
   // breakdowns setting: 'none' = never; 'reduced' = timer doubled (armBreakdownTimer); 'normal' = unchanged

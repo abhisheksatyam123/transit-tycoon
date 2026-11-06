@@ -40,11 +40,18 @@ export function openSettings(app) {
         el('option', { value: 'reduced', text: 'Reduced' }),
         el('option', { value: 'normal', text: 'Normal' })));
       breakdowns.addEventListener('change', () => setSetting(state(), 'breakdowns', breakdowns.value));
+      const serviceDays = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '0', max: '730', step: '1' }));
+      serviceDays.addEventListener('change', () => {
+        const v = Math.max(0, Math.min(730, Math.round(Number(serviceDays.value)) || 0));
+        serviceDays.value = String(v);
+        setSetting(state(), 'serviceIntervalDays', v);
+      });
       body.append(
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
         row('Cargo payment %', payment, 'Percent of the standard cargo payment rate'),
         row('Breakdowns', breakdowns),
         row('Subsidies', subsidies, 'Offer subsidies every month'),
+        row('Service interval (days)', serviceDays, 'New vehicles service at the nearest depot every N days (0 = off). Existing vehicles keep theirs; change them in the vehicle window'),
         el('p.muted.small', { text: 'Settings are saved with the game.' }));
       let sig = '';
       return () => {
@@ -55,6 +62,7 @@ export function openSettings(app) {
         inflation.checked = !!s.inflation;
         subsidies.checked = !!s.subsidies;
         if (document.activeElement !== payment) payment.value = String(s.cargoPaymentPercent);
+        if (document.activeElement !== serviceDays) serviceDays.value = String(s.serviceIntervalDays || 0);
         breakdowns.value = s.breakdowns;
       };
     },

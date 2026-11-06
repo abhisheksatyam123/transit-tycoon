@@ -6,9 +6,13 @@ import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle } from './vehicles.js';
+import { allocId } from './state.js';
 import { normaliseOrders } from './orders.js';
 import { stopKindFor, depotGoals, findVehiclePath } from './routing.js';
 import { replan, enterDepot } from './movement.js';
+import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
+import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
+import { dayNumber } from './date.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -41,6 +45,7 @@ export function setOrders(ctx, id, orders, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   v.orders = r.orders;
   v.orderIndex = 0;
+  syncSharers(ctx, v);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
   return { ok: true, cost: 0 };
 }
@@ -65,6 +70,7 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   // unlike setOrders, keep the current order index
   v.orders = r.orders;
+  syncSharers(ctx, v);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
   return { ok: true, cost: 0 };
 }
@@ -142,6 +148,7 @@ export function sendToDepot(ctx, id, opts = {}) {
   const depot = state.depots.find((d) => d.x === end.x && d.y === end.y);
   if (opts.dryRun) return { ok: true, cost: 0, depotId: depot.id };
   v.goingToDepot = depot.id;
+  delete v.serviceTrip;
   v.atStationId = null;
   if (path.length === 1) { enterDepot(ctx, v, depot.id); return { ok: true, cost: 0, depotId: depot.id }; }
   v.state = 'running';
@@ -158,6 +165,7 @@ export function sellVehicle(ctx, id, opts = {}) {
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot' };
   if (opts.dryRun) return { ok: true, cost: -v.value };
+  leaveOrderGroup(state, v);
   state.vehicles = state.vehicles.filter((x) => x !== v);
   earn(state.company, v.value, 'vehicles');
   // keep the ledger byType as net expense for vehicles
@@ -165,4 +173,51 @@ export function sellVehicle(ctx, id, opts = {}) {
   state.company.ledger.current.byType.vehicles -= 2 * v.value;
   state.company.ledger.current.expenses -= v.value;
   return { ok: true, cost: -v.value };
+}
+
+/**
+ * Clone a vehicle (OpenLoco CloneVehicle): buys a vehicle of the same model / wagons / cargo in the
+ * source's depot, at the normal price, and copies its orders. The copy also inherits the service interval.
+ * shareOrders: the copy joins the source's shared order list (created when the source had none).
+ * @returns {{ok:true,cost:number,vehicle:object|null}|{ok:false,error:string}}
+ */
+export function cloneVehicle(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const src = findVehicle(state, id);
+  if (!src) return { ok: false, error: 'Unknown vehicle' };
+  const depot = findDepot(state, src.depotId);
+  if (!depot) return { ok: false, error: 'Vehicle has no depot to clone it in' };
+  const spec = { modelId: src.modelId, wagonModelId: src.wagonModelId || undefined, wagons: src.wagons || 0, cargoId: src.cargoId || undefined };
+  const r = buyVehicle(ctx, depot.id, spec, { dryRun: !!opts.dryRun });
+  if (!r.ok || opts.dryRun) return r;
+  const v = r.vehicle;
+  v.orders = src.orders.map((o) => ({ ...o }));
+  v.orderIndex = 0;
+  applyServiceInterval(state, v, src.serviceIntervalDays || 0);
+  if (opts.shareOrders) joinSharedOrders(state, v, src, (s) => allocId(s));
+  return { ok: true, cost: r.cost, vehicle: v };
+}
+
+/** Make a vehicle's order list independent again (keeps the orders it has now). */
+export function unshareOrders(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (v.orderGroup == null) return { ok: false, error: 'Orders are not shared' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  leaveOrderGroup(state, v);
+  return { ok: true, cost: 0 };
+}
+
+/** Set the service interval in days (0 = off). Stored only when non-zero (save compatible). */
+export function setServiceInterval(ctx, id, days, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  const n = Math.round(Number(days));
+  if (!Number.isFinite(n) || n < 0 || n > MAX_SERVICE_INTERVAL) return { ok: false, error: `Interval must be 0..${MAX_SERVICE_INTERVAL} days` };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  applyServiceInterval(state, v, n);
+  if (n && v.lastServiceDay == null) v.lastServiceDay = dayNumber(state.date);
+  return { ok: true, cost: 0 };
 }

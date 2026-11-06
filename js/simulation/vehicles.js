@@ -5,6 +5,7 @@ import { MODEL_BY_ID } from '../config/vehicles.js';
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
+import { defaultServiceFields } from './service.js';
 
 /** Display prefix per vehicle class. */
 function classOf(model) {
@@ -76,6 +77,7 @@ export function createVehicle(state, depot, template, cost) {
     profitThisYear: 0, profitLastYear: 0, value: cost, loadingTicks: 0,
     runningCost: template.running, lostSince: null, retryTick: 0,
     ...(model.kind === 'aircraft' ? { alt: 0 } : {}),
+    ...defaultServiceFields(state), // service interval (setting default; absent when off)
   };
   state.vehicles.push(v);
   return v;
