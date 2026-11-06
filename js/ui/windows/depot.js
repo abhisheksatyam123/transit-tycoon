@@ -19,7 +19,15 @@ export function openDepot(app, id) {
       const list = el('div.list.scroll');
       const buy = el('button.btn.primary', { type: 'button', text: 'Buy vehicle…', onclick: () => app.open('buyVehicle', id) });
       const center = el('button.btn', { type: 'button', text: 'Center view', onclick: () => { const d = app.findDepot(id); if (d) app.centerOn(d.x, d.y); } });
-      body.append(info, list, el('div.btn-row', null, buy, center));
+      const startAll = el('button.btn', { type: 'button', text: 'Start all', title: 'Start every vehicle inside this depot', onclick: () => {
+        const ids = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot').map((v) => v.id);
+        app.exec(app.game.massStartStop(ids, true), { sound: 'horn' });
+      } });
+      const stopAll = el('button.btn', { type: 'button', text: 'Stop all', title: 'Stop every vehicle that belongs to this depot and is out on the road', onclick: () => {
+        const ids = app.game.state.vehicles.filter((v) => v.depotId === id && v.state !== 'depot').map((v) => v.id);
+        app.exec(app.game.massStartStop(ids, false), { sound: 'click' });
+      } });
+      body.append(info, list, el('div.btn-row', null, buy, center, startAll, stopAll));
       return () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }

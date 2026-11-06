@@ -73,8 +73,15 @@ export function openVehicleList(app) {
       sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
       filterSel.onchange = () => { state.filter = filterSel.value; refresh(); };
       dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
+      // mass start/stop act on the vehicles the current kind filter shows (gap #40)
+      const massBtn = (label, start) => el('button.btn.sm', { type: 'button', text: label, title: `${label} the vehicles shown by the filter`, onclick: () => {
+        const ids = sortVehicles(app.game.state.vehicles, state).map((v) => v.id);
+        app.exec(app.game.massStartStop(ids, start), { sound: start ? 'horn' : 'click' });
+        refresh();
+      } });
       const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel);
+        el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel,
+        massBtn('Start all', true), massBtn('Stop all', false));
       const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span'));
       const list = el('div.list.scroll.table');
       body.append(summary, controls, head, list);

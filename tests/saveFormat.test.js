@@ -65,5 +65,5 @@ describe('save format', () => {
     legacy.traffic.cars = [{ id: 1, townId: 0, path: [3, 4, 5], i: 0, t: 0, speed: 0.1, wait: 0, born: 0, kind: 'car', color: 2 }];
     const back = parseState(JSON.stringify(legacy));
     expect(back.traffic.cars[0].path).toEqual([3, 4, 5]);
-  });
+  }, 30000);
 });

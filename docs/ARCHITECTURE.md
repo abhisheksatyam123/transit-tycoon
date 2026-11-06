@@ -259,3 +259,9 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - Renderer: after a terraform, `app.exec` calls `Heights.refreshArea` for the changed area (+1 vertex border) before the ground chunk invalidation.
 - Tools: Terraform (`Z`, C cycles raise/lower/level) and Plant trees (`Y`). The drag hint shows the live cost or the refusal reason; the overlay is red when invalid.
 - Trees are forest terrain; demolish clears forest back to grass.
+
+## Rename, reverse, mass start (T37/T40)
+- `js/simulation/cmdRename.js`: renameStation / renameVehicle / renameTown / renameCompany. Only the `name` field changes (ids are used everywhere else, so orders and lists survive). Rules: trimmed, 1..32 characters, no control characters; stations, towns and vehicles must be unique (case-insensitive) among their kind. Depots have no name field, so they are not renamed.
+- `js/ui/prompt.js`: reusable modal text prompt (input, OK/Cancel, Enter/Escape, error shown inline). `js/ui/rename.js` opens it for each kind. Game shortcuts ignore INPUT targets (input.js), so typing does not fire them.
+- Reverse (`cmdVehicle.reverseVehicle`, trains only): flips the consist on its recorded track history (`flipTrain`), clears the path and re-plans a running or lost train to its current order or depot. Refused in a depot or while loading. A stopped train stays stopped and leaves in the new direction when started.
+- Mass start/stop (`cmdVehicle.massStartStop(ids, start)`): loops the single-vehicle commands and skips vehicles that cannot change state. Used by the depot window (Start all / Stop all) and the vehicle list (current kind filter).

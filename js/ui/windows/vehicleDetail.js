@@ -5,6 +5,7 @@ import { el, setText, bar, setBar } from '../dom.js';
 import { money, num, speed } from '../format.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
+import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText } from '../../simulation/orders.js';
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
@@ -51,9 +52,15 @@ export function openVehicleDetail(app, id) {
         el('button.btn.sm', { type: 'button', text: '+7', title: 'Longer interval: service less often (from off: every 7 days)', onclick: () => { const v = app.findVehicle(id); if (v) setSvc((v.serviceIntervalDays || 0) + 7); } }),
         el('button.btn.sm', { type: 'button', text: 'Off', title: 'No scheduled servicing', onclick: () => setSvc(0) }));
       const followBtn = el('button.btn', { type: 'button', text: 'Follow', onclick: () => app.follow(app.followId === id ? null : id) });
+      const reverseBtn = el('button.btn', { type: 'button', text: 'Reverse', title: 'Turn the train around and re-plan to its current order (trains only)', onclick: () => {
+        const v = app.findVehicle(id);
+        if (v && v.kind === 'train') app.exec(g().reverseVehicle(id), { sound: 'click' });
+      } });
       body.appendChild(el('div.btn-row', null,
         startStop,
         el('button.btn', { type: 'button', text: 'Orders', onclick: () => app.open('orders', id) }),
+        el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'vehicle', id) }),
+        reverseBtn,
         el('button.btn', { type: 'button', text: 'Send to depot', onclick: () => app.exec(g().sendToDepot(id), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Center', onclick: () => { const v = app.findVehicle(id); if (v) app.centerOn(v.tx, v.ty); } }),
         followBtn,
@@ -83,6 +90,8 @@ export function openVehicleDetail(app, id) {
         const o = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
         const st = o ? app.findStation(o.stationId) : null;
         set['Next order'](st ? `${st.name}${orderFlagText(o)}` : 'No orders');
+        win.setTitle(v.name || 'Vehicle');
+        reverseBtn.hidden = v.kind !== 'train';
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');
         followBtn.classList.toggle('active', app.followId === id);
         set['Service interval'](v.serviceIntervalDays ? `every ${v.serviceIntervalDays} days` : 'Off');

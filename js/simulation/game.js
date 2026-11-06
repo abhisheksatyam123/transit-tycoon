@@ -18,6 +18,7 @@ import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import * as vcmd from './cmdVehicle.js';
+import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
 import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
@@ -166,6 +167,15 @@ export class Game {
   stopVehicle(id, opts) { return vcmd.stopVehicle(this.ctx, id, opts); }
   sendToDepot(id, opts) { return vcmd.sendToDepot(this.ctx, id, opts); }
   sellVehicle(id, opts) { return vcmd.sellVehicle(this.ctx, id, opts); }
+  /** Turn a train around in place and re-plan (trains only). */
+  reverseVehicle(id, opts) { return vcmd.reverseVehicle(this.ctx, id, opts); }
+  /** Start (true) or stop (false) many vehicles; ids = vehicle ids. Skips those that cannot change. */
+  massStartStop(ids, start, opts) { return vcmd.massStartStop(this.ctx, ids, start, opts); }
+  /** Rename commands (cmdRename.js): name is validated and stored in the entity's name field. */
+  renameStation(id, name, opts) { return renameStation(this.ctx, id, name, opts); }
+  renameVehicle(id, name, opts) { return renameVehicle(this.ctx, id, name, opts); }
+  renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }
+  renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
   /** Leave the shared order list (keeps the current orders). */

@@ -4,6 +4,7 @@
 import { el } from '../dom.js';
 import { num } from '../format.js';
 import { kvGrid } from './common.js';
+import { openRename } from '../rename.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -18,7 +19,7 @@ export function openTown(app, id) {
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
         const t = app.findTown(id);
         if (t) app.centerOn(t.x, t.y);
-      } })));
+      } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'town', id) })));
       return () => {
         const t = app.findTown(id);
         if (!t) { win.close(); return; }

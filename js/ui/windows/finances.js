@@ -4,6 +4,7 @@
 import { el, setText, clear } from '../dom.js';
 import { money, monthName } from '../format.js';
 import { kvGrid } from './common.js';
+import { openRename } from '../rename.js';
 
 const LOAN_STEP = 10000;
 const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep' };
@@ -15,16 +16,18 @@ export function openFinances(app) {
   return app.wm.open('finances', {
     title: 'Finances',
     width: 620,
-    build(body) {
+    build(body, win) {
       const set = kvGrid(body, ['Bank balance', 'Loan', 'Max loan', 'Interest (yearly)']);
       body.appendChild(el('div.btn-row', null,
         el('button.btn', { type: 'button', text: `Borrow ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.borrow(LOAN_STEP), { sound: 'income' }) }),
-        el('button.btn', { type: 'button', text: `Repay ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.repay(LOAN_STEP), { sound: 'click' }) })));
+        el('button.btn', { type: 'button', text: `Repay ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.repay(LOAN_STEP), { sound: 'click' }) }),
+        el('button.btn', { type: 'button', text: 'Rename company…', onclick: () => openRename(app, 'company') })));
       const tableWrap = el('div.table-wrap');
       body.appendChild(tableWrap);
       let sig = '';
       return () => {
         const c = app.game.state.company;
+        win.setTitle(c.name ? `Finances · ${c.name}` : 'Finances');
         set['Bank balance'](money(c.money));
         set['Loan'](money(c.loan));
         set['Max loan'](money(c.maxLoan));

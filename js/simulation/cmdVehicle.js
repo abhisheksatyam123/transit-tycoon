@@ -8,7 +8,7 @@ import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle } from './vehicles.js';
 import { allocId } from './state.js';
 import { normaliseOrders } from './orders.js';
-import { stopKindFor, depotGoals, findVehiclePath } from './routing.js';
+import { stopKindFor, depotGoals, findVehiclePath, flipTrain } from './routing.js';
 import { replan, enterDepot } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
@@ -220,4 +220,49 @@ export function setServiceInterval(ctx, id, days, opts = {}) {
   applyServiceInterval(state, v, n);
   if (n && v.lastServiceDay == null) v.lastServiceDay = dayNumber(state.date);
   return { ok: true, cost: 0 };
+}
+
+/**
+ * Reverse a train (OpenTTD CMD_REVERSE_TRAIN_DIRECTION): the consist turns end for end at its
+ * current position (flipTrain uses the recorded track history, so the rear becomes the head on
+ * the same rails), then a running/lost train re-plans to its current order or depot.
+ * The planner only turns the train back again if the new route runs into its own body.
+ * Stopped trains keep their stop; they leave in the new direction when started.
+ */
+export function reverseVehicle(ctx, id, opts = {}) {
+  const v = findVehicle(ctx.state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (v.kind !== 'train') return { ok: false, error: 'Only trains can be reversed' };
+  if (v.state === 'depot') return { ok: false, error: 'Vehicle is in a depot' };
+  if (v.state === 'loading') return { ok: false, error: 'Wait until the train has finished loading' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  flipTrain(v);
+  v.speed = 0;
+  v.path = [];
+  v.pathIndex = 0;
+  v.progress = 0;
+  if (v.state === 'running' || v.state === 'lost') replan(ctx, v);
+  return { ok: true, cost: 0, state: v.state };
+}
+
+/**
+ * Start or stop many vehicles at once (OpenTTD CMD_MASS_START_STOP / OpenLoco mass start-stop).
+ * ids: vehicle ids (e.g. the vehicles in one depot or the current vehicle-list filter).
+ * Vehicles already in the wanted state, or that cannot change state, are skipped.
+ * @returns {{ok:true,cost:number,count:number}|{ok:false,error:string}}
+ */
+export function massStartStop(ctx, ids, start, opts = {}) {
+  const list = Array.isArray(ids) ? ids : [];
+  let count = 0;
+  for (const id of list) {
+    const v = findVehicle(ctx.state, id);
+    if (!v) continue;
+    const fn = start ? startVehicle : stopVehicle;
+    const r = fn(ctx, id, { dryRun: true });
+    if (!r.ok) continue;
+    count++;
+    if (!opts.dryRun) fn(ctx, id);
+  }
+  if (!count) return { ok: false, error: start ? 'No vehicles to start' : 'No vehicles to stop' };
+  return { ok: true, cost: 0, count };
 }

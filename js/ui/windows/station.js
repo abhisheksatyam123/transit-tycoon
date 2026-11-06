@@ -6,6 +6,7 @@ import { el, setText, bar, setBar } from '../dom.js';
 import { cargoChip, cargoName } from '../cargo.js';
 import { num } from '../format.js';
 import { heading, packetTotal, listOrEmpty } from './common.js';
+import { openRename } from '../rename.js';
 
 /**
  * Rating colour (red -> yellow -> green).
@@ -35,7 +36,7 @@ export function openStation(app, id) {
         el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
           const st = app.findStation(id);
           if (st) app.centerOn(st.x, st.y);
-        } })));
+        } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'station', id) })));
       let accSig = '';
       return () => {
         const st = app.findStation(id);
