@@ -2,6 +2,7 @@
  * Help window: concise tutorial and controls reference.
  */
 import { el } from '../dom.js';
+import { effectiveKeys, currentOverrides, keyLabel } from '../hotkeys.js';
 
 const STEPS = [
   ['Find a cargo chain', 'Open Industries (I). A Coal Mine → Power Station pair 10–30 tiles apart is the classic first route (if none is close, try a short truck route or a New Game with another seed). Double-click an entry to jump there.'],
@@ -48,7 +49,10 @@ export function openHelp(app) {
       body.appendChild(el('h4.win-h', { text: 'Controls' }));
       const grid = el('div.kv-grid.keys');
       for (const [k, v] of KEYS) grid.append(el('span.kbd', { text: k }), el('span', { text: v }));
+      const hk = effectiveKeys(currentOverrides());
+      grid.append(el('span.kbd', { text: keyLabel(hk['win:hotkeys']) }), el('span', { text: 'Keyboard shortcuts (this list is editable)' }));
       body.appendChild(grid);
+      body.appendChild(el('p.small', null, el('button.btn', { type: 'button', text: 'Keyboard shortcuts…', title: 'View and change the keys', onclick: () => app.open('hotkeys') })));
       body.appendChild(el('p.muted.small', { text: 'The game auto-saves regularly (and when the tab is hidden). Transit Tycoon JS is original code inspired by the gameplay of OpenTTD.' }));
     },
   });

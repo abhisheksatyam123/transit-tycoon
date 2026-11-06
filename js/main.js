@@ -2,6 +2,7 @@
  * Entry point: creates/loads the Game, wires renderer, minimap, UI and the game loop.
  * The only global is `window.__game` (debug handle to the current Game instance).
  */
+import { HOTKEY_ACTIONS, shortcutTable, effectiveKeys, currentOverrides, onHotkeysChanged } from './ui/hotkeys.js';
 import { Game } from './simulation/game.js';
 import { Renderer } from './renderer/renderer.js';
 import { Minimap } from './renderer/minimap.js';
@@ -185,14 +186,27 @@ async function main() {
   app.setSpeed = (v) => { setSpeed(v); if (v === 0 && monthsSinceSave > 0) whenIdle(() => autosave(app)); };
   document.addEventListener('visibilitychange', () => { if (document.hidden && monthsSinceSave > 0) autosave(app); });
 
+  // Global shortcuts come from the hotkey table (js/ui/hotkeys.js); overrides from 'tt.hotkeys'.
   /** @type {Record<string,()=>void>} */
-  const shortcuts = {
-    ' ': () => app.togglePause(),
-    v: () => app.open('vehicles'), f: () => app.open('finances'), t: () => app.open('towns'), b: () => app.open('stations'), p: () => app.open('map'), e: () => app.open('graphs'),
-    i: () => app.open('industries'), n: () => app.open('news'), h: () => app.open('help'),
-    l: () => app.open('load'), x: () => app.open('traffic'), g: () => app.open('issues'), u: () => app.open('metro'), o: () => app.open('goals'), j: () => { app.renderer.showMetro = !app.renderer.showMetro; }, k: () => togglePack(renderer), m: () => toolbar.toggleSound(), q: () => app.setTool('query'),
+  const shortcuts = {};
+  /** @type {Record<string,()=>void>} action id -> handler */
+  const hotkeyHandlers = {
+    pause: () => app.togglePause(),
+    metroOverlay: () => { app.renderer.showMetro = !app.renderer.showMetro; },
+    graphics: () => togglePack(renderer),
+    sound: () => toolbar.toggleSound(),
+    'alt:query': () => app.setTool('query'),
   };
-  for (const [id, , , key] of TOOL_BUTTONS) if (key) shortcuts[key.toLowerCase()] = () => app.setTool(id); // e.key is lower-cased in input.js
+  for (const a of HOTKEY_ACTIONS) {
+    if (a.id.startsWith('win:')) { const name = a.id.slice(4); hotkeyHandlers[a.id] = () => app.open(name); }
+    else if (a.id.startsWith('tool:')) { const id = a.id.slice(5); hotkeyHandlers[a.id] = () => app.setTool(id); }
+  }
+  const rebuildShortcuts = () => {
+    for (const k of Object.keys(shortcuts)) delete shortcuts[k];
+    Object.assign(shortcuts, shortcutTable(effectiveKeys(currentOverrides()), hotkeyHandlers));
+  };
+  rebuildShortcuts();
+  onHotkeysChanged(rebuildShortcuts);
   const input = setupInput(app, canvas, shortcuts);
 
   let lastWin = 0, lastStatus = 0, lastSel = 0;

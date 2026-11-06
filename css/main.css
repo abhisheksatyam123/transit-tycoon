@@ -318,3 +318,16 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .consist-block { display: inline-block; width: 16px; height: 12px; line-height: 12px; font-size: 9px; text-align: center; border-radius: 2px; color: #0f172a; background: #cbd5e1; }
 .consist-block.engine { background: #f59e0b; }
 .consist-block.wagon { background: #94a3b8; }
+
+/* Keyboard shortcuts window (HK) */
+.hk-table { max-height: 52vh; overflow-y: auto; margin-top: 6px; }
+.hk-group summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.hk-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.hk-row[hidden] { display: none; }
+.hk-label { flex: 1 1 auto; min-width: 0; }
+.hk-key { min-width: 64px; font-family: monospace; }
+.hk-key.changed { border-color: #6ab; }
+.hk-key.capturing { outline: 2px solid #6cf; }
+.hk-fixed .hk-label { opacity: 0.85; }
+.hk-conflict { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px; margin-top: 6px; border: 1px solid #b96; border-radius: 4px; }
+.hk-conflict[hidden] { display: none; }

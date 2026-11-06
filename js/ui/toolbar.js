@@ -3,6 +3,7 @@
  * The most used items are always visible; the rest sit in flyout groups (OpenTTD-style) so the
  * toolbar stays one row on desktop widths.
  */
+import { hotkeyTitle, currentOverrides, effectiveKeys, onHotkeysChanged, keyLabel } from './hotkeys.js';
 import { el } from './dom.js';
 import { icon } from './icons.js';
 import { scanIssues } from './diagCache.js';
@@ -117,8 +118,21 @@ function flyItem(iconName, label, key, onClick) {
  * @returns {{refresh:()=>void, toggleSound:()=>void}}
  */
 export function createToolbar(root, app) {
+  /** @type {[HTMLElement, string, string][]} buttons whose title shows a hotkey: [button, label, action id] */
+  const titled = [];
+  /** Title = label + the current (possibly rebound) key from the Keyboard shortcuts window. */
+  const retitle = () => {
+    const keys = effectiveKeys(currentOverrides());
+    for (const [b, label, id] of titled) {
+      b.title = hotkeyTitle(label, id, keys);
+      const kbd = b.querySelector('kbd'); // flyout items show the key as a <kbd>
+      if (kbd && keys[id]) kbd.textContent = keyLabel(keys[id]);
+    }
+  };
+  onHotkeysChanged(retitle);
   const speedBtns = SPEEDS.map(([s, label, ic, key]) => {
     const b = tbButton(ic, label, `${label === 'Pause' ? 'Pause' : 'Speed ' + label}${key ? ' (' + key + ')' : ''}`, () => app.setSpeed(/** @type {number} */ (s)));
+    if (label === 'Pause') titled.push([b, 'Pause', 'pause']);
     b.dataset.speed = String(s);
     return b;
   });
@@ -130,12 +144,14 @@ export function createToolbar(root, app) {
     const [, label, ic, key] = /** @type {any} */ (toolInfo.get(id));
     const b = tbButton(ic, label, key ? `${label} (${key})` : label, () => { play('click'); app.setTool(id); });
     b.dataset.tool = id;
+    if (key) titled.push([b, label, 'tool:' + id]);
     return b;
   });
   const winBtns = TOP_WINDOWS.map((name) => {
     const [, label, ic, key] = /** @type {any} */ (winInfo.get(name));
     const b = tbButton(ic, label, key ? `${label} (${key})` : label, () => app.open(name));
     b.dataset.win = name;
+    if (key) titled.push([b, label, 'win:' + name]);
     return b;
   });
   const issuesBtn = winBtns.find((b) => b.dataset.win === 'issues');
@@ -169,6 +185,7 @@ export function createToolbar(root, app) {
     play('click');
   };
   const sound = tbButton(isMuted() ? 'soundOff' : 'soundOn', 'Sound', 'Toggle sound (M)', () => toggleSound());
+  titled.push([sound, 'Toggle sound', 'sound']);
   sound.classList.toggle('muted', isMuted());
 
   // ---- flyout groups: each group = a toolbar button (with a caret) + a panel appended to <body> ----
@@ -205,6 +222,7 @@ export function createToolbar(root, app) {
         const [, wl, wi, wk] = /** @type {any} */ (winInfo.get(name));
         const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); });
         b.dataset.win = name;
+        if (wk) titled.push([b, wl, 'win:' + name]);
         items.push(b);
         return b;
       }
@@ -212,6 +230,7 @@ export function createToolbar(root, app) {
       toolIds.push(m);
       const b = flyItem(ti, tl, tk, () => { closeFlyouts(); play('click'); app.setTool(m); });
       b.dataset.tool = m;
+      if (tk) titled.push([b, tl, 'tool:' + m]);
       items.push(b);
       return b;
     });
@@ -275,6 +294,7 @@ export function createToolbar(root, app) {
   fitToolbar(root);
   if (typeof ResizeObserver === 'function') new ResizeObserver(() => fitToolbar(root)).observe(root);
   else window.addEventListener('resize', () => fitToolbar(root));
+  retitle();
   return { refresh, toggleSound };
 }
 

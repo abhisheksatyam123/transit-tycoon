@@ -32,9 +32,11 @@ import { openGraphs } from './graphs.js';
 import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
 import { openCompanies } from './companies.js';
+import { openHotkeys } from './hotkeys.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
+  hotkeys: openHotkeys,
   tileInfo: openTileInfo,
   station: openStation,
   town: openTown,
