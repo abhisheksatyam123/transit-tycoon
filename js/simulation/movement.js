@@ -1,19 +1,25 @@
 /**
  * Per-tick vehicle state machine: movement along paths, arrival, loading, lost handling.
- * Collisions and signals are not simulated (vehicles may overlap).
+ * Queueing (blocking.js): a vehicle does not enter a tile still occupied by a vehicle moving the same way
+ * ahead of it, so it queues behind it (oncoming traffic passes; a road stop bay blocks both ways), and
+ * vehicles loading at a stop block the bay. A vehicle blocked by a moving vehicle for BLOCK_TIMEOUT_TICKS turns
+ * around (trains reverse, road vehicles back up one tile), then waits another full timeout.
+ * Signals are not simulated; head-on trains on single track pass each other.
  */
 import { TICKS_PER_DAY } from './constants.js';
 import { landSpeedStep, airSpeedStep, DIAGONAL_STEP } from './loco/vehicleMotion.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
-import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath } from './routing.js';
+import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { servicePerformed } from './service.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
 import { notify } from './news.js';
+import { dirBetween } from './constants.js';
+import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn } from './blocking.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -25,6 +31,7 @@ export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
  */
 export function vehicleTick(ctx, v) {
   if (v.kind === 'aircraft' && v.state !== 'running' && v.state !== 'broken') v.alt = 0;
+  if (v.blockedTicks && v.state !== 'running') clearBlock(v);
   switch (v.state) {
     case 'depot':
     case 'stopped':
@@ -94,6 +101,9 @@ function move(ctx, v) {
   if (!v.path.length || v.pathIndex >= v.path.length - 1) { onPathEnd(ctx, v); return; }
   const layer = layerOf(v);
   if (v.progress === 0 && !linkOk(state, layer, v)) { v.progress = 0; replan(ctx, v); return; }
+  const tie = v.kind === 'aircraft' ? null : startTie(ctx, v);
+  if (tie) { hold(ctx, v, tie); return; }
+  const blocker = v.kind === 'aircraft' ? null : nextBlocker(ctx, v);
   if (v.kind === 'aircraft') {
     v.speed = airSpeedStep(v, v.maxSpeed);
     // diagonal (Bresenham) steps are sqrt(2) tiles long (kMovementNibbleToDistance diagonal / straight)
@@ -101,8 +111,10 @@ function move(ctx, v) {
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;
   } else {
     v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed);
+    if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
     v.progress += v.speed;
   }
+  if (v.blockedTicks) clearBlock(v);
   const keep = historyNeeded(v);
   while (v.progress >= 1) {
     v.progress -= 1;
@@ -114,6 +126,97 @@ function move(ctx, v) {
     if (v.pathIndex >= v.path.length - 1) { v.progress = 0; onPathEnd(ctx, v); return; }
     if (!linkOk(state, layer, v)) { v.progress = 0; replan(ctx, v); return; }
   }
+}
+
+/** Vehicle ahead on the next tile of the path that blocks v (see blocking.js), or null. */
+function nextBlocker(ctx, v) {
+  const layer = occupancyLayer(v);
+  const p = v.path, i = v.pathIndex;
+  if (!layer || !p || i + 1 >= p.length) return null;
+  const a = p[i], b = p[i + 1];
+  return blockerOn(ctx, v, layer, b.x, b.y, dirBetween(a.x, a.y, b.x, b.y));
+}
+
+/**
+ * Vehicles that start from the same depot tile in one tick: the lower id leaves first, the other waits
+ * on its own first tile until the lower id has moved on (blocking.js indexes body cells only).
+ */
+function startTie(ctx, v) {
+  if (v.pathIndex !== 0 || v.progress !== 0 || !v.path.length) return null;
+  const layer = occupancyLayer(v);
+  const list = layer ? vehiclesOn(ctx, layer, v.tx, v.ty) : null;
+  if (!list) return null;
+  for (const o of list) if (o !== v && o.id < v.id && o.pathIndex === 0 && o.state === 'running') return o;
+  return null;
+}
+
+/**
+ * Deadlock breaker: after half a day blocked, follow the blockedBy chain (up to 16 links). When it leads back
+ * to v (vehicles waiting on each other in a cycle), the lowest id in the cycle proceeds and passes through.
+ */
+function breaksCycle(ctx, v) {
+  if ((v.blockedTicks || 0) <= TICKS_PER_DAY / 2) return false;
+  const occ = ctx.occupancy;
+  let byId = occ && occ.byId;
+  if (!byId) {
+    byId = new Map();
+    for (const o of ctx.state.vehicles) byId.set(o.id, o);
+    if (occ) occ.byId = byId;
+  }
+  let minId = v.id, cur = v;
+  for (let i = 0; i < 16; i++) {
+    const next = cur.blockedBy === undefined ? null : byId.get(cur.blockedBy);
+    if (!next || !next.blockedTicks) return false;
+    if (next === v) return v.id === minId;
+    if (next.id < minId) minId = next.id;
+    cur = next;
+  }
+  return false;
+}
+
+function clearBlock(v) {
+  delete v.blockedTicks;
+  delete v.blockedBy;
+}
+
+/**
+ * Hold a vehicle at the boundary of its current tile while the next tile is occupied. A vehicle held at the
+ * last tile of a stop with a loading vehicle in its bay tries another free bay of the same stop. Trains and
+ * vehicles blocked by a moving vehicle for BLOCK_TIMEOUT_TICKS turn around and re-plan (cooldown: the timeout
+ * restarts after a turn). Blocked behind a loading vehicle they wait for it instead.
+ */
+function hold(ctx, v, blocker) {
+  v.speed = 0;
+  v.blockedTicks = (v.blockedTicks || 0) + 1;
+  v.blockedBy = blocker.id;
+  const last = v.pathIndex + 2 === v.path.length;
+  if (last && blocker.state === 'loading' && v.blockedTicks % 8 === 1) tryFreeBay(ctx, v);
+  // blocked for a full timeout by a moving vehicle: turn around once (blockedTicks restarts from 0 in turnAround)
+  if (v.blockedTicks === BLOCK_TIMEOUT_TICKS && blocker.state !== 'loading') turnAround(ctx, v);
+}
+
+/** Re-route a vehicle waiting for a busy stop bay to a free goal tile of its current order. */
+function tryFreeBay(ctx, v) {
+  const { state } = ctx;
+  if (v.goingToDepot !== null && v.goingToDepot !== undefined) return;
+  const layer = occupancyLayer(v);
+  const goals = orderGoals(state, v).filter((g) => !vehiclesOn(ctx, layer, g.x, g.y)?.some((o) => o !== v));
+  if (goals.length) planRoute(state, v, goals);
+}
+
+/** Trains reverse end for end; road vehicles back up one tile along the way they came. Then they re-plan. */
+function turnAround(ctx, v) {
+  clearBlock(v); // blockedTicks restarts from 0, so the next turnaround waits a full timeout too (cooldown)
+  if (v.kind === 'train') {
+    flipTrain(v);
+    v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0;
+    replan(ctx, v);
+    return;
+  }
+  const h1 = v.history[1];
+  if (!h1) return;
+  v.path = [{ x: v.tx, y: v.ty }, { x: h1.x, y: h1.y }];
+  v.pathIndex = 0; v.progress = 0;
 }
 
 /** True when the link from path[pathIndex] to path[pathIndex+1] is still connected. */

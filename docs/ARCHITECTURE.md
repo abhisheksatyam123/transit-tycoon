@@ -196,8 +196,14 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - `--json path` writes the full report. **Exit code**: `1` if there are any error-severity issues or the determinism
   check is `MISMATCH`; otherwise `0`.
 
+## Vehicle queueing (T3 stage 1)
+- `simulation/blocking.js`: per-tick occupancy index `ctx.occupancy` (tile key -> vehicles covering it, body cells = `history`; road vehicles index head + previous tile). Built by `loco/vehicleManager.js` tick before any vehicle moves, re-synced per vehicle after its move (`syncOccupancy`), cleared at tick end. Derived only: never serialized; saved games rebuild it. O(1) lookup per vehicle per tick.
+- Rules: a vehicle holds at its tile boundary when the next tile holds a same-direction vehicle (trains and road vehicles; oncoming road traffic passes; a road stop tile blocks both ways since it is one bay). A vehicle loading at a stop blocks the bay. Vehicles spawned on the same depot tile leave in id order.
+- Deadlock safety net (`movement.js` hold/turnAround): a vehicle blocked by a moving vehicle for `BLOCK_TIMEOUT_TICKS` (3 days) turns around (trains reverse via `flipTrain`, road vehicles back up one tile) and then waits another full timeout (cooldown). A vehicle queued behind a loading vehicle never turns around. A road vehicle held at a busy bay tries a free stop tile of its order first. Cycles (vehicles waiting on each other, e.g. two trains whose bodies overlap each other's next tile) are broken after half a day: the lowest id in the `blockedBy` cycle passes through (`breaksCycle`).
+- Not simulated (stage 2): signals, head-on train blocking and passing loops. Head-on trains pass each other on single track.
+
 ## Not yet implemented (future work)
-- Signals / block reservation and vehicle collisions (trains currently pass through each other).
+- Signals / block reservation (stage 2). Queueing (stage 1, `simulation/blocking.js`) is done: same-direction followers queue, head-on trains pass.
 - Slopes affecting track building (slopes are render-only), bridges and tunnels; ships and aircraft; AI competitors; multiplayer.
 
 ## Airports & aircraft (T30)

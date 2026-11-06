@@ -4,17 +4,22 @@
  * logic in ./vehicle.js. Vehicle motion stays transit-tycoon's (movement.js).
  */
 import { vehicleTick } from '../movement.js';
+import { beginOccupancy, syncOccupancy } from '../blocking.js';
 import { vehiclesYearly } from '../vehicleLife.js';
 import { trafficTick, trafficDaily } from '../traffic.js';
 import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } from './vehicle.js';
 
 /** VehicleManager::tick: VehicleHead::updateBreakdown + motion for every vehicle (plus background road traffic). */
 export function tick(game) {
+  const ctx = game.ctx;
+  ctx.occupancy = beginOccupancy(game.state); // queueing index (blocking.js), derived, never saved
   for (const v of game.state.vehicles) {
     vehicleBreakdownTick(v);
-    vehicleTick(game.ctx, v);
+    vehicleTick(ctx, v);
+    syncOccupancy(ctx, v);
   }
-  trafficTick(game.ctx);
+  ctx.occupancy = null;
+  trafficTick(ctx);
 }
 
 /** VehicleManager::updateDaily. */
