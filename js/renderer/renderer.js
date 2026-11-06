@@ -1,3 +1,4 @@
+import { shipPassable } from '../simulation/shipPath.js';
 import { drawLandBridgeDeck } from './sprites/landBridge.js';
 /**
  * Renderer: draws the visible part of the map each frame in painter's order.
@@ -334,7 +335,7 @@ export class Renderer {
           continue;
         }
         if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.terrain === 'forest' || tile.field !== undefined)) {
-          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup);
+          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup, (dx, dy) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < W && ny < map.height && shipPassable(map, ny * W + nx); });
           if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
             const [ou, ov, oz] = SMOKE[piece];
             const [px, py] = P(ou, ov, oz);

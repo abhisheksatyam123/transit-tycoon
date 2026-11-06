@@ -33,6 +33,8 @@ function collectIds() {
 }
 
 const defs = readSpriteDefs(SRC);
+// 693 (buoy GUI art) is written as base_graphics spr693(693, "") with its file in the body; the parser needs a file string
+if (!defs.has(693)) defs.set(693, { file: 'sprites/png/miscellaneous/random.png', x: 394, y: 10, w: 20, h: 20, xo: 0, yo: 0 });
 const wanted = collectIds();
 const missing = [...wanted.keys()].filter((id) => !defs.has(id));
 if (missing.length) console.warn(`warning: ${missing.length} ids without definition (first: ${missing.slice(0, 8).join(', ')})`);

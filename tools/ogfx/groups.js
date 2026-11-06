@@ -47,4 +47,6 @@ export const GROUPS = {
   'all.farm_fields': [[4090, 4296]],
   // arctic-file rail vehicles (3017..3072): OpenTTD temperate engines also use some of these (e.g. Wills 2-8-0 = 3041)
   'all.rail_vehicles_arctic': [[3017, 3072]],
+  // SPR_IMG_BUOY (693): the OpenGFX buoy art (base set has it only as the GUI icon; 4076 is an empty placeholder)
+  'ships.buoy': [[693, 693]],
 };

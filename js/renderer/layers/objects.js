@@ -14,6 +14,7 @@ import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
 import { shipDockSprite, buoySprite, shipDepotSprite, shipSegmentSprite } from '../sprites/ships.js';
 import { drawPackSegment } from '../pack/vehicles.js';
+import { drawPackShipSegment, drawPackDock, drawPackShipDepot, drawPackBuoy } from '../pack/ships.js';
 import { getPoseMap, smoothPose, angleFromBit, poseCovered } from '../net/pose.js';
 import { HALF_W, HALF_H } from '../iso.js';
 import { blit, tileHash } from '../sprites/canvas.js';
@@ -59,7 +60,7 @@ function industryMemo(style, piece, variant) {
  * @param {(id:number)=>any} industryById
  * @returns {string|null} industry piece name (for smoke emitters) or null
  */
-export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
+export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt) {
   const b = tile.building;
   if (b && (b.type === 'house' || b.type === 'industry') && packActive()) {
     const r = drawOgfxBuilding(ctx, tile, x, y, sx, sy, industryById);
@@ -96,8 +97,17 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
       return piece;
     }
     case 'station':
-      if (b.kind === 'dock') { blit(ctx, shipDockSprite(), sx, sy); return null; }
-      if (b.kind === 'buoy') { blit(ctx, buoySprite(), sx, sy); return null; }
+      if (b.kind === 'dock') {
+        if (packActive() && waterAt) { // quay faces the water side (OpenTTD FLAT_X for N/S water, FLAT_Y for E/W)
+          const ns = waterAt(0, -1) || waterAt(0, 1);
+          if (drawPackDock(ctx, sx, sy, ns ? 'x' : 'y')) return null;
+        }
+        blit(ctx, shipDockSprite(), sx, sy); return null;
+      }
+      if (b.kind === 'buoy') {
+        if (packActive() && drawPackBuoy(ctx, sx, sy)) return null;
+        blit(ctx, buoySprite(), sx, sy); return null;
+      }
       if (b.kind === 'airport') {
         if (b.part === 'terminal' || b.part === 'tower' || b.part === 'hangar') blit(ctx, airportObject(b.part, (x + y) | 0), sx, sy);
         return null;
@@ -115,7 +125,10 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
       return null;
     case 'depot':
       if (b.kind === 'air') { blit(ctx, airportObject('hangar', (x + y) | 0), sx, sy); return null; }
-      if (b.kind === 'ship') { blit(ctx, shipDepotSprite(), sx, sy); return null; }
+      if (b.kind === 'ship') {
+        if (packActive() && drawPackShipDepot(ctx, b.dir || 4, sx, sy, waterAt)) return null;
+        blit(ctx, shipDepotSprite(), sx, sy); return null;
+      }
       blit(ctx, depotSprite(b.kind === 'road' ? 'road' : 'rail', b.dir || 4), sx, sy);
       return null;
     default:
@@ -144,7 +157,8 @@ export function drawSegment(ctx, seg, sx, sy, selected) {
       seg = { ...seg, ang: p.angle };
     }
   }
-  if (seg.part === 'ship') { // ships: procedural hull (no OpenGFX ship sheet)
+  if (seg.part === 'ship') { // ships: OpenGFX ship sprites when the pack is active, else procedural hull
+    if (packActive() && drawPackShipSegment(ctx, seg, sx, sy)) return;
     const ms = shipSegmentSprite(seg._info ? seg._info.modelId : '', seg.dir);
     blit(ctx, ms, sx, sy);
     return;

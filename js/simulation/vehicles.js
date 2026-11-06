@@ -192,6 +192,7 @@ export function getVehicleSegments(v) {
     for (let i = 0; i < v.wagons; i++) parts.push('wagon');
     if (v.flipped) parts.reverse();
   } else if (v.kind === 'aircraft') parts.push('aircraft');
+  else if (v.kind === 'ship') parts.push('ship');
   else parts.push(v.roadType === 'bus' || v.roadType === 'tram' ? 'bus' : 'truck');
   const fill = v.capacity > 0 ? v.load.amount / v.capacity : 0;
   const perWagon = v.wagons > 0 ? v.capacity / v.wagons : v.capacity;
