@@ -1,5 +1,7 @@
 /**
  * Main toolbar: speed controls, build tools, window buttons, sound toggle.
+ * The most used items are always visible; the rest sit in flyout groups (OpenTTD-style) so the
+ * toolbar stays one row on desktop widths.
  */
 import { el } from './dom.js';
 import { icon } from './icons.js';
@@ -18,13 +20,13 @@ export const TOOL_BUTTONS = [
   ['demolish', 'Demolish', 'demolish', '8'],
   ['electrify', 'Electrify', 'electrify', ''],
   ['query', 'Query', 'query', '9'],
+  ['signal', 'Signal', 'signal', ''],
   ['airport', 'Airport', 'airport', '0'],
   ['terraform', 'Terraform', 'terraform', 'Z'],
   ['plant', 'Plant trees', 'plant', 'Y'],
   ['foundTown', 'Found town', 'foundTown', ''],
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
   ['hq', 'Company HQ', 'hq', ''],
-  ['signal', 'Signal', 'signal', ''],
   ['oneWay', 'One-way road', 'oneWay', ''],
   ['dock', 'Dock', 'dock', ''],
   ['shipDepot', 'Ship Depot', 'shipDepot', ''],
@@ -54,6 +56,25 @@ export const WINDOW_BUTTONS = [
   ['help', 'Help', 'help', 'H'],
 ];
 
+/** Tools shown as top-level buttons; every other tool lives in a flyout group. */
+const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
+/** Windows shown as top-level buttons; the rest live in flyout groups. */
+const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load', 'help', 'newGame'];
+
+/**
+ * Flyout groups: [groupId, label, groupIcon, members].
+ * A member is a tool id (from TOOL_BUTTONS) or, with a `win:` prefix, a window name (from WINDOW_BUTTONS).
+ */
+export const TOOL_GROUPS = [
+  ['rail', 'Rail+', 'electrify', ['electrify']],
+  ['road', 'Road+', 'oneWay', ['oneWay']],
+  ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy']],
+  ['air', 'Air', 'airport', ['airport']],
+  ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq']],
+  ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
+  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news']],
+];
+
 const SPEEDS = [[0, 'Pause', 'pause', 'Space'], [1, '1x', 'play1', ''], [2, '2x', 'play2', ''], [4, '4x', 'play4', '']];
 
 /**
@@ -70,10 +91,23 @@ function tbButton(iconName, label, title, onClick) {
 }
 
 /**
+ * Flyout item (icon + label + shortcut) for a group's dropdown panel.
+ * @param {string} iconName
+ * @param {string} label
+ * @param {string} key
+ * @param {()=>void} onClick
+ * @returns {HTMLButtonElement}
+ */
+function flyItem(iconName, label, key, onClick) {
+  return /** @type {HTMLButtonElement} */ (el('button.tb-fly-item', { type: 'button', title: key ? `${label} (${key})` : label, onclick: onClick },
+    icon(iconName), el('span.tb-fly-label', { text: label }), key ? el('kbd', { text: key }) : null));
+}
+
+/**
  * Render the toolbar into its container.
  * @param {HTMLElement} root
  * @param {import('./app.js').App} app
- * @returns {{refresh:()=>void}}
+ * @returns {{refresh:()=>void, toggleSound:()=>void}}
  */
 export function createToolbar(root, app) {
   const speedBtns = SPEEDS.map(([s, label, ic, key]) => {
@@ -81,14 +115,22 @@ export function createToolbar(root, app) {
     b.dataset.speed = String(s);
     return b;
   });
-  const toolBtns = TOOL_BUTTONS.map(([id, label, ic, key]) => {
+  const toolInfo = new Map(TOOL_BUTTONS.map((t) => [t[0], t]));
+  const winInfo = new Map(WINDOW_BUTTONS.map((w) => [w[0], w]));
+
+  // ---- top-level tool and window buttons ----
+  const toolBtns = TOP_TOOLS.filter((id) => toolInfo.has(id)).map((id) => {
+    const [, label, ic, key] = /** @type {any} */ (toolInfo.get(id));
     const b = tbButton(ic, label, `${label} (${key})`, () => { play('click'); app.setTool(id); });
     b.dataset.tool = id;
     return b;
   });
-  const winBtns = WINDOW_BUTTONS.map(([name, label, ic, key]) =>
-    tbButton(ic, label, key ? `${label} (${key})` : label, () => app.open(name)));
-  winBtns.forEach((b, i) => { b.dataset.win = WINDOW_BUTTONS[i][0]; });
+  const winBtns = TOP_WINDOWS.map((name) => {
+    const [, label, ic, key] = /** @type {any} */ (winInfo.get(name));
+    const b = tbButton(ic, label, key ? `${label} (${key})` : label, () => app.open(name));
+    b.dataset.win = name;
+    return b;
+  });
   const issuesBtn = winBtns.find((b) => b.dataset.win === 'issues');
   const badge = el('span.tb-badge', { title: 'Errors + warnings' });
   if (issuesBtn) issuesBtn.appendChild(badge);
@@ -112,7 +154,6 @@ export function createToolbar(root, app) {
     if (seen.get(o) === 'active' && o.status !== 'active') { seen.set(o, o.status); app.open('objective'); }
   }, 1000);
   setTimeout(updateBadge, 500);
-  const sound = tbButton(isMuted() ? 'soundOff' : 'soundOn', 'Sound', 'Toggle sound (M)', () => toggleSound());
   const toggleSound = () => {
     unlockAudio();
     setMuted(!isMuted());
@@ -120,18 +161,108 @@ export function createToolbar(root, app) {
     sound.classList.toggle('muted', isMuted());
     play('click');
   };
+  const sound = tbButton(isMuted() ? 'soundOff' : 'soundOn', 'Sound', 'Toggle sound (M)', () => toggleSound());
   sound.classList.toggle('muted', isMuted());
+
+  // ---- flyout groups: each group = a toolbar button (with a caret) + a panel appended to <body> ----
+  // (#toolbar scrolls horizontally, so the panel must be position:fixed outside it.)
+  /** @type {{id:string, btn:HTMLButtonElement, panel:HTMLElement, icon:string, shown:string, items:HTMLButtonElement[], tools:string[]}[]} */
+  const groups = [];
+  let openGroup = null;
+  const closeFlyouts = () => {
+    if (!openGroup) return;
+    openGroup.panel.classList.remove('open');
+    openGroup.btn.setAttribute('aria-expanded', 'false');
+    openGroup = null;
+  };
+  /** Place the panel under its button, clamped to the viewport (flips above when there is no room below). */
+  const placePanel = (g) => {
+    const r = g.btn.getBoundingClientRect();
+    const p = g.panel;
+    p.classList.add('open');
+    const w = p.offsetWidth, h = p.offsetHeight;
+    const vw = window.innerWidth || 800, vh = window.innerHeight || 600;
+    const left = Math.max(4, Math.min(r.left, vw - w - 4));
+    const top = r.bottom + 4 + h > vh ? Math.max(4, r.top - h - 4) : r.bottom + 4;
+    p.style.left = left + 'px';
+    p.style.top = top + 'px';
+  };
+  for (const [gid, label, gicon, members0] of TOOL_GROUPS) {
+    const members = members0.filter((m) => m.startsWith('win:') || toolInfo.has(m));
+    if (!members.length) continue;
+    const items = [];
+    const toolIds = [];
+    const panelItems = members.map((m) => {
+      if (m.startsWith('win:')) {
+        const name = m.slice(4);
+        const [, wl, wi, wk] = /** @type {any} */ (winInfo.get(name));
+        const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); });
+        b.dataset.win = name;
+        items.push(b);
+        return b;
+      }
+      const [, tl, ti, tk] = /** @type {any} */ (toolInfo.get(m));
+      toolIds.push(m);
+      const b = flyItem(ti, tl, tk, () => { closeFlyouts(); play('click'); app.setTool(m); });
+      b.dataset.tool = m;
+      items.push(b);
+      return b;
+    });
+    const panel = el('div.tb-flyout', { role: 'menu', 'data-group': gid, 'aria-label': label }, panelItems);
+    document.body.appendChild(panel);
+    /** @type {any} */
+    const g = { id: gid, btn: null, panel, icon: gicon, shown: gicon, items, tools: toolIds };
+    const btn = tbButton(gicon, label, `${label} ▾`, () => {
+      if (openGroup === g) { closeFlyouts(); return; }
+      closeFlyouts();
+      openGroup = g;
+      btn.setAttribute('aria-expanded', 'true');
+      placePanel(g);
+    });
+    btn.classList.add('tb-grp');
+    btn.dataset.group = gid;
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.appendChild(el('span.tb-caret', { text: '▾' }));
+    g.btn = btn;
+    groups.push(g);
+  }
+  const groupBtn = (id) => { const g = groups.find((x) => x.id === id); return g ? g.btn : null; };
+  // Dismiss on outside click / Escape / resize.
+  document.addEventListener('pointerdown', (e) => {
+    if (!openGroup) return;
+    const t = /** @type {Node} */ (e.target);
+    if (openGroup.panel.contains(t) || openGroup.btn.contains(t)) return;
+    closeFlyouts();
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFlyouts(); });
+  window.addEventListener('resize', closeFlyouts);
+
+  const sep = () => el('div.tb-sep');
+  const cat = (...xs) => xs.flat().filter(Boolean);
 
   root.appendChild(el('div.tb-brand', null, el('span.tb-logo', { text: 'TT' }), el('span.tb-name', { text: 'Transit Tycoon' })));
   root.appendChild(el('div.tb-group', { 'aria-label': 'Speed' }, speedBtns));
-  root.appendChild(el('div.tb-sep'));
-  root.appendChild(el('div.tb-group', { 'aria-label': 'Build tools' }, toolBtns));
-  root.appendChild(el('div.tb-sep'));
-  root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, winBtns, sound));
+  root.appendChild(sep());
+  root.appendChild(el('div.tb-group', { 'aria-label': 'Build tools' }, cat(toolBtns, groupBtn('rail'), groupBtn('road'), groupBtn('water'), groupBtn('air'), groupBtn('landscape'))));
+  root.appendChild(sep());
+  root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, cat(winBtns.slice(0, 2), groupBtn('lists'), groupBtn('stats'), winBtns.slice(2), sound)));
 
   const refresh = () => {
     for (const b of speedBtns) b.classList.toggle('active', Number(b.dataset.speed) === app.speed);
-    for (const b of toolBtns) b.classList.toggle('active', !!app.tool && app.tool.id === b.dataset.tool);
+    const cur = app.tool ? app.tool.id : null;
+    for (const b of toolBtns) b.classList.toggle('active', !!cur && cur === b.dataset.tool);
+    for (const g of groups) {
+      const inGroup = !!cur && g.tools.includes(cur);
+      g.btn.classList.toggle('active', inGroup);
+      for (const b of g.items) b.classList.toggle('active', !!cur && b.dataset.tool === cur);
+      // while a tool from this group is active, show that tool's icon on the group button
+      const want = inGroup ? toolInfo.get(cur)[2] : g.icon;
+      if (g.shown !== want) {
+        g.btn.replaceChild(icon(want), g.btn.firstChild);
+        g.shown = want;
+      }
+    }
   };
   refresh();
   fitToolbar(root);

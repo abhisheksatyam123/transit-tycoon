@@ -75,6 +75,27 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .tb-btn svg { flex-shrink: 0; }
 .tb-label { font-size: 10px; line-height: 1.1; white-space: nowrap; }
 .tb-btn.muted { color: #64748b; }
+/* flyout groups (toolbar.js): caret on the group button, panel fixed to <body> */
+.tb-caret { font-size: 8px; line-height: 1; opacity: 0.7; }
+.tb-grp.active .tb-caret { opacity: 1; }
+.tb-flyout {
+  position: fixed; left: 0; top: 0; z-index: 60; display: none; flex-direction: column; gap: 2px;
+  min-width: 170px; max-width: calc(100vw - 8px); padding: 4px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--panel-border); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.tb-flyout.open { display: flex; }
+.tb-fly-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 6px;
+  background: transparent; border: 1px solid transparent; color: #cbd5e1; font: inherit; font-size: 12px;
+  text-align: left; cursor: pointer; touch-action: manipulation; white-space: nowrap;
+}
+.tb-fly-item:hover { background: var(--btn-hover); color: #f8fafc; }
+.tb-fly-item.active { background: rgba(14, 165, 233, 0.26); border-color: var(--accent); color: #fff; }
+.tb-fly-item svg { flex-shrink: 0; }
+.tb-fly-label { flex: 1; }
+.tb-fly-item kbd {
+  font: 600 10px var(--mono); color: #94a3b8; border: 1px solid var(--btn-border); border-radius: 4px; padding: 0 4px;
+}
 /* density levels chosen by toolbar.js fitToolbar() (content-based, so adding buttons never overflows) */
 #toolbar.tb-fit-1 .tb-name { display: none; }
 #toolbar.tb-fit-1 .tb-btn { min-width: 40px; padding: 2px 4px; }
