@@ -46,6 +46,58 @@ export function setOrders(ctx, id, orders, opts = {}) {
 }
 
 /**
+ * Modify the load / unload flags of one order (OpenTTD ModifyOrder). `flags` may set
+ * `load` ('normal'|'full'|'none') and/or `unload` ('normal'|'all'|'transfer'|'none');
+ * omitted keys keep their current value. Re-validates the whole list.
+ */
+export function modifyOrder(ctx, id, index, flags, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (!v.orders[index]) return { ok: false, error: 'No such order' };
+  const orders = v.orders.map((o) => ({ ...o }));
+  const o = orders[index];
+  const load = flags.load !== undefined ? flags.load : (o.load || (o.full ? 'full' : 'normal'));
+  const unload = flags.unload !== undefined ? flags.unload : (o.unload || 'normal');
+  orders[index] = { stationId: o.stationId, load, unload };
+  const r = normaliseOrders(state, v, orders, stopKindFor);
+  if (!r.ok) return r;
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  // unlike setOrders, keep the current order index
+  v.orders = r.orders;
+  if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
+  return { ok: true, cost: 0 };
+}
+
+/**
+ * Skip the vehicle to another order (OpenTTD skip). A loaded or loading vehicle leaves its
+ * station without finishing the current order; the cargo stays aboard.
+ */
+export function skipToOrder(ctx, id, index, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (!v.orders.length || !Number.isInteger(index) || index < 0 || index >= v.orders.length) {
+    return { ok: false, error: 'No such order' };
+  }
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  if (v.state === 'depot' || v.state === 'stopped') {
+    v.orderIndex = index;
+    return { ok: true, cost: 0 };
+  }
+  v.orderIndex = index;
+  v.atStationId = null;
+  if (v.state === 'loading') {
+    v.state = 'running';
+    v.loadingTicks = 0;
+    replan(ctx, v);
+  } else if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) {
+    replan(ctx, v);
+  }
+  return { ok: true, cost: 0 };
+}
+
+/**
  * Start a vehicle (leave depot / resume). Requires orders unless heading to a depot.
  */
 export function startVehicle(ctx, id, opts = {}) {

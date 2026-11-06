@@ -220,6 +220,12 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
   (alt > 0) do not block tiles (`vehicleOnTile`). Orders use station tiles of kind `airport`.
 - Segments: `getVehicleSegments(v)` returns one item `{part:'aircraft', alt, dir, x, y, cargoId, loaded, fill}`.
 
+## Order flags (T4)
+- Order = `{stationId, full, load?, unload?}`. `full: true` is full load (legacy). `load: 'none'` = no loading; `unload`: `'all'` (unload everything; unaccepted cargo becomes station waiting cargo), `'transfer'` (cargo left at station for other vehicles, no payment at this stop; the origin is kept so the final delivery pays the whole trip), `'none'` (no unloading). Non-default keys only are stored, so old saves load unchanged.
+- Cargo is never dumped back at its loading station, and a transfer/unload-all stop does not reload the cargo it just dropped.
+- `nonStop` is not modelled: trains only stop at the station of their current order.
+- Commands: `game.modifyOrder(id, index, {load?, unload?})`, `game.skipToOrder(id, index)` (abandons the current stop; cargo stays aboard). Code: `simulation/orders.js` (`unload`, `loadingTick`, `normaliseOrders`), `simulation/cmdVehicle.js`, UI `ui/windows/orders.js`. Tests: `tests/orderTypes.test.js`.
+
 ## Settings, inflation, subsidies, objectives (R15)
 - `js/simulation/settings.js`: `state.settings` (lazy; random worlds have none at day 0). Keys: `inflation`, `cargoPaymentPercent` (applied in `loco/economy.js` `calculateDeliveredCargoPayment`; Moscow uses 40 so its prebuilt network earns ~0.45M/month), `breakdowns` (`none`/`reduced`/`normal`, `loco/vehicle.js`), `subsidies`. UI: `ui/windows/settings.js`.
 - `js/simulation/prices.js`: every construction cost, vehicle price and running cost goes through OpenLoco inflation (`inflateCost`, scale 1.0 at game start).

@@ -6,6 +6,7 @@ import { money, num, speed } from '../format.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
 import { STATE_LABEL } from './vehicleList.js';
+import { orderFlagText } from '../../simulation/orders.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -67,7 +68,7 @@ export function openVehicleDetail(app, id) {
         set['Value'](money(v.value));
         const o = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
         const st = o ? app.findStation(o.stationId) : null;
-        set['Next order'](st ? `${st.name}${o.full ? ' (full load)' : ''}` : 'No orders');
+        set['Next order'](st ? `${st.name}${orderFlagText(o)}` : 'No orders');
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');
         followBtn.classList.toggle('active', app.followId === id);
       };

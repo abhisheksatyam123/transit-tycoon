@@ -153,6 +153,10 @@ export class Game {
   buildAirport(x, y, opts) { return buildAirport(this.ctx, x, y, opts); }
   buyVehicle(depotId, spec, opts) { return vcmd.buyVehicle(this.ctx, depotId, spec, opts); }
   setOrders(id, orders, opts) { return vcmd.setOrders(this.ctx, id, orders, opts); }
+  /** Change the load/unload flags of one order: flags {load?, unload?}. */
+  modifyOrder(id, index, flags, opts) { return vcmd.modifyOrder(this.ctx, id, index, flags, opts); }
+  /** Jump the vehicle to order `index` (abandons the current stop; cargo stays aboard). */
+  skipToOrder(id, index, opts) { return vcmd.skipToOrder(this.ctx, id, index, opts); }
   startVehicle(id, opts) { return vcmd.startVehicle(this.ctx, id, opts); }
   stopVehicle(id, opts) { return vcmd.stopVehicle(this.ctx, id, opts); }
   sendToDepot(id, opts) { return vcmd.sendToDepot(this.ctx, id, opts); }

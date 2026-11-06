@@ -98,6 +98,8 @@
 }
 .order-row.current { border-color: var(--accent-border); box-shadow: inset 3px 0 0 var(--accent); }
 .order-idx { color: var(--muted); text-align: center; }
+.order-flags { display: flex; flex-direction: column; gap: 2px; }
+.order-flags select { font-size: 11px; width: 112px; padding: 1px 4px; }
 .order-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chk { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #cbd5e1; cursor: pointer; }
 .chk input { accent-color: var(--accent); }

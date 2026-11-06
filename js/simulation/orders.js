@@ -8,18 +8,44 @@ import { recordDelivery } from './loco/company.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, manhattan, findIndustry, nearestTown } from './state.js';
-import { catchmentTiles, markPickup, takeWaiting, waitingAmount } from './stations.js';
+import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting } from './stations.js';
 import { deliverToIndustry } from './industries.js';
 import { recordTownDelivery } from './townGrowth.js';
 import { vehicleModel } from './vehicles.js';
 import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
+import { MAX_WAITING } from './constants.js';
 
 /** Ticks spent at a station before (re)trying to load and depart. */
 export const LOAD_TICKS = 40;
 /** Ticks between load attempts while waiting for a full load. */
 export const FULL_LOAD_RETRY = 20;
+
+/**
+ * Order flags (OpenTTD order_type.h). Stored on an order only when non-default, so
+ * existing saves stay identical: `full: true` (full load), `load: 'none'`, `unload: 'all'|'transfer'|'none'`.
+ * nonStop is not modelled: trains only stop at the station of their current order.
+ */
+export const LOAD_MODES = ['normal', 'full', 'none'];
+export const UNLOAD_MODES = ['normal', 'all', 'transfer', 'none'];
+
+/** Effective unload mode of an order ('normal' when absent). */
+export function unloadMode(order) {
+  return (order && order.unload) || 'normal';
+}
+
+/** Short UI suffix describing non-default flags, e.g. " (full load)"; '' for normal orders. */
+export function orderFlagText(o) {
+  if (!o) return '';
+  const parts = [];
+  if (o.full) parts.push('full load');
+  if (o.load === 'none') parts.push('no loading');
+  if (o.unload === 'all') parts.push('unload all');
+  else if (o.unload === 'transfer') parts.push('transfer');
+  else if (o.unload === 'none') parts.push('no unloading');
+  return parts.length ? ` (${parts.join(', ')})` : '';
+}
 
 /** Current order of a vehicle or null. */
 export function currentOrder(v) {
@@ -32,15 +58,36 @@ export function advanceOrder(v) {
 }
 
 /**
- * Pay for and deliver the vehicle's cargo at a station when accepted and the source differs.
+ * Unload the vehicle's cargo at a station according to the current order's unload flag.
+ * - normal: deliver and pay when the station accepts the cargo (default).
+ * - all: deliver and pay when accepted; otherwise the cargo is moved to the station as waiting cargo.
+ * - transfer: move the cargo to the station as waiting cargo for another vehicle; no payment here.
+ *   The packet keeps its origin and start tick, so the final delivery pays for the whole trip
+ *   (simplification of OpenTTD's transfer credits, which are a feeder share paid early).
+ * - none: keep the cargo aboard.
+ * Cargo that the station cannot hold (MAX_WAITING) stays aboard.
  * @returns {number} income earned
  */
 export function unload(ctx, v, st) {
+  const load = v.load;
+  const mode = unloadMode(currentOrder(v));
+  if (mode === 'none' || !load.amount || !v.cargoId) return 0;
+  const accepted = !!st.accepts[v.cargoId] && load.fromStationId !== st.id;
+  if (mode === 'normal' || mode === 'all') {
+    if (accepted) return deliverLoad(ctx, v, st);
+    if (mode === 'normal') return 0;
+  }
+  if (load.fromStationId === st.id) return 0; // never dump cargo back where it was loaded
+  const moved = addWaiting(st, v.cargoId, load.amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING);
+  load.amount -= moved;
+  if (load.amount <= 0) { load.amount = 0; load.fromStationId = null; }
+  return 0;
+}
+
+/** Pay for and deliver the vehicle's cargo to an accepting station (the original unload path). */
+function deliverLoad(ctx, v, st) {
   const { state } = ctx;
   const load = v.load;
-  if (!load.amount || !v.cargoId) return 0;
-  if (!st.accepts[v.cargoId]) return 0;
-  if (load.fromStationId === st.id) return 0;
   const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
   const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
   let pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
@@ -127,9 +174,12 @@ export function loadingTick(ctx, v) {
   const st = findStation(state, v.atStationId);
   if (!st) return true;
   if (--v.loadingTicks > 0) return false;
-  loadCargo(ctx, v, st);
   const order = currentOrder(v);
-  if (order && order.full && order.stationId === st.id && v.load.amount < v.capacity) {
+  // no loading when told so, and no reloading of cargo just dropped here (transfer / unload all)
+  const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
+  if (!order || (order.load !== 'none' && !dropped)) loadCargo(ctx, v, st);
+  if (order && order.full && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
+    && order.stationId === st.id && v.load.amount < v.capacity) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
   }
@@ -137,7 +187,9 @@ export function loadingTick(ctx, v) {
 }
 
 /**
- * Validate and normalise an order list for a vehicle.
+ * Validate and normalise an order list for a vehicle. Order flags are accepted as
+ * `load` ('normal'|'full'|'none', or legacy `full` boolean) and `unload` (see UNLOAD_MODES);
+ * only non-default flags are kept on the output orders.
  * @returns {{ok:true,orders:object[]}|{ok:false,error:string}}
  */
 export function normaliseOrders(state, v, orders, kindOf) {
@@ -151,7 +203,14 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (!st.tiles.some((t) => t.kind === kind)) {
       return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind + ' stop'}` };
     }
-    out.push({ stationId: st.id, full: !!o.full });
+    const load = o.load === undefined ? (o.full ? 'full' : 'normal') : o.load;
+    const unload = o.unload === undefined ? 'normal' : o.unload;
+    if (!LOAD_MODES.includes(load)) return { ok: false, error: `Unknown load mode ${load}` };
+    if (!UNLOAD_MODES.includes(unload)) return { ok: false, error: `Unknown unload mode ${unload}` };
+    const entry = { stationId: st.id, full: load === 'full' };
+    if (load === 'none') entry.load = 'none';
+    if (unload !== 'normal') entry.unload = unload;
+    out.push(entry);
   }
   return { ok: true, orders: out };
 }
