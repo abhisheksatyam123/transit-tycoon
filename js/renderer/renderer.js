@@ -340,7 +340,7 @@ export class Renderer {
         }
         if (tile.oneWay && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawOneWayArrow(ctx, sx, sy, tile.oneWay, tile.road | 0);
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
-        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, false);
+        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block');
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }

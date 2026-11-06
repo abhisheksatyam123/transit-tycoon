@@ -22,6 +22,7 @@ import { notify } from './news.js';
 import { dirBetween } from './constants.js';
 import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
 import { guardedBlock } from './signals.js';
+import { typedGate, releaseReservations } from './pathSignals.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -34,6 +35,7 @@ export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
 export function vehicleTick(ctx, v) {
   if (v.kind === 'aircraft' && v.state !== 'running' && v.state !== 'broken') v.alt = 0;
   if (v.blockedTicks && v.state !== 'running') clearBlock(v);
+  if (v.resv) releaseReservations(ctx.state, v); // path signal reservations (pathSignals.js); only when held
   switch (v.state) {
     case 'depot':
     case 'stopped':
@@ -138,7 +140,7 @@ function nextBlocker(ctx, v) {
   const a = p[i], b = p[i + 1];
   const same = blockerOn(ctx, v, layer, b.x, b.y, dirBetween(a.x, a.y, b.x, b.y));
   if (same || layer !== 'rail') return same;
-  return signalBlocker(ctx, v, a, b);
+  return signalBlocker(ctx, v, a, b) || typedGate(ctx, v, a, b);
 }
 
 /**

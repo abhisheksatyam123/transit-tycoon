@@ -41,19 +41,32 @@ export function signalRefusal(state, x, y) {
   return null;
 }
 
-/** Build a two-way block signal on a straight rail tile. opts.dryRun: check and price only. */
+/**
+ * Build a block signal on a straight rail tile. opts.type: 'block' (default, two-way, `signal = 1`),
+ * 'oneway' or 'path' (T3c, see pathSignals.js; opts.dir = dirBetween bit it lets trains pass in, default
+ * east/south for the track axis). opts.dryRun: check and price only.
+ */
 export function buildSignal(ctx, x, y, opts = {}) {
   const { state } = ctx;
   const err = signalRefusal(state, x, y);
   if (err) return { ok: false, error: err };
+  const type = opts.type || 'block';
+  if (type !== 'block' && type !== 'oneway' && type !== 'path') return { ok: false, error: 'Unknown signal type' };
   const cost = constructionTotal(state, COSTS.signal);
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: 1 };
-  state.map.tiles[y * state.map.width + x].signal = 1;
+  state.map.tiles[y * state.map.width + x].signal = type === 'block' ? 1 : { type, dir: signalDefaultDir(state, x, y, opts.dir) };
   invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: 1 };
+}
+
+/** Default pass direction of a one-way/path signal: east on an x-axis tile, south on a y-axis tile. */
+export function signalDefaultDir(state, x, y, dir) {
+  const axis = straightAxis(state.map.tiles[y * state.map.width + x].rail);
+  const ok = axis === 'x' ? [2, 8] : [1, 4];
+  return ok.includes(dir) ? dir : ok[0];
 }
 
 /** Remove the signal from (x,y). Charged like other removals (COSTS.demolishSignal). */
@@ -92,7 +105,7 @@ function buildBlocks(map) {
   for (let i = 0; i < n; i++) if (map.tiles[i].signal) signals.push(i);
   if (!signals.length) return null;
   const blockOf = new Int32Array(n).fill(-1);
-  const isWall = (k) => !!map.tiles[k].signal;
+  const isWall = (k) => isBlockWall(map.tiles[k].signal);
   let count = 0;
   const stack = [];
   for (let k = 0; k < n; k++) {
@@ -114,6 +127,7 @@ function buildBlocks(map) {
   // a block is bounded when a signal sits on one of its rail ends
   const bounded = new Set();
   for (const s of signals) {
+    if (!isBlockWall(map.tiles[s].signal)) continue; // path signals do not split blocks (pathSignals.js)
     const x = s % W, y = (s - x) / W;
     for (const nb of connectedNeighbours(map, 'rail', x, y)) {
       const b = blockOf[nb.y * W + nb.x];
@@ -121,6 +135,11 @@ function buildBlocks(map) {
     }
   }
   return { blockOf, bounded, count };
+}
+
+/** True when a signal value splits blocks: a two-way block (1) or a one-way block; path signals do not. */
+export function isBlockWall(sig) {
+  return !!sig && !(typeof sig === 'object' && sig.type === 'path');
 }
 
 /** Block id of tile key k that a signal rule applies to, or -1 (no signals, signal tile, or unbounded). */

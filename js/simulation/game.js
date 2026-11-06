@@ -33,6 +33,7 @@ import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic
 import { initGoals, goalSnapshot } from './goals.js';
 import { tick as locoTick } from './loco/gameLoop.js';
 import { setSetting, DEFAULT_SETTINGS } from './settings.js';
+import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setAutoreplace } from './autoreplace.js';
@@ -161,6 +162,9 @@ export class Game {
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
   /** One-way road toggle on a straight road tile (T42): two-way -> +axis -> -axis -> two-way. */
   toggleOneWay(x, y, opts) { return toggleOneWay(this.ctx, x, y, opts); }
+  /** Cycle an existing signal's kind: block -> oneway -> path -> block (T3c). */
+  cycleSignalType(x, y, opts) { return cycleSignalType(this.state, x, y, opts); }
+  flipSignal(x, y, opts) { return flipSignal(this.state, x, y, opts); }
   /** Remove the block signal on a tile (T3b). */
   removeSignal(x, y, opts) { return removeSignal(this.ctx, x, y, opts); }
   /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */
