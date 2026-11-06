@@ -27,6 +27,9 @@ import { erasEnabled, eraHouse, houseAllowedInYear, pickEraHouse } from '../buil
 import { roadAllowedHere, nextGrowthAction } from '../townLayout.js';
 import { pickStyle, tileDist } from '../scenarios/moscowStyles.js';
 import { ensembleBoxes } from '../scenarios/moscowTowns.js';
+import { findRoadPath, layRoadPath } from '../townRoads.js';
+import { labelComponents } from '../diagIssue.js';
+import { TOWN_CORE_RADIUS } from '../diagChecksMap.js';
 
 /** kBuildSpeedToGrowthPerTick */
 export const BUILD_SPEED_TO_GROWTH_PER_TICK = [0, 1, 3, 5, 7, 9, 12, 16, 22, 0, 0, 0];
@@ -102,6 +105,41 @@ function findRoadExtent(game, town) {
   return { x: res.x, y: res.y, dir: bits[Math.floor(game.rng.next() * bits.length)] };
 }
 
+/**
+ * M2: a street started by buildInitialRoad must join the town's core network, else the town-roads-split
+ * diagnostic reports it (Moscow only; random worlds keep their original growth so their hash is unchanged).
+ * Lays a short A* road from the new street to the nearest existing core road tile, if one is reachable.
+ */
+function joinStreetToCore(state, town, street) {
+  const { map } = state;
+  const R = TOWN_CORE_RADIUS, R2 = R * R;
+  const inCore = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= R2;
+  const prot = protectedTiles(state);
+  const own = new Set(street.map((p) => p.y * map.width + p.x));
+  const goals = new Set();
+  // only the network that holds the town's existing roads (the one the diagnostic measures against)
+  const labels = labelComponents(map, 'road', () => true);
+  let home = -1, bd = Infinity;
+  for (let y = town.y - R; y <= town.y + R; y++) for (let x = town.x - R; x <= town.x + R; x++) {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height || !inCore(x, y)) continue;
+    const i = y * map.width + x;
+    if (!map.tiles[i].road || own.has(i)) continue;
+    const d = (x - town.x) ** 2 + (y - town.y) ** 2;
+    if (d < bd) { bd = d; home = labels[i]; }
+  }
+  if (home < 0) return;
+  const R2x = 4 * R2;
+  for (let y = town.y - 2 * R; y <= town.y + 2 * R; y++) for (let x = town.x - 2 * R; x <= town.x + 2 * R; x++) {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height || (x - town.x) ** 2 + (y - town.y) ** 2 > R2x) continue;
+    const i = y * map.width + x;
+    if (map.tiles[i].road && !own.has(i) && labels[i] === home) goals.add(i);
+  }
+  if (!goals.size) return;
+  const allowed = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= 4 * R2 && !(prot && prot[y * map.width + x]);
+  const path = findRoadPath(map, street, goals, { x: town.x, y: town.y }, allowed);
+  if (path) layRoadPath(state, path);
+}
+
 /** buildInitialRoad: first free tile of the spiral gets a two-tile street in a random direction. */
 function buildInitialRoad(game, town) {
   const { state, rng } = game;
@@ -113,7 +151,10 @@ function buildInitialRoad(game, town) {
     if (!t || t.terrain === 'water' || t.building || t.rail || t.road) continue;
     if (prot && prot[y * map.width + x]) continue;
     const d = DIR_BY_BIT[BITS[rng.int(0, 3)]];
-    if (layStreet(state, [{ x, y }, { x: x + d.dx, y: y + d.dy }]) > 1) return true;
+    if (layStreet(state, [{ x, y }, { x: x + d.dx, y: y + d.dy }]) > 1) {
+      if (state.scenario === 'moscow') joinStreetToCore(state, town, [{ x, y }, { x: x + d.dx, y: y + d.dy }]);
+      return true;
+    }
   }
   return false;
 }
