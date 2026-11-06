@@ -5,7 +5,7 @@
 import { MAP_DEFAULTS, SAVE_VERSION } from './constants.js';
 import { Emitter } from './events.js';
 import { createRng, hashSeed } from './rng.js';
-import { createMap, generateTerrain, getTile, inBounds } from './map.js';
+import { createMap, generateTerrain, getTile, inBounds, DENSITY } from './map.js';
 import { generateTowns } from './towns.js';
 import { generateIndustries, placeExtraIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
@@ -78,8 +78,8 @@ function applyOptions(game, o) {
   if (obj && obj.type && obj.type !== 'none') st.objective = createObjective(st, obj);
 }
 
-/** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness). */
-const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', smoothness: 'normal' };
+/** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness, densities). */
+const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', smoothness: 'normal', townDensity: 'normal', industryDensity: 'normal' };
 export function mapgenOptions(src) {
   const out = {};
   if (!src || typeof src !== 'object') return out;
@@ -125,8 +125,10 @@ export class Game {
     const mg = mapgenOptions(o.mapgen);
     if (Object.keys(mg).length) state.mapgen = mg;
     generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
-    generateTowns(state, game.rng, o.townCount);
-    generateIndustries(state, game.rng, o.industryCount);
+    // density options scale the requested counts (normal = 1x, so default games are unchanged)
+    const townMul = DENSITY[mg.townDensity ?? 'normal'] ?? 1, indMul = DENSITY[mg.industryDensity ?? 'normal'] ?? 1;
+    generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
+    generateIndustries(state, game.rng, Math.round(o.industryCount * indMul));
     if (getSetting(state, 'extraIndustries')) placeExtraIndustries(state, game.rng); // T29 opt-in banks
     connectTowns(state);
     repairTownRoads(state);

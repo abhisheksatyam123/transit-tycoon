@@ -97,6 +97,10 @@ export const TERRAIN_SCALE = { flat: 0.3, hilly: 0.7, normal: 1, mountainous: 1 
 export const SMOOTHNESS = { smooth: [32, 3], normal: [24, 4], rough: [16, 5] };
 /** Number of rivers to aim for (attempts are capped in carveRivers). */
 export const RIVER_COUNTS = { none: 0, few: 2, many: 6 };
+/** Rivers carved by rivers: 'flowing' (OpenTTD-style rivers on slopes, see carveFlowingRivers). */
+export const FLOW_RIVER_COUNT = 4;
+/** Town and industry count multipliers (density options; 'normal' keeps today's counts). */
+export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
 
 /**
  * Generate terrain in place: heights 0..7, water (sea/lakes/rivers), forests, desert, rock, snow.
@@ -105,7 +109,8 @@ export const RIVER_COUNTS = { none: 0, few: 2, many: 6 };
  * - seaLevel: 'none' | 'low' | 'medium' | 'high'
  * - terrain: 'flat' | 'normal' | 'hilly' | 'mountainous'
  * - smoothness: 'smooth' | 'normal' | 'rough'
- * - rivers: 'none' | 'few' | 'many' (extra RNG draws only when not 'none')
+ * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
+ *   (rivers on slopes at their height; the heights are not changed)
  * @param {object} map
  * @param {object} rng
  * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string}} [opts]
@@ -136,6 +141,7 @@ export function generateTerrain(map, rng, opts = {}) {
     t.height = Math.min(7, Math.floor((n * scale) * 8));
   }
   limitSlopes(map);
+  if (opts.rivers === 'flowing') carveFlowingRivers(map, rng, FLOW_RIVER_COUNT);
   const riverTarget = RIVER_COUNTS[opts.rivers ?? 'none'] ?? 0;
   if (riverTarget > 0) {
     carveRivers(map, rng, riverTarget);
@@ -204,6 +210,88 @@ function tracePath(map, start) {
       if (nt.height < bestH) { bestH = nt.height; best = ni; }
     }
     if (best < 0) { path.push(-1 - cur); return path; } // basin: the river ends in a lake (marked -1-index)
+    visited.add(best);
+    path.push(best);
+    cur = best;
+  }
+  return null;
+}
+
+/** Height of tile (x,y), or -1 when outside the map. */
+function heightAt(map, x, y) {
+  return x < 0 || y < 0 || x >= map.width || y >= map.height ? -1 : map.tiles[y * map.width + x].height;
+}
+
+/**
+ * True when the tile's four corners (its 2x2 block of tile heights, N,E,S,W) form a flat or straight
+ * inclined plane: all equal, or exactly two adjacent corners one level above the other two.
+ * Corner (diagonal) slopes and steeper or two-level spreads cannot carry a river (OpenTTD slope rule).
+ */
+export function riverSlopeOk(map, x, y) {
+  const c = [heightAt(map, x, y), heightAt(map, x + 1, y), heightAt(map, x + 1, y + 1), heightAt(map, x, y + 1)];
+  if (c.some((v) => v < 0)) return false;
+  const mn = Math.min(...c), mx = Math.max(...c);
+  if (mx === mn) return true;
+  if (mx - mn !== 1) return false;
+  const hi = c.map((v) => v === mx);
+  if (hi.filter(Boolean).length !== 2) return false;
+  const i = hi.indexOf(true);
+  return hi[(i + 1) % 4]; // the two high corners share an edge
+}
+
+/**
+ * Flowing rivers (OpenTTD landscape.cpp FlowRiver, simplified): start on high land and step to the
+ * lowest unvisited neighbour that is not higher, only over tiles that pass riverSlopeOk. Each river
+ * tile is water (terrain 'water', tile.river = 1) and keeps its height. A river ends by joining water
+ * (sea or an earlier river at no greater height) or in a basin, where the last tile becomes a lake.
+ * Rivers never reach the map edge. Deterministic apart from the source picks (game rng).
+ */
+function carveFlowingRivers(map, rng, target) {
+  const { width, height, tiles } = map;
+  let maxH = 0;
+  for (const t of tiles) if (t.terrain !== 'water' && t.height > maxH) maxH = t.height;
+  const thr = Math.max(1, maxH - 2);
+  const sources = [];
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const t = tiles[y * width + x];
+      if (t.terrain !== 'water' && t.height >= thr && riverSlopeOk(map, x, y)) sources.push(y * width + x);
+    }
+  }
+  if (!sources.length) return;
+  let made = 0;
+  for (let attempt = 0; attempt < 400 && made < target; attempt++) {
+    const path = traceFlowing(map, sources[Math.floor(rng.next() * sources.length)]);
+    if (!path) continue;
+    for (const i of path) {
+      tiles[i].terrain = 'water';
+      tiles[i].river = 1;
+    }
+    made++;
+  }
+}
+
+/** Flowing river path from a source index (see carveFlowingRivers); null when it fails. */
+function traceFlowing(map, start) {
+  const { width, height, tiles } = map;
+  const visited = new Set([start]);
+  const path = [start];
+  let cur = start;
+  for (let step = 0; step < 600; step++) {
+    const cx = cur % width, cy = (cur - cx) / width;
+    let best = -1, bestH = Infinity;
+    for (const d of DIRS) {
+      const nx = cx + d.dx, ny = cy + d.dy;
+      if (nx <= 0 || ny <= 0 || nx >= width - 1 || ny >= height - 1) continue; // never reach the edge
+      const ni = ny * width + nx;
+      if (visited.has(ni)) continue;
+      const nt = tiles[ni];
+      if (nt.height > tiles[cur].height) continue;
+      if (nt.terrain === 'water') return path; // joins the sea, a lake or an earlier river (never higher)
+      if (!riverSlopeOk(map, nx, ny)) continue;
+      if (nt.height < bestH) { best = ni; bestH = nt.height; }
+    }
+    if (best < 0) return path.length >= 2 ? path : null; // basin: the last tile becomes a lake
     visited.add(best);
     path.push(best);
     cur = best;

@@ -95,13 +95,16 @@ export function openNewGame(app) {
       const sel = (opts) => /** @type {HTMLSelectElement} */ (el('select.input', null, ...opts.map(([v, t]) => el('option', { value: v, text: t }))));
       const mgTerrain = sel([['normal', 'Normal (default)'], ['flat', 'Flat'], ['hilly', 'Hilly'], ['mountainous', 'Mountainous']]);
       const mgSea = sel([['medium', 'Medium (default)'], ['none', 'None'], ['low', 'Low'], ['high', 'High']]);
-      const mgRivers = sel([['none', 'None (default)'], ['few', 'Few'], ['many', 'Many']]);
+      const mgRivers = sel([['none', 'None (default)'], ['few', 'Few'], ['many', 'Many'], ['flowing', 'Flowing (on slopes)']]);
       const mgSmooth = sel([['normal', 'Normal (default)'], ['smooth', 'Smooth'], ['rough', 'Rough']]);
+      const mgTowns = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
+      const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
         field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras),
-        field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth));
+        field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth),
+        field('Town density', mgTowns), field('Industry density', mgInd));
       body.append(
         field('Scenario', scenario),
         desc,
@@ -138,7 +141,7 @@ export function openNewGame(app) {
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
-        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, smoothness: mgSmooth.value });
+        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, smoothness: mgSmooth.value, townDensity: mgTowns.value, industryDensity: mgInd.value });
         if (Object.keys(mg).length) opts.mapgen = mg;
         win.close();
         app.newGame(opts);

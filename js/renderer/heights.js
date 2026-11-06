@@ -45,10 +45,13 @@ export class Heights {
       for (let dx = -1; dx <= 0; dx++) {
         const x = cx + dx, y = cy + dy;
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        if (tiles[y * W + x].terrain === 'water') { water = true; break; }
+        const u = tiles[y * W + x];
+        if (u.terrain !== 'water') continue;
+        if (!u.river) { water = true; break; } // flowing rivers (tile.river) keep the terrain vertex heights
       }
     }
     const t = tiles[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];
+    // sea and lakes sit at sea level 0; flowing rivers follow the terrain (drawn as sloped water)
     data[cy * cw + cx] = water ? 0 : t.height;
   }
 

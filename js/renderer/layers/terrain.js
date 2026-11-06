@@ -45,9 +45,10 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   const tile = map.tiles[y * W + x];
   const hash = tileHash(x, y);
   const k = KIND_INDEX[tile.terrain] ?? 0;
-  if (packActive() && k === 5) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
+  // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
+  if (packActive() && k === 5 && !tile.river) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;
-  } else if (packActive()) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
+  } else if (packActive() && !tile.river) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     // Flat land next to water is plain land in OpenTTD; the OpenGFX shore sprites (4062..) are for
     // sloped coast tiles only, which our flat-water vertex model does not produce (pack/water.js unused).
