@@ -194,6 +194,12 @@ export class Game {
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   /** Service interval in days for one vehicle (0 = off). */
   setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
+  /** Timetable of one order: {waitDays, travelDays} (days; 0 clears). Shared orders: all members. */
+  setOrderTimetable(id, orderIndex, times, opts) { return vcmd.setOrderTimetable(this.ctx, id, orderIndex, times, opts); }
+  /** Timetable autofill on/off for one vehicle. */
+  setTimetableAutofill(id, on, opts) { return vcmd.setTimetableAutofill(this.ctx, id, on, opts); }
+  /** Clear a vehicle's recorded lateness. */
+  resetLateness(id, opts) { return vcmd.resetLateness(this.ctx, id, opts); }
   borrow(amount) { return borrow(this.state.company, amount); }
   repay(amount) { return repay(this.state.company, amount); }
 

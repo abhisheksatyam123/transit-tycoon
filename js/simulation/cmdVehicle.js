@@ -7,7 +7,7 @@ import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle } from './vehicles.js';
 import { allocId } from './state.js';
-import { normaliseOrders } from './orders.js';
+import { normaliseOrders, setOrderField } from './orders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain } from './routing.js';
 import { replan, enterDepot } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
@@ -66,6 +66,8 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   const load = flags.load !== undefined ? flags.load : (o.load || (o.full ? 'full' : 'normal'));
   const unload = flags.unload !== undefined ? flags.unload : (o.unload || 'normal');
   orders[index] = { stationId: o.stationId, load, unload };
+  if (o.waitDays > 0) orders[index].waitDays = o.waitDays;
+  if (o.travelDays > 0) orders[index].travelDays = o.travelDays;
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
@@ -94,6 +96,8 @@ export function skipToOrder(ctx, id, index, opts = {}) {
   }
   v.orderIndex = index;
   v.atStationId = null;
+  delete v.departTick;
+  delete v.arriveTick;
   if (v.state === 'loading') {
     v.state = 'running';
     v.loadingTicks = 0;
@@ -197,6 +201,47 @@ export function cloneVehicle(ctx, id, opts = {}) {
   applyServiceInterval(state, v, src.serviceIntervalDays || 0);
   if (opts.shareOrders) joinSharedOrders(state, v, src, (s) => allocId(s));
   return { ok: true, cost: r.cost, vehicle: v };
+}
+
+/**
+ * Set the timetable of one order: `waitDays` (minimum days held at the station) and `travelDays`
+ * (scheduled days from the previous stop). 0 or absent clears the field. Shared orders: all members.
+ */
+export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (!v.orders[index]) return { ok: false, error: 'No such order' };
+  const patch = {};
+  for (const k of ['waitDays', 'travelDays']) {
+    if (times[k] === undefined) continue;
+    const n = Math.round(Number(times[k]));
+    if (!Number.isFinite(n) || n < 0 || n > 365) return { ok: false, error: `${k} must be 0-365 days` };
+    patch[k] = n;
+  }
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  setOrderField(state, v, index, patch);
+  return { ok: true, cost: 0 };
+}
+
+/** Turn autofill of the timetable on or off for one vehicle (on = one round of orders is recorded). */
+export function setTimetableAutofill(ctx, id, on, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  if (on && v.orders.length) { v.autofill = true; v.autofillLeft = v.orders.length; }
+  else { delete v.autofill; delete v.autofillLeft; }
+  return { ok: true, cost: 0 };
+}
+
+/** Clear the recorded lateness of a vehicle (OpenTTD reset lateness). */
+export function resetLateness(ctx, id, opts = {}) {
+  const v = findVehicle(ctx.state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  delete v.lateDays;
+  return { ok: true, cost: 0 };
 }
 
 /** Make a vehicle's order list independent again (keeps the orders it has now). */

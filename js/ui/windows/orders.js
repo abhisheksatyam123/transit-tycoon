@@ -32,7 +32,12 @@ export function openOrders(app, id) {
       const sharedLabel = el('div.muted.small.shared-orders', { text: '' });
       const unshareBtn = el('button.btn.sm', { type: 'button', text: 'Unshare', title: 'Give this vehicle its own copy of the order list', onclick: () => app.exec(app.game.unshareOrders(id), { quiet: true, sound: 'click' }) });
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), hint);
+      const autofillBtn = el('button.btn.sm', { type: 'button', text: 'Autofill timetable', title: 'Record the measured wait and travel times over one round of orders', onclick: () => {
+        const v = app.findVehicle(id);
+        if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill), { quiet: true, sound: 'click' });
+      } });
+      const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear the recorded lateness', onclick: () => app.exec(app.game.resetLateness(id), { quiet: true, sound: 'click' }) });
+      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), hint);
 
       const edit = (fn) => {
         const v = app.findVehicle(id);
@@ -58,6 +63,9 @@ export function openOrders(app, id) {
         sharedLabel.hidden = !n;
         unshareBtn.hidden = !n;
         setText(sharedLabel, n ? `Shared with ${n} other vehicle${n === 1 ? '' : 's'}` : '');
+        setText(autofillBtn, v.autofill ? 'Autofill: on (recording)' : 'Autofill timetable');
+        autofillBtn.classList.toggle('active', !!v.autofill);
+        resetBtn.hidden = v.lateDays == null;
         const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId }));
         listOrEmpty(list, items, (it) => it.key,
           (it) => el('div.order-row', null,
@@ -66,7 +74,13 @@ export function openOrders(app, id) {
               el('select.input', { title: 'Load', onchange: (e) => edit((os) => { os[it.i].load = e.target.value; os[it.i].full = e.target.value === 'full'; }) },
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
-                ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })))),
+                ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
+              el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Minimum days to wait at this stop', style: 'width:4.5em',
+                onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
+                el('span', { text: ' d' })),
+              el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Scheduled days from the previous stop', style: 'width:4.5em',
+                onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { travelDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
+                el('span', { text: ' d' }))),
             el('span.row-actions', null,
               el('button.btn.sm', { type: 'button', text: 'Skip', title: 'Go to this order now', onclick: () => app.exec(app.game.skipToOrder(id, it.i), { quiet: true, sound: 'click' }) }),
               el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: () => edit((os) => { if (it.i > 0) os.splice(it.i - 1, 0, os.splice(it.i, 1)[0]); }) }),
@@ -80,6 +94,9 @@ export function openOrders(app, id) {
             const [loadSel, unloadSel] = /** @type {HTMLSelectElement[]} */ (Array.from(row.querySelectorAll('select')));
             if (loadSel.value !== loadModeOf(it.o)) loadSel.value = loadModeOf(it.o);
             if (unloadSel.value !== unloadMode(it.o)) unloadSel.value = unloadMode(it.o);
+            const [waitIn, travelIn] = /** @type {HTMLInputElement[]} */ (Array.from(row.querySelectorAll('input')));
+            if (document.activeElement !== waitIn) waitIn.value = it.o.waitDays ? String(it.o.waitDays) : '';
+            if (document.activeElement !== travelIn) travelIn.value = it.o.travelDays ? String(it.o.travelDays) : '';
           }, 'No orders — click "Add order", then a station on the map');
       };
     },

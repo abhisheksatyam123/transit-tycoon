@@ -7,7 +7,12 @@ import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
-import { orderFlagText } from '../../simulation/orders.js';
+import { orderFlagText, hasTimetable } from '../../simulation/orders.js';
+
+/** True when the vehicle has any timetable value or autofill running. */
+function hasTimetableOrders(v) {
+  return !!v.autofill || (v.orders || []).some(hasTimetable);
+}
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
 import { refitCargos } from '../../simulation/cmdVehicle.js';
 
@@ -33,7 +38,7 @@ export function openVehicleDetail(app, id) {
     onClose: () => { if (app.renderer.overlay.selectedVehicleId === id && app.followId !== id) app.renderer.overlay.selectedVehicleId = null; },
     build(body, win) {
       app.renderer.overlay.selectedVehicleId = id;
-      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service']);
+      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
       const loadBar = bar(0);
       body.appendChild(loadBar);
       const startStop = el('button.btn', { type: 'button' });
@@ -110,6 +115,8 @@ export function openVehicleDetail(app, id) {
         reverseBtn.hidden = v.kind !== 'train';
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');
         followBtn.classList.toggle('active', app.followId === id);
+        set['Timetable'](!hasTimetableOrders(v) ? 'No timetable'
+          : v.lateDays == null ? 'On time' : v.lateDays > 0 ? `${v.lateDays} day${v.lateDays === 1 ? '' : 's'} late` : `${-v.lateDays} day${v.lateDays === -1 ? '' : 's'} early`);
         set['Service interval'](v.serviceIntervalDays ? `every ${v.serviceIntervalDays} days` : 'Off');
         set['Last service'](v.serviceIntervalDays && v.lastServiceDay != null
           ? formatDate(dateFromDayNumber(v.lastServiceDay)) + (v.serviceDue || v.serviceTrip ? ' · due' : '') : '—');

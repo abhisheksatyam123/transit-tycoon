@@ -47,6 +47,33 @@ export function orderFlagText(o) {
   return parts.length ? ` (${parts.join(', ')})` : '';
 }
 
+/**
+ * Timetables (OpenTTD timetable, simplified). Per order, optional `waitDays` (minimum days to hold at
+ * the station after arrival) and `travelDays` (scheduled days to reach it from the previous stop).
+ * Per vehicle, lazy: `departTick` (tick it left its last stop, set only when the next order needs it),
+ * `arriveTick` (tick it reached its current stop, only when that order needs it), `lateDays` (actual minus
+ * scheduled travel, absent = on time; negative = early) and `autofill` / `autofillLeft` (record measured
+ * times on each stop; switches off after one full round of orders).
+ */
+export function hasTimetable(o) {
+  return !!o && (o.waitDays > 0 || o.travelDays > 0);
+}
+
+/** Set (or delete when value is undefined/0) timetable fields on order idx of v and its shared group. */
+export function setOrderField(state, v, idx, patch) {
+  const members = [v];
+  if (v.orderGroup != null) for (const w of state.vehicles) if (w !== v && w.orderGroup === v.orderGroup) members.push(w);
+  for (const w of members) {
+    if (!w.orders[idx]) continue;
+    const o = { ...w.orders[idx] };
+    for (const k of Object.keys(patch)) {
+      if (patch[k] > 0) o[k] = patch[k];
+      else delete o[k];
+    }
+    w.orders[idx] = o;
+  }
+}
+
 /** Current order of a vehicle or null. */
 export function currentOrder(v) {
   return v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
@@ -164,6 +191,26 @@ export function arriveAtStation(ctx, v, st) {
   v.atStationId = st.id;
   unload(ctx, v, st);
   v.loadingTicks = LOAD_TICKS;
+  recordArrival(ctx, v, currentOrder(v));
+}
+
+/** Timetable bookkeeping on arrival: arrival tick, lateness, autofill of the travel time. */
+function recordArrival(ctx, v, order) {
+  const { state } = ctx;
+  if (!order) return;
+  if (order.waitDays > 0 || v.autofill) v.arriveTick = state.tick;
+  else delete v.arriveTick;
+  if (v.departTick == null || !(order.travelDays > 0 || v.autofill)) return;
+  const idx = v.orderIndex % v.orders.length;
+  const actual = Math.round((state.tick - v.departTick) / TICKS_PER_DAY);
+  let scheduled = order.travelDays || 0;
+  if (v.autofill) {
+    scheduled = Math.max(1, actual);
+    setOrderField(state, v, idx, { travelDays: scheduled });
+  }
+  const late = actual - scheduled;
+  if (late) v.lateDays = late;
+  else delete v.lateDays;
 }
 
 /**
@@ -183,7 +230,33 @@ export function loadingTick(ctx, v) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
   }
+  // timetable: hold until the minimum wait since arrival has passed
+  if (order && order.waitDays > 0 && v.arriveTick != null
+    && state.tick - v.arriveTick < order.waitDays * TICKS_PER_DAY) {
+    v.loadingTicks = FULL_LOAD_RETRY;
+    return false;
+  }
+  recordDeparture(ctx, v, order);
   return true;
+}
+
+/** Bookkeeping when a vehicle leaves its stop: autofill waiting time, autofill round, departure tick. */
+function recordDeparture(ctx, v, order) {
+  const { state } = ctx;
+  const n = v.orders.length;
+  const idx = n ? v.orderIndex % n : 0;
+  if (v.autofill && order && v.arriveTick != null) {
+    const waited = Math.round((state.tick - v.arriveTick) / TICKS_PER_DAY);
+    setOrderField(state, v, idx, { waitDays: waited });
+  }
+  if (v.autofill) {
+    v.autofillLeft = (v.autofillLeft || 0) - 1;
+    if (v.autofillLeft <= 0) { delete v.autofill; delete v.autofillLeft; }
+  }
+  delete v.arriveTick;
+  const next = n ? v.orders[(idx + 1) % n] : null;
+  if (next && (next.travelDays > 0 || v.autofill)) v.departTick = state.tick;
+  else delete v.departTick;
 }
 
 /**
@@ -210,6 +283,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
     const entry = { stationId: st.id, full: load === 'full' };
     if (load === 'none') entry.load = 'none';
     if (unload !== 'normal') entry.unload = unload;
+    if (o.waitDays > 0) entry.waitDays = o.waitDays;
+    if (o.travelDays > 0) entry.travelDays = o.travelDays;
     out.push(entry);
   }
   return { ok: true, orders: out };
