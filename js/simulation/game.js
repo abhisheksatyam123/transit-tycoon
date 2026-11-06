@@ -15,6 +15,7 @@ import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { buildSignal, removeSignal } from './signals.js';
+import { toggleOneWay } from './cmdOneWay.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
@@ -153,6 +154,8 @@ export class Game {
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
   /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
+  /** One-way road toggle on a straight road tile (T42): two-way -> +axis -> -axis -> two-way. */
+  toggleOneWay(x, y, opts) { return toggleOneWay(this.ctx, x, y, opts); }
   /** Remove the block signal on a tile (T3b). */
   removeSignal(x, y, opts) { return removeSignal(this.ctx, x, y, opts); }
   /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */

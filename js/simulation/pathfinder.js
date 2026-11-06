@@ -3,6 +3,7 @@
  * Depot tiles are endpoints only: they may be the start or a goal but are never passed through.
  */
 import { DIRS, OPPOSITE } from './constants.js';
+import { oneWayAllows } from './network.js';
 
 /** Minimal binary min-heap of node indices keyed by an external score array. */
 class MinHeap {
@@ -99,6 +100,8 @@ export function findPath(map, start, goals, layer, opts = {}) {
       if (cur === startIdx && ni === avoid) continue;
       const nt = tiles[ni];
       if (!(nt[layer] & OPPOSITE[d.bit])) continue;
+      // one-way roads (T42): both the tile left and the tile entered must allow this travel direction
+      if (layer === 'road' && (tile.oneWay || nt.oneWay) && !(oneWayAllows(tile, d.dx, d.dy) && oneWayAllows(nt, d.dx, d.dy))) continue;
       // turning costs a little more so straight routes are preferred
       const prev = came[cur];
       let step = 1;

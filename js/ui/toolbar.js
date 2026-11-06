@@ -23,6 +23,7 @@ export const TOOL_BUTTONS = [
   ['foundTown', 'Found town', 'foundTown', ''],
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
   ['signal', 'Signal', 'signal', ''],
+  ['oneWay', 'One-way road', 'oneWay', ''],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */

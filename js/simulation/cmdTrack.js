@@ -5,7 +5,7 @@ import { DIRS, OPPOSITE, AXIS_BITS, dirBetween } from './constants.js';
 import { isStationPort } from './stationLinks.js';
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
-import { linePath } from './network.js';
+import { linePath, pruneOneWay } from './network.js';
 import { pathOk } from './shapes.js';
 import { getTile, inBounds } from './map.js';
 import { straightAxis } from './network.js';
@@ -193,6 +193,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (isHwy) t.highway = 1;
     if (!t.owner) t.owner = 'company';
   }
+  for (const i of want.keys()) pruneOneWay(map.tiles[i]); // T42: a junction or rail crossing is never one-way
   invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: n };
@@ -210,8 +211,10 @@ function stripLayer(map, x, y, layer) {
     const nt = map.tiles[ny * map.width + nx];
     if (nt.building && (nt.building.type === 'station' || nt.building.type === 'depot')) continue;
     nt[layer] &= ~OPPOSITE[d.bit];
+    pruneOneWay(nt);
   }
   t[layer] = 0;
+  pruneOneWay(t);
 }
 
 /**
@@ -297,6 +300,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   applyDemolishPenalty(state, jobs);
   for (const j of jobs) {
     const t = map.tiles[j.y * map.width + j.x];
+    delete t.oneWay; // T42: demolished tiles lose their one-way flag
     if (j.kind === 'depot') {
       const layer = t.building.kind;
       removeDepot(ctx, t.building.depotId);

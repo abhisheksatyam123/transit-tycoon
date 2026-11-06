@@ -35,7 +35,29 @@ export function connected(map, layer, ax, ay, bx, by) {
   const d = DIRS.find((q) => q.dx === bx - ax && q.dy === by - ay);
   if (!d) return false;
   const a = map.tiles[ay * map.width + ax], b = map.tiles[by * map.width + bx];
-  return (a[layer] & d.bit) !== 0 && (b[layer] & OPPOSITE[d.bit]) !== 0;
+  if ((a[layer] & d.bit) === 0 || (b[layer] & OPPOSITE[d.bit]) === 0) return false;
+  // one-way roads (T42): a road link is usable only in the tile's travel direction (rail unaffected)
+  return layer !== 'road' || (oneWayAllows(a, d.dx, d.dy) && oneWayAllows(b, d.dx, d.dy));
+}
+
+/**
+ * One-way roads (T42, OpenTTD DisallowedRoadDirections). Lazy tile field `oneWay` on straight road tiles:
+ * absent/0 = two-way, 1 = travel only in the +axis direction (east for x, south for y),
+ * 2 = travel only in the -axis direction (west for x, north for y).
+ * @returns {boolean} true when a vehicle moving by (dx,dy) may enter or leave tile t
+ */
+export function oneWayAllows(t, dx, dy) {
+  const o = t.oneWay;
+  if (!o) return true;
+  return o === 1 ? dx + dy > 0 : dx + dy < 0;
+}
+
+/**
+ * Drop the one-way flag when the tile no longer is a plain straight road (junction, no road, rail
+ * crossing, station/depot). Keeps the lazy field absent for every other tile.
+ */
+export function pruneOneWay(t) {
+  if (t.oneWay && (!t.road || t.rail || t.building || straightAxis(t.road) === null)) delete t.oneWay;
 }
 
 /** Rail connectivity between adjacent tiles. */

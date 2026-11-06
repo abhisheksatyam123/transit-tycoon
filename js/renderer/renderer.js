@@ -23,6 +23,7 @@ import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
 import { drawSignalPost } from './layers/signals.js';
+import { drawOneWayArrow } from './layers/oneway.js';
 
 export class Renderer {
   /**
@@ -336,6 +337,7 @@ export class Renderer {
             this.smoke.emit(sx + px, sy + py, 3, piece === 'chimney' || piece === 'blast');
           }
         }
+        if (tile.oneWay && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawOneWayArrow(ctx, sx, sy, tile.oneWay, tile.road | 0);
         if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, false);
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }

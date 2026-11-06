@@ -15,6 +15,7 @@ import { createAirportTool } from './airport.js';
 import { createTerraformTool, createPlantTool } from './terraform.js';
 import { createFoundTownTool, createFundIndustryTool } from './found.js';
 import { createSignalTool } from './signal.js';
+import { createOneWayTool } from './oneWay.js';
 
 /**
  * @typedef {Object} Tool
@@ -37,6 +38,7 @@ export function createTools(app) {
   return {
     rail: createRailTool(app),
     road: createRoadTool(app),
+    oneWay: createOneWayTool(app),
     station: createStationTool(app),
     busStop: createBusStopTool(app),
     truckStop: createTruckStopTool(app),
