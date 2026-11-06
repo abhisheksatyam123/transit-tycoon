@@ -29,6 +29,7 @@ const PATHS = {
   finances: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
   map: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14M15 6v14"/>',
   graphs: '<path d="M4 20h16M6 16l4-5 3 3 5-7"/>',
+  depots: '<path d="M3 21V11l9-6 9 6v10M7 21v-6h10v6M3 11h18"/>',
   stations: '<path d="M4 20V9h16v11M4 9l8-5 8 5M9 20v-5h6v5"/>',
   towns: '<path d="M3 21V10l5-3 5 3v11M13 21V5l4-2 4 2v16M6 13h4M6 17h4M16 9h2M16 13h2M16 17h2M2 21h20"/>',
   industries: '<path d="M2 21V11l6 4V11l6 4V5h4v16zM2 21h20"/>',

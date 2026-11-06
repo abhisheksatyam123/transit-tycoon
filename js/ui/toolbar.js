@@ -33,6 +33,7 @@ export const WINDOW_BUTTONS = [
   ['finances', 'Finances', 'finances', 'F'],
   ['towns', 'Towns', 'towns', 'T'],
   ['stations', 'Stations', 'stations', 'B'],
+  ['depots', 'Depots', 'depots', ''],
   ['map', 'Map', 'map', 'P'],
   ['graphs', 'Graphs', 'graphs', 'E'],
   ['industries', 'Industries', 'industries', 'I'],

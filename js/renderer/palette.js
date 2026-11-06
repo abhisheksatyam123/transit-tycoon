@@ -51,7 +51,8 @@ export const OVERLAY = {
   hover: 'rgba(255,255,255,0.35)', hoverStroke: 'rgba(255,255,255,0.9)',
   valid: 'rgba(34,197,94,0.38)', validStroke: '#22c55e',
   invalid: 'rgba(239,68,68,0.38)', invalidStroke: '#ef4444',
-  catchment: 'rgba(56,189,248,0.18)', catchmentStroke: 'rgba(56,189,248,0.6)',
+  catchment: 'rgba(56,189,248,0.30)', catchmentStroke: 'rgba(56,189,248,0.9)',
+  catchmentEdge: 'rgba(240,252,255,0.97)', catchmentEdgeDark: 'rgba(4,14,28,0.9)',
   select: 'rgba(250,204,21,0.3)', selectStroke: '#facc15',
 };
 

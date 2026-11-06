@@ -100,7 +100,8 @@ export function openStationList(app) {
       sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
       filterSel.onchange = () => { state.filter = filterSel.value; refresh(); };
       dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
-      controls.append(el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel);
+      const depotsBtn = el('button.btn.sm', { type: 'button', text: 'Depots', title: 'Open the depot list', onclick: () => app.open('depots') });
+      controls.append(el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel, depotsBtn);
       const head = el('div.table-head', { style: { gridTemplateColumns: '1.6fr 0.8fr 1fr 0.7fr' } },
         ...STATION_SORTS.map((s) => el('button.link', {
           type: 'button', text: s.label, title: `Sort by ${s.label.toLowerCase()}`,

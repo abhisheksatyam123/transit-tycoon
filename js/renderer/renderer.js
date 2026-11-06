@@ -362,10 +362,9 @@ export class Renderer {
 
     this.smoke.draw(ctx, dt);
     drawOverlays(ctx, map, this.overlay);
-    this.floating.draw(ctx, dt, cam.zoom);
-
-    // screen-space labels
+    // screen-space labels and floating texts: last, always above landmarks/vehicles
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.floating.draw(ctx, dt, cam);
     const pv = this.overlay.preview;
     if (pv && pv.label && pv.tiles.length) {
       const t = pv.tiles[pv.tiles.length - 1];

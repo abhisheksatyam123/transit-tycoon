@@ -58,6 +58,53 @@ export function tileDiamond(ctx, map, x, y, fill, stroke, inset = 0) {
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.2; ctx.stroke(); }
 }
 
+/** Cached membership grid for the catchment list (rebuilt only when the array identity changes). */
+let catchGrid = null, catchSrc = null, catchW = 0, catchH = 0;
+
+function catchmentGrid(map, list) {
+  if (catchSrc === list && catchW === map.width && catchH === map.height && catchGrid) return catchGrid;
+  catchSrc = list; catchW = map.width; catchH = map.height;
+  catchGrid = new Uint8Array(map.width * map.height);
+  for (const t of list) if (t.x >= 0 && t.y >= 0 && t.x < map.width && t.y < map.height) catchGrid[t.y * map.width + t.x] = 1;
+  return catchGrid;
+}
+
+/**
+ * Catchment area: translucent fill on every tile, plus a dark-backed light outline on the
+ * outer border only (edges between in-catchment and out-of-catchment tiles).
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {any} map
+ * @param {{x:number,y:number}[]} list
+ */
+function drawCatchment(ctx, map, list) {
+  for (const t of list) tileDiamond(ctx, map, t.x, t.y, OVERLAY.catchment, null, 1);
+  const g = catchmentGrid(map, list), W = map.width, H = map.height;
+  const edge = (x, y, nx, ny) => nx < 0 || ny < 0 || nx >= W || ny >= H || !g[ny * W + nx];
+  const hh = HALF_H, hw = HALF_W;
+  // Each pass strokes all boundary edges once (dark halo first, light line on top).
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.beginPath();
+    for (const t of list) {
+      const x = t.x, y = t.y;
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const sx = (x - y) * hw, fy = (x + y) * hh;
+      const c = overlayHeights ? overlayHeights.tileCorners(x, y) : [0, 0, 0, 0].map(() => map.tiles[y * W + x].height);
+      const X0 = sx, Y0 = fy - hh - c[0] * HEIGHT_STEP; // top
+      const X1 = sx + hw, Y1 = fy - c[1] * HEIGHT_STEP; // right
+      const X2 = sx, Y2 = fy + hh - c[2] * HEIGHT_STEP; // bottom
+      const X3 = sx - hw, Y3 = fy - c[3] * HEIGHT_STEP; // left
+      // neighbour +x shares right-bottom edge; +y shares bottom-left; -x left-top; -y top-right
+      if (edge(x, y, x + 1, y)) { ctx.moveTo(X1, Y1); ctx.lineTo(X2, Y2); }
+      if (edge(x, y, x, y + 1)) { ctx.moveTo(X2, Y2); ctx.lineTo(X3, Y3); }
+      if (edge(x, y, x - 1, y)) { ctx.moveTo(X3, Y3); ctx.lineTo(X0, Y0); }
+      if (edge(x, y, x, y - 1)) { ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); }
+    }
+    if (pass === 0) { ctx.strokeStyle = OVERLAY.catchmentEdgeDark; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; }
+    else { ctx.strokeStyle = OVERLAY.catchmentEdge; ctx.lineWidth = 1.6; }
+    ctx.stroke();
+  }
+}
+
 /**
  * Overlays drawn under objects (catchment, selection).
  * @param {CanvasRenderingContext2D} ctx
@@ -65,7 +112,7 @@ export function tileDiamond(ctx, map, x, y, fill, stroke, inset = 0) {
  * @param {OverlayState} o
  */
 export function drawUnderlays(ctx, map, o) {
-  if (o.catchment) for (const t of o.catchment) tileDiamond(ctx, map, t.x, t.y, OVERLAY.catchment, null, 1);
+  if (o.catchment) drawCatchment(ctx, map, o.catchment);
   if (o.selection) for (const t of o.selection) tileDiamond(ctx, map, t.x, t.y, OVERLAY.select, OVERLAY.selectStroke, 1);
 }
 
@@ -126,28 +173,31 @@ export class FloatingTexts {
     this.items.push({ wx, wy, text, color, age: 0 });
   }
   /**
-   * Advance and draw in world space (context already transformed).
+   * Advance and draw in screen space (CSS px context, call after all world geometry so texts are never occluded).
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} dt seconds
-   * @param {number} zoom current zoom (to keep text size constant on screen)
+   * @param {{x:number,y:number,zoom:number,viewW:number,viewH:number}} cam camera (same fields as Camera)
    */
-  draw(ctx, dt, zoom) {
+  draw(ctx, dt, cam) {
     if (!this.items.length) return;
-    ctx.font = `700 ${Math.round(13 / zoom)}px "JetBrains Mono", ui-monospace, monospace`;
+    ctx.font = '700 13px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    const zoom = cam.zoom;
     let w = 0;
     for (const it of this.items) {
       it.age += dt;
       if (it.age >= 2.2) continue;
       const a = it.age < 1.6 ? 1 : 1 - (it.age - 1.6) / 0.6;
-      const y = it.wy - 30 - it.age * 22;
+      const wy = it.wy - 30 - it.age * 22;
+      const sx = (it.wx - cam.x) * zoom + cam.viewW / 2;
+      const sy = (wy - cam.y) * zoom + cam.viewH / 2;
       ctx.globalAlpha = a;
-      ctx.lineWidth = 3 / zoom;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-      ctx.strokeText(it.text, it.wx, y);
+      ctx.strokeText(it.text, sx, sy);
       ctx.fillStyle = it.color;
-      ctx.fillText(it.text, it.wx, y);
+      ctx.fillText(it.text, sx, sy);
       this.items[w++] = it;
     }
     this.items.length = w;

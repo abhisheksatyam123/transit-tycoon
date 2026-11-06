@@ -111,6 +111,11 @@ export function openBuyVehicle(app, depotId) {
           setText(total, 'Cost: ' + money(m ? m.cost : 0));
         }
       };
+      // Default wagon: the first freight wagon (a Passenger Coach default makes a train that cannot carry coal/ore/grain).
+      if (rail && wagonSel) {
+        const freight = wagons.find((m) => m.id === 'wag_hopper') || wagons.find((m) => !(m.cargos || []).includes('PASS'));
+        if (freight) wagonSel.value = freight.id;
+      }
       const onModel = () => { fillCargo(cargoSel, current()); recompute(); };
       for (const s of [engineSel, wagonSel, roadSel, countIn]) if (s) s.addEventListener('input', onModel);
       onModel();
