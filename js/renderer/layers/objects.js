@@ -22,6 +22,7 @@ import { blit, tileHash } from '../sprites/canvas.js';
 import { packActive } from '../pack/state.js';
 import { drawOgfxBuilding } from '../pack/objects.js';
 import { drawOgfxTrees } from '../pack/trees.js';
+import { drawObjectTile } from '../pack/objects2.js';
 
 /** Array memos for the hottest sprites (avoid string keys per tile per frame). */
 const houses = new Array(5 * 16);
@@ -67,6 +68,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt, field
     const r = drawOgfxBuilding(ctx, tile, x, y, sx, sy, industryById);
     if (r !== false) return r;
   }
+  if (!b && tile.object) { drawObjectTile(ctx, tile.object, x, y, sx, sy); return null; } // cmdObject.js objects
   if (!b) {
     if (tile.field !== undefined && !tile.rail && !tile.road) { // T29 farm field (opt-in farmFields)
       if (packActive() && fieldIsField && drawOgfxField(ctx, x, y, sx, sy, fieldIsField)) return null; // T-IA OpenGFX field + fences

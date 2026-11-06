@@ -70,7 +70,7 @@ export function updateMonthly1(game) {
   const rating = performanceToRating(perf);
   if (rating > c.currentRating) {
     c.currentRating = rating;
-    notify(game.ctx, `${c.name} has been promoted to corporate rating "${RATING_NAMES[rating]}"!`, 'good');
+    notify(game.ctx, `${c.name} has been promoted to corporate rating "${RATING_NAMES[rating]}"!`, 'good', undefined, undefined, 'company');
   }
 
   // company value
@@ -91,8 +91,8 @@ export function updateMonthly1(game) {
     if (c.money < 0) {
       c.numMonthsInTheRed++;
       if (c.numMonthsInTheRed === BANKRUPT_MONTHS) declareBankrupt(game, c);
-      else if (c.numMonthsInTheRed === 3) notify(game.ctx, `${c.name} has been in debt for 3 months! Bankruptcy in 6 months unless the balance recovers.`, 'bad');
-      else if (c.numMonthsInTheRed === 6) notify(game.ctx, `${c.name} has been in debt for 6 months! Bankruptcy in 3 months unless the balance recovers.`, 'bad');
+      else if (c.numMonthsInTheRed === 3) notify(game.ctx, `${c.name} has been in debt for 3 months! Bankruptcy in 6 months unless the balance recovers.`, 'bad', undefined, undefined, 'company');
+      else if (c.numMonthsInTheRed === 6) notify(game.ctx, `${c.name} has been in debt for 6 months! Bankruptcy in 3 months unless the balance recovers.`, 'bad', undefined, undefined, 'company');
     } else {
       c.numMonthsInTheRed = 0;
     }
@@ -104,7 +104,7 @@ export function updateMonthly1(game) {
 /** Bankruptcy: flag the company and stop every vehicle (stopAllCompanyVehicles). */
 function declareBankrupt(game, c) {
   c.bankrupt = true;
-  notify(game.ctx, `${c.name} has been declared bankrupt!`, 'bad');
+  notify(game.ctx, `${c.name} has been declared bankrupt!`, 'bad', undefined, undefined, 'company');
   for (const v of game.state.vehicles) {
     if (findVehicle(game.state, v.id)) stopVehicle(game.ctx, v.id);
   }

@@ -92,7 +92,7 @@ export function replan(ctx, v) {
     v.lostSince = state.tick;
     const order = currentOrder(v);
     const st = order && findStation(state, order.stationId);
-    notify(ctx, `${v.name} is lost: no route to ${v.goingToDepot != null ? 'depot' : st ? st.name : 'destination'}.`, 'bad', v.tx, v.ty);
+    notify(ctx, `${v.name} is lost: no route to ${v.goingToDepot != null ? 'depot' : st ? st.name : 'destination'}.`, 'bad', v.tx, v.ty, 'advice');
   }
   v.speed = 0;
   v.path = [{ x: v.tx, y: v.ty }];

@@ -3,7 +3,7 @@
  * Pure: reads game.state and optional game.trafficStats(); never mutates.
  */
 import { checkTrackBits, checkTownRoads, checkDeadEnds } from './diagChecksMap.js';
-import { checkInvariants, checkVehicles, checkStations, checkFinance, checkTraffic } from './diagChecksEntities.js';
+import { checkInvariants, checkVehicles, checkOrderAcceptance, checkStations, checkFinance, checkTraffic } from './diagChecksEntities.js';
 
 /** Severity order used for display. */
 export const SEVERITIES = ['error', 'warn', 'info'];
@@ -22,6 +22,7 @@ export function runDiagnostics(game) {
     ...checkTownRoads(state),
     ...checkDeadEnds(state),
     ...checkVehicles(state),
+    ...checkOrderAcceptance(state),
     ...checkStations(state),
     ...checkTraffic(stats),
     ...checkFinance(state),

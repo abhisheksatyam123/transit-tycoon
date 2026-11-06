@@ -56,6 +56,10 @@ export const COSTS = {
   foundTown: 40000,
   /** company headquarters (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ): flat price, inflated; relocating costs the same */
   buildHQ: 60000,
+  /** placeable objects (OpenTTD CMD_BUILD_OBJECT): transmitter, lighthouse, owned land (cheap, flat price) */
+  buildTransmitter: 30000,
+  buildLighthouse: 25000,
+  buildOwnedLand: 5000,
 };
 
 /** fund a new industry (OpenTTD CMD_BUILD_INDUSTRY): base price per industry type id, before inflation. */

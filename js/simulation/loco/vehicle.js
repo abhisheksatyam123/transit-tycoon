@@ -71,7 +71,7 @@ export function vehicleDaily(ctx, v, rng, year) {
   if (v.serviceIntervalDays && !v.serviceDue && !v.serviceTrip && ctx && ctx.state
       && getSetting(ctx.state, 'breakdowns') !== 'none'
       && dayNumber(ctx.state.date) - (v.lastServiceDay ?? 0) >= v.serviceIntervalDays) v.serviceDue = true;
-  if (v.age === v.maxAge) notify(ctx, `${v.name} is getting old and should be replaced.`, 'bad', v.tx, v.ty);
+  if (v.age === v.maxAge) notify(ctx, `${v.name} is getting old and should be replaced.`, 'bad', v.tx, v.ty, 'advice');
   if (v.reliability === 0) return;
   // breakdowns setting: 'none' = never; 'reduced' = timer doubled (armBreakdownTimer); 'normal' = unchanged
   if (ctx && ctx.state && getSetting(ctx.state, 'breakdowns') === 'none') {

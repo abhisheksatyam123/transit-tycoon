@@ -101,13 +101,13 @@ export function updateMonthly(game) {
     sub.offers = sub.offers.filter((o) => {
       o.expiresMonths--;
       if (o.expiresMonths > 0 && alive(o)) return true;
-      notify(game.ctx, `Subsidy offer expired: ${describe(state, o)}`, 'info');
+      notify(game.ctx, `Subsidy offer expired: ${describe(state, o)}`, 'info', 'subsidy');
       return false;
     });
     sub.awarded = sub.awarded.filter((a) => {
       a.remainingMonths--;
       if (a.remainingMonths > 0 && alive(a)) return true;
-      notify(game.ctx, `Subsidy expired: ${describe(state, a)}`, 'info');
+      notify(game.ctx, `Subsidy expired: ${describe(state, a)}`, 'info', 'subsidy');
       return false;
     });
   }
@@ -120,7 +120,7 @@ export function updateMonthly(game) {
   if (!state.subsidies) state.subsidies = { nextId: 1, offers: [], awarded: [] };
   offer.id = state.subsidies.nextId++;
   state.subsidies.offers.push(offer);
-  notify(game.ctx, `Subsidy offered: ${describe(state, offer)}`, 'good');
+  notify(game.ctx, `Subsidy offered: ${describe(state, offer)}`, 'good', 'subsidy');
 }
 
 /**
@@ -145,6 +145,6 @@ export function subsidyMultiplier(state, cargoId, fromX, fromY, toStation, ctx) 
   const award = { ...o, companyAwarded: true, multiplier: SUBSIDY_MULTIPLIER, remainingMonths: AWARD_MONTHS };
   delete award.expiresMonths;
   sub.awarded.push(award);
-  if (ctx) notify(ctx, `Subsidy awarded to ${state.company.name}: ${describe(state, award)} (payments x${award.multiplier} for a year)`, 'good');
+  if (ctx) notify(ctx, `Subsidy awarded to ${state.company.name}: ${describe(state, award)} (payments x${award.multiplier} for a year)`, 'good', 'subsidy');
   return award.multiplier;
 }

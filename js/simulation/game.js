@@ -11,6 +11,7 @@ import { generateIndustries, placeExtraIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
+import { buildObject, estimateObject } from './cmdObject.js';
 import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
@@ -55,7 +56,7 @@ function createScenarioGame(game, o) {
   s.scenario = o.scenario;
   const report = buildScenario(o.scenario, game);
   s.scenarioLog = report.log;
-  notify(game.ctx, `Welcome to ${o.scenario}! ${s.company.name} was founded in ${o.startYear}. Connect the districts by metro and bus.`, 'good');
+  notify(game.ctx, `Welcome to ${o.scenario}! ${s.company.name} was founded in ${o.startYear}. Connect the districts by metro and bus.`, 'good', undefined, undefined, 'general');
   return game;
 }
 
@@ -136,7 +137,7 @@ export class Game {
     industriesMonthStart(state, game.rng);
     state.traffic = createTraffic(state);
     recomputeAllAcceptance(state);
-    notify(game.ctx, `Welcome! ${state.company.name} was founded in ${o.startYear}. Connect industries and towns to earn money.`, 'good');
+    notify(game.ctx, `Welcome! ${state.company.name} was founded in ${o.startYear}. Connect industries and towns to earn money.`, 'good', undefined, undefined, 'general');
     applyOptions(game, o);
     return game;
   }
@@ -208,6 +209,9 @@ export class Game {
   /** Company HQ with top-left tile (x,y) (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ). opts.dryRun = check only. */
   buildHQ(x, y, opts) { return buildHQ(this.ctx, x, y, opts); }
   estimateHQ(x, y) { return estimateHQ(this.state, x, y); }
+  /** Placeable object on tile (x,y): type 'transmitter' | 'lighthouse' | 'owned' (cmdObject.js). */
+  buildObject(type, x, y, opts) { return buildObject(this.ctx, type, x, y, opts); }
+  estimateObject(type, x, y) { return estimateObject(this.state, type, x, y); }
   /** Pure cost/validity preview: kind 'town'|'industry' (typeId for industry). */
   estimateFound(kind, x, y, typeId) { return estimateFound(this.state, kind, x, y, typeId); }
   buildRailStation(x, y, axis, length, opts) { return buildRailStation(this.ctx, x, y, axis, length, opts); }

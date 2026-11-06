@@ -18,6 +18,7 @@ import { createAirportTool } from './airport.js';
 import { createTerraformTool, createPlantTool } from './terraform.js';
 import { createFoundTownTool, createFundIndustryTool } from './found.js';
 import { createHQTool } from './hq.js';
+import { createObjectsTool } from './objects.js';
 import { createSignalTool } from './signal.js';
 import { createOneWayTool } from './oneWay.js';
 import { createShipTool } from './ship.js';
@@ -61,6 +62,7 @@ export function createTools(app) {
     foundTown: createFoundTownTool(app),
     fundIndustry: createFundIndustryTool(app),
     hq: createHQTool(app),
+    objects: createObjectsTool(app),
     signal: createSignalTool(app),
     dock: createShipTool(app, 'dock'),
     shipDepot: createShipTool(app, 'shipDepot'),

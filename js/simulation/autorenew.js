@@ -51,7 +51,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
     const last = v.autoreplaceNagDay;
     if (last == null || dayNumber(state.date) - last >= NAG_DAYS) {
       v.autoreplaceNagDay = dayNumber(state.date);
-      notify(ctx, `${v.name} could not afford its replacement (${MODEL_BY_ID[newModelId].name}).`, 'bad', v.tx, v.ty);
+      notify(ctx, `${v.name} could not afford its replacement (${MODEL_BY_ID[newModelId].name}).`, 'bad', v.tx, v.ty, 'advice');
     }
     return { ok: false, error: 'Cannot afford' };
   }
@@ -87,7 +87,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   const msg = reason === 'autorenew'
     ? `${v.name} was renewed (autorenew, ${oldName}).`
     : `${v.name} was replaced (${oldName} -> ${MODEL_BY_ID[newModelId].name}).`;
-  notify(ctx, msg, 'info', v.tx, v.ty);
+  notify(ctx, msg, 'info', v.tx, v.ty, 'advice');
   return { ok: true, vehicle: nv, cost: diff };
 }
 

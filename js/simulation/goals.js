@@ -128,7 +128,7 @@ export function evaluateGoals(ctx) {
     g.index++;
     n++;
     state.company.money += goal.reward; // a grant, not income: keeps the profit goal honest
-    notify(ctx, `Goal complete: ${goal.title}! Board pays ${money(goal.reward)}.`, 'good');
+    notify(ctx, `Goal complete: ${goal.title}! Board pays ${money(goal.reward)}.`, 'good', undefined, undefined, 'general');
     if (ctx.emit) ctx.emit('goal', { id: goal.id, title: goal.title, reward: goal.reward });
   }
   return n;

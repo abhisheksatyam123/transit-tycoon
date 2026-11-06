@@ -122,6 +122,6 @@ export function updateHQ(ctx) {
   if (level === hq.level) return;
   const grew = level > hq.level;
   setLevel(state, level);
-  if (grew) notify(ctx, `${state.company.name}'s headquarters grew to level ${level}: the company is performing well.`, 'good');
-  else notify(ctx, `${state.company.name}'s headquarters shrank to level ${level}.`, 'info');
+  if (grew) notify(ctx, `${state.company.name}'s headquarters grew to level ${level}: the company is performing well.`, 'good', undefined, undefined, 'company');
+  else notify(ctx, `${state.company.name}'s headquarters shrank to level ${level}.`, 'info', undefined, undefined, 'company');
 }

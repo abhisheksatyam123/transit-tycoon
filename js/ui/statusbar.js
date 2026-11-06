@@ -2,6 +2,8 @@
  * Status bar: date, money (red when negative), loan, company value, latest news ticker
  * (click jumps to its location), and the current tool hint.
  */
+import { newsLevel, loadNewsPrefs } from './newsPrefs.js';
+import { newsCategoryOf } from '../simulation/news.js';
 import { el, setText } from './dom.js';
 import { money, date } from './format.js';
 
@@ -52,7 +54,12 @@ export function createStatusbar(root, app) {
     moneyEl.classList.toggle('neg', s.company.money < 0);
     setText(loanEl, money(s.company.loan));
     setText(valueEl, money(companyValue(s)));
-    const latest = s.news.length ? s.news[s.news.length - 1] : null;
+    // ticker shows the newest item whose category is not Off (Message settings); history keeps all
+    const prefs = loadNewsPrefs();
+    let latest = null;
+    for (let i = s.news.length - 1; i >= 0; i--) {
+      if (newsLevel(prefs, newsCategoryOf(s.news[i])) !== 'off') { latest = s.news[i]; break; }
+    }
     if (latest !== shownNews) {
       shownNews = latest;
       newsEl.textContent = '';

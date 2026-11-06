@@ -193,3 +193,8 @@
 .set-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent, #38bdf8); margin-left: 5px; vertical-align: middle; }
 .set-dot[hidden] { display: none; }
 .set-foot { display: flex; justify-content: flex-end; margin: 8px 0 4px; }
+
+/* Message settings: categories set to Off are kept in the history but dimmed */
+.news-item.news-off { opacity: 0.55; }
+/* Orders window: a stop that accepts none of the vehicle's cargo */
+.order-warn { color: #fbbf24; font-size: 0.85em; }

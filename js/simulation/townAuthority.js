@@ -230,11 +230,11 @@ export function townAction(ctx, townId, actionId, opts = {}) {
     town.fundMonths = FUND_MONTHS;
   } else if (actionId === 'roadworks') {
     town.roadWorksMonths = ROAD_WORKS_MONTHS;
-    notify(ctx, `Local road reconstruction started in ${town.name}`, 'info', town.x, town.y);
+    notify(ctx, `Local road reconstruction started in ${town.name}`, 'info', town.x, town.y, 'general');
   } else if (actionId === 'rights') {
     town.exclusiveMonths = EXCLUSIVE_MONTHS;
     // Effect: other companies' cargo in this town is blocked. We have one company, so nothing is blocked (documented).
-    notify(ctx, `${state.company.name} bought exclusive transport rights in ${town.name} for ${EXCLUSIVE_MONTHS} months`, 'good', town.x, town.y);
+    notify(ctx, `${state.company.name} bought exclusive transport rights in ${town.name} for ${EXCLUSIVE_MONTHS} months`, 'good', town.x, town.y, 'general');
   } else if (actionId === 'bribe') {
     if (createRng(state).chance(BRIBE_FAIL_CHANCE)) {
       town.unwantedMonths = BRIBE_UNWANTED_MONTHS;
@@ -244,11 +244,11 @@ export function townAction(ctx, townId, actionId, opts = {}) {
         for (const k of Object.keys(st.rating || {})) st.rating[k] = 0;
       }
       if (townRating(town) > RATING_BRIBE_DOWN_TO) town.companyRating = RATING_BRIBE_DOWN_TO;
-      notify(ctx, `${town.name}'s council refused the bribe; the town will not deal with you for ${BRIBE_UNWANTED_MONTHS} months`, 'bad', town.x, town.y);
+      notify(ctx, `${town.name}'s council refused the bribe; the town will not deal with you for ${BRIBE_UNWANTED_MONTHS} months`, 'bad', town.x, town.y, 'general');
     } else {
       const r = townRating(town);
       town.companyRating = Math.max(r, Math.min(r + RATING_BRIBE_UP_STEP, RATING_BRIBE_MAXIMUM));
-      notify(ctx, `${town.name}'s council accepted the bribe`, 'good', town.x, town.y);
+      notify(ctx, `${town.name}'s council accepted the bribe`, 'good', town.x, town.y, 'general');
     }
   }
   spend(state.company, 'property', entry.cost);

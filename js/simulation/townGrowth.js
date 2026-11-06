@@ -23,7 +23,7 @@ export function rollTownStats(state, town) {
   recomputePopulation(state, town);
   for (const m of MILESTONES) {
     if (before < m && town.population >= m) {
-      pushNews(state, `${town.name} has grown to a population of ${town.population}!`, 'good', town.x, town.y);
+      pushNews(state, `${town.name} has grown to a population of ${town.population}!`, 'good', town.x, town.y, 'general');
     }
   }
 }

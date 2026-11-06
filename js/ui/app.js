@@ -3,6 +3,8 @@
  * Owns the active tool, simulation speed and game event subscriptions. Never mutates
  * game.state directly — only calls Game commands.
  */
+import { newsDisplay, newsLevel, loadNewsPrefs } from './newsPrefs.js';
+import { newsCategoryOf } from '../simulation/news.js';
 import { WindowManager } from './windowManager.js';
 import { Toasts } from './toast.js';
 import { createTools } from './tools/index.js';
@@ -54,8 +56,10 @@ export class App {
       if (amt > 0) play('income');
     });
     on('news', (n) => {
-      play('news');
-      this.ui.onNews(n);
+      const d = newsDisplay(newsLevel(loadNewsPrefs(), newsCategoryOf(n)));
+      if (d.sound) play('news');
+      if (d.flash) this.ui.onNews(n);
+      if (d.toast) this.toast(n.text, n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
     });
     on('goal', (g) => {
       play('news');

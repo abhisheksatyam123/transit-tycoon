@@ -8,6 +8,7 @@ import { createAddOrderTool, appendOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
 import { unloadMode } from '../../simulation/orders.js';
 import { sharers } from '../../simulation/sharedOrders.js';
+import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
@@ -120,6 +121,12 @@ export function openOrders(app, id) {
             const st = app.findStation(it.o.stationId);
             setText(row.children[0], String(it.i + 1));
             setText(row.children[1], st ? st.name : `Station #${it.o.stationId} (removed)`);
+            // P7: warn when this stop neither accepts nor supplies any cargo the vehicle carries
+            const warn = st ? orderCargoWarning(app.game.state, v, st) : '';
+            let w = row.querySelector(':scope > .order-warn');
+            if (!w) { w = el('span.order-warn', { title: 'This stop cannot take the cargo this vehicle carries' }); row.children[1].after(w); }
+            setText(w, warn ? '⚠ ' + warn : '');
+            w.hidden = !warn;
             row.classList.toggle('current', it.i === v.orderIndex);
             const [loadSel, unloadSel] = /** @type {HTMLSelectElement[]} */ (Array.from(row.querySelectorAll('select')));
             if (loadSel.value !== loadModeOf(it.o)) loadSel.value = loadModeOf(it.o);

@@ -132,7 +132,7 @@ export function createNewIndustry(game, type, numAttempts) {
     Industry.ensureIndustryState(ind, game.state, { immediate: false });
     ind.foundingYear = game.state.date.year;
     recomputeAllAcceptance(game.state);
-    notify(game.ctx, `New ${type.name} opened: ${ind.name}.`, 'good', loc.x + (type.w >> 1), loc.y + (type.h >> 1));
+    notify(game.ctx, `New ${type.name} opened: ${ind.name}.`, 'good', loc.x + (type.w >> 1), loc.y + (type.h >> 1), 'industryOpen');
     return ind;
   }
   return null;
@@ -170,9 +170,9 @@ export function updateMonthly(game) {
   tryCreateNewIndustriesMonthly(game);
   for (const ind of s.industries.slice()) {
     const cx = ind.x + (ind.w >> 1), cy = ind.y + (ind.h >> 1);
-    const res = Industry.updateMonthly(game, ind, (text, kind, x, y) => notify(game.ctx, text, kind, x, y));
+    const res = Industry.updateMonthly(game, ind, (text, kind, x, y, cat) => notify(game.ctx, text, kind, x, y, cat));
     if (res === 'remove') {
-      notify(game.ctx, `${ind.name} has closed down.`, 'bad', cx, cy);
+      notify(game.ctx, `${ind.name} has closed down.`, 'bad', cx, cy, 'industryClose');
       removeIndustry(game, ind);
     }
   }

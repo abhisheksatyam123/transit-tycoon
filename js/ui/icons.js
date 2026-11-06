@@ -24,6 +24,7 @@ const PATHS = {
   terraform: '<path d="M2 19l5-7 4 4 3-4 8 7zM2 21h20"/><path d="M12 3v5M9.5 5.5L12 3l2.5 2.5"/>',
   foundTown: '<path d="M3 21h18M5 21V11l7-6 7 6v10M10 21v-5h4v5M12 5V2"/>',
   fundIndustry: '<path d="M2 21V11l6 4V11l6 4V5h4v16zM2 21h20M19 2v6M16 5h6"/>',
+  objects: '<path d="M12 3v4M8 21l4-14 4 14M9 14h6M12 7l-3 3M12 7l3 3"/><circle cx="5" cy="18" r="1.5"/><circle cx="19" cy="18" r="1.5"/>',
   hq: '<path d="M4 21V7h7v14M11 21V3h9v18M2 21h20M7 11h1M7 15h1M15 7h1M15 11h1M15 15h1"/>',
   signal: '<path d="M12 3v12M12 15h-3M12 15h3M9 19h6"/><circle cx="12" cy="7" r="2" fill="currentColor"/>',
   oneWay: '<path d="M4 12h13M13 7l5 5-5 5"/>',

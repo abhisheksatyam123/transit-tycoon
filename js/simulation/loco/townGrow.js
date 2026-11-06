@@ -148,7 +148,7 @@ function buildInitialRoad(game, town) {
   for (const [ox, oy] of SPIRAL) {
     const x = town.x + ox, y = town.y + oy;
     const t = tileAt(map, x, y);
-    if (!t || t.terrain === 'water' || t.building || t.rail || t.road) continue;
+    if (!t || t.terrain === 'water' || t.building || t.rail || t.road || t.object) continue;
     if (prot && prot[y * map.width + x]) continue;
     const d = DIR_BY_BIT[BITS[rng.int(0, 3)]];
     if (layStreet(state, [{ x, y }, { x: x + d.dx, y: y + d.dy }]) > 1) {
@@ -233,7 +233,7 @@ function appendToRoadEnd(game, town, fromX, fromY, x, y, dir, iteration) {
   const { state } = game;
   const { map } = state;
   const t = tileAt(map, x, y);
-  if (!t || t.road || t.building || t.rail || t.terrain === 'water') return false;
+  if (!t || t.road || t.building || t.rail || t.object || t.terrain === 'water') return false;
   const prot = protectedTiles(state);
   if (prot && prot[y * map.width + x]) return false;
   if (iteration >= 2 && countBuildings(map, x, y, 2) < 2) return false;
@@ -248,7 +248,7 @@ function addRoadJunction(game, town, x, y) {
   const { state, rng } = game;
   const { map } = state;
   const t = tileAt(map, x, y);
-  if (!t || t.rail || t.building || t.highway || t.owner !== 'town') return false;
+  if (!t || t.rail || t.building || t.highway || t.object || t.owner !== 'town') return false;
   if (popcount(t.road) > 2) return false;
   if (!rng.chance(0x666 / 65536)) return false;
   const edges = BITS.filter((b) => !(t.road & b));
@@ -257,7 +257,7 @@ function addRoadJunction(game, town, x, y) {
   const d = DIR_BY_BIT[e];
   const nx = x + d.dx, ny = y + d.dy;
   const n = tileAt(map, nx, ny);
-  if (!n || n.road || n.building || n.rail || n.terrain === 'water') return false;
+  if (!n || n.road || n.building || n.rail || n.object || n.terrain === 'water') return false;
   const prot = protectedTiles(state);
   if (prot && prot[ny * map.width + nx]) return false;
   const layout = town.layout || 'better';

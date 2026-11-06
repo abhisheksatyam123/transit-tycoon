@@ -62,7 +62,7 @@ export function evaluateRandomGoals(ctx) {
     g.done.push(goal.id);
     g.index++;
     n++;
-    notify(ctx, `Goal complete: ${goal.title}!`, 'good');
+    notify(ctx, `Goal complete: ${goal.title}!`, 'good', undefined, undefined, 'general');
     if (ctx.emit) ctx.emit('goal', { id: goal.id, title: goal.title, reward: 0 });
   }
   return n;

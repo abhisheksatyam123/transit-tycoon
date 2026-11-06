@@ -17,7 +17,8 @@ import { airportLayout } from './aircraft.js';
 import { findTown, findStation } from './state.js';
 import { RIVAL_OWNED } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
-import { removeHQ } from './cmdHQ.js'; // T31: demolishing any HQ tile removes the whole HQ
+import { removeHQ } from './cmdHQ.js';
+import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
 import { lockParts } from './cmdCanal.js';
 
@@ -444,6 +445,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
       if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }
+      if (t.object && !b && OBJECT_TYPES.includes(t.object.type)) { jobs.push({ x, y, kind: 'object' }); continue; } // objects: no refund
       if (t.tram && !t.rail) {
         jobs.push({ x, y, kind: 'tram' });
         cost += COSTS.demolishTrack;
@@ -484,6 +486,8 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;
       if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; delete t.elec; }
+    } else if (j.kind === 'object') {
+      delete t.object;
     } else if (j.kind === 'hq') {
       removeHQ(state); // T31: no refund
     } else if (j.kind === 'house') {

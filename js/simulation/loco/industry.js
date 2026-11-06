@@ -220,17 +220,17 @@ export function updateMonthly(game, ind, notify) {
   let hasEvent = false;
   if (getSetting(state, 'farmFields')) updateFarmMonthly(game, ind); // T29 opt-in: fields grow, productionRate follows
   const primary = requiredCargos(type).length === 0;
-  const at = (text, kind) => notify && notify(text, kind, ind.x + (ind.w >> 1), ind.y + (ind.h >> 1));
+  const at = (text, kind, cat) => notify && notify(text, kind, ind.x + (ind.w >> 1), ind.y + (ind.h >> 1), cat);
   if (!ind.closingDown && primary) {
     if (isMonthlyProductionUp(rng, ind)) {
       ind.dailyProductionTarget[0] = Math.min(100, ind.dailyProductionTarget[0] * 2);
       ind.dailyProductionTarget[1] = Math.min(100, ind.dailyProductionTarget[1] * 2);
-      at(`Production at ${ind.name} has increased.`, 'good');
+      at(`Production at ${ind.name} has increased.`, 'good', 'production');
       hasEvent = true;
     } else if (isMonthlyProductionDown(rng, ind)) {
       ind.dailyProductionTarget[0] = Math.floor(ind.dailyProductionTarget[0] / 2);
       ind.dailyProductionTarget[1] = Math.floor(ind.dailyProductionTarget[1] / 2);
-      at(`Production at ${ind.name} has decreased.`, 'bad');
+      at(`Production at ${ind.name} has decreased.`, 'bad', 'production');
       hasEvent = true;
     }
   }
@@ -238,7 +238,7 @@ export function updateMonthly(game, ind, notify) {
     if (isMonthlyProductionClosing(rng, state, ind)) {
       ind.closingDown = true;
       ind.dailyProductionTarget = [0, 0];
-      at(`${ind.name} is going to close down.`, 'bad');
+      at(`${ind.name} is going to close down.`, 'bad', 'industryClose');
     }
   }
   const prod = producedCargos(type), req = requiredCargos(type);

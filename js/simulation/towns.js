@@ -36,7 +36,7 @@ export function recomputePopulation(state, town) {
 
 /** True if a road may be laid by a town on this tile (free land or existing road). */
 function roadable(tile) {
-  return tile && tile.terrain !== 'water' && !tile.building && !tile.rail;
+  return tile && tile.terrain !== 'water' && !tile.building && !tile.rail && !tile.object;
 }
 
 /**
@@ -79,7 +79,7 @@ function ray(cx, cy, dx, dy, n) {
 export function placeHouse(state, rng, town, x, y, level) {
   const { map } = state;
   const t = map.tiles[y * map.width + x];
-  if (!t || t.terrain === 'water' || t.building || t.rail || t.road) return false;
+  if (!t || t.terrain === 'water' || t.building || t.rail || t.road || t.object) return false; // objects (owned land) keep towns off
   t.terrain = 'grass';
   t.building = { type: 'house', townId: town.id, level, variant: rng.int(0, 15) };
   // buildingEras (opt-in): period-appropriate type for the current year; off = no houseId, unchanged
@@ -142,7 +142,7 @@ export function generateTowns(state, rng, count) {
       if (attempt > 0 && attempt % 150 === 0) minDist = Math.max(6, minDist - 3);
       const x = rng.int(margin, map.width - 1 - margin), y = rng.int(margin, map.height - 1 - margin);
       const t = map.tiles[y * map.width + x];
-      if (t.terrain === 'water' || t.height > 5 || t.building || t.road) continue;
+      if (t.terrain === 'water' || t.height > 5 || t.building || t.road || t.object) continue;
       if (state.towns.some((o) => manhattan(o.x, o.y, x, y) < minDist)) continue;
       let land = 0;
       for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) {

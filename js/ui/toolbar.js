@@ -28,6 +28,7 @@ export const TOOL_BUTTONS = [
   ['foundTown', 'Found town', 'foundTown', ''],
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
   ['hq', 'Company HQ', 'hq', ''],
+  ['objects', 'Objects', 'objects', ''],
   ['oneWay', 'One-way road', 'oneWay', ''],
   ['tram', 'Tram track', 'road', ''],
   ['dock', 'Dock', 'dock', ''],
@@ -74,7 +75,7 @@ export const TOOL_GROUPS = [
   ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport']],
-  ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq']],
+  ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news']],
 ];

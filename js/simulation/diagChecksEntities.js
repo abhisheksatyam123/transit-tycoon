@@ -2,6 +2,7 @@
  * Entity diagnostics: invariants (ids, building refs, finite numbers), vehicles, stations, finance.
  */
 import { mkIssue } from './diagIssue.js';
+import { acceptanceProblems } from './orderCargo.js';
 
 /** Waiting cargo above this at one station raises a warning. */
 export const WAITING_WARN = 1000;
@@ -97,6 +98,16 @@ export function checkVehicles(state) {
     }
   }
   return out;
+}
+
+/**
+ * Vehicles whose carried cargo no stop on their orders accepts (P7 playtest).
+ * @param {object} state
+ * @returns {object[]} Issues (warn)
+ */
+export function checkOrderAcceptance(state) {
+  return acceptanceProblems(state).map((p) => mkIssue(`vehicle-no-acceptor:${p.vehicleId}:${p.cargoId}`, 'warn', 'vehicle',
+    p.message, { vehicleId: p.vehicleId }));
 }
 
 /**

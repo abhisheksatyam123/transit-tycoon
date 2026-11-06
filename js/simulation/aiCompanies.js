@@ -165,7 +165,7 @@ function windUp(ctx, r) {
   state.depots = state.depots.filter((q) => q.ownerId !== r.id);
   r.vehicles = []; r.stations = []; r.depots = []; r.routes = [];
   r.companyValue = r.money - (r.loan || 0);
-  pushNews(state, `${r.name} has gone bankrupt and been wound up.`, 'bad');
+  pushNews(state, `${r.name} has gone bankrupt and been wound up.`, 'bad', undefined, undefined, 'company');
 }
 
 /** Index of the road component of the town's core (-1 if the core has no road). */

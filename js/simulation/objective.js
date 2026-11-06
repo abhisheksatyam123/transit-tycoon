@@ -77,11 +77,11 @@ export function updateMonthly(game) {
   obj.progress = objectiveValue(state, obj);
   if (obj.progress >= obj.target) {
     obj.status = 'won';
-    notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good');
+    notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good', undefined, undefined, 'general');
     game.events.emit('objective', { status: 'won', objective: obj });
   } else if (obj.timeLimitYears && monthsElapsed(state, obj) >= obj.timeLimitYears * 12) {
     obj.status = 'lost';
-    notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad');
+    notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
     game.events.emit('objective', { status: 'lost', objective: obj });
   }
 }
