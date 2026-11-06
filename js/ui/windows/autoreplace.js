@@ -25,7 +25,7 @@ export function openAutoreplace(app) {
         const g = app.game;
         const year = g.state.date.year;
         const counts = {};
-        for (const v of g.state.vehicles) counts[v.modelId] = (counts[v.modelId] || 0) + 1;
+        for (const v of g.state.vehicles) if (v.ownerId == null) counts[v.modelId] = (counts[v.modelId] || 0) + 1;
         const rules = g.state.company.autoreplace || {};
         const models = Object.keys(counts).map((id) => MODEL_BY_ID[id]).filter(Boolean)
           .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));

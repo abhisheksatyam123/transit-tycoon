@@ -151,7 +151,7 @@ export function openVehicleList(app) {
         sortSel.value = state.sort;
         filterSel.value = state.filter;
         setText(dirBtn, state.dir < 0 ? '▼' : '▲');
-        const all = app.game.state.vehicles;
+        const all = app.game.state.vehicles.filter((v) => v.ownerId == null); // player's vehicles only: rivals are not listed (gap #25)
         let p = 0;
         for (const v of all) p += v.profitThisYear || 0;
         // rebuild the group options (labels hold counts and profit); keep the selection valid
@@ -174,7 +174,7 @@ export function openVehicleList(app) {
         const hasGroup = typeof state.group === 'number';
         renameGroupBtn.disabled = !hasGroup;
         deleteGroupBtn.disabled = !hasGroup;
-        const vs = sortVehicles(all.filter((v) => v.ownerId == null), state); // rivals are not listed (gap #25)
+        const vs = sortVehicles(all, state);
         setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
         listOrEmpty(list, vs, (v) => v.id,
           (v) => el('div.table-row', null,
