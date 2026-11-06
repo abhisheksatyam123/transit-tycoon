@@ -131,6 +131,19 @@ function buildTownLayout(state, rng, town, size) {
  * @param {object} rng
  * @param {number} count desired number of towns
  */
+/** Generator site predicate (no RNG): dry, gentle, free tile far enough from other towns with some land around. */
+export function townSpotOk(state, x, y, minDist) {
+  const { map } = state;
+  const t = map.tiles[y * map.width + x];
+  if (t.terrain === 'water' || t.height > 5 || t.building || t.road || t.object) return false;
+  if (state.towns.some((o) => manhattan(o.x, o.y, x, y) < minDist)) return false;
+  let land = 0;
+  for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) {
+    if (map.tiles[yy * map.width + xx].terrain !== 'water') land++;
+  }
+  return land >= 40;
+}
+
 export function generateTowns(state, rng, count) {
   const { map } = state;
   const used = new Set();
@@ -141,14 +154,7 @@ export function generateTowns(state, rng, count) {
     for (let attempt = 0; attempt < 600 && !site; attempt++) {
       if (attempt > 0 && attempt % 150 === 0) minDist = Math.max(6, minDist - 3);
       const x = rng.int(margin, map.width - 1 - margin), y = rng.int(margin, map.height - 1 - margin);
-      const t = map.tiles[y * map.width + x];
-      if (t.terrain === 'water' || t.height > 5 || t.building || t.road || t.object) continue;
-      if (state.towns.some((o) => manhattan(o.x, o.y, x, y) < minDist)) continue;
-      let land = 0;
-      for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 3; xx <= x + 3; xx++) {
-        if (map.tiles[yy * map.width + xx].terrain !== 'water') land++;
-      }
-      if (land < 40) continue;
+      if (!townSpotOk(state, x, y, minDist)) continue;
       site = { x, y };
     }
     if (!site) break;
@@ -164,9 +170,10 @@ export function generateTowns(state, rng, count) {
  * @param {number} x
  * @param {number} y
  * @param {Set<string>} [used] town names already taken
+ * @param {number} [size] layout size 1..3 (small..large); omitted = random draw as before
  * @returns {object} town record
  */
-export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) => t.name))) {
+export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) => t.name)), size = undefined) {
   const town = {
     id: allocId(state), name: townName(rng, used), x, y, population: 0, houses: [],
     layout: townLayoutFor(x, y),
@@ -175,7 +182,7 @@ export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) 
     goodsThisMonth: 0, deliveredPassThisMonth: 0,
   };
   state.towns.push(town);
-  buildTownLayout(state, rng, town, rng.int(1, 3));
+  buildTownLayout(state, rng, town, size ?? rng.int(1, 3));
   recomputePopulation(state, town);
   return town;
 }

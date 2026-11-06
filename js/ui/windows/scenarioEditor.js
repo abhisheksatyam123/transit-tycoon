@@ -8,6 +8,7 @@ import { exportToFile } from '../storage.js';
 import { money } from '../format.js';
 import { mapgenOptions } from '../../simulation/game.js';
 import { EDITOR_START_MIN, EDITOR_START_MAX, setEditorStartYear } from '../../simulation/scenarioEditor.js';
+import { randomTown, manyRandomTowns, manyRandomIndustries, removeAllTowns, removeAllIndustries, manyTownCount, manyIndustryCount } from '../../simulation/editorGen.js';
 
 const sel = (opts) => /** @type {HTMLSelectElement} */ (el('select.input', null, ...opts.map(([v, t]) => el('option', { value: v, text: t }))));
 
@@ -69,9 +70,16 @@ export function openScenarioEditor(app) {
       const st = app.game.state;
       const year = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: String(EDITOR_START_MIN), max: String(EDITOR_START_MAX), value: String(st.editor.startYear) }));
       const info = el('p.muted.small', { text: '' });
+      const townSize = sel([['random', 'Random size'], ['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']]);
+      const report = (r, okMsg, key, after) => {
+        if (!r.ok) { app.toast(r.error, 'error'); return; }
+        app.toast(key ? `${okMsg}: ${r[key]}` : okMsg, 'good');
+        if (after) after();
+        refreshInfo();
+      };
       const refreshInfo = () => {
         const s = app.game.state;
-        info.textContent = `Start year ${s.editor.startYear} · company funds ${money(s.company.money)} (editing does not cost money)`;
+        info.textContent = `Start year ${s.editor.startYear} · ${s.towns.length} towns, ${s.industries.length} industries · company funds ${money(s.company.money)} (editing does not cost money)`;
       };
       refreshInfo();
       body.append(
@@ -88,6 +96,17 @@ export function openScenarioEditor(app) {
         el('div.btn-row', null,
           el('button.btn', { type: 'button', text: 'Save scenario file', title: 'Download the scenario as JSON', onclick: () => exportToFile(app.game) }),
           el('button.btn', { type: 'button', text: 'Save to slot', onclick: () => app.open('save') })),
+        el('p.muted.small', { text: 'Generate (free in the editor)' }),
+        field('Random town', el('span.inline', null, townSize, el('button.btn.sm', {
+          type: 'button', text: 'Found', title: 'Found one random town of the chosen size',
+          onclick: () => report(randomTown(app.game, townSize.value), 'Town founded'),
+        }))),
+        el('div.btn-row', null,
+          el('button.btn', { type: 'button', text: `Many random towns (${manyTownCount(app.game.state)})`, title: 'About area / 1024 towns, like the normal town count', onclick: () => report(manyRandomTowns(app.game), 'Towns founded', 'added') }),
+          el('button.btn', { type: 'button', text: `Many random industries (${manyIndustryCount(app.game.state)})`, title: 'Default industry count for this map size', onclick: () => report(manyRandomIndustries(app.game), 'Industries placed', 'added') })),
+        el('div.btn-row', null,
+          el('button.btn.danger', { type: 'button', text: 'Remove all towns', onclick: () => confirmRemove(app, 'Remove all towns? Houses are removed; town roads stay.', () => report(removeAllTowns(app.game), 'Towns removed', 'removed', refreshInfo)) }),
+          el('button.btn.danger', { type: 'button', text: 'Remove all industries', onclick: () => confirmRemove(app, 'Remove all industries? Their buildings are cleared.', () => report(removeAllIndustries(app.game), 'Industries removed', 'removed', refreshInfo)) })),
         el('div.btn-row', null,
           el('button.btn.primary', {
             type: 'button', text: 'Play scenario', title: 'Start a company on Jan 1 of the start year and unpause',
@@ -96,6 +115,20 @@ export function openScenarioEditor(app) {
       );
     },
   });
+}
+
+/** Modal yes/no for destructive editor actions (OpenTTD asks before removing all towns/industries). */
+function confirmRemove(app, question, onYes) {
+  const backdrop = el('div.prompt-backdrop');
+  const close = () => backdrop.remove();
+  backdrop.appendChild(el('section.prompt', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Confirm' },
+    el('div.win-header', null, el('span.win-title', { text: 'Confirm' })),
+    el('div.prompt-body', null,
+      el('p', { text: question }),
+      el('div.btn-row', null,
+        el('button.btn', { type: 'button', text: 'Cancel', onclick: close }),
+        el('button.btn.danger', { type: 'button', text: 'Yes', onclick: () => { close(); onYes(); } })))));
+  document.body.appendChild(backdrop);
 }
 
 /**
