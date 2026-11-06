@@ -20,6 +20,7 @@ import { findStation } from '../state.js';
 import { MAX_WAITING } from '../constants.js';
 import { getSetting } from '../settings.js';
 import { updateFarmMonthly } from '../farmFields.js';
+import { recessionHalve } from '../recession.js';
 
 /** Days per month used to turn the monthly production figure into a daily target. */
 const DAYS_PER_MONTH = 30;
@@ -171,8 +172,9 @@ export function updateDaily(game, ind) {
     else if (target > ind.dailyProduction[i]) ind.dailyProduction[i]++;
     ind.outputBuffer[i] = u16(ind.dailyProduction[i] + ind.outputBuffer[i]);
     if (ind.outputBuffer[i] >= 8) {
-      const qty = Math.min(Math.floor(ind.outputBuffer[i] / 8), 255);
+      let qty = Math.min(Math.floor(ind.outputBuffer[i] / 8), 255);
       ind.outputBuffer[i] -= qty * 8;
+      qty = recessionHalve(state, qty); // economyRecessions: half the output during a recession (OpenTTD industry_cmd)
       ind.producedMonthly[i] = u16(ind.producedMonthly[i] + qty);
       const delivered = deliverCargoToStations(state, ind.statsStations[i], prod[i], qty, sx, sy);
       ind.deliveredMonthly[i] = u16(ind.deliveredMonthly[i] + delivered);

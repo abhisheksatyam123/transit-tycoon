@@ -14,6 +14,7 @@ import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { isHelicopter } from './airportTypes.js';
+import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
 import { servicePerformed } from './service.js';
@@ -294,7 +295,10 @@ function onPathEnd(ctx, v) {
   const order = currentOrder(v);
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);
-    if (st) { arriveAtStation(ctx, v, st); return; }
+    if (st) {
+      if (v.kind === 'aircraft' && maybeCrashLanding(ctx, v, st)) return; // landing crash: vehicle removed
+      arriveAtStation(ctx, v, st); return;
+    }
   }
   replan(ctx, v);
 }

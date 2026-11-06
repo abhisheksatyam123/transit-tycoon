@@ -21,6 +21,7 @@ import { servingStations, deliverToStations } from '../cargo.js';
 import { buildCoverage } from '../stations.js';
 import { HOUSE_POP } from '../towns.js';
 import { updateDaily as townUpdateDaily } from './townManager.js';
+import { recessionHalve } from '../recession.js';
 
 const TILE_TICKS_PER_MONTH = (30.4 * 96) / 256;
 const REMOVE_AGE = 40;
@@ -78,6 +79,7 @@ function tickHouse(game, cov, i, x, y, b) {
   let pass = 0, mail = 0;
   if (rp < PASS_Q[level]) pass = (rp >> 2) + 1;
   if (rm < MAIL_Q[level]) mail = (rm >> 2) + 1;
+  pass = recessionHalve(state, pass); mail = recessionHalve(state, mail); // economyRecessions (OpenTTD TownGenerateCargo)
   if (!pass && !mail) return;
   town.passengersThisMonth += pass;
   town.mailThisMonth += mail;

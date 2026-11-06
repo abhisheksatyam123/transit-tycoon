@@ -35,6 +35,10 @@ export const DEFAULT_SETTINGS = {
   farmFields: false,
   /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */
   aiCompanies: 0,
+  /** economy recessions (OpenTTD fluct): cargo and passengers halved for ~a year, every 1-3 years. Off by default. */
+  economyRecessions: false,
+  /** plane crashes on landing (OpenTTD plane_crashes): 'off' | 'reduced' | 'normal'. Off by default. */
+  planeCrashes: 'off',
 };
 
 /** Read a setting (state.settings value or the default). */
