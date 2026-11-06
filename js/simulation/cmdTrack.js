@@ -55,7 +55,8 @@ export function planBridges(map, pts) {
  * their surface terrain.
  * @returns {{ok:true,inner:Set<number>,portals:Set<number>}|{ok:false,error:string}}
  */
-export function planTunnel(map, pts) {
+export function planTunnel(map, pts, layer = 'rail') {
+  const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Tunnel needs at least one tile between the portals' };
   const straight = pts.every((p) => p.x === pts[0].x) || pts.every((p) => p.y === pts[0].y);
@@ -66,7 +67,7 @@ export function planTunnel(map, pts) {
   const a = tiles[0], b = tiles[n - 1];
   if (a.height !== b.height) return { ok: false, error: 'Tunnel portals must be at the same height' };
   for (const t of [a, b]) {
-    if (t.terrain === 'water' || t.building || t.road || (t.rail & ~AXIS_BITS[axis])) {
+    if (t.terrain === 'water' || t.building || t[other] || (t[layer] & ~AXIS_BITS[axis])) {
       return { ok: false, error: 'Tunnel portals need a free tile or straight track on the axis' };
     }
   }
@@ -93,8 +94,10 @@ const isPlayerTunnel = (t) => !!(t && t.playerTunnel);
  */
 export function tunnelCells(map, x, y) {
   const t = map.tiles[y * map.width + x];
-  if (!isPlayerTunnel(t) || !t.rail) return [];
-  const axis = straightAxis(t.rail);
+  if (!isPlayerTunnel(t)) return [];
+  const layer = t.rail ? 'rail' : 'road';
+  if (!t[layer]) return [];
+  const axis = straightAxis(t[layer]);
   if (!axis) return [];
   const cells = [{ x, y }];
   for (const d of (axis === 'x' ? [DIRS[3], DIRS[1]] : [DIRS[0], DIRS[2]])) {
@@ -103,7 +106,7 @@ export function tunnelCells(map, x, y) {
       const nx = cx + d.dx, ny = cy + d.dy;
       if (!inBounds(map, nx, ny)) break;
       const nt = map.tiles[ny * map.width + nx];
-      if (!isPlayerTunnel(nt) || !(nt.rail & OPPOSITE[d.bit])) break;
+      if (!isPlayerTunnel(nt) || !(nt[layer] & OPPOSITE[d.bit])) break;
       cells.push({ x: nx, y: ny });
       if (nt.tunnelPortal) break;
       cx = nx; cy = ny;
@@ -123,8 +126,9 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
   if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
+  const layer = opts.layer === 'road' ? 'road' : 'rail';
   const pts = linePath(x0, y0, x1, y1);
-  const plan = planTunnel(map, pts);
+  const plan = planTunnel(map, pts, layer);
   if (!plan.ok) return plan;
   const n = pts.length;
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
@@ -135,10 +139,10 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
     const p = pts[k];
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
-    const err = canAddBits(t, 'rail', bits);
+    const err = canAddBits(t, layer, bits);
     if (err) return { ok: false, error: err };
-    if (plan.inner.has(i)) { cost += COSTS.rail + COSTS.tunnelRail + clearingCost(t); changed++; continue; }
-    if ((t.rail | bits) !== t.rail) { cost += COSTS.rail + clearingCost(t); changed++; }
+    if (plan.inner.has(i)) { cost += COSTS[layer] + COSTS.tunnelRail + clearingCost(t); changed++; continue; }
+    if ((t[layer] | bits) !== t[layer]) { cost += COSTS[layer] + clearingCost(t); changed++; }
   }
   // the outer neighbours of both portals connect to the existing track beyond them, if any
   for (const [p, out] of [[pts[0], -1], [pts[n - 1], 1]]) {
@@ -146,7 +150,7 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
     const nx = p.x + d.dx, ny = p.y + d.dy;
     if (!inBounds(map, nx, ny)) continue;
     const nt = map.tiles[ny * map.width + nx];
-    if (nt.rail && !canAddBits(nt, 'rail', OPPOSITE[d.bit])) outer.push({ x: nx, y: ny, bit: OPPOSITE[d.bit] });
+    if (nt[layer] && !canAddBits(nt, layer, OPPOSITE[d.bit])) outer.push({ x: nx, y: ny, bit: OPPOSITE[d.bit] });
   }
   if (changed === 0) return { ok: false, error: ERR.built };
   cost = constructionTotal(state, cost);
@@ -157,7 +161,7 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
     clearTerrain(t);
-    t.rail |= bits;
+    t[layer] |= bits;
     t.playerTunnel = 1;
     if (plan.inner.has(i)) t.tunnel = 1;
     else { t.tunnelPortal = 1; delete t.tunnel; }
@@ -165,7 +169,7 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
     if (!t.owner) t.owner = 'company';
     pruneOneWay(t);
   }
-  for (const o of outer) map.tiles[o.y * map.width + o.x].rail |= o.bit;
+  for (const o of outer) map.tiles[o.y * map.width + o.x][layer] |= o.bit;
   invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: n };
@@ -228,14 +232,8 @@ export function bridgeCells(map, x, y, layer) {
 export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
-  if (opts.bridge === true) {
-    if (layer !== 'rail') return { ok: false, error: 'Only rail can have valley bridges' };
-    return buildLandBridge(ctx, x0, y0, x1, y1, opts);
-  }
-  if (opts.tunnel === true) {
-    if (layer !== 'rail') return { ok: false, error: 'Only rail can be tunnelled' };
-    return buildTunnel(ctx, x0, y0, x1, y1, opts);
-  }
+  if (opts.bridge === true) return buildLandBridge(ctx, x0, y0, x1, y1, { ...opts, layer });
+  if (opts.tunnel === true) return buildTunnel(ctx, x0, y0, x1, y1, { ...opts, layer });
   const custom = Array.isArray(opts.path) ? opts.path : null;
   const loop = !!(custom && opts.loop === true);
   if (custom) {

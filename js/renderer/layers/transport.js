@@ -93,7 +93,7 @@ export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
  * renderer's object pass (after ground chunks, rails and the smooth-rail net), sy = flat tile centre.
  */
 export function drawTunnelPortal(ctx, tile, sx, sy, c, map, x, y) {
-  const axis = straightAxis(tile.rail) === 'x' ? 'x' : 'y';
+  const axis = straightAxis(tile.rail || tile.road) === 'x' ? 'x' : 'y';
   const [ax, ay] = axis === 'x' ? [1, 0] : [0, 1];
   const inside = (dx, dy) => { const n = map.tiles[(y + dy) * map.width + x + dx]; return !!(n && n.tunnel); };
   const side = inside(ax, ay) ? '+' : inside(-ax, -ay) ? '-' : null;
@@ -136,8 +136,9 @@ function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
   const tunnel = tile.tunnel | 0;
   const sep = tile.gradeSep | 0;
   let rail = tile.rail | 0;
-  const road = tile.road | 0;
+  let road = tile.road | 0;
   if (tunnel) rail = 0; // underground rail: no surface rails, ties or barriers
+  if (tunnel && tile.playerTunnel) road = 0; // underground road run too (player road tunnel)
   const cls = roadClassOf(tile);
   let v = 0;
   if (road && map) {

@@ -4,7 +4,7 @@
  */
 import { HALF_W, HALF_H, HEIGHT_STEP } from '../iso.js';
 import { straightAxis } from '../../simulation/network.js';
-import { railSprite } from './transport.js';
+import { railSprite, roadSprite } from './transport.js';
 import { drawSloped } from '../slope.js';
 
 export function drawLandBridgeDeck(ctx, tile, sx, groundSy, heights, map, x, y) {
@@ -14,7 +14,8 @@ export function drawLandBridgeDeck(ctx, tile, sx, groundSy, heights, map, x, y) 
   const deckSy = (x + y) * HALF_H - h * HEIGHT_STEP;
   const groundY = (x + y) * HALF_H - gh * HEIGHT_STEP;
 
-  const axis = straightAxis(tile.rail) || (tile.rail === 5 ? 'x' : 'y');
+  const onRoad = !tile.rail && !!tile.road; // road bridge: road surface on the deck, same pillars
+  const axis = straightAxis(onRoad ? tile.road : tile.rail) || ((onRoad ? tile.road : tile.rail) === 5 ? 'x' : 'y');
 
   // 1. Pillars down to the ground
   ctx.save();
@@ -55,7 +56,7 @@ export function drawLandBridgeDeck(ctx, tile, sx, groundSy, heights, map, x, y) 
 
   // 3. Rails at height h (flat)
   const c = [h, h, h, h];
-  const s = railSprite(tile.rail);
+  const s = onRoad ? roadSprite(tile.road, 3, 0) : railSprite(tile.rail);
   if (s) {
     drawSloped(ctx, s, sx, (x + y) * HALF_H, c);
   }

@@ -169,6 +169,10 @@ export class Game {
   buildRail(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, opts); }
   /** Player rail tunnel between two portals on a straight line (see cmdTrack buildTunnel). */
   buildTunnel(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }); }
+  /** Player road tunnel (straight, same as rail). */
+  buildRoadTunnel(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }); }
+  /** Player road valley bridge (straight, same as rail). */
+  buildRoadBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
   /** Player rail valley bridge between two heads on a straight line (see cmdTrack buildLandBridge). */
   buildLandBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
   buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}); }

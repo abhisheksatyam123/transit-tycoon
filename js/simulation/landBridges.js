@@ -22,7 +22,8 @@ import { invalidateBlocks } from './signals.js';
  * @param {{x:number,y:number}[]} pts
  * @returns {{ok:true, deck:Set<number>, height:number}|{ok:false, error:string}}
  */
-export function planLandBridge(map, pts) {
+export function planLandBridge(map, pts, layer = 'rail') {
+  const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Bridge needs at least one tile between the heads' };
   const straight = pts.every((p) => p.x === pts[0].x) || pts.every((p) => p.y === pts[0].y);
@@ -42,7 +43,7 @@ export function planLandBridge(map, pts) {
   const h = a.height;
 
   for (const t of [a, b]) {
-    if (t.building || t.road || (t.rail & ~AXIS_BITS[axis])) {
+    if (t.building || t[other] || (t[layer] & ~AXIS_BITS[axis])) {
       return { ok: false, error: 'Bridge heads need a free tile or straight track on the axis' };
     }
   }
@@ -72,10 +73,11 @@ export const isPlayerLandBridge = (t) => !!(t && (t.playerBridge || t.bridgeDeck
  */
 export function landBridgeCells(map, x, y) {
   const t = map.tiles[y * map.width + x];
-  if (!t || !t.rail) return [];
-  if (!isPlayerLandBridge(t)) return [];
+  if (!t || !isPlayerLandBridge(t)) return [];
+  const layer = t.rail ? 'rail' : 'road';
+  if (!t[layer]) return [];
 
-  const axis = straightAxis(t.rail);
+  const axis = straightAxis(t[layer]);
   if (!axis) return [];
   const cells = [{ x, y }];
   const dirs = axis === 'x' ? [DIRS[3], DIRS[1]] : [DIRS[0], DIRS[2]];
@@ -86,7 +88,7 @@ export function landBridgeCells(map, x, y) {
       const nx = cx + d.dx, ny = cy + d.dy;
       if (!inBounds(map, nx, ny)) break;
       const nt = map.tiles[ny * map.width + nx];
-      if (!isPlayerLandBridge(nt) || !(nt.rail & OPPOSITE[d.bit])) break;
+      if (!isPlayerLandBridge(nt) || !(nt[layer] & OPPOSITE[d.bit])) break;
       cells.push({ x: nx, y: ny });
       // If this tile is a head (not a deck tile), we reached the end of the bridge in this direction
       if (nt.bridgeDeck === undefined) break;
@@ -112,7 +114,8 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
   if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
 
   const pts = linePath(x0, y0, x1, y1);
-  const plan = planLandBridge(map, pts);
+  const layer = opts.layer === 'road' ? 'road' : 'rail';
+  const plan = planLandBridge(map, pts, layer);
   if (!plan.ok) return plan;
 
   const n = pts.length;
@@ -126,12 +129,12 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
     if (plan.deck.has(i)) {
-      cost += COSTS.rail + COSTS.bridgeRail + clearingCost(t);
+      cost += COSTS[layer] + (layer === 'road' ? COSTS.bridgeRoad : COSTS.bridgeRail) + clearingCost(t);
       changed++;
       continue;
     }
-    if ((t.rail | bits) !== t.rail) {
-      cost += COSTS.rail + clearingCost(t);
+    if ((t[layer] | bits) !== t[layer]) {
+      cost += COSTS[layer] + clearingCost(t);
       changed++;
     }
   }
@@ -142,7 +145,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     const nx = p.x + d.dx, ny = p.y + d.dy;
     if (!inBounds(map, nx, ny)) continue;
     const nt = map.tiles[ny * map.width + nx];
-    if (nt.rail && !canAddBits(nt, 'rail', OPPOSITE[d.bit])) outer.push({ x: nx, y: ny, bit: OPPOSITE[d.bit] });
+    if (nt[layer] && !canAddBits(nt, layer, OPPOSITE[d.bit])) outer.push({ x: nx, y: ny, bit: OPPOSITE[d.bit] });
   }
 
   if (changed === 0) return { ok: false, error: ERR.built };
@@ -155,7 +158,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
     clearTerrain(t);
-    t.rail |= bits;
+    t[layer] |= bits;
     t.playerBridge = 1;
     if (plan.deck.has(i)) {
       t.bridgeDeck = plan.height;
@@ -164,7 +167,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     if (!t.owner) t.owner = 'company';
     pruneOneWay(t);
   }
-  for (const o of outer) map.tiles[o.y * map.width + o.x].rail |= o.bit;
+  for (const o of outer) map.tiles[o.y * map.width + o.x][layer] |= o.bit;
   invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: n };

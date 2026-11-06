@@ -30,7 +30,7 @@ export function canAddBits(tile, layer, bits, deck = false) {
   if (tile.terrain === 'water' && !deck) return ERR.water;
   // a tunnel's underground run takes no surface track; a portal only continues along its own axis
   if (tile.playerTunnel && tile.tunnel && bits) return ERR.tunnel;
-  if (tile.playerTunnel && tile.tunnelPortal && (bits & ~AXIS_BITS[straightAxis(tile.rail) || 'x'])) return ERR.tunnel;
+  if (tile.playerTunnel && tile.tunnelPortal && (bits & ~AXIS_BITS[straightAxis(tile.rail | tile.road) || 'x'])) return ERR.tunnel;
   if (deck && tile.terrain !== 'water') return ERR.water;
   const b = tile.building;
   if (b) {

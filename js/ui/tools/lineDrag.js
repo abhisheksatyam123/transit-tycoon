@@ -29,7 +29,7 @@ export function createLineTool(app, o) {
   let lastKey = '';
   let shape = 'L';
   let highway = false;
-  let railMode = 'normal'; // rail only: U cycles normal -> tunnel -> bridge -> normal
+  let railMode = 'normal'; // rail and road: U cycles normal -> tunnel -> bridge -> normal
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
@@ -67,21 +67,21 @@ export function createLineTool(app, o) {
     get hint() {
       const base = (typeof o.hint === 'function' ? o.hint() : o.hint)
         + (o.layer ? ` Shape: ${SHAPES.map((k) => (k === shape ? `[${SHAPE_LABEL[k]}]` : SHAPE_LABEL[k])).join(' | ')} (C cycles).` : '');
-      if (o.layer === 'rail') {
-        const modeLabel = railMode === 'tunnel' ? '[Tunnel]' : railMode === 'bridge' ? '[Bridge]' : 'Surface';
-        return base + ` Mode: ${modeLabel} (U cycles).`;
-      }
-      return o.layer === 'road' ? base + ` Class: ${highway ? '[Highway — 4-lane]' : 'Local'} (H toggles).` : base;
+      const mode = o.layer === 'rail' || o.layer === 'road'
+        ? ` Mode: ${railMode === 'tunnel' ? '[Tunnel]' : railMode === 'bridge' ? '[Bridge]' : 'Surface'} (U cycles).`
+        : '';
+      const cls = o.layer === 'road' ? ` Class: ${highway ? '[Highway — 4-lane]' : 'Local'} (H toggles).` : '';
+      return base + mode + cls;
     },
     key(e) {
       if (!o.layer) return false;
-      if (o.layer === 'rail' && (e.key === 'u' || e.key === 'U')) {
+      if ((o.layer === 'rail' || o.layer === 'road') && (e.key === 'u' || e.key === 'U')) {
         railMode = railMode === 'normal' ? 'tunnel' : railMode === 'tunnel' ? 'bridge' : 'normal';
         lastKey = '';
         if (start) preview(start);
         app.ui?.updateHint?.();
         const desc = railMode === 'tunnel' ? 'tunnel (underground)' : railMode === 'bridge' ? 'bridge (over valley)' : 'surface';
-        app.toast?.(`Rail: ${desc}`, 'info');
+        app.toast?.(`${o.layer === 'road' ? 'Road' : 'Rail'}: ${desc}`, 'info');
         return true;
       }
       if (o.layer === 'road' && (e.key === 'h' || e.key === 'H')) {

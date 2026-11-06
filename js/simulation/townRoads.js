@@ -54,7 +54,8 @@ function stepCost(t, prev) {
 
 /** True if a road may pass through this tile. */
 function passable(t) {
-  return t.terrain !== 'water' && !t.building && !t.rail;
+  // player tunnel runs and bridge decks are not open ground: towns never pave through them
+  return t.terrain !== 'water' && !t.building && !t.rail && !t.playerTunnel && !t.playerBridge && t.bridgeDeck === undefined;
 }
 
 /** Extra cost of a 90 degree turn: long straight legs are preferred. */
