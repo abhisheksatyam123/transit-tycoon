@@ -43,7 +43,17 @@ export const EXTRA_INDUSTRY_TYPES = [
 export const EXTRA_TOWN_RADIUS = 16;
 
 /** Lookup by id (default and extra types). */
-export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES].map((t) => [t.id, t]));
+/**
+ * TP tropic-only industries (OpenTTD sub-tropical IT_WATER_SUPPLY, IT_WATER_TOWER). Placed only by the tropic mapgen
+ * (placeTropicIndustries, isTropic); never by monthly creation. Water supply: 2x2 primary producer of WATER, placed in
+ * the open countryside (extraRural rule). Water tower: 1x1 industry built inside a town, accepts WATER.
+ */
+export const TROPIC_INDUSTRY_TYPES = [
+  { id: 'water_supply', name: 'Water Supply', w: 2, h: 2, produces: ['WATER'], accepts: [], converts: {}, production: { WATER: 90 }, color: '#0ea5e9', totalOfType: 2, monthlyClosureChance: 40, placement: 'extraRural', extraCount: 2 },
+  { id: 'water_tower', name: 'Water Tower', w: 1, h: 1, produces: [], accepts: ['WATER'], converts: {}, production: {}, color: '#38bdf8', totalOfType: 2, monthlyClosureChance: 0, placement: 'inTown', minTownPop: 0, extraCount: 1 },
+];
+
+export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES, ...TROPIC_INDUSTRY_TYPES].map((t) => [t.id, t]));
 
 /** Fraction of delivered input converted into output units. */
 export const CONVERSION_RATIO = 0.8;

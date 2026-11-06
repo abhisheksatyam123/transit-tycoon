@@ -1,7 +1,7 @@
 /**
  * Industry placement and monthly production / processing.
  */
-import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
+import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, TROPIC_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
 import { allocId, manhattan } from './state.js';
 import { getSetting } from './settings.js';
 import { plantInitialFields } from './farmFields.js';
@@ -113,6 +113,30 @@ export function placeChainIndustries(state, rng) {
  * @param {number} y top-left y
  * @returns {object} industry record
  */
+/**
+ * TP tropic mapgen: water supplies in the countryside (extraCount) and one water tower in each town (1x1 inside the
+ * town radius). Uses game rng only in tropic games (called only from game.create when isTropic).
+ */
+export function placeTropicIndustries(state, rng) {
+  const water = TROPIC_INDUSTRY_TYPES.find((t) => t.id === 'water_supply');
+  for (let n = 0; n < water.extraCount; n++) {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const x = rng.int(2, state.map.width - water.w - 3);
+      const y = rng.int(2, state.map.height - water.h - 3);
+      if (canPlaceIndustry(state, water, x, y)) { placeIndustry(state, water.id, x, y); break; }
+    }
+  }
+  const tower = TROPIC_INDUSTRY_TYPES.find((t) => t.id === 'water_tower');
+  for (const town of state.towns.slice()) {
+    if (state.industries.some((i) => i.typeId === tower.id && manhattan(i.x, i.y, town.x, town.y) <= EXTRA_TOWN_RADIUS)) continue;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+      const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+      if (canPlaceIndustry(state, tower, x, y)) { placeIndustry(state, tower.id, x, y); break; }
+    }
+  }
+}
+
 export function placeIndustry(state, typeId, x, y) {
   const type = INDUSTRY_BY_ID[typeId];
   if (!type) throw new Error(`Unknown industry type ${typeId}`);

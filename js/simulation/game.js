@@ -1,3 +1,4 @@
+import { isTropic } from './climate.js';
 /**
  * Game: composes the simulation modules. Owns `state` (plain JSON), the seeded RNG,
  * the event emitter, the tick loop, commands and queries. No DOM access.
@@ -7,7 +8,7 @@ import { Emitter } from './events.js';
 import { createRng, hashSeed } from './rng.js';
 import { createMap, generateTerrain, getTile, inBounds, DENSITY } from './map.js';
 import { generateTowns } from './towns.js';
-import { generateIndustries, placeExtraIndustries } from './industries.js';
+import { generateIndustries, placeExtraIndustries, placeTropicIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
 import { isEditor, playScenario } from './scenarioEditor.js';
@@ -157,6 +158,7 @@ export class Game {
     generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
     generateIndustries(state, game.rng, Math.round(o.industryCount * indMul));
     if (getSetting(state, 'extraIndustries')) placeExtraIndustries(state, game.rng); // T29 opt-in banks
+    if (isTropic(state)) placeTropicIndustries(state, game.rng); // TP water supplies and water towers (tropic only)
     connectTowns(state);
     repairTownRoads(state);
     industriesMonthStart(state, game.rng);

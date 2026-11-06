@@ -69,6 +69,8 @@ describe('tropic growth rule (FOOD)', () => {
     expect(tropicZoneAt(m, 2, 4)).toBe(1);
     expect(tropicGrowthAllowed(state, town)).toBe(false);
     town.foodLastMonth = 10;
+    expect(tropicGrowthAllowed(state, town)).toBe(false); // TP: WATER is needed too
+    town.waterLastMonth = 10;
     expect(tropicGrowthAllowed(state, town)).toBe(true);
     // rainforest town: free
     const s2 = { mapgen: { climate: 'tropic' }, map: m };

@@ -55,6 +55,9 @@ export const TRAM_VEHICLE_MODELS = [
  */
 export const EXTRA_VEHICLE_MODELS = [
   { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
+  // TP: sub-tropical water tanker (road) and water tanker wagon (rail), offered only in tropic games (modelAvailable)
+  { id: 'trk_water', name: 'Water Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4500, running: 900, reliability: 0.82, cargos: ['WATER'], optIn: 'tropic', news: false },
+  { id: 'wag_water', name: 'Water Tanker Wagon', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 1, cargos: ['WATER'], optIn: 'tropic', news: false },
   // T-IN: chain vehicles, offered only when extraIndustries is on (modelAvailable)
   { id: 'wag_stone', name: 'Stone Hopper', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1000, running: 120, reliability: 1, cargos: ['STON', 'BMAT'], optIn: 'extraIndustries', news: false },
   { id: 'wag_crate', name: 'Food & Paper Van', kind: 'wagon', introYear: 1900, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 1, cargos: ['FOOD', 'PAPR'], optIn: 'extraIndustries', news: false },

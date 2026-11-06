@@ -5,6 +5,21 @@
  */
 import { blitPack } from './draw.js';
 import { INDUSTRY_LAYOUTS, INDUSTRY_GFX } from './ottd_tables.js';
+
+/**
+ * TP sub-tropical water industries (OpenTTD IT_WATER_TOWER / IT_WATER_SUPPLY). Layout gfx ids 900..903 are our own
+ * entries (not OpenTTD ids): ground 2022 under the OpenGFX water tower (atlas 2344) and pumping station (atlas 2347).
+ */
+const TP_GFX = {
+  900: [2022, 2344, 0, 0], // water tower (1x1)
+  901: [2022, 2347, 0, 0], // pumping station, water supply top-left
+  902: [2022, 0, 0, 0], // ground under the rest of the water supply
+};
+const TP_LAYOUTS = {
+  water_tower: [[[0, 0, 900]]],
+  water_supply: [[[0, 0, 901], [0, 1, 902], [1, 0, 902], [1, 1, 901]]],
+};
+const GFX = { ...INDUSTRY_GFX, ...TP_GFX };
 import { subtileOffset } from './subtile.js';
 
 /** Concrete ground drawn where a layout has no entry (OpenTTD SPR_CONCRETE_GROUND). */
@@ -30,6 +45,8 @@ export const INDUSTRY_OTTD = {
   bank: 'bank',
   quarry: 'coal_mine',
   paper_mill: 'paper_mill',
+  water_tower: 'water_tower',
+  water_supply: 'water_supply',
   printing_works: 'printing_works',
   food_plant: 'food_plant',
 };
@@ -58,7 +75,7 @@ export function industryLayout(typeId, w, h, id) {
   const key = typeId + '|' + w + 'x' + h + '|' + id;
   let m = memo.get(key);
   if (m !== undefined) return m;
-  const fam = INDUSTRY_LAYOUTS[INDUSTRY_OTTD[typeId]] || [];
+  const fam = INDUSTRY_LAYOUTS[INDUSTRY_OTTD[typeId]] || TP_LAYOUTS[typeId] || [];
   // Exact footprint only: OpenTTD X extent must be our h, Y extent our w. No same-size layout -> null (procedural).
   const fits = (v) => Math.max(...v.map((e) => e[0] + 1)) === h && Math.max(...v.map((e) => e[1] + 1)) === w;
   let exact = fam.filter(fits);
@@ -86,7 +103,7 @@ export function drawOgfxIndustryTile(ctx, ind, x, y, topX, topY) {
   if (!layout) return false;
   const gfx = layout.get(dx + ',' + dy);
   if (gfx === undefined) { blitPack(ctx, SPR_CONCRETE_GROUND, topX, topY); return true; }
-  const pair = INDUSTRY_GFX[gfx];
+  const pair = GFX[gfx];
   if (!pair) { blitPack(ctx, SPR_CONCRETE_GROUND, topX, topY); return true; }
   if (pair[0]) blitPack(ctx, pair[0], topX, topY);
   if (pair[1]) {

@@ -135,9 +135,8 @@ export function tropicZoneAt(map, x, y) {
 }
 
 /**
- * Sub-tropical town growth rule (OpenTTD town_cmd.cpp: a town in the desert needs FOOD and WATER to grow). WATER is not
- * a cargo in this game, so only the FOOD half applies: a town centred in the desert grows only if it received FOOD last
- * month. Towns outside the desert, and every town in other climates, always may grow.
+ * Sub-tropical town growth rule (OpenTTD town_cmd.cpp: a town in the desert needs FOOD and WATER to grow). WATER (TP) is
+ * the second half: a town centred in the desert grows only if it received FOOD and WATER last month. Towns outside the desert, and every town in other climates, always may grow.
  * @param {any} state
  * @param {{x:number,y:number,foodLastMonth?:number}} town
  * @returns {boolean}
@@ -145,5 +144,5 @@ export function tropicZoneAt(map, x, y) {
 export function tropicGrowthAllowed(state, town) {
   if (!isTropic(state) || !town) return true;
   if (tropicZoneAt(state.map, town.x, town.y) !== 1) return true;
-  return (town.foodLastMonth || 0) > 0;
+  return (town.foodLastMonth || 0) > 0 && (town.waterLastMonth || 0) > 0;
 }

@@ -23,6 +23,9 @@ export function rollTownStats(state, town) {
   // lazy food counter (sub-arctic only): last month's food delivered, dropped when none
   if (town.foodThisMonth !== undefined) { town.foodLastMonth = town.foodThisMonth; delete town.foodThisMonth; }
   else if (town.foodLastMonth !== undefined) delete town.foodLastMonth;
+  // TP tropic: water delivered this month (desert growth needs WATER too); lazy like the food counter
+  if (town.waterThisMonth !== undefined) { town.waterLastMonth = town.waterThisMonth; delete town.waterThisMonth; }
+  else if (town.waterLastMonth !== undefined) delete town.waterLastMonth;
   const before = town.population;
   recomputePopulation(state, town);
   for (const m of MILESTONES) {
@@ -40,4 +43,5 @@ export function recordTownDelivery(town, cargoId, amount, state = null) {
   else if (cargoId === 'PASS' || cargoId === 'MAIL') town.deliveredPassThisMonth += amount;
   // sub-arctic (opt-in): food delivered this month is kept for the snow-line growth rule (climate.js); lazy field
   if (cargoId === 'FOOD' && (isArctic(state) || isTropic(state))) town.foodThisMonth = (town.foodThisMonth || 0) + amount;
+  if (cargoId === 'WATER' && isTropic(state)) town.waterThisMonth = (town.waterThisMonth || 0) + amount;
 }

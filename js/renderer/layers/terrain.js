@@ -61,8 +61,8 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     return;
   }
-  // sub-tropical (opt-in, pack/tropic.js): OpenTTD desert ground in the desert zone (and on desert terrain)
-  if (tropicActive(packState.enabled) && (k === 2 || (k === 0 && tropicZoneAt(map, x, y) === 1)) && !flowing && drawTropicDesert(ctx, sx, sy, c, hash)) {
+  // sub-tropical (opt-in, pack/tropic.js): OpenTTD desert ground in the desert zone (and on desert terrain); trees (cacti) in the desert zone stand on sand too
+  if (tropicActive(packState.enabled) && (k === 2 || ((k === 0 || k === 1) && tropicZoneAt(map, x, y) === 1)) && !flowing && drawTropicDesert(ctx, sx, sy, c, hash)) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     return;
   }

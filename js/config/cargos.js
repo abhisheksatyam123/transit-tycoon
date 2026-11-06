@@ -20,6 +20,8 @@ export const CARGOS = [
   { id: 'BMAT', name: 'Building Materials', color: '#b45f3c', basePay: 0.8, days1: 14, days2: 60, unit: 'tonnes' },
   { id: 'PAPR', name: 'Paper', color: '#e7e5e4', basePay: 0.75, days1: 12, days2: 50, unit: 'tonnes' },
   { id: 'FOOD', name: 'Food', color: '#f97316', basePay: 1.0, days1: 4, days2: 30, unit: 'tonnes' },
+  // TP: sub-tropical WATER (OpenTTD CT_WATER); only tropic games place water industries or water vehicles.
+  { id: 'WATER', name: 'Water', color: '#38bdf8', basePay: 0.9, days1: 12, days2: 40, unit: 'kilolitres' },
 ];
 
 /** Cargo lookup by id. */

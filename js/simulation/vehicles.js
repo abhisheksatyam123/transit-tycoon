@@ -4,6 +4,7 @@
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { getSetting } from './settings.js';
+import { isTropic } from './climate.js';
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
@@ -25,6 +26,7 @@ export function modelAvailable(state, model) {
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
+  if (model.optIn === 'tropic') return isTropic(state); // TP sub-tropical water tankers
   if (model.optIn === 'extraIndustries') return !!state && getSetting(state, 'extraIndustries') === true; // T-IN chain vehicles
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));

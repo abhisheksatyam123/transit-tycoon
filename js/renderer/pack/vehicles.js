@@ -95,6 +95,7 @@ export const WAGON_IMG = {
   wag_flat: 42,
   wag_stone: 34,
   wag_crate: 38,
+  wag_water: 36,
 };
 /** Wagon image index per cargo when the model is unknown. */
 export const CARGO_WAGON = {
@@ -125,6 +126,7 @@ export const ROAD_IMG = {
   trk_heavy: 10,
   trk_stone: 18,
   trk_food: 5,
+  trk_water: 3,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
 export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];
