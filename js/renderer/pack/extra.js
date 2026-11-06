@@ -67,7 +67,11 @@ export function drawCanalPack(ctx, map, x, y, sx, sy, c, lock) {
     if (!has('locks.' + rear) || !has('locks.' + (rear + 4))) return false;
     blitExtra(ctx, 'canal_water.' + water, sx, sy, c);
     blitExtra(ctx, 'locks.' + rear, sx, sy, c);
-    blitExtra(ctx, 'locks.' + (rear + 4), sx, sy, c);
+    // front wall: OTTD DrawTileSeqStruct dx/dy (water_land.h): (0,15) on NE/SW, (15,0) on SE/NW. RemapCoords
+    // per 1/16 tile: px = 2*(dy-dx), py = dx+dy (dz 0); one tile = 64 px wide, so 16 units = 32 px half-width.
+    const [fdx, fdy] = dirName === 'NE' || dirName === 'SW' ? [0, 15] : [15, 0];
+    const fx = 2 * (fdy - fdx), fy = fdx + fdy;
+    blitExtra(ctx, 'locks.' + (rear + 4), sx + fx, sy + fy, c);
     return true;
   }
   if (!flat(c)) return false; // a sloped canal tile is not drawn by OpenTTD's canal code (water is flat)
