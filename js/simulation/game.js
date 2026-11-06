@@ -75,6 +75,15 @@ function applyOptions(game, o) {
   if (obj && obj.type && obj.type !== 'none') st.objective = createObjective(st, obj);
 }
 
+/** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness). */
+const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', smoothness: 'normal' };
+export function mapgenOptions(src) {
+  const out = {};
+  if (!src || typeof src !== 'object') return out;
+  for (const k of Object.keys(MAPGEN_DEFAULTS)) if (src[k] !== undefined && src[k] !== MAPGEN_DEFAULTS[k]) out[k] = src[k];
+  return out;
+}
+
 export class Game {
   /**
    * @param {object} state complete game state
@@ -109,7 +118,10 @@ export class Game {
     }
     // T29 opt-in settings must be set before generation (they change what the generator places)
     for (const k of ['extraIndustries', 'farmFields']) if (o.settings && o.settings[k]) setSetting(state, k, true);
-    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio });
+    // T34 map generator options: stored only when non-default so default saves are unchanged
+    const mg = mapgenOptions(o.mapgen);
+    if (Object.keys(mg).length) state.mapgen = mg;
+    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
     generateTowns(state, game.rng, o.townCount);
     generateIndustries(state, game.rng, o.industryCount);
     if (getSetting(state, 'extraIndustries')) placeExtraIndustries(state, game.rng); // T29 opt-in banks

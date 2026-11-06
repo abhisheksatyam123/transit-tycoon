@@ -89,16 +89,33 @@ function fbm(rng, width, height, baseCell, octaves) {
   };
 }
 
+/** Sea level presets (fraction of tiles below sea level); 'none' = no sea. Medium is the historic default. */
+export const SEA_LEVELS = { none: 0, low: 0.1, medium: 0.18, high: 0.3 };
+/** Height scale per terrain type (OpenTTD terrain_type): flat maps stay at 0..2, mountainous uses the full range. */
+export const TERRAIN_SCALE = { flat: 0.3, hilly: 0.7, normal: 1, mountainous: 1 };
+/** Elevation fbm lattice per smoothness setting (base cell, octaves); 'normal' is the historic default. */
+export const SMOOTHNESS = { smooth: [32, 3], normal: [24, 4], rough: [16, 5] };
+/** Number of rivers to aim for (attempts are capped in carveRivers). */
+export const RIVER_COUNTS = { none: 0, few: 2, many: 6 };
+
 /**
- * Generate terrain in place: heights 0..7, water (sea/lakes), forests, desert, rock, snow.
+ * Generate terrain in place: heights 0..7, water (sea/lakes/rivers), forests, desert, rock, snow.
+ * Options (all default to today's map; default draws are identical to the historic generator):
+ * - waterRatio: explicit sea fraction (overrides seaLevel)
+ * - seaLevel: 'none' | 'low' | 'medium' | 'high'
+ * - terrain: 'flat' | 'normal' | 'hilly' | 'mountainous'
+ * - smoothness: 'smooth' | 'normal' | 'rough'
+ * - rivers: 'none' | 'few' | 'many' (extra RNG draws only when not 'none')
  * @param {object} map
  * @param {object} rng
- * @param {{waterRatio?:number}} [opts]
+ * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string}} [opts]
  */
 export function generateTerrain(map, rng, opts = {}) {
   const { width, height, tiles } = map;
-  const waterRatio = opts.waterRatio ?? 0.18;
-  const elev = fbm(rng, width, height, 24, 4);
+  const waterRatio = opts.waterRatio ?? SEA_LEVELS[opts.seaLevel ?? 'medium'] ?? SEA_LEVELS.medium;
+  const scale = TERRAIN_SCALE[opts.terrain ?? 'normal'] ?? 1;
+  const [eBase, eOct] = SMOOTHNESS[opts.smoothness ?? 'normal'] ?? SMOOTHNESS.normal;
+  const elev = fbm(rng, width, height, eBase, eOct);
   const forest = fbm(rng, width, height, 12, 3);
   const dry = fbm(rng, width, height, 20, 2);
   const values = new Float64Array(width * height);
@@ -106,15 +123,24 @@ export function generateTerrain(map, rng, opts = {}) {
     for (let x = 0; x < width; x++) values[y * width + x] = elev(x, y);
   }
   const sorted = Array.from(values).sort((a, b) => a - b);
-  const sea = sorted[Math.floor(sorted.length * waterRatio)];
+  const noSea = waterRatio <= 0;
+  const sea = noSea ? sorted[0] : sorted[Math.floor(sorted.length * waterRatio)]; // no sea: heights span from the lowest point
   const top = sorted[sorted.length - 1];
+  const mountainous = (opts.terrain === 'mountainous');
   for (let i = 0; i < tiles.length; i++) {
     const t = tiles[i];
     const v = values[i];
-    if (v < sea) { t.terrain = 'water'; t.height = 0; continue; }
-    t.height = Math.min(7, Math.floor(((v - sea) / Math.max(1e-9, top - sea)) * 8));
+    if (!noSea && v < sea) { t.terrain = 'water'; t.height = 0; continue; }
+    let n = (v - sea) / Math.max(1e-9, top - sea);
+    if (mountainous) n = Math.pow(n, 0.6); // more peaks, full range
+    t.height = Math.min(7, Math.floor((n * scale) * 8));
   }
   limitSlopes(map);
+  const riverTarget = RIVER_COUNTS[opts.rivers ?? 'none'] ?? 0;
+  if (riverTarget > 0) {
+    carveRivers(map, rng, riverTarget);
+    limitSlopes(map); // river banks drop to within one level of the water
+  }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const t = tiles[y * width + x];
@@ -126,6 +152,63 @@ export function generateTerrain(map, rng, opts = {}) {
       else t.terrain = 'grass';
     }
   }
+}
+
+/**
+ * Rivers (OpenTTD-style): start on high land, follow the lowest unvisited neighbour that is not higher
+ * than the current tile, and stop at water, the map edge, or a basin (a local minimum that becomes a
+ * small lake, as in OpenTTD). Tiles become 1-wide water at height 0. Deterministic apart from the source picks.
+ */
+function carveRivers(map, rng, target) {
+  const { width, height, tiles } = map;
+  let maxH = 0;
+  for (const t of tiles) if (t.terrain !== 'water' && t.height > maxH) maxH = t.height;
+  const thr = Math.max(1, maxH - 2);
+  const sources = [];
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const t = tiles[y * width + x];
+      if (t.terrain !== 'water' && t.height >= thr) sources.push(y * width + x);
+    }
+  }
+  if (!sources.length) return;
+  let made = 0;
+  for (let attempt = 0; attempt < 400 && made < target; attempt++) {
+    const path = tracePath(map, sources[Math.floor(rng.next() * sources.length)]);
+    if (!path) continue;
+    for (let i of path) {
+      if (i < 0) i = -1 - i; // lake end: basin tile
+      tiles[i].terrain = 'water'; tiles[i].height = 0;
+    }
+    made++;
+  }
+}
+
+/** Downhill path from a source index to water or the map edge; null when it gets stuck. */
+function tracePath(map, start) {
+  const { width, height, tiles } = map;
+  const visited = new Set([start]);
+  const path = [start];
+  let cur = start;
+  for (let step = 0; step < 600; step++) {
+    const cx = cur % width, cy = (cur - cx) / width;
+    if (cx === 0 || cy === 0 || cx === width - 1 || cy === height - 1) return path;
+    let best = -1, bestH = Infinity;
+    for (const d of DIRS) {
+      const nx = cx + d.dx, ny = cy + d.dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const ni = ny * width + nx;
+      const nt = tiles[ni];
+      if (nt.terrain === 'water' && !visited.has(ni)) return path; // joins existing water
+      if (visited.has(ni) || nt.height > tiles[cur].height) continue;
+      if (nt.height < bestH) { bestH = nt.height; best = ni; }
+    }
+    if (best < 0) { path.push(-1 - cur); return path; } // basin: the river ends in a lake (marked -1-index)
+    visited.add(best);
+    path.push(best);
+    cur = best;
+  }
+  return null;
 }
 
 /** Lower tiles so that 4-neighbours differ by at most 1 height level. */
