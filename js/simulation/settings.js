@@ -25,6 +25,10 @@ export const DEFAULT_SETTINGS = {
   treeGrowth: false,
   /** gradients: uphill slopes slow ground vehicles (weight * steepness), downhill gives a small bonus (vehicleMotion.gradeMph). Off by default: changes deterministic results. */
   gradients: false,
+  /** T29 OpenTTD temperate bank (produces/accepts Valuables) placed in towns of 1200+ people by the map generator. Off by default. */
+  extraIndustries: false,
+  /** T29 OpenLoco farm fields: farms plant field tiles around themselves and production scales with them. Off by default. */
+  farmFields: false,
 };
 
 /** Read a setting (state.settings value or the default). */

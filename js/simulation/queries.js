@@ -2,6 +2,7 @@
  * Read-only queries used by the UI: tile descriptions, nearby stations, model lists.
  */
 import { CARGO_BY_ID } from '../config/cargos.js';
+import { modelAvailable } from './vehicles.js';
 import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
 import { describeBits } from './network.js';
 import { findDepot, findIndustry, findStation, findTown } from './state.js';
@@ -21,7 +22,7 @@ const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], 
 export function listModels(state, kind) {
   const kinds = KIND_ALIASES[kind] || [kind];
   // copies carrying the inflation-adjusted price / yearly running cost (what buying now would charge)
-  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year))
+  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year) && modelAvailable(state, m))
     .map((m) => ({ ...m, cost: vehiclePrice(state, m), running: runningCost(state, m.running) }));
 }
 

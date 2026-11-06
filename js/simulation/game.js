@@ -7,7 +7,7 @@ import { Emitter } from './events.js';
 import { createRng, hashSeed } from './rng.js';
 import { createMap, generateTerrain, getTile, inBounds } from './map.js';
 import { generateTowns } from './towns.js';
-import { generateIndustries } from './industries.js';
+import { generateIndustries, placeExtraIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
@@ -16,6 +16,7 @@ import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { buildSignal, removeSignal } from './signals.js';
+import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { toggleOneWay } from './cmdOneWay.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
@@ -32,8 +33,7 @@ import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
 import { initGoals, goalSnapshot } from './goals.js';
 import { tick as locoTick } from './loco/gameLoop.js';
-import { setSetting, DEFAULT_SETTINGS } from './settings.js';
-import { cycleSignalType, flipSignal } from './pathSignals.js';
+import { setSetting, getSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setAutoreplace } from './autoreplace.js';
@@ -107,9 +107,12 @@ export class Game {
       applyOptions(game, o);
       return game;
     }
+    // T29 opt-in settings must be set before generation (they change what the generator places)
+    for (const k of ['extraIndustries', 'farmFields']) if (o.settings && o.settings[k]) setSetting(state, k, true);
     generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio });
     generateTowns(state, game.rng, o.townCount);
     generateIndustries(state, game.rng, o.industryCount);
+    if (getSetting(state, 'extraIndustries')) placeExtraIndustries(state, game.rng); // T29 opt-in banks
     connectTowns(state);
     repairTownRoads(state);
     industriesMonthStart(state, game.rng);

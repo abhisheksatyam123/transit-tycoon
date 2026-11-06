@@ -2,6 +2,8 @@
  * Vehicle creation and visual segments (locomotive + trailing wagons).
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
+import { INDUSTRY_BY_ID } from '../config/industries.js';
+import { getSetting } from './settings.js';
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
@@ -13,6 +15,16 @@ import { defaultServiceFields } from './service.js';
  */
 export function purchasable(model, year) {
   return !!model && model.introYear <= year && !(model.obsoleteYear <= year);
+}
+
+/**
+ * T29: opt-in models (config EXTRA_VEHICLE_MODELS, optIn) are offered only when a valuables source exists
+ * (a bank on the map, or the extraIndustries setting). Default games never see them.
+ */
+export function modelAvailable(state, model) {
+  if (!model || !model.optIn) return true;
+  if (getSetting(state, 'extraIndustries')) return true;
+  return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
 }
 
 /** Display prefix per vehicle class. */

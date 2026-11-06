@@ -12,6 +12,7 @@
  * the RNG call is kept, the result is too.
  */
 import { INDUSTRY_TYPES, INDUSTRY_BY_ID } from '../../config/industries.js';
+import { clearFarmFields } from '../farmFields.js';
 import { canPlaceIndustry, placeIndustry } from '../industries.js';
 import { notify } from '../news.js';
 import { recomputeAllAcceptance } from '../stations.js';
@@ -152,6 +153,7 @@ function tryCreateNewIndustriesMonthly(game) {
 /** RemoveIndustry: clear the footprint and drop the record. */
 export function removeIndustry(game, ind) {
   const s = game.state, m = s.map;
+  clearFarmFields(s, ind); // T29: fields of a closed farm are removed (no-op when none)
   for (let y = ind.y; y < ind.y + ind.h; y++) {
     for (let x = ind.x; x < ind.x + ind.w; x++) {
       const t = m.tiles[y * m.width + x];

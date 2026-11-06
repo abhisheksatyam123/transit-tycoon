@@ -4,7 +4,8 @@
  */
 import { el } from '../dom.js';
 import { money } from '../format.js';
-import { INDUSTRY_TYPES } from '../../config/industries.js';
+import { INDUSTRY_TYPES, EXTRA_INDUSTRY_TYPES } from '../../config/industries.js';
+import { bankAvailable } from '../../simulation/industries.js';
 
 /** @param {import('../app.js').App} app */
 export function openFundIndustry(app) {
@@ -16,7 +17,9 @@ export function openFundIndustry(app) {
       body.append(list);
       const hint = el('div.muted', { text: 'Choose a type, then click a site on the map (flat land, 8+ tiles from towns).' });
       body.prepend(hint);
-      for (const type of INDUSTRY_TYPES) {
+      // T29: the bank (OpenTTD temperate) is offered only when a town of 1200+ people exists
+      const extra = bankAvailable(app.game.state) ? EXTRA_INDUSTRY_TYPES : [];
+      for (const type of [...INDUSTRY_TYPES, ...extra]) {
         const price = app.game.estimateFound('industry', 0, 0, type.id).cost;
         list.append(el('button.list-row', {
           type: 'button', title: `${type.name}: ${type.w}x${type.h} tiles`,

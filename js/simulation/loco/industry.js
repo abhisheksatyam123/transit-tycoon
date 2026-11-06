@@ -18,6 +18,8 @@ import { INDUSTRY_BY_ID, CONVERSION_RATIO } from '../../config/industries.js';
 import { addWaiting } from '../stations.js';
 import { findStation } from '../state.js';
 import { MAX_WAITING } from '../constants.js';
+import { getSetting } from '../settings.js';
+import { updateFarmMonthly } from '../farmFields.js';
 
 /** Days per month used to turn the monthly production figure into a daily target. */
 const DAYS_PER_MONTH = 30;
@@ -216,6 +218,7 @@ export function updateMonthly(game, ind, notify) {
   const type = INDUSTRY_BY_ID[ind.typeId];
   if (ind.closingDown && ind.dailyProduction[0] === 0 && ind.dailyProduction[1] === 0) return 'remove';
   let hasEvent = false;
+  if (getSetting(state, 'farmFields')) updateFarmMonthly(game, ind); // T29 opt-in: fields grow, productionRate follows
   const primary = requiredCargos(type).length === 0;
   const at = (text, kind) => notify && notify(text, kind, ind.x + (ind.w >> 1), ind.y + (ind.h >> 1));
   if (!ind.closingDown && primary) {

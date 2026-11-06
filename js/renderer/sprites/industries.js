@@ -27,6 +27,7 @@ export function industryStyle(typeId) {
   if (s.includes('iron') || s.includes('ore')) return 'iron';
   if (s.includes('steel')) return 'steel';
   if (s.includes('factory')) return 'factory';
+  if (s.includes('bank')) return 'bank';
   return 'factory';
 }
 
@@ -42,12 +43,13 @@ const LAYOUT = {
   factory: ['factory', 'chimney', 'factory', 'yard'],
   iron: ['headframe', 'oreheap', 'shed', 'oreheap'],
   steel: ['blast', 'hall', 'chimney', 'oreyard'],
+  bank: ['hall', 'hall'],
 };
 
 /** Ground tint per style. */
 const GROUND = {
   coal: '#5d5a52', power: '#8c8c86', forest: '#4a7a2e', sawmill: '#8a7a5a', oil: '#a39b7a',
-  refinery: '#8c8c86', farm: '#7aa04a', factory: '#8e8e88', iron: '#7a6458', steel: '#7d7a76',
+  refinery: '#8c8c86', farm: '#7aa04a', factory: '#8e8e88', iron: '#7a6458', steel: '#7d7a76', bank: '#9a9a92',
 };
 
 /** Pieces that emit smoke: offsets (u,v,z) relative to tile centre. */
@@ -279,6 +281,18 @@ export function industryPiece(style, dx, dy, w) {
   const layout = LAYOUT[style] || LAYOUT.factory;
   const i = dy * Math.max(1, w) + dx;
   return layout[((i % layout.length) + layout.length) % layout.length];
+}
+
+/** T29 farm field tile: ploughed furrows on a green ground (procedural; OpenGFX has no field tile in our pack). */
+export function fieldSprite(variant) {
+  return cache.get(`field:${variant % 3}`, () => makeSprite(TILE_W, TILE_H, HALF_W, HALF_H, (ctx) => {
+    quad(ctx, -0.5, -0.5, 0.5, 0.5, 0, '#8d9a3c');
+    const cols = ['#c9a227', '#a8861f'];
+    for (let i = 0; i < 5; i++) {
+      const u = -0.4 + i * 0.2 + (variant % 3) * 0.03;
+      poly(ctx, [u, -0.45, 0, u + 0.08, -0.45, 0, u + 0.08, 0.45, 0, u, 0.45, 0], cols[i & 1], null);
+    }
+  }));
 }
 
 /**

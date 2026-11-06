@@ -3,6 +3,7 @@
  * Objects are depth-sorted by diagonal (x+y) in the renderer.
  */
 import { houseSprite, STYLES, industrySprite, industryStyle, industryPiece, railStationCanopy, roadStopSprite, depotSprite } from '../sprites/buildings.js';
+import { fieldSprite } from '../sprites/industries.js';
 import { treeCluster } from '../sprites/terrain.js';
 import { metroEntranceSprite } from '../sprites/metro.js';
 import { drawLandmark } from '../sprites/landmarks.js';
@@ -58,6 +59,10 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
     if (r !== false) return r;
   }
   if (!b) {
+    if (tile.field !== undefined && !tile.rail && !tile.road) { // T29 farm field (opt-in farmFields)
+      blit(ctx, fieldSprite(x + y), sx, sy);
+      return null;
+    }
     if (tile.terrain === 'forest' && !tile.rail && !tile.road) {
       if (packActive() && drawOgfxTrees(ctx, x, y, tileHash(x, y), sx, sy)) return null;
       const i = (tileHash(x, y) % 6) * 2 + (tile.height >= 6 ? 1 : 0);

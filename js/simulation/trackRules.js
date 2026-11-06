@@ -66,12 +66,14 @@ export const MAX_TUNNEL_LENGTH = 16;
 export function clearingCost(tile) {
   if (tile.terrain === 'forest') return COSTS.clearForest;
   if (tile.terrain === 'rock') return COSTS.clearRock;
+  if (tile.field !== undefined) return COSTS.clearField; // T29 farm field (opt-in)
   return 0;
 }
 
 /** Clear terrain for building (forest/rock -> grass). */
 export function clearTerrain(tile) {
   if (tile.terrain === 'forest' || tile.terrain === 'rock') tile.terrain = 'grass';
+  if (tile.field !== undefined) delete tile.field; // T29: building over a farm field clears it
 }
 
 /**

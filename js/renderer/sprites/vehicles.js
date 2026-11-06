@@ -14,7 +14,7 @@ const cache = new SpriteCache();
 const SIZE = 56;
 
 /** Truck body per model id. */
-const TRUCK_BODY = { trk_tanker: 'tank', trk_bulk: 'bulk', trk_log: 'logs', trk_goods: 'box', trk_mail: 'box', trk_steel: 'flat', trk_cattle: 'cattle', trk_heavy: 'flat' };
+const TRUCK_BODY = { trk_tanker: 'tank', trk_bulk: 'bulk', trk_log: 'logs', trk_goods: 'box', trk_mail: 'box', trk_steel: 'flat', trk_cattle: 'cattle', trk_heavy: 'flat', trk_armoured: 'box' };
 const CAB_COLORS = ['#1e6fd9', '#f2c230', '#b91c1c', '#e5e7eb', '#166534'];
 const BUS_VARIANT = { bus_city: 0, bus_express: 1, bus_modern: 2 };
 

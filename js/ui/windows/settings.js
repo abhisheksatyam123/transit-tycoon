@@ -49,9 +49,13 @@ export function openSettings(app) {
       const autorenew = check('autorenew');
       const treeGrowth = check('treeGrowth');
       const gradients = check('gradients');
+      const extraInd = check('extraIndustries');
+      const farmFields = check('farmFields');
       body.append(
         row('Gradients (hills slow vehicles)', gradients, 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus'),
         row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Model-to-model replacement is set in the Autoreplace window. Off = old vehicles keep running'),
+        row('Extra industries (banks)', extraInd, 'New games: banks (valuables) appear in towns of 1200+ people. Changing it later only affects new placements'),
+        row('Farm fields', farmFields, 'Farms plant field tiles around themselves; production follows the field count. Building over a field clears it'),
         row('Tree growth', treeGrowth, 'Forests slowly spread to free grass next to them (a few tiles a month)'),
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
         row('Cargo payment %', payment, 'Percent of the standard cargo payment rate'),
@@ -70,6 +74,8 @@ export function openSettings(app) {
         autorenew.checked = !!s.autorenew;
         treeGrowth.checked = !!s.treeGrowth;
         gradients.checked = !!s.gradients;
+        extraInd.checked = !!s.extraIndustries;
+        farmFields.checked = !!s.farmFields;
         if (document.activeElement !== payment) payment.value = String(s.cargoPaymentPercent);
         if (document.activeElement !== serviceDays) serviceDays.value = String(s.serviceIntervalDays || 0);
         breakdowns.value = s.breakdowns;

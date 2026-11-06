@@ -39,7 +39,15 @@ export const VEHICLE_MODELS = [
 ];
 
 /** Road/rail models plus aircraft (lookup and purchase only; VEHICLE_MODELS keeps its news list). */
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS];
+/**
+ * T29 optional models (OpenTTD temperate armoured truck, Uhl). Kept out of VEHICLE_MODELS so obsoleteYear() and the
+ * yearly news of default games do not change. optIn: only offered when extraIndustries is on or a valuables source exists.
+ */
+export const EXTRA_VEHICLE_MODELS = [
+  { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
+];
+
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...EXTRA_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

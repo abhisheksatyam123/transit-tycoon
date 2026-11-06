@@ -84,9 +84,14 @@ export function openNewGame(app) {
       const pay = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: '10', max: '300', step: '5', placeholder: 'default' }));
       const brk = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Default (normal)' }), el('option', { value: 'reduced', text: 'Reduced' }), el('option', { value: 'none', text: 'None' })));
+      const extra = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const farms = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
-        field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk));
+        field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
+        field('Extra industries', extra), field('Farm fields', farms));
       body.append(
         field('Scenario', scenario),
         desc,
@@ -117,6 +122,8 @@ export function openNewGame(app) {
         if (infl.value === 'off') settings.inflation = false;
         if (Number(pay.value) > 0) settings.cargoPaymentPercent = Number(pay.value);
         if (brk.value !== 'default') settings.breakdowns = brk.value;
+        if (extra.value === 'on') settings.extraIndustries = true; // T29 opt-in
+        if (farms.value === 'on') settings.farmFields = true; // T29 opt-in
         if (Object.keys(settings).length) opts.settings = settings;
         win.close();
         app.newGame(opts);

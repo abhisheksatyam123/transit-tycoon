@@ -5,7 +5,7 @@ import { vehiclePrice } from './prices.js';
 import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
-import { resolvePurchase, createVehicle, purchasable } from './vehicles.js';
+import { resolvePurchase, createVehicle, purchasable, modelAvailable } from './vehicles.js';
 import { MAX_WAGONS } from './constants.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField } from './orders.js';
@@ -24,6 +24,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   const { state } = ctx;
   const depot = findDepot(state, depotId);
   if (!depot) return { ok: false, error: 'Unknown depot' };
+  if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId])) return { ok: false, error: 'Model not yet available' };
   const r = resolvePurchase(depot, spec || {}, state.date.year);
   if (!r.ok) return r;
   r.cost = vehiclePrice(state, r.cost); // inflated; recorded as v.value so sell-back stays consistent

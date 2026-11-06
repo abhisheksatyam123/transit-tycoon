@@ -330,7 +330,7 @@ export class Renderer {
           if (lb.front) drawLm3dObjects(ctx, lb.id, x, y, sx, sy, r);
           continue;
         }
-        if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.terrain === 'forest')) {
+        if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.terrain === 'forest' || tile.field !== undefined)) {
           const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup);
           if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
             const [ou, ov, oz] = SMOKE[piece];

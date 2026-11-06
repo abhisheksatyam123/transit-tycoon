@@ -24,8 +24,18 @@ export const INDUSTRY_TYPES = [
 /** builtInClusters: a new one must lie near an existing one once 3 of the type exist. */
 export const INDUSTRY_DEFAULT_YEARS = { designedYear: 0, obsoleteYear: 9999 };
 
-/** Lookup by id. */
-export const INDUSTRY_BY_ID = Object.fromEntries(INDUSTRY_TYPES.map((t) => [t.id, t]));
+/**
+ * T29 extra types (OpenTTD temperate bank: produces and accepts Valuables, built inside a town of 1200+ people).
+ * Not in INDUSTRY_TYPES: mapgen adds them only when the extraIndustries setting is on, and monthly creation never does.
+ * placement 'inTown': 2x1 free site within EXTRA_TOWN_RADIUS of a town with population >= minTownPop.
+ */
+export const EXTRA_INDUSTRY_TYPES = [
+  { id: 'bank', name: 'Bank', w: 2, h: 1, produces: ['VALU'], accepts: ['VALU'], converts: { VALU: 'VALU' }, production: { VALU: 40 }, color: '#a3a3a3', totalOfType: 1, monthlyClosureChance: 0, placement: 'inTown', minTownPop: 1200 },
+];
+export const EXTRA_TOWN_RADIUS = 16;
+
+/** Lookup by id (default and extra types). */
+export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES].map((t) => [t.id, t]));
 
 /** Fraction of delivered input converted into output units. */
 export const CONVERSION_RATIO = 0.8;

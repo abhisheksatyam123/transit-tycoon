@@ -13,6 +13,8 @@ export const CARGOS = [
   { id: 'IORE', name: 'Iron Ore', color: '#9a3412', basePay: 0.65, days1: 20, days2: 80, unit: 'tonnes' },
   { id: 'STEL', name: 'Steel', color: '#64748b', basePay: 0.9, days1: 12, days2: 60, unit: 'tonnes' },
   { id: 'GOOD', name: 'Goods', color: '#dc2626', basePay: 1.2, days1: 10, days2: 40, unit: 'crates' },
+  // T29: OpenTTD CT_VALUABLES (payment 7509, days 1/32); only exists in games with extra industries (banks)
+  { id: 'VALU', name: 'Valuables', color: '#facc15', basePay: 1.47, days1: 1, days2: 32, unit: 'bags' },
 ];
 
 /** Cargo lookup by id. */

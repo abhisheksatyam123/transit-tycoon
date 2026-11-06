@@ -1,8 +1,10 @@
 /**
  * Industry placement and monthly production / processing.
  */
-import { INDUSTRY_TYPES, INDUSTRY_BY_ID } from '../config/industries.js';
+import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
 import { allocId, manhattan } from './state.js';
+import { getSetting } from './settings.js';
+import { plantInitialFields } from './farmFields.js';
 import { industryName } from './naming.js';
 import { receiveCargo, ensureIndustryState } from './loco/industry.js';
 
@@ -31,15 +33,48 @@ export function canPlaceIndustry(state, type, x, y, opts = {}) {
     }
   }
   if (hmax - hmin > 1) return false;
+  // T29 bank (OpenTTD IndustryBehaviour::Town): must lie within EXTRA_TOWN_RADIUS of a town of 1200+ people
+  const inTown = type.placement === 'inTown';
+  if (inTown && !townQualifiesFor(state, type, x, y)) return false;
   if (!opts.ignoreSpacing) {
     for (const o of state.industries) {
       if (manhattan(o.x, o.y, x, y) < 9) return false;
     }
-    for (const t of state.towns) {
-      if (manhattan(t.x, t.y, x, y) < 8) return false;
+    if (!inTown) {
+      for (const t of state.towns) {
+        if (manhattan(t.x, t.y, x, y) < 8) return false;
+      }
     }
   }
   return true;
+}
+
+/** A qualifying town (population >= type.minTownPop) within EXTRA_TOWN_RADIUS of tile (x,y). */
+function townQualifiesFor(state, type, x, y) {
+  return state.towns.some((t) => (t.population || 0) >= (type.minTownPop || 0) && manhattan(t.x, t.y, x, y) <= EXTRA_TOWN_RADIUS);
+}
+
+/** Whether the fund-industry picker should offer the bank (a qualifying town exists). */
+export function bankAvailable(state) {
+  return EXTRA_INDUSTRY_TYPES.some((type) => state.towns.some((t) => (t.population || 0) >= (type.minTownPop || 0)));
+}
+
+/**
+ * Opt-in (extraIndustries): one bank per qualifying town, tried at random sites around the town centre.
+ * Uses game rng only when the setting is on.
+ */
+export function placeExtraIndustries(state, rng) {
+  for (const town of state.towns.slice()) {
+    for (const type of EXTRA_INDUSTRY_TYPES) {
+      if (type.placement !== 'inTown' || (town.population || 0) < (type.minTownPop || 0)) continue;
+      if (state.industries.some((i) => i.typeId === type.id && manhattan(i.x, i.y, town.x, town.y) <= EXTRA_TOWN_RADIUS)) continue;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        if (canPlaceIndustry(state, type, x, y)) { placeIndustry(state, type.id, x, y); break; }
+      }
+    }
+  }
 }
 
 /**
@@ -67,9 +102,11 @@ export function placeIndustry(state, typeId, x, y) {
       t.building = { type: 'industry', industryId: ind.id, part: part++ };
       t.owner = null;
       t.rail = 0; t.road = 0;
+      if (t.field !== undefined) delete t.field; // a field under a new building is cleared
     }
   }
   ensureIndustryState(ind, state);
+  if (getSetting(state, 'farmFields')) plantInitialFields(state, ind); // T29 opt-in: no RNG draws
   state.industries.push(ind);
   return ind;
 }
