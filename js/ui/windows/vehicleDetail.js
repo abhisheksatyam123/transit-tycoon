@@ -9,6 +9,7 @@ import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText } from '../../simulation/orders.js';
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
+import { refitCargos } from '../../simulation/cmdVehicle.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -71,6 +72,21 @@ export function openVehicleDetail(app, id) {
         el('button.btn', { type: 'button', text: 'Clone', title: 'Buy a copy of this vehicle in its depot (copies orders)', onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: false }), { sound: 'horn' }) }),
         el('button.btn', { type: 'button', text: 'Clone (share orders)', title: "Buy a copy that shares this vehicle's order list", onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: true }), { sound: 'horn' }) })));
       body.appendChild(el('div.btn-row', null, svcLabel, svcBtns));
+      // Refit (OpenTTD refit): only for a vehicle stopped in its depot; options = cargos its model supports
+      const refitRow = el('div.refit-row');
+      const refitSel = /** @type {HTMLSelectElement} */ (el('select.input.refit-sel', { title: 'Cargo to carry after refit (vehicle must be in a depot and empty)' }));
+      const refitBtn = el('button.btn.sm', { type: 'button', text: 'Refit' });
+      const refitNote = el('span.muted.small');
+      const v0 = app.findVehicle(id);
+      const cargos = v0 ? refitCargos(v0) || [] : [];
+      for (const c of cargos) refitSel.appendChild(el('option', { value: c, text: cargoName(c) }));
+      refitSel.disabled = cargos.length < 2;
+      refitBtn.addEventListener('click', () => {
+        const cargo = refitSel.value;
+        if (cargo) app.exec(g().refitVehicle(id, cargo), { sound: 'click' });
+      });
+      refitRow.append(el('span.muted.small', { text: 'Refit' }), refitSel, refitBtn, refitNote);
+      body.appendChild(refitRow);
       return () => {
         const v = app.findVehicle(id);
         if (!v) { win.close(); return; }
@@ -98,6 +114,12 @@ export function openVehicleDetail(app, id) {
         set['Last service'](v.serviceIntervalDays && v.lastServiceDay != null
           ? formatDate(dateFromDayNumber(v.lastServiceDay)) + (v.serviceDue || v.serviceTrip ? ' · due' : '') : '—');
         setText(svcLabel, v.serviceIntervalDays ? 'Service interval' : 'Service: off');
+        const inDepot = v.state === 'depot';
+        const loaded = (v.load ? v.load.amount || 0 : 0) > 0;
+        // follow the vehicle's cargo only when it changes; keep a pending choice the user made meanwhile
+        if (refitSel.dataset.cargo !== v.cargoId) { refitSel.dataset.cargo = v.cargoId; refitSel.value = v.cargoId; }
+        refitBtn.disabled = !inDepot || loaded || refitSel.disabled || refitSel.value === v.cargoId;
+        setText(refitNote, !cargos.length ? '' : !inDepot ? 'Depot only' : loaded ? 'Unload first' : '');
       };
     },
   });

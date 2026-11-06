@@ -181,6 +181,8 @@ export class Game {
   renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
+  /** Refit a stopped, empty vehicle in a depot to another cargo (10% of the model price). */
+  refitVehicle(id, cargoId, opts) { return vcmd.refitVehicle(this.ctx, id, cargoId, opts); }
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   /** Service interval in days for one vehicle (0 = off). */

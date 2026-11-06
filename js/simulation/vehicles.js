@@ -7,6 +7,14 @@ import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
 import { defaultServiceFields } from './service.js';
 
+/**
+ * Whether a model can be bought in `year` (OpenLoco era rule): introduced (introYear <= year) and not yet
+ * obsolete (obsoleteYear > year, when the model declares one). Existing vehicles are never affected.
+ */
+export function purchasable(model, year) {
+  return !!model && model.introYear <= year && !(model.obsoleteYear <= year);
+}
+
 /** Display prefix per vehicle class. */
 function classOf(model) {
   return model.kind === 'engine' ? 'Train' : model.kind === 'bus' ? 'Bus' : model.kind === 'aircraft' ? 'Aircraft' : 'Truck';
@@ -23,6 +31,7 @@ export function resolvePurchase(depot, spec, year) {
   const model = MODEL_BY_ID[spec && spec.modelId];
   if (!model || model.kind === 'wagon') return { ok: false, error: 'Unknown vehicle model' };
   if (model.introYear > year) return { ok: false, error: 'Model not yet available' };
+  if (!purchasable(model, year)) return { ok: false, error: 'Model is obsolete' };
   const isTrain = model.kind === 'engine';
   const depotFor = isTrain ? 'rail' : model.kind === 'aircraft' ? 'air' : 'road';
   if (depot.kind !== depotFor) return { ok: false, error: 'Wrong depot type for this vehicle' };
@@ -37,6 +46,7 @@ export function resolvePurchase(depot, spec, year) {
       if (!wagon && !spec.wagonModelId) wagon = MODEL_BY_ID.wag_coach;
       if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
       if (wagon.introYear > year) return { ok: false, error: 'Wagon not yet available' };
+      if (!purchasable(wagon, year)) return { ok: false, error: 'Wagon is obsolete' };
       cargoId = spec.cargoId || wagon.cargos[0];
       if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
       wagonModelId = wagon.id;

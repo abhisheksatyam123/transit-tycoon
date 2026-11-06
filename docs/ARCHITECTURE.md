@@ -301,3 +301,22 @@ Gap #8. Sources: OpenLoco `World/Town.cpp` (`adjustCompanyRating`, `companyRatin
 - Save: new fields `companyRating`, `statue`, `fundMonths` (towns) and `adBoost` (stations) appear only once used.
 - Left out: bribe, exclusive transport rights, road reconstruction, statue tile placement, OpenTTD's
   per-company rating list (single company only), tunnel/bridge rating steps.
+
+## Vehicle eras, refit, autorenew (T17/T18)
+- **Eras** (`config/vehicles.js`, `config/aircraft.js`): models have `introYear` and an optional `obsoleteYear`,
+  set only when a successor carrying the same cargo exists (successor intro + 10), so every cargo always has a
+  buyable model; wagons and the last model of each line never go obsolete. `vehicles.purchasable(model, year)`
+  is the single purchase rule: buy list (`queries.listModels`) hides obsolete models, `resolvePurchase` refuses
+  them. Existing vehicles keep running. Reliability decay keeps OpenLoco's successor rule
+  (`loco/vehicle.obsoleteYear`: successor intro + 5), so simulations are unchanged.
+- **New-model news**: `vehicleLife.vehiclesYearly` announces each model (aircraft included) once, on the yearly
+  hook for its intro year. A fresh game never fires it for models introduced in the start year.
+- **Refit** (`cmdVehicle.refitVehicle`): only a vehicle stopped in a depot and empty; trains refit their wagons'
+  cargo (`refitCargos`: wagon model's cargos), road/air vehicles their model's cargos. Capacity follows the
+  wagons. Cost = `REFIT_COST_FRACTION` (10%) of the inflated model price (wagons included for trains). UI: Refit
+  select + button in the vehicle window (enabled only in depot).
+- **Autorenew** (`simulation/autorenew.js`, setting `autorenew`, default off): a vehicle past `maxAge` that is
+  stopped in a depot is replaced by a new vehicle of the same model/wagons/cargo (if still purchasable and
+  affordable). Name, unit number, orders, shared order group, service interval and profit carry over; the
+  company pays new price minus the old vehicle's value. Hooked from `loco/vehicle.vehicleDaily` (depot branch).
+  Not done: autoreplace to another model.

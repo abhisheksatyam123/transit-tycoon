@@ -18,6 +18,7 @@ import { notify } from '../news.js';
 import { getSetting } from '../settings.js';
 import { runningCost } from '../prices.js';
 import { dayNumber } from '../date.js';
+import { autorenewVehicle } from '../autorenew.js';
 
 export const RELIABILITY_SCALE = 25600; // 100% * 256
 export const RELIABILITY_LOSS_PER_DAY = 4; // kReliabilityLossPerDay
@@ -27,7 +28,11 @@ export const BREAKDOWN_DAYS = 5; // car.front->breakdownTimeout = 5
 export const NO_BREAKDOWN_TIMEOUT = 0xffff;
 const PROFIT_HISTORY = 4; // OpenLoco veh2->profit[4]
 
-/** Obsolete year of a vehicle's model (OpenLoco VehicleObject::obsolete): successor intro + 5, else never. */
+/**
+ * Reliability-decay obsolete year of a model (OpenLoco VehicleObject::obsolete): successor intro + 5, else never.
+ * Purchase availability uses the separate config field `obsoleteYear` (vehicles.js purchasable); kept apart so
+ * existing simulations stay identical.
+ */
 export function obsoleteYear(model) {
   if (!model) return Infinity;
   if (model.obsolete) return model.obsolete;
@@ -56,6 +61,7 @@ export function armBreakdownTimer(v, rng, state) {
 /** VehicleHead::updateDaily (reliability / breakdown part) + transit-tycoon ageing. */
 export function vehicleDaily(ctx, v, rng, year) {
   if (v.state === 'depot') {
+    if (ctx && ctx.state) autorenewVehicle(ctx, v); // stopped in a depot past max age: replace (setting autorenew)
     v.timeoutToBreakdown = null; // serviced: re-armed on leaving the depot
     v.breakdownPending = false;
     return;

@@ -46,7 +46,9 @@ export function openSettings(app) {
         serviceDays.value = String(v);
         setSetting(state(), 'serviceIntervalDays', v);
       });
+      const autorenew = check('autorenew');
       body.append(
+        row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running'),
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
         row('Cargo payment %', payment, 'Percent of the standard cargo payment rate'),
         row('Breakdowns', breakdowns),
@@ -61,6 +63,7 @@ export function openSettings(app) {
         sig = k;
         inflation.checked = !!s.inflation;
         subsidies.checked = !!s.subsidies;
+        autorenew.checked = !!s.autorenew;
         if (document.activeElement !== payment) payment.value = String(s.cargoPaymentPercent);
         if (document.activeElement !== serviceDays) serviceDays.value = String(s.serviceIntervalDays || 0);
         breakdowns.value = s.breakdowns;

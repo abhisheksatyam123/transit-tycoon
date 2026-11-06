@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS = {
    * the default can change without touching existing vehicles. Kept at 0 so existing games are unchanged.
    */
   serviceIntervalDays: 0,
+  /** autorenew (OpenTTD/OpenLoco autoreplace by age): a vehicle past its max age that is stopped in a depot is replaced by a new one of the same model (price minus resale). Off by default. */
+  autorenew: false,
 };
 
 /** Read a setting (state.settings value or the default). */

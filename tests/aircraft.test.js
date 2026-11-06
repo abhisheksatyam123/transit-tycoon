@@ -132,7 +132,7 @@ describe('aircraft', () => {
 
   test('save/load mid-flight round-trips deterministically', () => {
     const { game, A, B } = twoAirports();
-    game.state.date.year = 1990; // jets are introduced in 1956; keep the 1950 start for other tests
+    game.state.date.year = 1960; // Tu-104 is buyable 1956..1976; keep the 1950 start for other tests
     stockAirport(game, A.stationId, 500);
     const v = game.buyVehicle(A.depotId, { modelId: 'ac_tu104' }).vehicle;
     game.setOrders(v.id, [{ stationId: A.stationId }, { stationId: B.stationId }]);

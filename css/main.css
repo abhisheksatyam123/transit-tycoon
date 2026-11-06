@@ -262,3 +262,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .town-auth-row { display: flex; flex-direction: column; gap: 2px; }
 .town-auth-row .btn { text-align: left; }
 .town-auth-detail { font-size: 11px; color: #94a3b8; }
+
+/* Refit row in the vehicle window (T18) */
+.refit-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.refit-row .refit-sel { flex: 1 1 120px; min-width: 0; }
