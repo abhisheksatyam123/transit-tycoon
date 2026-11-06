@@ -56,6 +56,12 @@ function candidates(pool, year) {
  * @returns {number[]|null} [ground, building] sprite ids
  */
 export function houseSprites(b, x, y, year = gameYear) {
+  // building eras (buildingEras setting): the type was chosen at placement; style (Moscow) wins
+  if (b.houseId && !b.style && HOUSE_TABLE[b.houseId]) {
+    const hp = tileHash(x, y);
+    const own = HOUSE_TABLE[b.houseId].pairs[hp & 3];
+    if (own && own[1]) return own;
+  }
   const key = b.style && HOUSE_POOLS[b.style] ? b.style : 'L' + Math.max(1, Math.min(4, b.level | 0 || 1));
   const pool = candidates(HOUSE_POOLS[key], year);
   if (!pool.length) return null;

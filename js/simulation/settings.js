@@ -7,6 +7,8 @@
 /** Defaults; adding a key here must keep current behaviour for existing games. */
 export const DEFAULT_SETTINGS = {
   /** monthly inflation of costs and cargo payments (OpenLoco Economy::updateMonthly) */
+  /** building eras (gap #31b): towns build period-appropriate houses by year. Off = unchanged. */
+  buildingEras: false,
   inflation: true,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,

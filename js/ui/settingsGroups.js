@@ -43,6 +43,8 @@ export const SETTING_META = [
     help: 'Farms plant field tiles around themselves; production follows the field count. Building over a field clears it. Applies to new farms; the new-game option sets it at start.' },
   { key: 'extraIndustries', group: 'environment', label: 'Extra industries (banks, chains)', type: 'check', newGame: true,
     help: 'Banks (valuables) appear in towns of 1200+ people. Also adds quarries, paper mills, printing works, building materials and food plants (stone, paper, food chains) with their vehicles. Changing it later only affects new placements.' },
+  { key: 'buildingEras', group: 'environment', label: 'Building eras', type: 'check', newGame: true,
+    help: 'Towns build houses of their period: 1950s cottages and terraces, then 1960s+ office blocks and flats, 1970s+ tower blocks. Old houses are rebuilt as newer types. Off = the classic house mix.' },
 ];
 
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */

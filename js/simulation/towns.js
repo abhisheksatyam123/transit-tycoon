@@ -6,6 +6,7 @@ import { townName } from './naming.js';
 import { linkTiles } from './network.js';
 import { neighbours } from './map.js';
 import { LAYOUTS } from './townLayout.js';
+import { erasEnabled, pickEraHouse } from './buildingEras.js';
 
 /** Deterministic layout from the site (no RNG draw): 1 in 8 towns get a fixed grid. */
 function townLayoutFor(x, y) {
@@ -81,6 +82,11 @@ export function placeHouse(state, rng, town, x, y, level) {
   if (!t || t.terrain === 'water' || t.building || t.rail || t.road) return false;
   t.terrain = 'grass';
   t.building = { type: 'house', townId: town.id, level, variant: rng.int(0, 15) };
+  // buildingEras (opt-in): period-appropriate type for the current year; off = no houseId, unchanged
+  if (erasEnabled(state)) {
+    const hid = pickEraHouse(rng, level, state.date.year);
+    if (hid !== null) t.building.houseId = hid;
+  }
   t.owner = 'town';
   town.houses.push({ x, y });
   return true;

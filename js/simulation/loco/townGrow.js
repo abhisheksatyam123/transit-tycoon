@@ -23,6 +23,7 @@
  */
 import { DIR_BY_BIT, OPPOSITE } from '../constants.js';
 import { layStreet, placeHouse, nextToRoad } from '../towns.js';
+import { erasEnabled, eraHouse, houseAllowedInYear, pickEraHouse } from '../buildingEras.js';
 import { roadAllowedHere, nextGrowthAction } from '../townLayout.js';
 import { pickStyle, tileDist } from '../scenarios/moscowStyles.js';
 import { ensembleBoxes } from '../scenarios/moscowTowns.js';
@@ -185,9 +186,34 @@ function addRoadJunction(game, town, x, y) {
   return layStreet(state, [{ x, y }, { x: nx, y: ny }]) > 1;
 }
 
+/**
+ * buildingEras: rebuild old houses whose type is past its max year (e.g. a 1950 cottage in 1960)
+ * as the period type. Per growth step at most 4 replacements and 16 house checks (bounded cost).
+ */
+function renewObsoleteHouse(state, rng, town) {
+  const { map } = state;
+  const year = state.date.year;
+  const hs = town.houses;
+  if (!hs.length) return;
+  let start = rng.int(0, hs.length - 1), done = 0;
+  for (let k = 0; k < Math.min(hs.length, 16) && done < 4; k++) {
+    const h = hs[(start + k) % hs.length];
+    const t = map.tiles[h.y * map.width + h.x];
+    if (!t || !t.building || t.building.type !== 'house' || t.building.style) continue;
+    const cur = eraHouse(t.building.houseId);
+    if (cur && houseAllowedInYear(cur, year)) continue;
+    const hid = pickEraHouse(rng, t.building.level, year);
+    if (hid === null) return;
+    t.building.houseId = hid;
+    done++;
+  }
+}
+
 /** Town::grow. Returns true if the map changed (houses, roads or upgrades). */
 export function growTown(game, town, { buildInitialRoadFlag = true, constructBuildings = true, allowRoadExpansion = true, allowRoadBranching = true } = {}) {
   const { state, rng } = game;
+  // buildingEras: renewal happens on the same per-town growth step (off = no draws, unchanged)
+  if (erasEnabled(state) && constructBuildings) renewObsoleteHouse(state, rng, town);
   const { map } = state;
   const ext = findRoadExtent(game, town);
   if (!ext) return buildInitialRoadFlag ? buildInitialRoad(game, town) : false;

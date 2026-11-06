@@ -89,6 +89,8 @@ export function openNewGame(app) {
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const farms = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const eras = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       // T34 map generator options (OpenTTD genworld): default values reproduce the classic map
       const sel = (opts) => /** @type {HTMLSelectElement} */ (el('select.input', null, ...opts.map(([v, t]) => el('option', { value: v, text: t }))));
       const mgTerrain = sel([['normal', 'Normal (default)'], ['flat', 'Flat'], ['hilly', 'Hilly'], ['mountainous', 'Mountainous']]);
@@ -98,7 +100,7 @@ export function openNewGame(app) {
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
-        field('Extra industries', extra), field('Farm fields', farms),
+        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth));
       body.append(
         field('Scenario', scenario),
@@ -132,6 +134,7 @@ export function openNewGame(app) {
         if (brk.value !== 'default') settings.breakdowns = brk.value;
         if (extra.value === 'on') settings.extraIndustries = true; // T29 opt-in
         if (farms.value === 'on') settings.farmFields = true; // T29 opt-in
+        if (eras.value === 'on') settings.buildingEras = true; // gap #31b opt-in
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
