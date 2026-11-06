@@ -14,6 +14,7 @@ import { createQueryTool } from './query.js';
 import { createAirportTool } from './airport.js';
 import { createTerraformTool, createPlantTool } from './terraform.js';
 import { createFoundTownTool, createFundIndustryTool } from './found.js';
+import { createSignalTool } from './signal.js';
 
 /**
  * @typedef {Object} Tool
@@ -48,5 +49,6 @@ export function createTools(app) {
     plant: createPlantTool(app),
     foundTown: createFoundTownTool(app),
     fundIndustry: createFundIndustryTool(app),
+    signal: createSignalTool(app),
   };
 }

@@ -22,6 +22,7 @@ export const TOOL_BUTTONS = [
   ['plant', 'Plant trees', 'plant', 'Y'],
   ['foundTown', 'Found town', 'foundTown', ''],
   ['fundIndustry', 'Fund industry', 'fundIndustry', ''],
+  ['signal', 'Signal', 'signal', ''],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */

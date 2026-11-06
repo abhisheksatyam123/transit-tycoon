@@ -14,6 +14,7 @@ import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
+import { buildSignal, removeSignal } from './signals.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
@@ -150,6 +151,10 @@ export class Game {
   /** Build a road along a shape path. opts: { highway?: boolean } */
   buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }); }
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
+  /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
+  buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
+  /** Remove the block signal on a tile (T3b). */
+  removeSignal(x, y, opts) { return removeSignal(this.ctx, x, y, opts); }
   /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */
   terraform(op, rect, opts) { return terraform(this.ctx, op, rect, opts); }
   estimateTerraform(op, rect) { return estimateTerraform(this.state, op, rect); }

@@ -19,7 +19,8 @@ import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
-import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn } from './blocking.js';
+import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
+import { guardedBlock } from './signals.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -134,7 +135,22 @@ function nextBlocker(ctx, v) {
   const p = v.path, i = v.pathIndex;
   if (!layer || !p || i + 1 >= p.length) return null;
   const a = p[i], b = p[i + 1];
-  return blockerOn(ctx, v, layer, b.x, b.y, dirBetween(a.x, a.y, b.x, b.y));
+  const same = blockerOn(ctx, v, layer, b.x, b.y, dirBetween(a.x, a.y, b.x, b.y));
+  if (same || layer !== 'rail') return same;
+  return signalBlocker(ctx, v, a, b);
+}
+
+/**
+ * Signals (signals.js): a train entering a signal block from outside it is held while another train has a
+ * body cell in that block. A train already inside the block, or stepping between tiles of one block, is
+ * never held by the rule. Blocks without a signal are not guarded (returns null).
+ */
+function signalBlocker(ctx, v, a, b) {
+  const { state } = ctx;
+  const W = state.map.width;
+  const toB = guardedBlock(state, b.y * W + b.x);
+  if (toB < 0 || guardedBlock(state, a.y * W + a.x) === toB) return null;
+  return trainInBlock(ctx, v, toB);
 }
 
 /**

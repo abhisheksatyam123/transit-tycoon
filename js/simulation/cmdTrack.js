@@ -15,6 +15,7 @@ import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayout } from './aircraft.js';
 import { findTown } from './state.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
+import { invalidateBlocks } from './signals.js';
 
 /**
  * Plan player bridges for a line. A bridge is a straight run of water tiles (its deck) between two
@@ -187,10 +188,12 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   for (const [i, bits] of want) {
     const t = map.tiles[i];
     if (onLine.has(i) && !plan.deck.has(i)) clearTerrain(t);
+    if (layer === 'rail' && (t.rail | bits) !== t.rail) delete t.signal; // new rail bits: signal no longer on straight track
     t[layer] |= bits;
     if (isHwy) t.highway = 1;
     if (!t.owner) t.owner = 'company';
   }
+  invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: n };
 }
@@ -311,11 +314,13 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (town) town.houses = town.houses.filter((h) => h.x !== j.x || h.y !== j.y);
       t.building = null; t.owner = null;
     } else if (j.kind === 'track') {
+      delete t.signal;
       stripLayer(map, j.x, j.y, 'rail');
       stripLayer(map, j.x, j.y, 'road');
       t.owner = null;
     } else clearTerrain(t);
   }
+  invalidateBlocks(state);
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: jobs.length };
 }

@@ -12,6 +12,7 @@ import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } fro
 import { allocId, findStation } from './state.js';
 import { stationTileBits } from './stationLinks.js';
 import { refusalAt } from './townAuthority.js';
+import { invalidateBlocks } from './signals.js';
 
 /**
  * True when a non-depot vehicle occupies (x,y) (head, next tile or trailing tiles).
@@ -60,10 +61,12 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   const existing = adjacentStation(state, tiles);
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || createStation(state, x, y);
+  invalidateBlocks(ctx.state);
   tiles.forEach((p, i) => {
     const t = map.tiles[p.y * map.width + p.x];
     clearTerrain(t);
     t.rail = (t.rail | stationTileBits(axis, i, tiles.length)) & 0xf;
+    delete t.signal; // a signal cannot stay on a station tile
     t.building = { type: 'station', stationId: st.id, kind: 'rail', axis };
     t.owner = 'company';
     st.tiles.push({ x: p.x, y: p.y, kind: 'rail' });

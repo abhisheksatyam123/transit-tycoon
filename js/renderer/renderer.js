@@ -22,6 +22,7 @@ import { GroundCache } from './groundCache.js';
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
+import { drawSignalPost } from './layers/signals.js';
 
 export class Renderer {
   /**
@@ -335,6 +336,7 @@ export class Renderer {
             this.smoke.emit(sx + px, sy + py, 3, piece === 'chimney' || piece === 'blast');
           }
         }
+        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, false);
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }

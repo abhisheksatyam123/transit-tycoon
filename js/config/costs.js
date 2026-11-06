@@ -16,6 +16,9 @@ export const COSTS = {
   /** plant trees: per grass tile turned into forest */
   plantTree: 25,
   demolishTrack: 40,
+  /** block signal (OpenTTD CMD_BUILD_SIGNALS): per two-way signal on a straight rail tile; removal refund */
+  signal: 60,
+  demolishSignal: 20,
   demolishStation: 300,
   demolishDepot: 400,
   demolishHouse: 900,

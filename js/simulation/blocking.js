@@ -16,6 +16,7 @@
  *  - aircraft and vehicles in a depot are not indexed.
  */
 import { TICKS_PER_DAY, dirBetween } from './constants.js';
+import { blockIndex, guardedBlock } from './signals.js';
 
 /** A vehicle blocked this long by a moving (not loading) vehicle turns around / re-plans (3 days). */
 export const BLOCK_TIMEOUT_TICKS = 3 * TICKS_PER_DAY;
@@ -72,15 +73,41 @@ function removeFrom(map, k, v) {
  * @returns {{rail:Map, road:Map, keys:Map}} keys: vehicle -> body keys it is indexed under
  */
 export function beginOccupancy(state) {
-  const occ = { rail: new Map(), road: new Map(), keys: new Map() };
+  const occ = { rail: new Map(), road: new Map(), keys: new Map(), blocks: new Map(), blockIds: new Map() };
   for (const v of state.vehicles) {
     const layer = occupancyLayer(v);
     const keys = bodyKeys(state, v);
     if (!keys) continue;
     occ.keys.set(v, keys);
     for (const k of keys) addTo(occ[layer], k, v);
+    indexBlocks(state, occ, v, keys);
   }
   return occ;
+}
+
+/**
+ * Signal blocks (signals.js) occupied by a train: occ.blocks maps block id -> trains with a body cell in it,
+ * occ.blockIds maps train -> its block ids. Only blocks bounded by a signal are indexed (others: no rule).
+ */
+function indexBlocks(state, occ, v, keys) {
+  if (v.kind !== 'train' || !blockIndex(state)) return;
+  const ids = [];
+  for (const k of keys) {
+    const b = guardedBlock(state, k);
+    if (b >= 0 && !ids.includes(b)) ids.push(b);
+  }
+  if (!ids.length) return;
+  occ.blockIds.set(v, ids);
+  for (const b of ids) addTo(occ.blocks, b, v);
+}
+
+/** Train (not v) with a body cell in signal block `b`, or null. */
+export function trainInBlock(ctx, v, b) {
+  const occ = indexOf(ctx);
+  const list = occ.blocks.get(b);
+  if (!list) return null;
+  for (const o of list) if (o !== v) return o;
+  return null;
 }
 
 /** Re-index one vehicle after its body changed (no-op outside a tick). */
@@ -93,10 +120,16 @@ export function syncOccupancy(ctx, v) {
     for (const k of old) removeFrom(occ[layer], k, v);
     occ.keys.delete(v);
   }
+  const oldBlocks = occ.blockIds.get(v);
+  if (oldBlocks) {
+    for (const b of oldBlocks) removeFrom(occ.blocks, b, v);
+    occ.blockIds.delete(v);
+  }
   const keys = bodyKeys(ctx.state, v);
   if (!keys) return;
   occ.keys.set(v, keys);
   for (const k of keys) addTo(occ[layer], k, v);
+  indexBlocks(ctx.state, occ, v, keys);
 }
 
 /** Index for the current call: the tick index, or a fresh build when called outside a tick. */
