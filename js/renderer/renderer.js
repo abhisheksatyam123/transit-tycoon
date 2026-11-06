@@ -34,6 +34,7 @@ import { drawCatenary, drawTramWires } from './layers/catenary.js';
 import { drawOneWayArrow } from './layers/oneway.js';
 import { drawTunnelPortal } from './layers/transport.js';
 import { drawLabels } from './layers/labels.js';
+import { drawLinkOverlay } from './layers/linkOverlay.js';
 
 export class Renderer {
   /**
@@ -59,6 +60,9 @@ export class Renderer {
     this._sharedHeights = opts.heights || null;
     /** metro schematic overlay (key J); tunnel trains are shown only while on */
     this.showMetro = false;
+    /** link graph overlay (hotkey c); per-cargo filter, lazily filled by the legend */
+    this.showLinks = false;
+    this.linkCargos = null;
     /** screen-space hit rects of the name signs from the last frame (see layers/labels.js) */
     this.labelHits = [];
     /** OpenGFX pack drawing active (see pack/index.js); false = procedural */
@@ -413,6 +417,7 @@ export class Renderer {
     drawOverlays(ctx, map, this.overlay);
     // screen-space labels and floating texts: last, always above landmarks/vehicles
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (this.showLinks) drawLinkOverlay(ctx, this, cam);
     this.floating.draw(ctx, dt, cam);
     // town/station name signs (screen space); the hit list feeds click-to-open in input.js
     drawLabels(ctx, this, cam);

@@ -7,6 +7,7 @@ import { hotkeyTitle, currentOverrides, effectiveKeys, onHotkeysChanged, keyLabe
 import { el } from './dom.js';
 import { openTitleMenu } from './titleMenu.js';
 import { icon } from './icons.js';
+import { toggleLinkOverlay, syncLinkLegend } from './linkLegend.js';
 import { scanIssues } from './diagCache.js';
 import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
 import { AIRPORT_TOOL_TYPE } from './tools/airport.js';
@@ -101,7 +102,7 @@ export const TOOL_GROUPS = [
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
-  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news']],
+  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
   ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];
 
@@ -273,7 +274,7 @@ export function createToolbar(root, app) {
     p.style.top = top / k + 'px';
   };
   for (const [gid, label, gicon, members0] of TOOL_GROUPS) {
-    const members = members0.filter((m) => m.startsWith('win:') || toolInfo.has(m) || SHOT_ITEMS[m]);
+    const members = members0.filter((m) => m.startsWith('win:') || m.startsWith('toggle:') || toolInfo.has(m) || SHOT_ITEMS[m]);
     if (!members.length) continue;
     const items = [];
     const toolIds = [];
@@ -284,6 +285,15 @@ export function createToolbar(root, app) {
         const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); }, 'menuitem');
         b.dataset.win = name;
         if (wk) titled.push([b, wl, 'win:' + name]);
+        items.push(b);
+        return b;
+      }
+      if (m === 'toggle:linkOverlay') {
+        const b = flyItem('map', 'Link graph', ',', () => { closeFlyouts(); toggleLinkOverlay(app.renderer); refresh(); }, 'menuitemcheckbox');
+        b.dataset.toggle = 'linkOverlay';
+        b.setAttribute('aria-checked', String(!!app.renderer.showLinks));
+        if (app.renderer.showLinks) b.classList.add('active');
+        titled.push([b, 'Link graph', 'linkOverlay']);
         items.push(b);
         return b;
       }
@@ -414,6 +424,7 @@ export function createToolbar(root, app) {
       lastTool = cur;
     }
     for (const b of toolBtns) { const on = !!cur && cur === b.dataset.tool; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
+    for (const g of groups) for (const b of g.items) if (b.dataset.toggle) { const on = !!app.renderer.showLinks; b.setAttribute('aria-checked', String(on)); b.classList.toggle('active', on); }
     for (const g of groups) {
       const inGroup = !!cur && g.tools.includes(cur);
       g.btn.classList.toggle('active', inGroup);

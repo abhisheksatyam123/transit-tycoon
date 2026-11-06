@@ -9,6 +9,7 @@ import { Minimap } from './renderer/minimap.js';
 import { setCargoColors } from './renderer/sprites/vehicles.js';
 import { App } from './ui/app.js';
 import { createToolbar } from './ui/toolbar.js';
+import { syncLinkLegend, toggleLinkOverlay } from './ui/linkLegend.js';
 import { applyA11y } from './ui/a11yPrefs.js';
 import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
@@ -201,6 +202,7 @@ async function main() {
   const hotkeyHandlers = {
     pause: () => app.togglePause(),
     metroOverlay: () => { app.renderer.showMetro = !app.renderer.showMetro; },
+    linkOverlay: () => { toggleLinkOverlay(app.renderer); app.ui.refreshToolbar(); },
     graphics: () => togglePack(renderer),
     sound: () => toolbar.toggleSound(),
     screenshot: () => screenshotCanvas(renderer).then((name) => app.toast(`Saved ${name}`, 'good'), (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error')),
@@ -233,6 +235,7 @@ async function main() {
       renderExtras(dt, app.game); // extra viewports (throttled inside; see ui/extraViewport.js)
       updateCostReadout(app); // T43 construction cost readout (no-op unless a build tool previews)
       minimap.draw(now);
+      if (renderer.showLinks) syncLinkLegend(renderer); // legend follows the minimap rect each frame
       if (now - lastStatus > STATUS_REFRESH_MS) { statusbar.update(); lastStatus = now; }
       if (now - lastWin > WINDOW_REFRESH_MS) { app.wm.updateAll(); lastWin = now; }
       if (now - lastSel > 1000) { app.refreshSelectionCatchment(); lastSel = now; }

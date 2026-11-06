@@ -2,6 +2,7 @@
  * Minimap: isometric overview of the map (terrain, water, towns, industries, rail, road),
  * vehicle dots, and the camera viewport rectangle. Click/drag to move the camera.
  */
+import { collectLinks, linkColour, linkWidth } from './layers/linkOverlay.js';
 import { MINIMAP } from './palette.js';
 import { HALF_W } from './iso.js';
 import { metroData } from './layers/metro.js';
@@ -117,6 +118,23 @@ export class Minimap {
           ctx.stroke();
         }
         ctx.globalAlpha = 1;
+      }
+    }
+    // link graph overlay (hotkey ,): one line per link between station tiles, usage colours
+    if (this.renderer.showLinks) {
+      const state = this.renderer.game.state, m = state.map;
+      const pos = new Map();
+      for (const st of state.stations || []) pos.set(st.id, st);
+      ctx.lineCap = 'round';
+      for (const l of collectLinks(state, { cargos: this.renderer.linkCargos })) {
+        const p = pos.get(l.a), q = pos.get(l.b);
+        if (!p || !q) continue;
+        ctx.strokeStyle = linkColour(l.usage);
+        ctx.lineWidth = Math.max(1, linkWidth(l.cap) * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(p.x + 0.5, p.y + 0.5);
+        ctx.lineTo(q.x + 0.5, q.y + 0.5);
+        ctx.stroke();
       }
     }
     // vehicles

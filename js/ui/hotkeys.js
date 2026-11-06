@@ -33,6 +33,7 @@ export const HOTKEY_ACTIONS = [
   { id: 'win:help', label: 'Help', group: 'Windows', key: 'h' },
   { id: 'win:hotkeys', label: 'Keyboard shortcuts', group: 'Windows', key: '?' },
   { id: 'metroOverlay', label: 'Metro overlay on/off', group: 'View', key: 'j' },
+  { id: 'linkOverlay', label: 'Link graph overlay on/off', group: 'View', key: ',' },
   { id: 'screenshot', label: 'Screenshot (map view as PNG)', group: 'View', key: '.' },
   { id: 'graphics', label: 'Graphics: OpenGFX / procedural', group: 'View', key: 'k' },
   { id: 'sound', label: 'Mute / unmute sound', group: 'View', key: 'm' },

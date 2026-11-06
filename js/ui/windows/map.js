@@ -6,6 +6,7 @@
  * drawn on each window refresh (~4 fps). Click or drag on the map to centre the main view.
  */
 import { el, setText } from '../dom.js';
+import { toggleLinkOverlay } from '../linkLegend.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { HALF_W, screenToTileFloat } from '../../renderer/iso.js';
 import { MINIMAP } from '../../renderer/palette.js';
@@ -159,7 +160,12 @@ export function openMap(app) {
       modeSel.value = st.mode;
       modeSel.onchange = () => { st.mode = modeSel.value; refresh(); };
       const info = el('span.muted', { style: { marginLeft: 'auto' } });
-      const top = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } }, el('span.muted', { text: 'Mode' }), modeSel, info);
+      // link graph overlay: same state as the ',' hotkey and the toolbar item (toggleLinkOverlay)
+      const linkCb = el('input', { type: 'checkbox', 'data-link-map-cb': '1' });
+      linkCb.checked = !!app.renderer.showLinks;
+      linkCb.onchange = () => { if (!!linkCb.checked !== !!app.renderer.showLinks) toggleLinkOverlay(app.renderer); };
+      const linkLbl = el('label', { style: { display: 'inline-flex', gap: '4px', alignItems: 'center', fontSize: '12px' } }, linkCb, el('span', { text: 'Link graph' }));
+      const top = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } }, el('span.muted', { text: 'Mode' }), modeSel, linkLbl, info);
       const legend = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11px' } });
       const wrap = el('div.map-frame', { style: { resize: 'both', overflow: 'hidden', width: '580px', height: '380px', minWidth: '260px', minHeight: '180px', maxWidth: '100%', border: '1px solid var(--panel-border)', borderRadius: '6px', background: '#05070c', position: 'relative' } });
       const canvas = el('canvas', { style: { display: 'block', width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none' } });

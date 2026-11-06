@@ -16,7 +16,7 @@
  *
  * Simplifications vs OpenTTD: no capacity-constrained MCF (demand is not throttled by edge capacity), a single
  * path per (source, destination) instead of a multi-path split, the monthly rebuild instead of the
- * incremental job scheduler, and no link graph overlay on the map yet.
+ * incremental job scheduler. The link graph is drawn by the link overlay (renderer/layers/linkOverlay.js, hotkey ,).
  */
 import { getSetting } from './settings.js';
 import { manhattan } from './state.js';
