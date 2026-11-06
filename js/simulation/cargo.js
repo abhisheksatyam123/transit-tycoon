@@ -7,6 +7,7 @@ import { HOUSE_POP } from './towns.js';
 import { addWaiting } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
 import { manhattan, findStation } from './state.js';
+import { cdApplies, splitByDest, noteSupply } from './cargodist.js';
 
 /** Days of the month on which a production chunk is distributed. */
 export const DISTRIBUTION_DAYS = [1, 8, 15, 22];
@@ -46,11 +47,25 @@ export function deliverToStations(state, stations, cargoId, amount, sx, sy) {
   const best = stations[0].rating[cargoId] ?? 50;
   const moved = Math.floor((amount * best) / 100);
   if (moved <= 0) return 0;
-  if (stations.length === 1) return addWaiting(stations[0], cargoId, moved, sx, sy, state.tick, MAX_WAITING);
+  if (stations.length === 1) return addToStation(state, stations[0], cargoId, moved, sx, sy);
   const r0 = stations[0].rating[cargoId] ?? 50, r1 = stations[1].rating[cargoId] ?? 50;
   const first = Math.round((moved * r0) / Math.max(1, r0 + r1));
-  return addWaiting(stations[0], cargoId, first, sx, sy, state.tick, MAX_WAITING)
-    + addWaiting(stations[1], cargoId, moved - first, sx, sy, state.tick, MAX_WAITING);
+  return addToStation(state, stations[0], cargoId, first, sx, sy)
+    + addToStation(state, stations[1], cargoId, moved - first, sx, sy);
+}
+
+/**
+ * Add generated cargo to one station. With cargodist (passengers/mail, setting on) the units are split over
+ * the destinations of the station's demand (parcel.dest); otherwise one parcel per source (classic).
+ */
+function addToStation(state, st, cargoId, amount, sx, sy) {
+  if (!cdApplies(state, cargoId)) return addWaiting(st, cargoId, amount, sx, sy, state.tick, MAX_WAITING);
+  noteSupply(st, cargoId, amount);
+  let added = 0;
+  for (const part of splitByDest(state, st, cargoId, amount)) {
+    added += addWaiting(st, cargoId, part.amount, sx, sy, state.tick, MAX_WAITING, 0, part.dest === undefined ? null : part.dest);
+  }
+  return added;
 }
 
 /**

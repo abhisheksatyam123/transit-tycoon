@@ -9,6 +9,7 @@ import { heading, packetTotal, listOrEmpty } from './common.js';
 import { openRename } from '../rename.js';
 import { styleById } from '../../config/stationTypes.js';
 import { catchRadius } from '../../simulation/stations.js';
+import { viaBreakdown } from '../../simulation/cargodist.js';
 
 /**
  * Rating colour (red -> yellow -> green).
@@ -41,7 +42,8 @@ export function openStation(app, id) {
       const hangarRow = el('div.btn-row');
       hangarRow.hidden = true;
       let hangarDepot = null;
-      body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
+      const cdVia = el('div.list');
+      body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, cdVia, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
         hangarRow,
         el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
           const st = app.findStation(id);
@@ -77,6 +79,20 @@ export function openStation(app, id) {
             setBar(b, rating / 100, ratingColor(rating));
             setText(p, typeof r.r === 'number' ? Math.round(rating) + '%' : '—');
           }, 'No cargo yet');
+        // cargodist (setting on): passengers / mail waiting here, grouped by the next hop they ride to
+        cdVia.textContent = '';
+        const cdOn = app.game.state.settings && app.game.state.settings.cargodist && app.game.state.settings.cargodist !== 'off';
+        if (cdOn) {
+          for (const c of ['PASS', 'MAIL']) {
+            const rows = viaBreakdown(app.game.state, st, c);
+            if (!rows.length) continue;
+            cdVia.append(el('div.muted.small', { text: cargoName(c) + ' by next hop:' }));
+            for (const r of rows) {
+              const name = r.via == null ? 'any vehicle' : (app.findStation(r.via) ? app.findStation(r.via).name : 'station ' + r.via);
+              cdVia.append(el('div.small.mono', { text: `  via ${name}: ${num(r.amount)}` }));
+            }
+          }
+        }
         // muted hint: a bus/truck stop nobody supplies yet (no waiting cargo, no rating)
         noSource.hidden = !(rows.length === 0 && (k.bus || k.truck) && !k.rail && !airport);
         const acc = Object.keys(st.accepts || {}).filter((c) => st.accepts[c]);

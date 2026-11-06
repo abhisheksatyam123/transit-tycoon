@@ -17,6 +17,7 @@ import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
+import { cdApplies, cargodistOn, loadFilter, nextHop, noteLeg, CD_CARGOS } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle } from './routing.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 
@@ -186,19 +187,31 @@ function unloadSlice(ctx, v, st) {
   const load = v.load;
   const mode = unloadMode(effectiveOrder(v));
   if (mode === 'none' || !load.amount || !v.cargoId) return 0;
+  if (load.dests) return unloadDist(ctx, v, st, mode);
   const accepted = !!st.accepts[v.cargoId] && load.fromStationId !== st.id;
   if (mode === 'normal' || mode === 'all') {
     if (accepted) return deliverLoad(ctx, v, st);
     if (mode === 'normal') return 0;
   }
   if (load.fromStationId === st.id) return 0; // never dump cargo back where it was loaded
-  const amount = Math.min(load.amount, Math.max(0, MAX_WAITING - waitingAmount(st, v.cargoId)));
+  transferUnits(ctx, v, st, Infinity, null);
+  return 0;
+}
+
+/**
+ * Move up to `want` units of the vehicle's load to the station as waiting cargo (optionally for a cargodist
+ * destination). The packet keeps its feeder share and gains this leg's transfer credit (OpenTTD AddFeederShare).
+ * @returns {number} units moved
+ */
+function transferUnits(ctx, v, st, want, dest) {
+  const load = v.load;
+  const amount = Math.min(load.amount, want, Math.max(0, MAX_WAITING - waitingAmount(st, v.cargoId)));
   if (amount <= 0) return 0;
   const held = load.feeder || 0;
   const feederOut = held && amount < load.amount ? Math.round((held * amount) / load.amount) : held;
   const credit = transferCredit(ctx.state, v, st, amount, feederOut);
   // the packet keeps its feeder share and gains this leg's transfer credit (OpenTTD AddFeederShare(profit))
-  const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit);
+  const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit, dest);
   if (credit) {
     v.profitThisYear = (v.profitThisYear || 0) + credit;
     v.transferCredits = (v.transferCredits || 0) + credit; // lazy: shown in the vehicle window, reset yearly
@@ -210,7 +223,90 @@ function unloadSlice(ctx, v, st) {
     if (!load.feeder) delete load.feeder;
   }
   if (load.amount <= 0) { load.amount = 0; load.fromStationId = null; delete load.feeder; }
-  return 0;
+  return moved;
+}
+
+/** Stop the vehicle's next station: the pending order for an intermediate stop, else the order after the current one. */
+export function vehicleNextStop(v) {
+  const n = v.orders ? v.orders.length : 0;
+  if (!n) return null;
+  if (v.intermediate) { const o = currentOrder(v); return o ? o.stationId : null; }
+  const o = v.orders[(v.orderIndex + 1) % n];
+  return o ? o.stationId : null;
+}
+
+/** Remove `n` units from the cargodist destination bucket `key` ('u' = no destination). Lazy: load.dests. */
+function takeDests(load, key, n) {
+  if (!n || !load.dests) return;
+  load.dests[key] = (load.dests[key] || 0) - n;
+  if (load.dests[key] <= 0) delete load.dests[key];
+  if (!Object.keys(load.dests).length) delete load.dests;
+}
+
+/**
+ * Cargodist unload (setting cargodist on; the load carries destinations, load.dests):
+ * - parcels destined for this station are delivered when it accepts the cargo (normal / all);
+ * - parcels whose next hop from here is not the vehicle's next stop are transferred to the station;
+ * - the rest (next hop = the vehicle's next stop, or no route known) stay aboard.
+ * Unrouted units ('u') follow the classic rules.
+ */
+function unloadDist(ctx, v, st, mode) {
+  const { state } = ctx;
+  const load = v.load;
+  const cargo = v.cargoId;
+  const nxt = vehicleNextStop(v);
+  const nxtId = nxt === st.id ? null : nxt;
+  const hereKey = String(st.id);
+  const accepted = !!st.accepts[cargo] && load.fromStationId !== st.id;
+  const dropAll = mode === 'transfer' || mode === 'all';
+  let income = 0;
+  if (accepted && (mode === 'normal' || mode === 'all')) {
+    const here = load.dests[hereKey] || 0, unrouted = load.dests.u || 0;
+    if (here + unrouted > 0) income += deliverPart(ctx, v, st, here + unrouted, [[hereKey, here], ['u', unrouted]]);
+  }
+  if (!(load.amount > 0)) { delete load.dests; return income; }
+  if (load.fromStationId === st.id) return income; // never dump cargo back where it was loaded
+  for (const k of Object.keys(load.dests || {})) {
+    if (!load.dests || !(load.dests[k] > 0) || !(load.amount > 0)) continue;
+    if (k === 'u') {
+      if (dropAll) takeDests(load, 'u', transferUnits(ctx, v, st, load.dests.u, null));
+      continue;
+    }
+    const d = Number(k);
+    if (d === st.id) { // destined here but not accepted: normal keeps it aboard; transfer / all drop it unrouted
+      if (!dropAll) continue;
+      takeDests(load, k, transferUnits(ctx, v, st, load.dests[k], null));
+      continue;
+    }
+    if (!dropAll) {
+      const h = nextHop(state, cargo, st.id, d);
+      if (h === undefined || h === nxtId) continue; // next hop is the vehicle's next stop (or unknown): stays aboard
+    }
+    takeDests(load, k, transferUnits(ctx, v, st, load.dests[k], d));
+  }
+  if (!(load.amount > 0)) delete load.dests;
+  return income;
+}
+
+/**
+ * Deliver `n` units of the load here, keeping the rest aboard with its feeder share and origin.
+ * `keys` ([[bucket, units]]) are removed from load.dests.
+ */
+function deliverPart(ctx, v, st, n, keys) {
+  const load = v.load;
+  const whole = load.amount, feeder = load.feeder || 0, from = load.fromStationId;
+  const fPart = feeder && n < whole ? Math.round((feeder * n) / whole) : feeder;
+  load.amount = n;
+  if (fPart) load.feeder = fPart; else delete load.feeder;
+  const pay = deliverLoad(ctx, v, st); // clears amount, origin and feeder
+  for (const [k, a] of keys) takeDests(load, k, a);
+  const rem = whole - n;
+  if (rem > 0) {
+    load.amount = rem;
+    load.fromStationId = from;
+    if (feeder - fPart) load.feeder = feeder - fPart;
+  }
+  return pay;
 }
 
 /**
@@ -290,9 +386,16 @@ function loadSlice(ctx, v, st) {
   markPickup(state, st, v.cargoId, model ? model.speed : 0);
   const room = v.capacity - v.load.amount;
   if (room <= 0 || waitingAmount(st, v.cargoId) <= 0) return 0;
-  const got = takeWaiting(st, v.cargoId, room);
+  // cargodist: only parcels whose next hop is the vehicle's next stop (or with no route known)
+  const cd = cdApplies(state, v.cargoId);
+  const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
+  const got = takeWaiting(st, v.cargoId, room, pred);
   if (got.amount <= 0) return 0;
   const l = v.load;
+  if (cd || l.dests) {
+    l.dests = l.dests || {};
+    for (const k of Object.keys(got.dests || { u: got.amount })) l.dests[k] = (l.dests[k] || 0) + (got.dests ? got.dests[k] : got.amount);
+  }
   const total = l.amount + got.amount;
   l.sourceX = Math.round((l.sourceX * l.amount + got.sourceX * got.amount) / total);
   l.sourceY = Math.round((l.sourceY * l.amount + got.sourceY * got.amount) / total);
@@ -368,6 +471,7 @@ export function loadingTick(ctx, v) {
     return false;
   }
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
+  noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)
   return true;
 }
 
@@ -432,4 +536,17 @@ export function normaliseOrders(state, v, orders, kindOf) {
 /** Cargo name helper for UI lines. */
 export function cargoName(id) {
   return (CARGO_BY_ID[id] && CARGO_BY_ID[id].name) || id || 'nothing';
+}
+
+/**
+ * Cargodist link graph: a vehicle that finishes loading at its station and leaves for its next stop adds its seats
+ * to the edge (station -> next stop). Only when the setting is on (no-op otherwise).
+ */
+export function noteDepartureLeg(state, v) {
+  if (!cargodistOn(state) || !v.atStationId) return;
+  const st = findStation(state, v.atStationId);
+  const nxt = vehicleNextStop(v);
+  if (!st || nxt == null || nxt === st.id) return;
+  const slices = v.consist ? cargoSlices(v) : (v.cargoId ? [{ cargoId: v.cargoId, capacity: v.capacity || 0 }] : []);
+  noteLeg(state, st, nxt, slices.filter((x) => CD_CARGOS.includes(x.cargoId)));
 }

@@ -168,21 +168,26 @@ export function waitingAmount(st, cargoId) {
 /** Max parcels (packets) per station cargo list; overflow merges into the newest packet. */
 export const MAX_PARCELS = 32;
 
-export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0) {
+export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0, dest = null) {
   if (amount <= 0) return 0;
   const list = st.cargo[cargoId] || (st.cargo[cargoId] = []);
   const have = waitingAmount(st, cargoId);
   const add = Math.max(0, Math.min(amount, cap - have));
   if (add <= 0) return 0;
   const fs = feeder > 0 ? Math.round((feeder * add) / amount) : 0;
-  // OpenTTD CargoList: units from the same source merge into one packet (weighted age) instead of piling up;
-  // the list is also capped at MAX_PARCELS by folding overflow into the newest packet.
+  // OpenTTD CargoList: units from the same source (and destination, cargodist) merge into one packet (weighted
+  // age) instead of piling up; the list is also capped at MAX_PARCELS by folding overflow into the newest packet.
+  const want = dest == null ? null : dest;
   let hit = null;
   for (let i = list.length - 1; i >= 0; i--) {
     const p = list[i];
-    if (p.sourceX === sourceX && p.sourceY === sourceY) { hit = p; break; }
+    if (p.sourceX === sourceX && p.sourceY === sourceY && (p.dest ?? null) === want) { hit = p; break; }
   }
-  if (!hit && list.length >= MAX_PARCELS) hit = list[list.length - 1];
+  if (!hit && list.length >= MAX_PARCELS) {
+    // overflow: prefer the newest packet with the same destination, else the newest packet
+    for (let i = list.length - 1; i >= 0; i--) if ((list[i].dest ?? null) === want) { hit = list[i]; break; }
+    if (!hit) hit = list[list.length - 1];
+  }
   if (hit) {
     hit.sinceTick = Math.round((hit.sinceTick * hit.amount + tick * add) / (hit.amount + add));
     hit.amount += add;
@@ -190,6 +195,7 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
   } else {
     const p = { amount: add, sourceX, sourceY, sinceTick: tick };
     if (fs) p.feeder = fs;
+    if (want !== null) p.dest = want;
     list.push(p);
   }
   return add;
@@ -197,14 +203,19 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
 
 /**
  * Take up to `amount` of a cargo from a station (oldest first).
+ * `pred` (cargodist): only parcels for which pred(parcel) is true are taken; others stay in the list.
  * `feeder` is the feeder share of the units taken (present only when non-zero).
- * @returns {{amount:number,sourceX:number,sourceY:number,sinceTick:number,feeder?:number}}
+ * `dests` (present only when some taken parcel has a destination) maps 'u' (no destination) or the
+ * destination station id to the amount taken.
+ * @returns {{amount:number,sourceX:number,sourceY:number,sinceTick:number,feeder?:number,dests?:object}}
  */
-export function takeWaiting(st, cargoId, amount) {
+export function takeWaiting(st, cargoId, amount, pred) {
   const list = st.cargo[cargoId] || [];
-  let taken = 0, sx = 0, sy = 0, since = 0, feeder = 0;
-  while (taken < amount && list.length) {
-    const p = list[0];
+  let taken = 0, sx = 0, sy = 0, since = 0, feeder = 0, anyDest = false;
+  const dests = {};
+  for (let i = 0; taken < amount && i < list.length;) {
+    const p = list[i];
+    if (pred && !pred(p)) { i++; continue; }
     const n = Math.min(p.amount, amount - taken);
     sx += p.sourceX * n; sy += p.sourceY * n; since += p.sinceTick * n;
     if (p.feeder) {
@@ -213,13 +224,18 @@ export function takeWaiting(st, cargoId, amount) {
       p.feeder -= fs;
       if (!p.feeder) delete p.feeder;
     }
+    const dk = p.dest == null ? 'u' : String(p.dest);
+    if (p.dest != null) anyDest = true;
+    dests[dk] = (dests[dk] || 0) + n;
     taken += n;
     p.amount -= n;
-    if (p.amount <= 0) list.shift();
+    if (p.amount <= 0) list.splice(i, 1);
+    else i++;
   }
   if (taken === 0) return { amount: 0, sourceX: st.x, sourceY: st.y, sinceTick: 0 };
   const out = { amount: taken, sourceX: Math.round(sx / taken), sourceY: Math.round(sy / taken), sinceTick: Math.round(since / taken) };
   if (feeder) out.feeder = feeder;
+  if (anyDest) out.dests = dests;
   return out;
 }
 

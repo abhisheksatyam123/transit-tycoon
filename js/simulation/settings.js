@@ -39,6 +39,8 @@ export const DEFAULT_SETTINGS = {
   economyRecessions: false,
   /** plane crashes on landing (OpenTTD plane_crashes): 'off' | 'reduced' | 'normal'. Off by default. */
   planeCrashes: 'off',
+  /** cargo distribution for passengers and mail (OpenTTD cargodist, simplified): 'off' | 'asymmetric' | 'symmetric'. Off by default. */
+  cargodist: 'off',
 };
 
 /** Read a setting (state.settings value or the default). */

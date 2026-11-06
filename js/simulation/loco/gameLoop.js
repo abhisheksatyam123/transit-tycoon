@@ -22,6 +22,7 @@ import * as Objective from '../objective.js';
 import { getSetting } from '../settings.js';
 import * as TreeGrowth from '../treeGrowth.js';
 import * as Recession from '../recession.js';
+import * as CargoDist from '../cargodist.js';
 
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
 export const DAY_INCREMENT = 682;
@@ -64,6 +65,7 @@ export function tickDate(game) {
     Subsidies.updateMonthly(game); // transit-tycoon additions (OpenTTD subsidies, OpenLoco scenario objective)
     Objective.updateMonthly(game);
     TreeGrowth.updateMonthly(game); // gap #33 tree spread (setting treeGrowth, off by default)
+    CargoDist.updateMonthly(s); // cargodist setting (off by default): rebuild the passenger/mail link graphs
     if (s.date.month % 3 === 0) CompanyManager.updateQuarterly(game); // January, April, July, October
     if (newYear) {
       CompanyManager.updateYearly(game);
