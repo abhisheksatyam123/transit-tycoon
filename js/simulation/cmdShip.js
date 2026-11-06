@@ -9,6 +9,7 @@ import { DIRS } from './constants.js';
 import { constructionTotal } from './prices.js';
 import { SHIP_COSTS } from '../config/ships.js';
 import { spend } from './economy.js';
+import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId } from './state.js';
@@ -62,21 +63,24 @@ export function buildDock(ctx, x, y, opts = {}) {
   const err = dockError(map, x, y);
   if (err) return { ok: false, error: err };
   const t = getTile(map, x, y);
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
+  const payee = companyById(state, opts.owner ?? null);
   let cost = SHIP_COSTS.dock + clearingCost(t);
   cost = constructionTotal(state, cost);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, payee);
   if (money) return money;
   let existing = adjacentStation(state, [{ x, y }]);
   if (existing && existing.tiles.some((p) => p.kind === 'buoy')) existing = null;
+  if (existing && ownerMismatch(existing, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
-  const st = existing || createStation(state, x, y);
+  const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   clearTerrain(t);
   t.building = { type: 'station', stationId: st.id, kind: 'dock' };
   t.owner = 'company';
   st.tiles.push({ x, y, kind: 'dock', radius: DOCK_RADIUS });
   refreshKinds(st);
   recomputeAcceptance(state, st);
-  spend(state.company, 'construction', cost);
+  spend(payee, 'construction', cost);
   return { ok: true, cost, stationId: st.id };
 }
 
@@ -92,16 +96,18 @@ export function buildShipDepot(ctx, x, y, opts = {}) {
   if (t.terrain !== 'water') return { ok: false, error: SHIP_ERR.depotLand };
   if (occupied(t)) return { ok: false, error: ERR[t.building && t.building.type] || ERR.track };
   if (!hasWaterAccess(map, x, y)) return { ok: false, error: SHIP_ERR.noWaterAccess };
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
+  const payee = companyById(state, opts.owner ?? null);
   let cost = constructionTotal(state, SHIP_COSTS.depot);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, payee);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, depotId: null };
   const dir = [1, 2, 4, 8].includes(opts.dir) ? opts.dir : 4;
   const id = allocId(state);
   t.building = { type: 'depot', depotId: id, kind: 'ship', dir };
   t.owner = 'company';
-  state.depots.push({ id, kind: 'ship', x, y, dir });
-  spend(state.company, 'construction', cost);
+  state.depots.push(stampOwner(state, { id, kind: 'ship', x, y, dir }, opts.owner ?? null));
+  spend(payee, 'construction', cost);
   return { ok: true, cost, depotId: id };
 }
 

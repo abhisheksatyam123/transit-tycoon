@@ -31,6 +31,7 @@ import { pushNews } from './news.js';
 import { buildFreightRoute, addFreightTrucks } from './aiFreight.js';
 import { buildAirRoute, addAirPlanes, airRouteBudget, airRoutesOf, MAX_AIR_ROUTES } from './aiAir.js';
 import { buildRailRoute, addRailTrains, railRoutesOf, MAX_RAIL_ROUTES } from './aiRail.js';
+import { buildShipRoute, addShips, shipRoutesOf, MAX_SHIP_ROUTES } from './aiShip.js';
 import { buildHQ, hqPrice, hqSiteError, removeHQ } from './cmdHQ.js';
 import { airportType } from './airportTypes.js';
 
@@ -94,6 +95,8 @@ export function updateMonthly(game) {
     addAirPlanes(ctx, r);
     if (railRoutesOf(r).length < MAX_RAIL_ROUTES && r.negValueMonths === 0) buildRailRoute(ctx, r); // budget checked inside
     addRailTrains(ctx, r);
+    if (shipRoutesOf(r).length < MAX_SHIP_ROUTES && r.negValueMonths === 0) buildShipRoute(ctx, r); // budget checked inside
+    addShips(ctx, r);
     buildRivalHQ(ctx, r);
     refreshStats(state, r);
     updateTakeover(ctx, r);
@@ -161,7 +164,7 @@ function refreshStats(state, r) {
 /** One new route per month: buses or freight, whichever the rival has fewer of (bus first on a tie). */
 function buildNewRoute(ctx, r) {
   const freight = r.routes.filter((q) => q.freight).length;
-  const bus = r.routes.length - freight - airRoutesOf(r).length - railRoutesOf(r).length;
+  const bus = r.routes.length - freight - airRoutesOf(r).length - railRoutesOf(r).length - shipRoutesOf(r).length;
   // freight roads are long and cost more: only with a spare reserve, and once bus routes exist
   const freightOk = bus >= 2 && r.money >= FREIGHT_BUDGET && freight < MAX_FREIGHT_ROUTES;
   if (freightOk && bus > freight) { if (buildFreightRoute(ctx, r)) return; }
@@ -416,7 +419,7 @@ function addBuses(ctx, r) {
   const { state } = ctx;
   if (r.money < ROUTE_BUDGET / 2) return;
   for (const route of r.routes) {
-    if (route.air || route.freight || route.rail) continue; // air, freight and rail routes have their own adders
+    if (route.air || route.freight || route.rail || route.ship) continue; // air, freight, rail and ship routes have their own adders
     const onRoute = state.vehicles.filter((v) => v.ownerId === r.id && v.orders.length && v.orders.some((o) => o.stationId === route.a || o.stationId === route.b));
     if (onRoute.length >= MAX_BUSES_PER_ROUTE) continue;
     if (waitingAt(state, route.a) + waitingAt(state, route.b) < WAITING_FOR_BUS) continue;
