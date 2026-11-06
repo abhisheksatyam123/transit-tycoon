@@ -9,6 +9,7 @@ import { openTitleMenu } from './titleMenu.js';
 import { icon } from './icons.js';
 import { scanIssues } from './diagCache.js';
 import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
+import { screenshotCanvas, giantScreenshot } from './screenshot.js';
 
 /** Build tool buttons: [toolId, label, icon, shortcut]. */
 export const TOOL_BUTTONS = [
@@ -55,6 +56,7 @@ export const WINDOW_BUTTONS = [
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],
   ['goals', 'Goals', 'goals', 'O'],
+  ['extraViewport', 'Extra viewport', 'extra', ''],
   ['subsidies', 'Subsidies', 'subsidies', ''],
   ['metro', 'Metro', 'metro', 'U'],
   ['issues', 'Issues', 'issues', 'G'],
@@ -82,7 +84,14 @@ export const TOOL_GROUPS = [
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news']],
+  ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];
+
+/** Screenshot flyout items (not windows): [id, label, icon, shortcut]; handled in createToolbar. */
+export const SHOT_ITEMS = {
+  shot: ['Screenshot (map view)', 'camera', '.'],
+  shotMap: ['Whole-map screenshot', 'camera', ''],
+};
 
 const SPEEDS = [[0, 'Pause', 'pause', 'Space'], [1, '1x', 'play1', ''], [2, '2x', 'play2', ''], [4, '4x', 'play4', '']];
 
@@ -138,6 +147,18 @@ export function createToolbar(root, app) {
     return b;
   });
   const toolInfo = new Map(TOOL_BUTTONS.map((t) => [t[0], t]));
+  /** Screenshot flyout actions: the map view PNG, or the whole map (giant screenshot) with a toast. */
+  const shotAction = (id) => {
+    play('click');
+    if (id === 'shot') {
+      screenshotCanvas(app.renderer).then((name) => app.toast(`Saved ${name}`, 'good'), (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error'));
+      return;
+    }
+    app.toast('Rendering whole-map screenshot…', 'info', false, 60000);
+    giantScreenshot(app.game, app.renderer).then(
+      (r) => app.toast(`Saved ${r.name} (${r.width}×${r.height}, zoom ${r.zoom})`, 'good', false, 6000),
+      (e) => app.toast('Whole-map screenshot failed: ' + (e && e.message ? e.message : e), 'error'));
+  };
   const winInfo = new Map(WINDOW_BUTTONS.map((w) => [w[0], w]));
 
   // ---- top-level tool and window buttons ----
@@ -213,7 +234,7 @@ export function createToolbar(root, app) {
     p.style.top = top + 'px';
   };
   for (const [gid, label, gicon, members0] of TOOL_GROUPS) {
-    const members = members0.filter((m) => m.startsWith('win:') || toolInfo.has(m));
+    const members = members0.filter((m) => m.startsWith('win:') || toolInfo.has(m) || SHOT_ITEMS[m]);
     if (!members.length) continue;
     const items = [];
     const toolIds = [];
@@ -224,6 +245,14 @@ export function createToolbar(root, app) {
         const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); });
         b.dataset.win = name;
         if (wk) titled.push([b, wl, 'win:' + name]);
+        items.push(b);
+        return b;
+      }
+      if (SHOT_ITEMS[m]) {
+        const [sl, si, sk] = SHOT_ITEMS[m];
+        const b = flyItem(si, sl, sk, () => { closeFlyouts(); shotAction(m); });
+        b.dataset.shot = m;
+        if (sk) titled.push([b, sl, 'screenshot']);
         items.push(b);
         return b;
       }
@@ -275,7 +304,7 @@ export function createToolbar(root, app) {
   root.appendChild(sep());
   root.appendChild(el('div.tb-group', { 'aria-label': 'Build tools' }, cat(toolBtns, groupBtn('rail'), groupBtn('road'), groupBtn('water'), groupBtn('air'), groupBtn('landscape'))));
   root.appendChild(sep());
-  root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, cat(winBtns.slice(0, 2), groupBtn('lists'), groupBtn('stats'), winBtns.slice(2), sound)));
+  root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, cat(winBtns.slice(0, 2), groupBtn('lists'), groupBtn('stats'), groupBtn('shots'), winBtns.slice(2), sound)));
 
   const refresh = () => {
     for (const b of speedBtns) b.classList.toggle('active', Number(b.dataset.speed) === app.speed);

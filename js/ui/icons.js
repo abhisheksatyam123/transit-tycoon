@@ -34,6 +34,8 @@ const PATHS = {
   query: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M11 8v.01M11 11v3"/>',
   vehicles: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17" cy="18" r="1.5"/>',
   finances: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z M12 10.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7z"/>',
+  extra: '<path d="M3 4h18v12H3z M8 20h8 M12 16v4 M7 10l-2 2 2 2 M17 10l2 2-2 2"/>',
   map: '<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14M15 6v14"/>',
   graphs: '<path d="M4 20h16M6 16l4-5 3 3 5-7"/>',
   depots: '<path d="M3 21V11l9-6 9 6v10M7 21v-6h10v6M3 11h18"/>',

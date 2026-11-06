@@ -199,6 +199,7 @@ export class GroundCache {
     const cx0 = Math.floor(range.x0 / CHUNK), cx1 = Math.floor(range.x1 / CHUNK);
     const cy0 = Math.floor(range.y0 / CHUNK), cy1 = Math.floor(range.y1 / CHUNK);
     let built = 0;
+    this.pending = 0; // chunks drawn as placeholders this call (whole-map export waits for 0)
     const t0 = performance.now();
     for (let s = cx0 + cy0; s <= cx1 + cy1; s++) {
       for (let cx = Math.max(cx0, s - cy1); cx <= Math.min(cx1, s - cy0); cx++) {
@@ -214,6 +215,7 @@ export class GroundCache {
               built++;
             } else if (!rec) {
               this.placeholder(ctx, cx, cy); // built in a later frame
+              this.pending++;
             }
           } else if (rec.scale === scale) {
             rec.sig = sig;

@@ -35,8 +35,10 @@ export class Renderer {
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {any} game Game instance (contract API)
+   * @param {{secondary?:boolean}} [opts] secondary: an extra viewport or a whole-map export pass;
+   *   it does not take the window.__renderer debug handle
    */
-  constructor(canvas, game) {
+  constructor(canvas, game, opts = {}) {
     this.canvas = canvas;
     this.ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d', { alpha: false }));
     this.camera = new Camera();
@@ -47,6 +49,10 @@ export class Renderer {
     this.vfx = new VehicleFx();
     this.frame = 0;
     this.dpr = 1;
+    /** true: canvas size and camera viewport are set by the caller (see screenshot.js) */
+    this.fixedView = !!opts.fixedView;
+    /** heights owned by another (main) renderer; null = this renderer builds its own */
+    this._sharedHeights = opts.heights || null;
     /** metro schematic overlay (key J); tunnel trains are shown only while on */
     this.showMetro = false;
     /** screen-space hit rects of the name signs from the last frame (see layers/labels.js) */
@@ -72,7 +78,19 @@ export class Renderer {
     this.airSegs = [];
     this.setGame(game);
     // debug handle for e2e tests (same role as window.__game)
-    if (typeof window !== 'undefined') window.__renderer = this;
+    if (typeof window !== 'undefined' && !opts.secondary) window.__renderer = this;
+  }
+
+  /**
+   * Use another renderer's terrain heights (the main view's, kept in sync after terraform), so a
+   * secondary renderer does not keep its own copy. Survives later setGame calls (until the owner's
+   * heights object is replaced by a new game: call again).
+   * @param {Renderer} main
+   */
+  shareHeights(main) {
+    this._sharedHeights = main.heights;
+    this.heights = main.heights;
+    if (this.ground) this.ground.reset(this.game.state.map, this.heights);
   }
 
   /**
@@ -87,7 +105,7 @@ export class Renderer {
     this._maskSrcC = this._maskSrcS = null;
     this._indLen = -1;
     this.buckets = [];
-    this.heights = new Heights(m);
+    this.heights = this._sharedHeights || new Heights(m);
     setOverlayHeights(this.heights);
     if (!this.ground) this.ground = new GroundCache();
     this.ground.reset(m, this.heights);
@@ -97,6 +115,7 @@ export class Renderer {
 
   /** Resize backing store to the element's CSS size × devicePixelRatio. */
   resize() {
+    if (this.fixedView) return; // whole-map export: the caller sets canvas size and camera
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = this.canvas.clientWidth || 800, h = this.canvas.clientHeight || 600;
     if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
@@ -268,6 +287,7 @@ export class Renderer {
     const state = this.game.state;
     const map = state.map;
     setPoseMap(map);
+    setOverlayHeights(this.heights); // module-level: another renderer may have set its own
     const W = map.width;
     const tiles = map.tiles;
     const z = cam.zoom * this.dpr;

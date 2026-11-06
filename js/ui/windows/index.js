@@ -33,6 +33,7 @@ import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
 import { openCompanies } from './companies.js';
 import { openHotkeys } from './hotkeys.js';
+import { openExtraViewport } from './extraViewport.js';
 
 /** @type {Record<string,(app:any,arg?:any)=>any>} */
 const REGISTRY = {
@@ -68,6 +69,7 @@ const REGISTRY = {
   map: openMap,
   autoreplace: openAutoreplace,
   companies: openCompanies,
+  extraViewport: openExtraViewport,
 };
 
 /**

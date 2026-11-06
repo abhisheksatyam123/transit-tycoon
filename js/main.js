@@ -21,6 +21,8 @@ import { runWithLoading, buildingLabel } from './ui/loading.js';
 import { createGameFast } from './ui/scenarioSnapshot.js';
 import { initPack, togglePack } from './renderer/pack/index.js';
 import { openTitleMenu } from './ui/titleMenu.js';
+import { screenshotCanvas } from './ui/screenshot.js';
+import { renderExtras } from './ui/extraViewport.js';
 
 const WINDOW_REFRESH_MS = 250;
 const STATUS_REFRESH_MS = 200;
@@ -196,6 +198,7 @@ async function main() {
     metroOverlay: () => { app.renderer.showMetro = !app.renderer.showMetro; },
     graphics: () => togglePack(renderer),
     sound: () => toolbar.toggleSound(),
+    screenshot: () => screenshotCanvas(renderer).then((name) => app.toast(`Saved ${name}`, 'good'), (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error')),
     'alt:query': () => app.setTool('query'),
   };
   for (const a of HOTKEY_ACTIONS) {
@@ -222,6 +225,7 @@ async function main() {
       input.update(dt);
       app.updateFollow();
       renderer.render(dt);
+      renderExtras(dt, app.game); // extra viewports (throttled inside; see ui/extraViewport.js)
       updateCostReadout(app); // T43 construction cost readout (no-op unless a build tool previews)
       minimap.draw(now);
       if (now - lastStatus > STATUS_REFRESH_MS) { statusbar.update(); lastStatus = now; }
