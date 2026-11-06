@@ -9,6 +9,8 @@ import { tileHash } from '../sprites/canvas.js';
 import { subtileOffset } from './subtile.js';
 import { arcticState, snowSpriteId } from './arctic.js';
 import { ARCTIC_HOUSES } from './arctic_house_table.js';
+import { tropicState } from './tropic.js';
+import { TROPIC_HOUSES } from './tropic_house_table.js';
 import { blitPackFrom } from './draw.js';
 
 /** Concrete ground used when a house has no ground sprite. */
@@ -86,6 +88,7 @@ export function houseSprites(b, x, y, year = gameYear) {
  */
 export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
   // sub-arctic games (arctic pack loaded): OpenTTD's sub-arctic houses, below or above the snow line (pack/arctic_house_table.js)
+  if (tropicState.on && tropicState.pack && drawTropicHouse(ctx, b, x, y, topX, topY)) return true;
   if (arcticState.on && arcticState.pack && drawArcticHouse(ctx, b, x, y, topX, topY, snow)) return true;
   const s = houseSprites(b, x, y);
   if (!s) return false;
@@ -95,6 +98,30 @@ export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
     ? snowSpriteId(snow, [0, 0, 0, 0]) : s[0];
   blitPack(ctx, ground, topX, topY);
   blitPack(ctx, s[1], topX + ox, topY + oy, b.colour || DEFAULT_CC);
+  return true;
+}
+
+/**
+ * Sub-tropical house for a tile (OpenTTD _original_house_specs, HouseZone::ClimateSubtropic; desert and rainforest share
+ * the zone). Ids come from the TROPIC pack (pack/tropic_house_table.js); the pick is deterministic per tile hash and
+ * limited to houses built by the current year (min year) and the level's population bucket.
+ * @returns {boolean} drawn (false = no tropic sprite, the caller falls back to the temperate set)
+ */
+function drawTropicHouse(ctx, b, x, y, topX, topY) {
+  const pack = tropicState.pack;
+  const level = Math.max(1, Math.min(4, b.level | 0 || 1));
+  const maxPop = ARCTIC_POP_MAX[level - 1];
+  const minPop = level === 1 ? -1 : ARCTIC_POP_MAX[level - 2];
+  let pool = TROPIC_HOUSES.filter((h) => h.minYear <= gameYear && h.pop > minPop && h.pop <= maxPop);
+  if (!pool.length) pool = TROPIC_HOUSES.filter((h) => h.minYear <= gameYear);
+  if (!pool.length) return false;
+  const hash = tileHash(x, y);
+  const h = pool[(hash >>> 4) % pool.length];
+  const [ground, building, dx, dy] = h.pairs[hash & 3];
+  if (!pack.sprites[String(building)] || !pack.sprites[String(ground)]) return false;
+  const [ox, oy] = subtileOffset(dx, dy);
+  blitPackFrom(pack, ctx, String(ground), topX, topY);
+  blitPackFrom(pack, ctx, String(building), topX + ox, topY + oy, b.colour || DEFAULT_CC);
   return true;
 }
 

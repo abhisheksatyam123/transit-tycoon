@@ -12,6 +12,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng } from './png.js';
 import { readSpriteDefs } from './pnml.js';
+import { TROPIC_HOUSES } from '../../js/renderer/pack/tropic_house_table.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -64,6 +65,17 @@ const SETS = [
 const pieces = [];
 for (const s of SETS) {
   groundRects.slice(0, STRIDE).forEach((r, off) => pieces.push({ key: String(s.base + off), order: s.base + off, file: s.file, ...r }));
+}
+
+// Sub-tropical town houses + their ground (table/town_land.h, see tropic_house_table.js). Original OpenGFX ids as
+// keys, order 100000+ so the desert ground keeps ids 312..387 and its atlas slots. Company colour masks are kept.
+const houseIds = new Set();
+for (const h of TROPIC_HOUSES) for (const p of h.pairs) { if (p[0] > 0) houseIds.add(p[0]); if (p[1] > 0) houseIds.add(p[1]); }
+const defs = readSpriteDefs(SRC);
+for (const id of [...houseIds].sort((a, b) => a - b)) {
+  const d = defs.get(id);
+  if (!d) throw new Error(`house sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(id), order: 100000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
 }
 
 // ---- pack (same layout as extract_extra.js) ----
