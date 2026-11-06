@@ -6,17 +6,29 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
-import { unloadMode } from '../../simulation/orders.js';
+import { unloadMode, stopMode } from '../../simulation/orders.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
+const STOP_OPTIONS = [['non', 'Non-stop'], ['all', 'Stop at all stations'], ['via', 'Go via']];
+
+/** Order row text, OpenTTD style: "Go non-stop to X" / "Go to X" (stop all) / "Go via X". */
+export function orderVerb(o) {
+  const m = stopMode(o);
+  return m === 'via' ? 'Go via' : m === 'all' ? 'Go to' : 'Go non-stop to';
+}
 
 /** Whether a station has a facility this vehicle can stop at (buses also use bus stops, trams too). */
 function usableBy(v, st) {
   const k = st.kinds || {};
   return ['rail', 'bus', 'truck', 'airport', 'ship'].some((x) => k[x] && stopKindOk(v, x));
+}
+
+/** Stop modes apply to trains and road vehicles only (OpenTTD; ships and aircraft are always non-stop here). */
+function canStopAtIntermediate(v) {
+  return v.kind === 'train' || v.kind === 'road';
 }
 
 /** Current load mode of an order. */
@@ -66,6 +78,9 @@ export function openOrders(app, id) {
       };
       body.append(list, el('div.btn-row', null, addBtn, startBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), needs2, hint);
 
+      /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
+      const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
+        ...STOP_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
       const edit = (fn) => {
         const v = app.findVehicle(id);
         if (!v) return;
@@ -106,6 +121,7 @@ export function openOrders(app, id) {
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
                 ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
+              stopSel(it),
               el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Wait days: minimum days to wait at this stop (blank = auto)', placeholder: 'wait days', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),
@@ -120,7 +136,10 @@ export function openOrders(app, id) {
           (row, it) => {
             const st = app.findStation(it.o.stationId);
             setText(row.children[0], String(it.i + 1));
-            setText(row.children[1], st ? st.name : `Station #${it.o.stationId} (removed)`);
+            setText(row.children[1], `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);
+            const stopEl = row.querySelector('select[title="Stop"]');
+            if (stopEl && stopEl.value !== stopMode(it.o)) stopEl.value = stopMode(it.o);
+            if (stopEl) stopEl.hidden = !canStopAtIntermediate(v);
             // P7: warn when this stop neither accepts nor supplies any cargo the vehicle carries
             const warn = st ? orderCargoWarning(app.game.state, v, st) : '';
             let w = row.querySelector(':scope > .order-warn');

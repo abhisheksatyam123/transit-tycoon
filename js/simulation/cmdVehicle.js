@@ -72,7 +72,7 @@ export function setOrders(ctx, id, orders, opts = {}) {
 
 /**
  * Modify the load / unload flags of one order (OpenTTD ModifyOrder). `flags` may set
- * `load` ('normal'|'full'|'none') and/or `unload` ('normal'|'all'|'transfer'|'none');
+ * `load` ('normal'|'full'|'none'), `unload` ('normal'|'all'|'transfer'|'none') and/or `stop` ('non'|'all'|'via');
  * omitted keys keep their current value. Re-validates the whole list.
  */
 export function modifyOrder(ctx, id, index, flags, opts = {}) {
@@ -85,7 +85,9 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   const o = orders[index];
   const load = flags.load !== undefined ? flags.load : (o.load || (o.full ? 'full' : 'normal'));
   const unload = flags.unload !== undefined ? flags.unload : (o.unload || 'normal');
+  const stop = flags.stop !== undefined ? flags.stop : (o.stop || 'non');
   orders[index] = { stationId: o.stationId, load, unload };
+  if (stop !== 'non') orders[index].stop = stop;
   if (o.waitDays > 0) orders[index].waitDays = o.waitDays;
   if (o.travelDays > 0) orders[index].travelDays = o.travelDays;
   const r = normaliseOrders(state, v, orders, stopKindFor);
@@ -116,7 +118,7 @@ export function skipToOrder(ctx, id, index, opts = {}) {
     return { ok: true, cost: 0 };
   }
   v.orderIndex = index;
-  v.atStationId = null;
+  v.atStationId = null; delete v.intermediate;
   delete v.departTick;
   delete v.arriveTick;
   if (v.state === 'loading') {
@@ -155,7 +157,7 @@ export function stopVehicle(ctx, id, opts = {}) {
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state === 'depot' || v.state === 'stopped') return { ok: false, error: 'Vehicle is already stopped' };
   if (opts.dryRun) return { ok: true, cost: 0 };
-  if (v.state === 'loading') { v.state = 'running'; v.atStationId = null; v.path = []; }
+  if (v.state === 'loading') { v.state = 'running'; v.atStationId = null; delete v.intermediate; v.path = []; }
   v.state = 'stopped';
   v.speed = 0;
   return { ok: true, cost: 0 };
@@ -178,7 +180,7 @@ export function sendToDepot(ctx, id, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0, depotId: depot.id };
   v.goingToDepot = depot.id;
   delete v.serviceTrip;
-  v.atStationId = null;
+  v.atStationId = null; delete v.intermediate;
   if (path.length === 1) { enterDepot(ctx, v, depot.id); return { ok: true, cost: 0, depotId: depot.id }; }
   v.state = 'running';
   replan(ctx, v);

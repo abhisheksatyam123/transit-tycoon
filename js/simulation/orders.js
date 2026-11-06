@@ -36,6 +36,25 @@ export const FULL_LOAD_RETRY = 20;
  */
 export const LOAD_MODES = ['normal', 'full', 'none'];
 export const UNLOAD_MODES = ['normal', 'all', 'transfer', 'none'];
+/**
+ * Stop modes (OpenTTD ONSF_*): absent / 'non' = non-stop (default, arrival checked at the order's station only),
+ * 'all' = stop at every intermediate station of the company on the path (trains and road vehicles),
+ * 'via' = go via the destination: pass through it, the order counts as reached without stopping.
+ */
+export const STOP_MODES = ['non', 'all', 'via'];
+
+/** Stop mode of an order ('non' when absent). */
+export function stopMode(order) {
+  return (order && order.stop) || 'non';
+}
+
+/** Load / unload rules of an intermediate stop (stop 'all'): normal loading and unloading, no order station. */
+const INTERMEDIATE_ORDER = Object.freeze({ stationId: null, load: 'normal', unload: 'normal' });
+
+/** The order whose rules apply at the vehicle's current stop (the intermediate rules while on one). */
+export function effectiveOrder(v) {
+  return v.intermediate ? INTERMEDIATE_ORDER : currentOrder(v);
+}
 
 /** Effective unload mode of an order ('normal' when absent). */
 export function unloadMode(order) {
@@ -48,6 +67,8 @@ export function orderFlagText(o) {
   const parts = [];
   if (o.full) parts.push('full load');
   if (o.load === 'none') parts.push('no loading');
+  if (o.stop === 'all') parts.push('stop at all stations');
+  else if (o.stop === 'via') parts.push('go via');
   if (o.unload === 'all') parts.push('unload all');
   else if (o.unload === 'transfer') parts.push('transfer');
   else if (o.unload === 'none') parts.push('no unloading');
@@ -163,7 +184,7 @@ export function syncLoad(v) {
 
 function unloadSlice(ctx, v, st) {
   const load = v.load;
-  const mode = unloadMode(currentOrder(v));
+  const mode = unloadMode(effectiveOrder(v));
   if (mode === 'none' || !load.amount || !v.cargoId) return 0;
   const accepted = !!st.accepts[v.cargoId] && load.fromStationId !== st.id;
   if (mode === 'normal' || mode === 'all') {
@@ -285,7 +306,7 @@ function loadSlice(ctx, v, st) {
 /**
  * Handle arrival of a vehicle at its order's station: news, unload, start loading.
  */
-export function arriveAtStation(ctx, v, st) {
+export function arriveAtStation(ctx, v, st, intermediate = false) {
   const { state } = ctx;
   const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   if (!st.arrived[key]) {
@@ -297,9 +318,11 @@ export function arriveAtStation(ctx, v, st) {
   v.state = 'loading';
   v.speed = 0;
   v.atStationId = st.id;
+  if (intermediate) v.intermediate = true; // stop 'all': an intermediate stop, the order does not advance on departure
+  else delete v.intermediate;
   unload(ctx, v, st);
   v.loadingTicks = LOAD_TICKS;
-  recordArrival(ctx, v, currentOrder(v));
+  if (!intermediate) recordArrival(ctx, v, currentOrder(v));
 }
 
 /** Timetable bookkeeping on arrival: arrival tick, lateness, autofill of the travel time. */
@@ -329,7 +352,7 @@ export function loadingTick(ctx, v) {
   const st = findStation(state, v.atStationId);
   if (!st) return true;
   if (--v.loadingTicks > 0) return false;
-  const order = currentOrder(v);
+  const order = effectiveOrder(v);
   // no loading when told so, and no reloading of cargo just dropped here (transfer / unload all)
   const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
   if (!order || (order.load !== 'none' && !dropped)) loadCargo(ctx, v, st);
@@ -344,7 +367,7 @@ export function loadingTick(ctx, v) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
   }
-  recordDeparture(ctx, v, order);
+  if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   return true;
 }
 
@@ -388,6 +411,9 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (!stationFitsVehicle(state, st, v)) {
       return { ok: false, error: `${st.name} cannot take this aircraft (planes need an airport, small airports only take small planes)` };
     }
+    const stop = o.stop === undefined || o.stop === 'non' ? undefined : o.stop;
+    if (stop !== undefined && !STOP_MODES.includes(stop)) return { ok: false, error: `Unknown stop mode ${stop}` };
+    if (stop !== undefined && v.kind !== 'train' && v.kind !== 'road') return { ok: false, error: 'Only trains and road vehicles can stop at intermediate stations' };
     const load = o.load === undefined ? (o.full ? 'full' : 'normal') : o.load;
     const unload = o.unload === undefined ? 'normal' : o.unload;
     if (!LOAD_MODES.includes(load)) return { ok: false, error: `Unknown load mode ${load}` };
@@ -397,6 +423,7 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (unload !== 'normal') entry.unload = unload;
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
+    if (stop !== undefined) entry.stop = stop;
     out.push(entry);
   }
   return { ok: true, orders: out };

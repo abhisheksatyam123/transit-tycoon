@@ -21,7 +21,7 @@ import { servicePerformed } from './service.js';
 import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
-import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
+import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode } from './orders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
 import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
@@ -53,6 +53,13 @@ export function vehicleTick(ctx, v) {
       return;
     case 'loading':
       if (loadingTick(ctx, v)) {
+        if (v.intermediate) { // stop 'all' at a passed station: the order is still pending, continue to it
+          delete v.intermediate;
+          v.atStationId = null;
+          v.state = 'running';
+          replan(ctx, v);
+          return;
+        }
         advanceOrder(v);
         v.atStationId = null;
         v.state = 'running';
@@ -125,6 +132,39 @@ function moveShip(ctx, v) {
   }
 }
 
+/**
+ * Orders with a stop mode (OpenTTD ONSF_*), checked on each tile a train or road vehicle enters mid-path:
+ * - 'all' (stop at all stations): a station of the vehicle's company on the path stops it; it loads / unloads
+ *   there and then continues to the current order (orders.js loadingTick).
+ * - 'via' (go via): entering the order's own station passes it: the order counts as reached, no stop.
+ * @returns {boolean} true when the vehicle stopped or moved on to another order (its path was replaced)
+ */
+function passStation(ctx, v) {
+  if (v.kind !== 'train' && v.kind !== 'road') return false;
+  const order = currentOrder(v);
+  if (!order || v.goingToDepot != null) return false;
+  const mode = stopMode(order);
+  if (mode === 'non') return false;
+  const { state } = ctx;
+  const t = state.map.tiles[v.ty * state.map.width + v.tx];
+  const b = t.building;
+  const st = b && b.type === 'station' && stopKindOk(v, b.kind) ? findStation(state, b.stationId) : null;
+  // a station's platform tiles are consecutive: serve it once, not on every tile of it (v.passedStationId, lazy)
+  if (!st || st.id !== v.passedStationId) delete v.passedStationId;
+  if (!st || (st.ownerId ?? null) !== (v.ownerId ?? null)) return false;
+  if (st.id === v.passedStationId) return false;
+  if (st.id === order.stationId) {
+    if (mode !== 'via') return false; // the destination itself: the normal path-end rules apply
+    advanceOrder(v);
+    replan(ctx, v);
+    return true;
+  }
+  if (mode !== 'all') return false;
+  v.passedStationId = st.id;
+  arriveAtStation(ctx, v, st, true);
+  return true;
+}
+
 /** Move a running vehicle along its path. */
 function move(ctx, v) {
   const { state } = ctx;
@@ -154,6 +194,7 @@ function move(ctx, v) {
     v.history.unshift({ x: p.x, y: p.y });
     if (v.history.length > keep) v.history.length = keep;
     if (v.pathIndex >= v.path.length - 1) { v.progress = 0; onPathEnd(ctx, v); return; }
+    if (passStation(ctx, v)) { v.progress = 0; return; } // stop 'all' / 'via' at a station on the way
     if (!linkOk(state, layer, v)) { v.progress = 0; replan(ctx, v); return; }
   }
 }
@@ -295,6 +336,7 @@ function onPathEnd(ctx, v) {
   const order = currentOrder(v);
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);
+    if (st && stopMode(order) === 'via') { advanceOrder(v); replan(ctx, v); return; } // go via: reached, no stop
     if (st) {
       if (v.kind === 'aircraft' && maybeCrashLanding(ctx, v, st)) return; // landing crash: vehicle removed
       arriveAtStation(ctx, v, st); return;

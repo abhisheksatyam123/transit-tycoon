@@ -276,6 +276,8 @@ export class Game {
   setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
   /** Autoreplace rule (T18b): replace model oldModelId with newModelId in depots (null clears). */
   setAutoreplace(oldModelId, newModelId, opts) { return setAutoreplace(this.state, oldModelId, newModelId, opts); }
+  /** Stop mode of one order: 'non' (non-stop, default), 'all' (stop at all stations), 'via' (go via). */
+  setOrderStop(id, index, stop, opts) { return vcmd.modifyOrder(this.ctx, id, index, { stop }, opts); }
   /** Timetable of one order: {waitDays, travelDays} (days; 0 clears). Shared orders: all members. */
   setOrderTimetable(id, orderIndex, times, opts) { return vcmd.setOrderTimetable(this.ctx, id, orderIndex, times, opts); }
   /** Timetable autofill on/off for one vehicle. */
