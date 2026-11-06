@@ -7,6 +7,7 @@ import { blitPack, DEFAULT_CC } from './draw.js';
 import { HOUSE_TABLE } from './ottd_tables.js';
 import { tileHash } from '../sprites/canvas.js';
 import { subtileOffset } from './subtile.js';
+import { arcticState, snowSpriteId } from './arctic.js';
 
 /** Concrete ground used when a house has no ground sprite. */
 const SPR_CONCRETE = 1420;
@@ -81,11 +82,14 @@ export function houseSprites(b, x, y, year = gameYear) {
  * @param {number} topY tile top corner y
  * @returns {boolean} drawn
  */
-export function drawOgfxHouse(ctx, b, x, y, topX, topY) {
+export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
   const s = houseSprites(b, x, y);
   if (!s) return false;
   const [ox, oy] = subtileOffset(s[2], s[3]);
-  blitPack(ctx, s[0], topX, topY);
+  // snowy garden ground above the snow line (OpenTTD DrawClearLandTile snow density); the building sprite is unchanged
+  const ground = snow >= 0 && arcticState.pack && arcticState.pack.sprites[String(snowSpriteId(snow, [0, 0, 0, 0]))]
+    ? snowSpriteId(snow, [0, 0, 0, 0]) : s[0];
+  blitPack(ctx, ground, topX, topY);
   blitPack(ctx, s[1], topX + ox, topY + oy, b.colour || DEFAULT_CC);
   return true;
 }
