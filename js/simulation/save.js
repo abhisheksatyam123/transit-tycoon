@@ -277,8 +277,26 @@ export function parseState(json) {
     throw new Error('Invalid save data');
   }
   if (state.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${state.version}`);
+  const rev = state.revision || 0;
+  if (!Number.isInteger(rev) || rev < 0) throw new Error(`Invalid save revision ${state.revision}`);
+  if (rev > SAVE_REVISION) {
+    throw new Error(`This save was made by a newer version of the game (revision ${rev}, this build reads up to ${SAVE_REVISION})`);
+  }
+  for (let r = rev; r < SAVE_REVISION; r++) MIGRATIONS[r](state);
+  if (SAVE_REVISION) state.revision = SAVE_REVISION;
   return migrate(state);
 }
+
+/**
+ * Save revision (OpenTTD SaveLoadVersion, simplified): bump SAVE_REVISION when a change needs an explicit
+ * conversion of old saves, and append the step to MIGRATIONS (MIGRATIONS[r] upgrades revision r to r + 1).
+ * Revision 0 is written as no field at all (lazy), so saves and hashes of existing games stay unchanged.
+ * Additive lazy fields need no step: `migrate` below fills their defaults for every save.
+ * A save with a higher revision than this build is refused with a clear message instead of loading wrongly.
+ */
+export const SAVE_REVISION = 0;
+/** @type {Array<(state: object) => void>} */
+export const MIGRATIONS = [];
 
 /** Fill fields added after a save was written (keeps old saves of the same version loadable). */
 function migrate(state) {
