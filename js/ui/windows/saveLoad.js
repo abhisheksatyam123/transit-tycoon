@@ -20,13 +20,29 @@ function describe(slot) {
 }
 
 /**
+ * OpenTTD SaveLoadWindow: the game is paused while the save/load dialog is open (PauseMode::SaveLoad) and
+ * resumes at the previous speed when it closes (unless the player changed the speed meanwhile).
+ * @param {import('../app.js').App} app
+ */
+function pauseWhileOpen(app) {
+  let resume = 0;
+  return {
+    pause() { if (app.speed > 0) { resume = app.speed; app.setSpeed(0); } },
+    onClose() { if (resume && app.speed === 0) app.setSpeed(resume); resume = 0; },
+  };
+}
+
+/**
  * @param {import('../app.js').App} app
  */
 export function openSave(app) {
+  const p = pauseWhileOpen(app);
   return app.wm.open('save', {
     title: 'Save Game',
     width: 380,
+    onClose: p.onClose,
     build(body) {
+      p.pause();
       SLOTS.forEach((slot) => {
         const d = el('span.muted.small');
         const b = el('button.btn', { type: 'button', text: `Slot ${slot}`, onclick: () => {
@@ -50,10 +66,13 @@ export function openSave(app) {
  * @param {import('../app.js').App} app
  */
 export function openLoad(app) {
+  const p = pauseWhileOpen(app);
   return app.wm.open('load', {
     title: 'Load Game',
     width: 380,
+    onClose: p.onClose,
     build(body, win) {
+      p.pause();
       for (const slot of ['autosave', ...SLOTS]) {
         const meta = slotMeta(slot);
         const b = el('button.btn', { type: 'button', text: slot === 'autosave' ? 'Autosave' : `Slot ${slot}`, disabled: !meta, onclick: () => {
