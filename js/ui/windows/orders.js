@@ -28,7 +28,7 @@ export function openOrders(app, id) {
     build(body, win) {
       const list = el('div.list.orders');
       const addBtn = el('button.btn.primary', { type: 'button', text: '+ Add order' });
-      const startBtn = el('button.btn', { type: 'button', text: 'Start vehicle', onclick: () => app.exec(app.game.startVehicle(id), { sound: 'horn' }) });
+      const startBtn = el('button.btn', { type: 'button', text: 'Start vehicle', onclick: () => { const v = app.findVehicle(id); if (app.exec(app.game.startVehicle(id), { sound: 'horn' })) app.toast(`${v ? v.name : 'Vehicle'} started`, 'good'); } });
       const sharedLabel = el('div.muted.small.shared-orders', { text: '' });
       const unshareBtn = el('button.btn.sm', { type: 'button', text: 'Unshare', title: 'Give this vehicle its own copy of the order list', onclick: () => app.exec(app.game.unshareOrders(id), { quiet: true, sound: 'click' }) });
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
@@ -75,10 +75,10 @@ export function openOrders(app, id) {
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
                 ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
-              el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Minimum days to wait at this stop', style: 'width:4.5em',
+              el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Wait days: minimum days to wait at this stop (blank = auto)', placeholder: 'wait days', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),
-              el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Scheduled days from the previous stop', style: 'width:4.5em',
+              el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Travel days: scheduled days from the previous stop (blank = auto)', placeholder: 'travel days', style: 'width:5.5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { travelDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' }))),
             el('span.row-actions', null,

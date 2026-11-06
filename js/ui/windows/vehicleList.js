@@ -136,7 +136,8 @@ export function openVehicleList(app) {
       // mass start/stop act on the vehicles the current kind filter shows (gap #40)
       const massBtn = (label, start) => el('button.btn.sm', { type: 'button', text: label, title: `${label} the vehicles shown by the filter`, onclick: () => {
         const ids = sortVehicles(app.game.state.vehicles, state).map((v) => v.id);
-        app.exec(app.game.massStartStop(ids, start), { sound: start ? 'horn' : 'click' });
+        const r = app.game.massStartStop(ids, start);
+        if (app.exec(r, { sound: start ? 'horn' : 'click' }) && r.count) app.toast(`${start ? 'Started' : 'Stopped'} ${r.count} vehicle${r.count === 1 ? '' : 's'}`, 'good');
         refresh();
       } });
       const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },

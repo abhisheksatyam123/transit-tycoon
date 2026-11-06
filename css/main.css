@@ -138,6 +138,18 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   background: var(--panel); border: 1px solid var(--panel-border); box-shadow: var(--shadow);
 }
 #minimap { display: block; width: 200px; height: 110px; cursor: pointer; image-rendering: pixelated; touch-action: none; }
+/* collapsible minimap: collapsed = only the small toggle button (does not cover the map) */
+#minimap-toggle {
+  display: block; margin-left: auto; margin-bottom: 3px; padding: 0 6px; height: 18px; font-size: 11px; line-height: 16px;
+  color: var(--muted); background: var(--btn); border: 1px solid var(--btn-border); border-radius: 4px; cursor: pointer;
+}
+#minimap-toggle:hover { background: var(--btn-hover); color: var(--text); }
+#minimap-wrap.collapsed { padding: 0; background: transparent; border: none; box-shadow: none; }
+#minimap-wrap.collapsed #minimap-toggle { margin-bottom: 0; }
+#minimap-wrap.collapsed #minimap { display: none; }
+#minimap-wrap.collapsed #minimap-toggle { margin-left: 0; }
+#tool-hint:has(.tool-hint-keys) { white-space: normal; text-align: center; width: max-content; }
+#tool-hint .tool-hint-keys { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 #windows { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
 #windows > * { pointer-events: auto; }
 

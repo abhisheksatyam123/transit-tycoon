@@ -105,6 +105,31 @@ function onMonthAutosave(app) {
   whenIdle(() => autosave(app));
 }
 
+/**
+ * Collapse/expand the minimap panel. Remembered in localStorage ('tt.minimap' = '0' collapsed / '1' expanded);
+ * default: expanded on wide screens, collapsed on narrow (<= 700 px) screens. UI only.
+ * @param {HTMLElement} wrap
+ * @param {HTMLElement} btn
+ */
+function wireMinimapToggle(wrap, btn) {
+  let saved = null;
+  try { saved = localStorage.getItem('tt.minimap'); } catch { /* ignore */ }
+  const narrow = window.matchMedia ? window.matchMedia('(max-width: 700px)').matches : window.innerWidth <= 700;
+  const expanded0 = saved === '0' ? false : saved === '1' ? true : !narrow;
+  const apply = (exp) => {
+    wrap.classList.toggle('collapsed', !exp);
+    btn.textContent = exp ? 'Map ▾' : 'Map ▴';
+    btn.setAttribute('aria-expanded', String(exp));
+  };
+  apply(expanded0);
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const exp = wrap.classList.contains('collapsed');
+    apply(exp);
+    try { localStorage.setItem('tt.minimap', exp ? '1' : '0'); } catch { /* ignore */ }
+  });
+}
+
 /** Boot the app. */
 async function main() {
   const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -119,6 +144,7 @@ async function main() {
   renderer.resize();
   const minimap = new Minimap(/** @type {HTMLCanvasElement} */ ($('minimap')), renderer);
   const app = new App({ game, renderer, minimap, windowsEl: $('windows'), toastsEl: $('toasts'), GameClass: Game });
+  wireMinimapToggle($('minimap-wrap'), $('minimap-toggle'));
   app.centerOnInterest();
   initPack(renderer);
   if (scenario) app.announceScenario(game);
@@ -130,7 +156,20 @@ async function main() {
   app.ui.updateHint = () => {
     const t = app.tool;
     hintEl.hidden = !t;
-    if (t) hintEl.textContent = `${t.label}: ${t.hint}`;
+    if (!t) return;
+    const h = t.hint;
+    if (h && typeof h === 'object') {
+      // two-line hint: main sentence + smaller key-hint line
+      const main = document.createElement('div');
+      main.textContent = `${t.label}: ${h.main}`;
+      const keys = document.createElement('div');
+      keys.className = 'tool-hint-keys';
+      keys.textContent = h.keys || '';
+      keys.hidden = !h.keys;
+      hintEl.replaceChildren(main, keys);
+    } else {
+      hintEl.textContent = `${t.label}: ${h}`;
+    }
   };
   app.ui.onNews = () => statusbar.flashNews();
   app.onMonth = () => onMonthAutosave(app);

@@ -46,8 +46,9 @@ export function openVehicleDetail(app, id) {
       startStop.addEventListener('click', () => {
         const v = app.findVehicle(id);
         if (!v) return;
-        if (v.state === 'stopped' || v.state === 'depot') app.exec(g().startVehicle(id), { sound: 'horn' });
-        else app.exec(g().stopVehicle(id), { sound: 'click' });
+        if (v.state === 'stopped' || v.state === 'depot') {
+          if (app.exec(g().startVehicle(id), { sound: 'horn' })) app.toast(`${v.name} started`, 'good');
+        } else if (app.exec(g().stopVehicle(id), { sound: 'click' })) app.toast(`${v.name} stopped`, 'info');
       });
       const svcLabel = el('span.muted.small', { text: 'Service' });
       const setSvc = (days) => {

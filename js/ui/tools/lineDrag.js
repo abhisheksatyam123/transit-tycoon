@@ -65,13 +65,15 @@ export function createLineTool(app, o) {
     id: o.id,
     label: o.label,
     get hint() {
-      const base = (typeof o.hint === 'function' ? o.hint() : o.hint)
-        + (o.layer ? ` Shape: ${SHAPES.map((k) => (k === shape ? `[${SHAPE_LABEL[k]}]` : SHAPE_LABEL[k])).join(' | ')} (C cycles).` : '');
-      const mode = o.layer === 'rail' || o.layer === 'road'
-        ? ` Mode: ${railMode === 'tunnel' ? '[Tunnel]' : railMode === 'bridge' ? '[Bridge]' : 'Surface'} (U cycles).`
-        : '';
-      const cls = o.layer === 'road' ? ` Class: ${highway ? '[Highway — 4-lane]' : 'Local'} (H toggles).` : '';
-      return base + mode + cls;
+      // Two-part hint: a main sentence plus a smaller line of key hints (main.js renders both).
+      const main = (typeof o.hint === 'function' ? o.hint() : o.hint);
+      const keys = [];
+      if (o.layer) keys.push(`C shape: ${SHAPE_LABEL[shape]}`);
+      if (o.layer === 'rail' || o.layer === 'road') {
+        keys.push(`U mode: ${railMode === 'tunnel' ? 'Tunnel' : railMode === 'bridge' ? 'Bridge' : 'Surface'}`);
+      }
+      if (o.layer === 'road') keys.push(`H class: ${highway ? 'Highway' : 'Local'}`);
+      return { main, keys: keys.join(' · ') };
     },
     key(e) {
       if (!o.layer) return false;
