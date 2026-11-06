@@ -27,6 +27,9 @@ import { el } from './dom.js';
  * @property {WindowSpec} spec
  */
 
+/** Counter for unique window title ids (aria-labelledby). */
+let winSeq = 0;
+
 export class WindowManager {
   /**
    * @param {HTMLElement} container
@@ -52,11 +55,11 @@ export class WindowManager {
       this.focus(existing);
       return existing;
     }
-    const titleEl = el('span.win-title', { text: spec.title });
+    const titleEl = el('span.win-title', { id: 'win-title-' + (++winSeq), text: spec.title });
     const closeBtn = el('button.win-close', { type: 'button', title: 'Close (Esc)', 'aria-label': 'Close', text: '×' });
     const header = el('div.win-header', null, titleEl, closeBtn);
     const body = el('div.win-body');
-    const root = el('section.win.hud-surface' + (spec.className ? '.' + spec.className : ''), { role: 'dialog', 'aria-label': spec.title }, header, body);
+    const root = el('section.win.hud-surface' + (spec.className ? '.' + spec.className : ''), { role: 'dialog', 'aria-labelledby': titleEl.id }, header, body);
     if (spec.width) root.style.width = spec.width + 'px';
     /** @type {FloatingWindow} */
     const win = {
@@ -185,9 +188,11 @@ export class WindowManager {
     });
     handle.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      const maxX = this.container.clientWidth - 60, maxY = this.container.clientHeight - 30;
-      win.root.style.left = Math.max(-win.root.offsetWidth + 60, Math.min(maxX, ox + e.clientX - sx)) + 'px';
-      win.root.style.top = Math.max(0, Math.min(maxY, oy + e.clientY - sy)) + 'px';
+      // .win is CSS-zoomed by the UI scale (a11yPrefs): left/top are in unzoomed px, pointer deltas in screen px
+      const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')) || 1;
+      const maxX = this.container.clientWidth / k - 60, maxY = this.container.clientHeight / k - 30;
+      win.root.style.left = Math.max(-win.root.offsetWidth + 60, Math.min(maxX, ox + (e.clientX - sx) / k)) + 'px';
+      win.root.style.top = Math.max(0, Math.min(maxY, oy + (e.clientY - sy) / k)) + 'px';
     });
     const end = () => { dragging = false; };
     handle.addEventListener('pointerup', end);

@@ -380,3 +380,20 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   .tm-panel { padding: 10px 12px 8px; }
   .tm-foot { margin-top: 6px; }
 }
+
+/* ---- accessibility (js/ui/a11yPrefs.js: <html> gets --ui-scale, .hc, .reduce-motion) ---- */
+/* UI scale: CSS zoom on the chrome only (toolbar, status bar, flyouts, windows). The map canvas is not zoomed.
+   At the default 1 these are identity, so nothing changes unless the user picks another scale. */
+#toolbar, #statusbar, .tb-flyout, .win { zoom: var(--ui-scale, 1); }
+/* High contrast: opaque panels, brighter text, stronger borders and focus rings. */
+html.hc { --text: #ffffff; --muted: #e2e8f0; --panel: #000000; --panel-border: #ffffff; --btn: #000000; --btn-hover: #1e1e1e; --btn-border: #ffffff; --accent: #7dd3fc; --accent-border: #ffffff; }
+html.hc body { color: #ffffff; }
+html.hc #toolbar, html.hc #statusbar, html.hc .tb-flyout, html.hc .win, html.hc .hud-surface { background: #000000; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: #ffffff; }
+html.hc .tb-btn, html.hc .tb-fly-item, html.hc .win-header { border-color: #ffffff; }
+html.hc .muted, html.hc .win-h, html.hc .set-help { color: #e2e8f0 !important; }
+html.hc button:focus-visible, html.hc select:focus-visible, html.hc input:focus-visible, html.hc .tb-btn:focus-visible { outline: 3px solid #ffff00; outline-offset: 2px; }
+/* Reduced motion: no UI transitions or animations (the setting, or the OS preference). */
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}

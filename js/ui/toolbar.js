@@ -156,7 +156,9 @@ export function createToolbar(root, app) {
   };
   onHotkeysChanged(retitle);
   const speedBtns = SPEEDS.map(([s, label, ic, key]) => {
-    const b = tbButton(ic, label, `${label === 'Pause' ? 'Pause' : 'Speed ' + label}${key ? ' (' + key + ')' : ''}`, () => app.setSpeed(/** @type {number} */ (s)));
+    const tip = `${label === 'Pause' ? 'Pause' : 'Speed ' + label}${key ? ' (' + key + ')' : ''}`;
+    const b = tbButton(ic, label, tip, () => app.setSpeed(/** @type {number} */ (s)));
+    b.setAttribute('aria-label', label === 'Pause' ? 'Pause' : 'Speed ' + label);
     if (label === 'Pause') titled.push([b, 'Pause', 'pause']);
     b.dataset.speed = String(s);
     return b;
@@ -219,11 +221,13 @@ export function createToolbar(root, app) {
     setMuted(!isMuted());
     sound.replaceChild(icon(isMuted() ? 'soundOff' : 'soundOn'), sound.firstChild);
     sound.classList.toggle('muted', isMuted());
+    sound.setAttribute('aria-pressed', String(!isMuted()));
     play('click');
   };
   const sound = tbButton(isMuted() ? 'soundOff' : 'soundOn', 'Sound', 'Toggle sound (M)', () => toggleSound());
   titled.push([sound, 'Toggle sound', 'sound']);
   sound.classList.toggle('muted', isMuted());
+  sound.setAttribute('aria-pressed', String(!isMuted())); // pressed = sound on
 
   // ---- flyout groups: each group = a toolbar button (with a caret) + a panel appended to <body> ----
   // (#toolbar scrolls horizontally, so the panel must be position:fixed outside it.)
@@ -241,12 +245,15 @@ export function createToolbar(root, app) {
     const r = g.btn.getBoundingClientRect();
     const p = g.panel;
     p.classList.add('open');
-    const w = p.offsetWidth, h = p.offsetHeight;
+    // the panel is CSS-zoomed by the UI scale (a11yPrefs): measure in screen px, write left/top in unzoomed px
+    const k = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale')) || 1;
+    const pr = p.getBoundingClientRect();
+    const w = pr.width || p.offsetWidth * k, h = pr.height || p.offsetHeight * k;
     const vw = window.innerWidth || 800, vh = window.innerHeight || 600;
     const left = Math.max(4, Math.min(r.left, vw - w - 4));
     const top = r.bottom + 4 + h > vh ? Math.max(4, r.top - h - 4) : r.bottom + 4;
-    p.style.left = left + 'px';
-    p.style.top = top + 'px';
+    p.style.left = left / k + 'px';
+    p.style.top = top / k + 'px';
   };
   for (const [gid, label, gicon, members0] of TOOL_GROUPS) {
     const members = members0.filter((m) => m.startsWith('win:') || toolInfo.has(m) || SHOT_ITEMS[m]);
@@ -339,9 +346,9 @@ export function createToolbar(root, app) {
   };
   const refresh = () => {
     applyAirAvailability();
-    for (const b of speedBtns) b.classList.toggle('active', Number(b.dataset.speed) === app.speed);
+    for (const b of speedBtns) { const on = Number(b.dataset.speed) === app.speed; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
     const cur = app.tool ? app.tool.id : null;
-    for (const b of toolBtns) b.classList.toggle('active', !!cur && cur === b.dataset.tool);
+    for (const b of toolBtns) { const on = !!cur && cur === b.dataset.tool; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
     for (const g of groups) {
       const inGroup = !!cur && g.tools.includes(cur);
       g.btn.classList.toggle('active', inGroup);

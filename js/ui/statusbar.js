@@ -30,7 +30,7 @@ export function createStatusbar(root, app) {
   const moneyEl = el('span.sb-value.mono');
   const loanEl = el('span.sb-value.mono');
   const valueEl = el('span.sb-value.mono');
-  const newsEl = el('button.sb-news', { type: 'button', title: 'Latest news (click to jump to location)' });
+  const newsEl = el('button.sb-news', { type: 'button', title: 'Latest news (click to jump to location)', 'aria-live': 'polite' });
   const item = (label, v, cls) => el('div.sb-item' + (cls ? '.' + cls : ''), null, el('span.sb-label', { text: label }), v);
   root.appendChild(item('Date', dateEl));
   root.appendChild(el('div.metric-divider'));

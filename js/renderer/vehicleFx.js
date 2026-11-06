@@ -9,6 +9,7 @@
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { playVehicle } from '../audio/sfx.js';
+import { loadA11y } from '../ui/a11yPrefs.js';
 import { KIND_SMOKE, KIND_DARK, KIND_SPARK, KIND_WAKE, KIND_EXHAUST } from './particles.js';
 
 const FX_KEY = 'tt.fx';
@@ -73,7 +74,7 @@ export class VehicleFx {
       }
       this.seen.set(v.id, { state: v.state, frame: this.frame });
     }
-    if (!fxOn || !smokeOn || this.budget <= 0) return;
+    if (!fxOn || !smokeOn || this.budget <= 0 || loadA11y().reduceMotion) return;
     const model = MODEL_BY_ID[v.modelId];
     const moving = s._run && v.speed > 0;
     const r = smoke.rnd();

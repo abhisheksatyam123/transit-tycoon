@@ -12,6 +12,7 @@ import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
+import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -69,6 +70,22 @@ export function openSettings(app) {
             Object.values(CURRENCIES).map((c) => [c.id, c.name]), 'currency');
           unitSel('speed', 'Speed units', 'Vehicle speeds in km/h or mph. Display only.',
             Object.values(SPEED_UNITS).map((u) => [u.id, u.name]), 'speed');
+          // Accessibility (localStorage 'tt.a11y'): UI scale, high contrast, reduced motion. Applied at once.
+          const scaleSel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...UI_SCALES.map((v) => el('option', { value: String(v), text: v + '%' }))));
+          scaleSel.addEventListener('change', () => { setA11y({ uiScale: Number(scaleSel.value) }); applyA11y(); });
+          const scaleRow = el('div.set-row', null, el('label.set-line', { title: 'Size of the toolbar, status bar and windows (75-200%). The map is not scaled.' }, scaleSel, el('span.set-label', { text: 'UI scale' })), el('span.set-help.muted', { text: 'Toolbar, status bar and windows. The map is not scaled. 100% = default.' }));
+          rows.push({ item: { label: 'UI scale', help: '', group: g.id }, row: scaleRow, pref: true, sync: () => { if (document.activeElement !== scaleSel) scaleSel.value = String(loadA11y().uiScale); } });
+          inner.push(scaleRow);
+          for (const [key, label, help] of [
+            ['highContrast', 'High contrast', 'Opaque panels, white text and borders, stronger focus rings.'],
+            ['reduceMotion', 'Reduce motion', 'No UI transitions, and no vehicle smoke/sparks/wakes. Also follows the OS reduced-motion setting.'],
+          ]) {
+            const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
+            i.addEventListener('change', () => { setA11y({ [key]: i.checked }); applyA11y(); });
+            const row = el('div.set-row', null, el('label.set-line', { title: help }, i, el('span.set-label', { text: label })), el('span.set-help.muted', { text: help }));
+            rows.push({ item: { label, help, group: g.id }, row, pref: true, sync: () => { i.checked = !!loadA11y()[key]; } });
+            inner.push(row);
+          }
           for (const p of PREF_META) {
             const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
             if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); app.ui.refreshToolbar?.(); });

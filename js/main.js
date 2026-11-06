@@ -9,6 +9,7 @@ import { Minimap } from './renderer/minimap.js';
 import { setCargoColors } from './renderer/sprites/vehicles.js';
 import { App } from './ui/app.js';
 import { createToolbar } from './ui/toolbar.js';
+import { applyA11y } from './ui/a11yPrefs.js';
 import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
@@ -161,6 +162,7 @@ async function main() {
   if (scenario) app.announceScenario(game);
   if (scenario) maybeOpenGoals(app, game);
 
+  applyA11y();
   const toolbar = createToolbar($('toolbar'), app);
   const statusbar = createStatusbar($('statusbar'), app);
   app.ui.refreshToolbar = toolbar.refresh;
