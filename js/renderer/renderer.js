@@ -5,7 +5,7 @@ import { drawLandBridgeDeck } from './sprites/landBridge.js';
  * on the diagonal, then vehicle segments in that diagonal bucket, then static objects.
  * Reads game.state only; never mutates it.
  */
-import { HALF_W, HALF_H, HEIGHT_STEP, pickTile } from './iso.js';
+import { HALF_W, HALF_H, HEIGHT_STEP, pickTileQuad } from './iso.js';
 import { Camera } from './camera.js';
 import { drawObject, drawSegment } from './layers/objects.js';
 import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
@@ -120,7 +120,8 @@ export class Renderer {
    */
   pickTile(px, py) {
     const w = this.camera.screenToWorld(px, py);
-    return pickTile(w.x, w.y, (x, y) => this.heights.centerH(x, y));
+    const m = this.game.state.map;
+    return pickTileQuad(w.x, w.y, (x, y) => (x < 0 || y < 0 || x >= m.width || y >= m.height ? null : this.heights.tileCorners(x, y)));
   }
 
   /**
