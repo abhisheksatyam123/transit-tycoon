@@ -17,6 +17,7 @@ import { createFoundTownTool, createFundIndustryTool } from './found.js';
 import { createHQTool } from './hq.js';
 import { createSignalTool } from './signal.js';
 import { createOneWayTool } from './oneWay.js';
+import { createShipTool } from './ship.js';
 
 /**
  * @typedef {Object} Tool
@@ -54,5 +55,8 @@ export function createTools(app) {
     fundIndustry: createFundIndustryTool(app),
     hq: createHQTool(app),
     signal: createSignalTool(app),
+    dock: createShipTool(app, 'dock'),
+    shipDepot: createShipTool(app, 'shipDepot'),
+    buoy: createShipTool(app, 'buoy'),
   };
 }

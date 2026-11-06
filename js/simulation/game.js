@@ -22,6 +22,7 @@ import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
+import { buildDock, buildShipDepot, buildBuoy } from './cmdShip.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
@@ -200,6 +201,10 @@ export class Game {
   buildDepot(x, y, kind, dir, opts) { return buildDepot(this.ctx, x, y, kind, dir, opts); }
   /** Airport footprint with top-left corner (x,y); see cmdAirport.js. */
   buildAirport(x, y, opts) { return buildAirport(this.ctx, x, y, opts); }
+  /** Ship infrastructure (cmdShip.js): dock on land, ship depot and buoy on water. */
+  buildDock(x, y, opts) { return buildDock(this.ctx, x, y, opts); }
+  buildShipDepot(x, y, opts) { return buildShipDepot(this.ctx, x, y, opts); }
+  buildBuoy(x, y, opts) { return buildBuoy(this.ctx, x, y, opts); }
   buyVehicle(depotId, spec, opts) { return vcmd.buyVehicle(this.ctx, depotId, spec, opts); }
   setOrders(id, orders, opts) { return vcmd.setOrders(this.ctx, id, orders, opts); }
   /** Change the load/unload flags of one order: flags {load?, unload?}. */

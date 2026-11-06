@@ -1,4 +1,5 @@
 import { AIRCRAFT_MODELS } from './aircraft.js';
+import { SHIP_MODELS } from './ships.js';
 
 /**
  * Vehicle models. kind: 'engine' | 'wagon' | 'bus' | 'truck'.
@@ -47,7 +48,7 @@ export const EXTRA_VEHICLE_MODELS = [
   { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...EXTRA_VEHICLE_MODELS];
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

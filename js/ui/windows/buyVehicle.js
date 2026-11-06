@@ -67,15 +67,16 @@ export function openBuyVehicle(app, depotId) {
   if (!depot) return null;
   const rail = depot.kind === 'rail';
   const air = depot.kind === 'air';
+  const ship = depot.kind === 'ship';
   return app.wm.open('buy:' + depotId, {
-    title: rail ? 'Buy Train' : air ? 'Buy Aircraft' : 'Buy Road Vehicle',
+    title: rail ? 'Buy Train' : air ? 'Buy Aircraft' : ship ? 'Buy Ship' : 'Buy Road Vehicle',
     width: 360,
     build(body, win) {
       const g = app.game;
       const byId = {};
       const engines = rail ? g.listModels('engine') : [];
       const wagons = rail ? g.listModels('wagon') : [];
-      const roadModels = rail ? [] : air ? g.listModels('aircraft') : g.listModels('road');
+      const roadModels = rail ? [] : air ? g.listModels('aircraft') : ship ? g.listModels('ship') : g.listModels('road');
       for (const m of [...engines, ...wagons, ...roadModels]) byId[m.id] = m;
       const cargoSel = /** @type {HTMLSelectElement} */ (el('select.input'));
       const total = el('div.total.mono');

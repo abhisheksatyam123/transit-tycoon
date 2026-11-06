@@ -11,7 +11,7 @@ import { vehiclePrice, runningCost } from './prices.js';
 import { purchasable } from './vehicles.js';
 import { industryType } from './industries.js';
 
-const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'] };
+const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'], ship: ['ship'] };
 
 /**
  * Vehicle models available at the current date.

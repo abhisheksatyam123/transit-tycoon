@@ -5,6 +5,7 @@ import { findPath } from './pathfinder.js';
 import { findStation, manhattan } from './state.js';
 import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { airLine, isRunwayCentre } from './aircraft.js';
+import { findShipPath, shipGoals } from './shipPath.js';
 
 /** Layer used by a vehicle kind. */
 export function layerOf(v) {
@@ -17,6 +18,7 @@ export function layerOf(v) {
 export function stopKindFor(v) {
   if (v.kind === 'train') return 'rail';
   if (v.kind === 'aircraft') return 'airport';
+  if (v.kind === 'ship') return 'ship';
   return v.cargoId === 'PASS' || v.cargoId === 'MAIL' ? 'bus' : 'truck';
 }
 
@@ -31,6 +33,7 @@ export function orderGoals(state, v) {
   if (!st) return [];
   const kind = stopKindFor(v);
   if (kind === 'airport') return airGoals(state, st);
+  if (kind === 'ship') return shipGoals(state.map, st);
   return st.tiles.filter((t) => t.kind === kind).map((t) => ({ x: t.x, y: t.y }));
 }
 
@@ -46,7 +49,7 @@ function airGoals(state, st) {
 
 /** Goal tiles: company depots of the vehicle's kind (or one depot when depotId given). */
 export function depotGoals(state, v, depotId) {
-  const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : 'road';
+  const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   return state.depots.filter((d) => d.kind === kind && (depotId === undefined || d.id === depotId))
     .map((d) => ({ x: d.x, y: d.y }));
 }
@@ -95,6 +98,7 @@ export function flipTrain(v) {
  * @returns {{x:number,y:number}[]|null}
  */
 export function findVehiclePath(state, v, goals) {
+  if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals);
   if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v));
   if (!goals.length) return null;
   let best = goals[0];

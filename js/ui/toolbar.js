@@ -25,6 +25,9 @@ export const TOOL_BUTTONS = [
   ['hq', 'Company HQ', 'hq', ''],
   ['signal', 'Signal', 'signal', ''],
   ['oneWay', 'One-way road', 'oneWay', ''],
+  ['dock', 'Dock', 'dock', ''],
+  ['shipDepot', 'Ship Depot', 'shipDepot', ''],
+  ['buoy', 'Buoy', 'buoy', ''],
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */

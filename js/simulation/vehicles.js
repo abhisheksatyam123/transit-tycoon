@@ -29,7 +29,7 @@ export function modelAvailable(state, model) {
 
 /** Display prefix per vehicle class. */
 function classOf(model) {
-  return model.kind === 'engine' ? 'Train' : model.kind === 'bus' ? 'Bus' : model.kind === 'aircraft' ? 'Aircraft' : 'Truck';
+  return model.kind === 'engine' ? 'Train' : model.kind === 'bus' ? 'Bus' : model.kind === 'aircraft' ? 'Aircraft' : model.kind === 'ship' ? 'Ship' : 'Truck';
 }
 
 /**
@@ -45,7 +45,7 @@ export function resolvePurchase(depot, spec, year) {
   if (model.introYear > year) return { ok: false, error: 'Model not yet available' };
   if (!purchasable(model, year)) return { ok: false, error: 'Model is obsolete' };
   const isTrain = model.kind === 'engine';
-  const depotFor = isTrain ? 'rail' : model.kind === 'aircraft' ? 'air' : 'road';
+  const depotFor = isTrain ? 'rail' : model.kind === 'aircraft' ? 'air' : model.kind === 'ship' ? 'ship' : 'road';
   if (depot.kind !== depotFor) return { ok: false, error: 'Wrong depot type for this vehicle' };
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
@@ -85,8 +85,8 @@ export function createVehicle(state, depot, template, cost) {
   while (usedNums.has(unit)) unit++;
   const v = {
     id: allocId(state), name: `${prefix} ${unit}`, unitNumber: unit,
-    kind: model.kind === 'engine' ? 'train' : model.kind === 'aircraft' ? 'aircraft' : 'road',
-    roadType: model.kind === 'engine' || model.kind === 'aircraft' ? null : model.kind,
+    kind: model.kind === 'engine' ? 'train' : model.kind === 'aircraft' ? 'aircraft' : model.kind === 'ship' ? 'ship' : 'road',
+    roadType: model.kind === 'engine' || model.kind === 'aircraft' || model.kind === 'ship' ? null : model.kind,
     modelId: model.id, wagonModelId: template.wagonModelId, wagons: template.wagons,
     cargoId: template.cargoId, capacity: template.capacity,
     load: { amount: 0, sourceX: depot.x, sourceY: depot.y, sinceTick: state.tick, fromStationId: null },

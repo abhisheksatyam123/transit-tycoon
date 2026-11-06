@@ -217,10 +217,10 @@ export function loadCargo(ctx, v, st) {
  */
 export function arriveAtStation(ctx, v, st) {
   const { state } = ctx;
-  const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : 'road';
+  const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   if (!st.arrived[key]) {
     st.arrived[key] = true;
-    const what = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'aircraft' : v.roadType === 'bus' ? 'bus' : 'truck';
+    const what = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'aircraft' : v.kind === 'ship' ? 'ship' : v.roadType === 'bus' ? 'bus' : 'truck';
     notify(ctx, `Citizens celebrate... First ${what} arrives at ${st.name}!`, 'good', st.x, st.y);
   }
   ctx.emit('vehicleArrived', { vehicle: v, station: st });
@@ -311,8 +311,9 @@ export function normaliseOrders(state, v, orders, kindOf) {
     const st = o && findStation(state, o.stationId);
     if (!st) return { ok: false, error: 'Unknown station in orders' };
     const kind = kindOf(v);
-    if (!st.tiles.some((t) => t.kind === kind)) {
-      return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind + ' stop'}` };
+    const hasStop = kind === 'ship' ? st.tiles.some((t) => t.kind === 'dock' || t.kind === 'buoy') : st.tiles.some((t) => t.kind === kind);
+    if (!hasStop) {
+      return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind === 'ship' ? 'dock or buoy' : kind + ' stop'}` };
     }
     const load = o.load === undefined ? (o.full ? 'full' : 'normal') : o.load;
     const unload = o.unload === undefined ? 'normal' : o.unload;

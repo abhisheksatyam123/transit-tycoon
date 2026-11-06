@@ -61,7 +61,7 @@ export function openDepot(app, id) {
       return () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }
-        win.setTitle(d.kind === 'rail' ? 'Train Depot' : 'Road Vehicle Depot');
+        win.setTitle(d.kind === 'rail' ? 'Train Depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship Depot' : 'Road Vehicle Depot');
         const inside = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot');
         setText(info, `${inside.length} vehicle(s) inside · (${d.x}, ${d.y})`);
         listOrEmpty(list, inside, (v) => v.id,

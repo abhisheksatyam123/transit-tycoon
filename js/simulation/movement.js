@@ -13,6 +13,8 @@ import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
+import { shipLinkOk, shipSpeedStep } from './shipPath.js';
+import { shipArrive } from './shipOrders.js';
 import { servicePerformed } from './service.js';
 import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
@@ -57,6 +59,7 @@ export function vehicleTick(ctx, v) {
       }
       return;
     case 'running':
+      if (v.kind === 'ship') { moveShip(ctx, v); return; }
       move(ctx, v);
       if (v.kind === 'aircraft') v.alt = altitudeAt(v);
       return;
@@ -97,6 +100,27 @@ export function replan(ctx, v) {
   v.progress = 0;
   v.retryTick = state.tick + LOST_RETRY_TICKS;
   return false;
+}
+
+/** Move a ship along its water path (shipPath.js): no queueing, no signals; links are open water tiles. */
+function moveShip(ctx, v) {
+  const { state } = ctx;
+  if (!v.path.length || v.pathIndex >= v.path.length - 1) { onPathEnd(ctx, v); return; }
+  if (v.progress === 0 && !shipLinkOk(state.map, v)) { replan(ctx, v); return; }
+  v.speed = shipSpeedStep(v, v.maxSpeed);
+  v.progress += v.speed;
+  if (v.blockedTicks) clearBlock(v);
+  const keep = historyNeeded(v);
+  while (v.progress >= 1) {
+    v.progress -= 1;
+    v.pathIndex++;
+    const p = v.path[v.pathIndex];
+    v.tx = p.x; v.ty = p.y;
+    v.history.unshift({ x: p.x, y: p.y });
+    if (v.history.length > keep) v.history.length = keep;
+    if (v.pathIndex >= v.path.length - 1) { v.progress = 0; onPathEnd(ctx, v); return; }
+    if (!shipLinkOk(state.map, v)) { v.progress = 0; replan(ctx, v); return; }
+  }
 }
 
 /** Move a running vehicle along its path. */
@@ -258,6 +282,11 @@ function onPathEnd(ctx, v) {
       enterDepot(ctx, v, b.depotId);
       return;
     }
+    replan(ctx, v);
+    return;
+  }
+  if (v.kind === 'ship') { // water stop: a dock beside the ship (loads) or a buoy (waypoint, passes on)
+    if (shipArrive(ctx, v) === 'stop') return;
     replan(ctx, v);
     return;
   }

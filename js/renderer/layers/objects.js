@@ -12,6 +12,7 @@ import { drawLm3d } from '../sprites/lm3d.js';
 import { airportObject } from '../sprites/airport.js';
 import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
+import { shipDockSprite, buoySprite, shipDepotSprite, shipSegmentSprite } from '../sprites/ships.js';
 import { drawPackSegment } from '../pack/vehicles.js';
 import { getPoseMap, smoothPose, angleFromBit, poseCovered } from '../net/pose.js';
 import { HALF_W, HALF_H } from '../iso.js';
@@ -95,6 +96,8 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
       return piece;
     }
     case 'station':
+      if (b.kind === 'dock') { blit(ctx, shipDockSprite(), sx, sy); return null; }
+      if (b.kind === 'buoy') { blit(ctx, buoySprite(), sx, sy); return null; }
       if (b.kind === 'airport') {
         if (b.part === 'terminal' || b.part === 'tower' || b.part === 'hangar') blit(ctx, airportObject(b.part, (x + y) | 0), sx, sy);
         return null;
@@ -112,6 +115,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById) {
       return null;
     case 'depot':
       if (b.kind === 'air') { blit(ctx, airportObject('hangar', (x + y) | 0), sx, sy); return null; }
+      if (b.kind === 'ship') { blit(ctx, shipDepotSprite(), sx, sy); return null; }
       blit(ctx, depotSprite(b.kind === 'road' ? 'road' : 'rail', b.dir || 4), sx, sy);
       return null;
     default:
@@ -139,6 +143,11 @@ export function drawSegment(ctx, seg, sx, sy, selected) {
       sx += (dx - dy) * HALF_W; sy += (dx + dy) * HALF_H;
       seg = { ...seg, ang: p.angle };
     }
+  }
+  if (seg.part === 'ship') { // ships: procedural hull (no OpenGFX ship sheet)
+    const ms = shipSegmentSprite(seg._info ? seg._info.modelId : '', seg.dir);
+    blit(ctx, ms, sx, sy);
+    return;
   }
   const s = vehicleSprite(seg.part, seg.dir, seg.cargoId, fill, seg._info);
   if (selected) {
