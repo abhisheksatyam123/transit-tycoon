@@ -15,6 +15,11 @@ export const CARGOS = [
   { id: 'GOOD', name: 'Goods', color: '#dc2626', basePay: 1.2, days1: 10, days2: 40, unit: 'crates' },
   // T29: OpenTTD CT_VALUABLES (payment 7509, days 1/32); only exists in games with extra industries (banks)
   { id: 'VALU', name: 'Valuables', color: '#facc15', basePay: 1.47, days1: 1, days2: 32, unit: 'bags' },
+  // T-IN: OpenLoco-style chain cargos (extraIndustries only). Payment rates follow OpenTTD's temperate values in spirit.
+  { id: 'STON', name: 'Stone', color: '#a8a29e', basePay: 0.6, days1: 20, days2: 80, unit: 'tonnes' },
+  { id: 'BMAT', name: 'Building Materials', color: '#b45f3c', basePay: 0.8, days1: 14, days2: 60, unit: 'tonnes' },
+  { id: 'PAPR', name: 'Paper', color: '#e7e5e4', basePay: 0.75, days1: 12, days2: 50, unit: 'tonnes' },
+  { id: 'FOOD', name: 'Food', color: '#f97316', basePay: 1.0, days1: 4, days2: 30, unit: 'tonnes' },
 ];
 
 /** Cargo lookup by id. */

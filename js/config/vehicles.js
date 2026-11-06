@@ -55,6 +55,11 @@ export const TRAM_VEHICLE_MODELS = [
  */
 export const EXTRA_VEHICLE_MODELS = [
   { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
+  // T-IN: chain vehicles, offered only when extraIndustries is on (modelAvailable)
+  { id: 'wag_stone', name: 'Stone Hopper', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1000, running: 120, reliability: 1, cargos: ['STON', 'BMAT'], optIn: 'extraIndustries', news: false },
+  { id: 'wag_crate', name: 'Food & Paper Van', kind: 'wagon', introYear: 1900, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 1, cargos: ['FOOD', 'PAPR'], optIn: 'extraIndustries', news: false },
+  { id: 'trk_stone', name: 'Stone Truck', kind: 'truck', introYear: 1920, speed: 48, capacity: 20, cost: 4300, running: 900, reliability: 0.8, cargos: ['STON', 'BMAT'], optIn: 'extraIndustries', news: false },
+  { id: 'trk_food', name: 'Food Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 16, cost: 4400, running: 900, reliability: 0.82, cargos: ['FOOD', 'PAPR'], optIn: 'extraIndustries', news: false },
 ];
 
 /**

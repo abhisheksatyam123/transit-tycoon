@@ -5,6 +5,7 @@
 import { el } from '../dom.js';
 import { money } from '../format.js';
 import { INDUSTRY_TYPES, EXTRA_INDUSTRY_TYPES } from '../../config/industries.js';
+import { getSetting } from '../../simulation/settings.js';
 import { bankAvailable } from '../../simulation/industries.js';
 
 /** @param {import('../app.js').App} app */
@@ -18,7 +19,9 @@ export function openFundIndustry(app) {
       const hint = el('div.muted', { text: 'Choose a type, then click a site on the map (flat land, 8+ tiles from towns).' });
       body.prepend(hint);
       // T29: the bank (OpenTTD temperate) is offered only when a town of 1200+ people exists
-      const extra = bankAvailable(app.game.state) ? EXTRA_INDUSTRY_TYPES : [];
+      // T-IN: chain industries (quarry, paper mill, ...) are offered when extraIndustries is on; the bank as before
+      const chains = getSetting(app.game.state, 'extraIndustries') ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement !== 'inTown') : [];
+      const extra = [...(bankAvailable(app.game.state) ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement === 'inTown') : []), ...chains];
       for (const type of [...INDUSTRY_TYPES, ...extra]) {
         const price = app.game.estimateFound('industry', 0, 0, type.id).cost;
         list.append(el('button.list-row', {

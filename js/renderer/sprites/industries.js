@@ -28,6 +28,12 @@ export function industryStyle(typeId) {
   if (s.includes('steel')) return 'steel';
   if (s.includes('factory')) return 'factory';
   if (s.includes('bank')) return 'bank';
+  // T-IN extra chain industries (extraIndustries)
+  if (s.includes('quarry')) return 'quarry';
+  if (s.includes('paper')) return 'paper';
+  if (s.includes('printing')) return 'printing';
+  if (s.includes('building')) return 'building';
+  if (s.includes('food')) return 'food';
   return 'factory';
 }
 
@@ -44,12 +50,18 @@ const LAYOUT = {
   iron: ['headframe', 'oreheap', 'shed', 'oreheap'],
   steel: ['blast', 'hall', 'chimney', 'oreyard'],
   bank: ['hall', 'hall'],
+  quarry: ['pit', 'heap', 'pit', 'oreyard'],
+  paper: ['chimney', 'hall', 'logs', 'chimney'],
+  printing: ['shed', 'hall', 'shed', 'planks'],
+  building: ['kiln', 'heap', 'kiln', 'shed'],
+  food: ['silo', 'barn', 'silo', 'hall'],
 };
 
 /** Ground tint per style. */
 const GROUND = {
   coal: '#5d5a52', power: '#8c8c86', forest: '#4a7a2e', sawmill: '#8a7a5a', oil: '#a39b7a',
   refinery: '#8c8c86', farm: '#7aa04a', factory: '#8e8e88', iron: '#7a6458', steel: '#7d7a76', bank: '#9a9a92',
+  quarry: '#8a8478', paper: '#b8b2a4', printing: '#8b7aa8', building: '#9c968a', food: '#c9a24a',
 };
 
 /** Pieces that emit smoke: offsets (u,v,z) relative to tile centre. */
@@ -239,6 +251,14 @@ const PIECES = {
     ctx.fillStyle = 'rgba(255,140,40,0.9)';
     const [x, y] = P(-0.05, 0.29, 10);
     ctx.fillRect(x - 3, y - 4, 6, 4);
+  },
+  pit(ctx) {
+    quad(ctx, -0.45, -0.45, 0.45, 0.45, 0.2, '#a8a29e');
+    quad(ctx, -0.3, -0.3, 0.3, 0.3, 0.1, '#57534e');
+  },
+  kiln(ctx) {
+    cylinder(ctx, 0, 0, 0.24, 0, 30, '#c2410c', 0.2);
+    cylinder(ctx, 0.2, -0.2, 0.12, 0, 16, '#9a3412', 0.1);
   },
   oreyard(ctx, r) {
     quad(ctx, -0.45, -0.45, 0.45, 0.45, 0.2, '#5d4a42');

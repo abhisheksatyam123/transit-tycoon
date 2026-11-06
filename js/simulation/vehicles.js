@@ -25,6 +25,7 @@ export function modelAvailable(state, model) {
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
+  if (model.optIn === 'extraIndustries') return !!state && getSetting(state, 'extraIndustries') === true; // T-IN chain vehicles
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
 }

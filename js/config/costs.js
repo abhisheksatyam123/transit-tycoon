@@ -59,4 +59,5 @@ export const INDUSTRY_FUND_COSTS = {
   coal_mine: 90000, power_station: 120000, forest: 60000, sawmill: 80000, oil_wells: 110000,
   refinery: 160000, farm: 70000, factory: 130000, iron_mine: 90000, steel_mill: 150000,
   bank: 150000,
+  quarry: 70000, paper_mill: 140000, printing_works: 110000, building_materials: 120000, food_plant: 125000,
 };

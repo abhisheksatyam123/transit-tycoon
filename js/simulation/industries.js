@@ -56,7 +56,7 @@ function townQualifiesFor(state, type, x, y) {
 
 /** Whether the fund-industry picker should offer the bank (a qualifying town exists). */
 export function bankAvailable(state) {
-  return EXTRA_INDUSTRY_TYPES.some((type) => state.towns.some((t) => (t.population || 0) >= (type.minTownPop || 0)));
+  return EXTRA_INDUSTRY_TYPES.some((type) => type.placement === 'inTown' && state.towns.some((t) => (t.population || 0) >= (type.minTownPop || 0)));
 }
 
 /**
@@ -71,6 +71,34 @@ export function placeExtraIndustries(state, rng) {
       for (let attempt = 0; attempt < 60; attempt++) {
         const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
         const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        if (canPlaceIndustry(state, type, x, y)) { placeIndustry(state, type.id, x, y); break; }
+      }
+    }
+  }
+  placeChainIndustries(state, rng);
+}
+
+/**
+ * T-IN opt-in chain industries (quarry, paper mill, printing works, building materials, food plant).
+ * 'extraTown': a random site within EXTRA_TOWN_RADIUS of a town; 'extraRural': anywhere. extraCount per map.
+ * Uses game rng only when extraIndustries is on (called only from placeExtraIndustries).
+ */
+export function placeChainIndustries(state, rng) {
+  const { map } = state;
+  for (const type of EXTRA_INDUSTRY_TYPES) {
+    if (type.placement !== 'extraTown' && type.placement !== 'extraRural') continue;
+    for (let n = 0; n < (type.extraCount || 0); n++) {
+      for (let attempt = 0; attempt < 200; attempt++) {
+        let x, y;
+        if (type.placement === 'extraTown') {
+          if (!state.towns.length) break;
+          const town = state.towns[rng.int(0, state.towns.length - 1)];
+          x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+          y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
+        } else {
+          x = rng.int(2, map.width - type.w - 3);
+          y = rng.int(2, map.height - type.h - 3);
+        }
         if (canPlaceIndustry(state, type, x, y)) { placeIndustry(state, type.id, x, y); break; }
       }
     }

@@ -22,6 +22,10 @@ export const INDUSTRY_OTTD = {
   factory: 'factory',
   iron_mine: 'iron_mine',
   steel_mill: 'steel_mill',
+  // T-IN reuse (exact footprint match only, else procedural): quarry 3x3 -> coal mine, paper mill 4x3 -> steel mill, food plant 3x3 -> farm
+  quarry: 'coal_mine',
+  paper_mill: 'steel_mill',
+  food_plant: 'farm',
 };
 
 /** Layout entries of variant v that lie in the w x h footprint, as a Map key "dx,dy" -> gfx. */

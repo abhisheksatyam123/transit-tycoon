@@ -93,6 +93,8 @@ export const WAGON_IMG = {
   wag_cattle: 37,
   wag_box: 38,
   wag_flat: 42,
+  wag_stone: 34,
+  wag_crate: 38,
 };
 /** Wagon image index per cargo when the model is unknown. */
 export const CARGO_WAGON = {
@@ -106,6 +108,7 @@ export const CARGO_WAGON = {
   GOOD: 38,
   WOOD: 42,
   STEL: 42,
+  STON: 34, BMAT: 34, PAPR: 38, FOOD: 38,
 };
 /** Road vehicle image index per bus/truck model. */
 export const ROAD_IMG = {
@@ -120,6 +123,8 @@ export const ROAD_IMG = {
   trk_steel: 9,
   trk_cattle: 4,
   trk_heavy: 10,
+  trk_stone: 18,
+  trk_food: 5,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
 export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];

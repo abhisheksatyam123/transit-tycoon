@@ -7,6 +7,7 @@ import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { allocId, findStation } from './state.js';
 import { stationName } from './naming.js';
 import { advertBonus } from './townAuthority.js';
+import { getSetting } from './settings.js';
 import { inBounds } from './map.js';
 
 /**
@@ -102,6 +103,8 @@ export function tileAcceptance(state, x, y) {
   if (b.type === 'house') {
     const a = { PASS: b.level + 3, MAIL: b.level + 1 };
     if (b.level >= 2) a.GOOD = b.level * 2;
+    // T-IN: towns of level 2+ also take food and building materials when extraIndustries is on
+    if (b.level >= 2 && getSetting(state, 'extraIndustries')) { a.FOOD = b.level * 2; a.BMAT = b.level * 2; }
     return a;
   }
   if (b.type === 'industry') {

@@ -32,6 +32,6 @@ export function rollTownStats(state, town) {
  * Record passengers delivered to a town or goods delivered (boosts growth).
  */
 export function recordTownDelivery(town, cargoId, amount) {
-  if (cargoId === 'GOOD') { town.goodsThisMonth += amount; town.goodsDelivered += amount; }
+  if (cargoId === 'GOOD' || cargoId === 'FOOD' || cargoId === 'BMAT') { town.goodsThisMonth += amount; town.goodsDelivered += amount; } // FOOD/BMAT: T-IN
   else if (cargoId === 'PASS' || cargoId === 'MAIL') town.deliveredPassThisMonth += amount;
 }

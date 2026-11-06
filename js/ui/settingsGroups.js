@@ -41,8 +41,8 @@ export const SETTING_META = [
     help: 'Forests slowly spread to free grass next to them (a few tiles a month).' },
   { key: 'farmFields', group: 'environment', label: 'Farm fields', type: 'check', newGame: true,
     help: 'Farms plant field tiles around themselves; production follows the field count. Building over a field clears it. Applies to new farms; the new-game option sets it at start.' },
-  { key: 'extraIndustries', group: 'environment', label: 'Extra industries (banks)', type: 'check', newGame: true,
-    help: 'Banks (valuables) appear in towns of 1200+ people. Changing it later only affects new placements.' },
+  { key: 'extraIndustries', group: 'environment', label: 'Extra industries (banks, chains)', type: 'check', newGame: true,
+    help: 'Banks (valuables) appear in towns of 1200+ people. Also adds quarries, paper mills, printing works, building materials and food plants (stone, paper, food chains) with their vehicles. Changing it later only affects new placements.' },
 ];
 
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */
