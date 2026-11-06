@@ -9,13 +9,24 @@
  *    planned route from there up to the next signal, station or depot; tiles are reserved for it until its
  *    body has left them. Path signals do not split blocks, so trains share a stretch when their routes do not cross.
  *
+ * Pre-signals (OpenTTD signal.cpp, simplified; kinds `entry`, `exit`, `combo`, object form `{type, dir}`):
+ *  - exit: a block signal (it splits blocks): green when the block beyond it is free of other trains.
+ *  - entry: green only when the block it leads into is free AND the wall ending that block (the next block
+ *    signal on the planned path) is green: an exit or combo signal whose beyond block is free. A plain
+ *    two-way or one-way block signal ahead counts as an exit. A station/depot ends the path: green when the
+ *    block up to it is free. A train held by an entry signal waits on the tile before it.
+ *  - combo: like entry, but when the wall ahead is another combo/entry it chains: green when its own block
+ *    is free and the wall after that is green (depth-limited to 16 signals).
+ *  Red (SIGNAL_HOLD) keeps the train before the signal; nothing reserves for pre-signals.
+ *
  * Reservations are state data so they save and load: `state.resv` maps tile key -> vehicle id (the field is
  * absent when nothing is reserved), and `v.resv` lists the keys a vehicle holds (absent when none).
  * Everything here is skipped for tiles without an object signal, so default games are unaffected.
  */
 import { dirBetween } from './constants.js';
+import { connectedNeighbours } from './network.js';
 import { vehiclesOn } from './blocking.js';
-import { signalDefaultDir, invalidateBlocks } from './signals.js';
+import { signalDefaultDir, invalidateBlocks, isBlockWall } from './signals.js';
 
 /** Hold result for a train refused by a one-way or path signal (blockedBy -1: no vehicle is waited for). */
 export const SIGNAL_HOLD = Object.freeze({ id: -1, state: 'signal' });
@@ -42,8 +53,85 @@ export function typedGate(ctx, v, a, b) {
   const sig = state.map.tiles[bk].signal;
   if (!isTypedSignal(sig)) return null;
   if (dirBetween(a.x, a.y, b.x, b.y) !== sig.dir) return SIGNAL_HOLD; // wrong side of a one-way signal
+  if (sig.type === 'entry' || sig.type === 'combo') return preGreen(ctx, v, b, sig) ? null : SIGNAL_HOLD;
+  if (sig.type === 'exit') return regionFree(ctx, v, regionBeyond(state, b.x, b.y, sig.dir).keys) ? null : SIGNAL_HOLD;
   if (sig.type !== 'path') return null;
   return reserveAhead(ctx, v, v.pathIndex + 1) ? null : SIGNAL_HOLD;
+}
+
+/** Step of a dirBetween bit: 1 north, 2 east, 4 south, 8 west. */
+const STEP = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };
+const MAX_REGION = 96;
+
+/**
+ * Rail tiles of the block beyond tile (x,y) when travelling in dir from it (flood fill over rail, stopping at
+ * walls, stations and depots). `keys` are the free-or-not block tiles, `walls` the wall signal tile keys met.
+ */
+function regionBeyond(state, x, y, dir) {
+  const map = state.map, W = map.width;
+  const keys = [], walls = [], seen = new Set([y * W + x]);
+  const st = STEP[dir];
+  if (!st) return { keys, walls };
+  const stack = [{ x: x + st[0], y: y + st[1], from: null }];
+  while (stack.length && keys.length < MAX_REGION) {
+    const c = stack.pop();
+    if (c.x < 0 || c.y < 0 || c.x >= W || c.y >= map.height) continue;
+    const k = c.y * W + c.x;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const t = map.tiles[k];
+    if (!t.rail) continue;
+    if (t.signal && isBlockWall(t.signal)) {
+      // a wall ends this block; `out` is the way the train would leave the block through it
+      if (c.from) walls.push({ k, out: dirBetween(c.from.x, c.from.y, c.x, c.y) });
+      continue;
+    }
+    if (t.building) continue; // station or depot: the block ends there
+    keys.push(k);
+    for (const nb of connectedNeighbours(map, 'rail', c.x, c.y)) stack.push({ x: nb.x, y: nb.y, from: c });
+  }
+  return { keys, walls };
+}
+
+/** True when no other train has a body cell on any of the keys. */
+function regionFree(ctx, v, keys) {
+  const W = ctx.state.map.width;
+  for (const k of keys) {
+    const cx = k % W, cy = (k - cx) / W;
+    const list = vehiclesOn(ctx, 'rail', cx, cy);
+    if (list) for (const o of list) if (o !== v) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether wall w ({k, out}: tile key, direction a train leaves the block through it) lets a train through into
+ * the block beyond it. Exit/block/one-way: green when that block is free. Combo: also needs a green wall beyond
+ * (chains; depth-limited). Entry: never leads out.
+ */
+function wallGreen(ctx, v, w, depth) {
+  const W = ctx.state.map.width;
+  const sig = ctx.state.map.tiles[w.k].signal;
+  if (!sig || sig.type === 'entry') return false;
+  if (isTypedSignal(sig) && sig.dir !== w.out) return false; // one-way/path wall facing the other way
+  const r = regionBeyond(ctx.state, w.k % W, (w.k - (w.k % W)) / W, w.out);
+  if (!regionFree(ctx, v, r.keys)) return false;
+  if (sig.type !== 'combo') return true;
+  if (!r.walls.length || depth >= 16) return true;
+  return r.walls.some((n) => wallGreen(ctx, v, n, depth + 1));
+}
+
+/**
+ * Pre-signal gate for entry/combo signal tile b (entered in its dir): its block beyond must be free and one of
+ * the walls ending that block must be green. A block with no wall ahead (station or depot end) is green when free.
+ * @returns {boolean}
+ */
+function preGreen(ctx, v, b, sig) {
+  const W = ctx.state.map.width;
+  const r = regionBeyond(ctx.state, b.x, b.y, sig.dir);
+  if (!regionFree(ctx, v, r.keys)) return false;
+  if (!r.walls.length) return true;
+  return r.walls.some((w) => wallGreen(ctx, v, w, 0));
 }
 
 /**

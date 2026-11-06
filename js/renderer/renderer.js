@@ -344,7 +344,7 @@ export class Renderer {
         if (tile.bridgeDeck !== undefined && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawLandBridgeDeck(ctx, tile, sx, sy, this.heights, map, x, y);
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
         if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy);
-        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block');
+        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block', typeof tile.signal === 'object' ? tile.signal.dir : 0);
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }

@@ -46,12 +46,14 @@ export function signalRefusal(state, x, y) {
  * 'oneway' or 'path' (T3c, see pathSignals.js; opts.dir = dirBetween bit it lets trains pass in, default
  * east/south for the track axis). opts.dryRun: check and price only.
  */
+export const SIGNAL_KINDS = ['block', 'oneway', 'path', 'entry', 'exit', 'combo'];
+
 export function buildSignal(ctx, x, y, opts = {}) {
   const { state } = ctx;
   const err = signalRefusal(state, x, y);
   if (err) return { ok: false, error: err };
   const type = opts.type || 'block';
-  if (type !== 'block' && type !== 'oneway' && type !== 'path') return { ok: false, error: 'Unknown signal type' };
+  if (!SIGNAL_KINDS.includes(type)) return { ok: false, error: 'Unknown signal type' };
   const cost = constructionTotal(state, COSTS.signal);
   const money = checkMoney(state, cost);
   if (money) return money;
