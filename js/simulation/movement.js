@@ -7,7 +7,7 @@
  * Signals are not simulated; head-on trains on single track pass each other.
  */
 import { TICKS_PER_DAY } from './constants.js';
-import { landSpeedStep, airSpeedStep, DIAGONAL_STEP } from './loco/vehicleMotion.js';
+import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP } from './loco/vehicleMotion.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
@@ -111,7 +111,7 @@ function move(ctx, v) {
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;
   } else {
-    v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed);
+    v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed, getSetting(state, 'gradients') ? gradeMph(state, v) : 0);
     if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
     v.progress += v.speed;
   }

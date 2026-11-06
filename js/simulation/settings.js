@@ -23,6 +23,8 @@ export const DEFAULT_SETTINGS = {
   autorenew: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */
   treeGrowth: false,
+  /** gradients: uphill slopes slow ground vehicles (weight * steepness), downhill gives a small bonus (vehicleMotion.gradeMph). Off by default: changes deterministic results. */
+  gradients: false,
 };
 
 /** Read a setting (state.settings value or the default). */

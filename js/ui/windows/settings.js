@@ -48,7 +48,9 @@ export function openSettings(app) {
       });
       const autorenew = check('autorenew');
       const treeGrowth = check('treeGrowth');
+      const gradients = check('gradients');
       body.append(
+        row('Gradients (hills slow vehicles)', gradients, 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus'),
         row('Autorenew', autorenew, 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running'),
         row('Tree growth', treeGrowth, 'Forests slowly spread to free grass next to them (a few tiles a month)'),
         row('Inflation', inflation, 'Costs and cargo payments rise every month'),
@@ -67,6 +69,7 @@ export function openSettings(app) {
         subsidies.checked = !!s.subsidies;
         autorenew.checked = !!s.autorenew;
         treeGrowth.checked = !!s.treeGrowth;
+        gradients.checked = !!s.gradients;
         if (document.activeElement !== payment) payment.value = String(s.cargoPaymentPercent);
         if (document.activeElement !== serviceDays) serviceDays.value = String(s.serviceIntervalDays || 0);
         breakdowns.value = s.breakdowns;

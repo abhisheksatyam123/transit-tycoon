@@ -63,7 +63,7 @@ export function totalPower(v, model) {
  * One tick of Vehicle2::update for a running land vehicle (flat ground, no rack rail / wheel slip).
  * @returns {number} new speed in tiles per tick
  */
-export function landSpeedStep(v, model, targetTiles) {
+export function landSpeedStep(v, model, targetTiles, grade = 0) {
   const k = tilesPerMph(v);
   let mph = v.speed / k;
   const target = targetTiles / k;
@@ -73,7 +73,9 @@ export function landSpeedStep(v, model, targetTiles) {
   const power = totalPower(v, model);
   const w = Math.max(1, totalWeight(v));
   const drag = Math.trunc(mph) * Math.trunc(mph);
-  let adj = Math.min(power * 2048 / w - drag, MAX_ACCEL_MPH);
+  const ebp = power * 2048 / w; // available force term (ebp units, before drag)
+  // grade = signed fraction of that force eaten by the slope (gradeFraction); negative = downhill assist
+  let adj = Math.min(ebp * (1 - grade) - drag, MAX_ACCEL_MPH);
   mph += adj;
   if (adj < 0 && mph >= BRAKE_FLOOR_MPH) mph = Math.max(mph, BRAKE_FLOOR_MPH);
   return Math.max(0, Math.min(mph, target)) * k;
@@ -90,4 +92,48 @@ export function airSpeedStep(v, targetTiles) {
     return Math.max(target, Math.max(0, mph - d)) * k;
   }
   return Math.min(target, mph + AIR_ACCEL_MPH) * k;
+}
+
+/** Gradient steepness in percent (OpenTTD slope_steepness: trains 3 %, road vehicles 7 %). */
+export const STEEPNESS_PCT = { train: 3, road: 7 };
+/**
+ * Force eaten by a full incline, as a multiple of steepness fraction: a 3 % train climbing the whole
+ * body loses 30 % of its available power term (speed ~ sqrt(0.7) of flat), a 7 % road vehicle 70 %.
+ */
+export const GRADE_FORCE_PER_FRACTION = 10;
+/** Downhill: gravity gives back this fraction of the uphill force (never above maxSpeed). */
+export const DOWNHILL_FACTOR = 0.5;
+
+/**
+ * Gradient fraction for one tick: signed share of the power term consumed by the slope.
+ * Positive = uphill (slows), negative = downhill assist (small). Trains average the slope over their body
+ * (v.history cells, up to 2 cells per wagon); other ground vehicles use the head segment.
+ * Heavier vehicles lose more because the power term already scales with 1/weight. Pure; no allocation.
+ * Heights: state.map.tiles[i].height (integer levels).
+ */
+export function gradeMph(state, v) {
+  const tiles = state.map.tiles, W = state.map.width;
+  let sum = 0, n = 0;
+  if (v.kind === 'train' && v.history && v.history.length > 1) {
+    const hist = v.history;
+    const len = Math.min(hist.length - 1, Math.max(1, (v.wagons || 0) * 2 + 2));
+    for (let i = 0; i < len; i++) {
+      const a = hist[i], b = hist[i + 1]; // b is the older cell; the train moves b -> a
+      const d = tiles[a.y * W + a.x].height - tiles[b.y * W + b.x].height;
+      sum += d > 0 ? 1 : d < 0 ? -1 : 0;
+      n++;
+    }
+  } else {
+    const p = v.path, i = v.pathIndex;
+    if (p && i + 1 < p.length) {
+      const a = p[i], b = p[i + 1];
+      const d = tiles[b.y * W + b.x].height - tiles[a.y * W + a.x].height;
+      sum += d > 0 ? 1 : d < 0 ? -1 : 0;
+      n++;
+    }
+  }
+  if (!n) return 0;
+  const pct = STEEPNESS_PCT[v.kind === 'train' ? 'train' : 'road'];
+  const frac = (pct / 100) * GRADE_FORCE_PER_FRACTION * (sum / n);
+  return frac > 0 ? frac : frac * DOWNHILL_FACTOR;
 }
