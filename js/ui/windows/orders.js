@@ -4,12 +4,19 @@
  */
 import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
-import { createAddOrderTool } from '../tools/addOrder.js';
+import { createAddOrderTool, appendOrder } from '../tools/addOrder.js';
+import { stopKindOk } from '../../simulation/routing.js';
 import { unloadMode } from '../../simulation/orders.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
+
+/** Whether a station has a facility this vehicle can stop at (buses also use bus stops, trams too). */
+function usableBy(v, st) {
+  const k = st.kinds || {};
+  return ['rail', 'bus', 'truck', 'airport', 'ship'].some((x) => k[x] && stopKindOk(v, x));
+}
 
 /** Current load mode of an order. */
 function loadModeOf(o) {
@@ -39,7 +46,24 @@ export function openOrders(app, id) {
         if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill), { quiet: true, sound: 'click' });
       } });
       const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear the recorded lateness', onclick: () => app.exec(app.game.resetLateness(id), { quiet: true, sound: 'click' }) });
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), needs2, hint);
+      const pickSel = el('select.input', { 'aria-label': 'Station to add', title: 'Pick a station this vehicle can use', style: { flex: '1', minWidth: '0' } });
+      const pickBtn = el('button.btn', { type: 'button', text: 'Add', title: 'Append the selected station to the orders', onclick: () => {
+        const sid = Number(pickSel.value);
+        if (!sid) return;
+        appendOrder(app, id, sid);
+      } });
+      const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn);
+      let pickSig = '';
+      const fillPicker = (v) => {
+        const sts = app.game.state.stations.filter((st) => st.ownerId == null && usableBy(v, st));
+        const sig = sts.map((st) => st.id + ':' + st.name).join('|');
+        if (sig === pickSig) return;
+        pickSig = sig;
+        pickSel.replaceChildren(el('option', { value: '', text: sts.length ? 'Choose a station…' : 'No station this vehicle can use' }),
+          ...sts.map((st) => el('option', { value: String(st.id), text: st.name })));
+        pickBtn.disabled = !sts.length;
+      };
+      body.append(list, el('div.btn-row', null, addBtn, startBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), needs2, hint);
 
       const edit = (fn) => {
         const v = app.findVehicle(id);
@@ -59,8 +83,11 @@ export function openOrders(app, id) {
         win.setTitle(`Orders — ${v.name}`);
         needs2.hidden = new Set(v.orders.map((o) => o.stationId)).size >= 2;
         const adding = !!app.tool && app.tool.id === 'addOrder';
+        fillPicker(v);
         addBtn.classList.toggle('active', adding);
         setText(addBtn, adding ? 'Click a station… (Esc)' : '+ Add order');
+        if (adding) setText(hint, 'Click a station on the map or in the Stations list (or use the picker above). Esc cancels.');
+        else setText(hint, 'Add stations in the order the vehicle should visit them. "Full load" waits until full.');
         startBtn.hidden = !(v.state === 'depot' || v.state === 'stopped');
         const n = sharers(app.game.state, v).length;
         sharedLabel.hidden = !n;

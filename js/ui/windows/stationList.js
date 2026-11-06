@@ -7,6 +7,7 @@
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty, packetTotal } from './common.js';
+import { appendOrder } from '../tools/addOrder.js';
 
 /** Sort keys offered in the dropdown / header buttons. */
 export const STATION_SORTS = [
@@ -122,9 +123,16 @@ export function openStationList(app) {
         for (const st of all) waiting += stationStats(st).waiting;
         setText(summary, `${stations.length} of ${all.length} station(s) · waiting cargo ${num(waiting)}`);
         listOrEmpty(list, stations, (st) => st.id,
-          (st) => el('button.table-row.list-row', { type: 'button', title: 'Click: station window + centre view',
+          (st) => el('button.table-row.list-row', { type: 'button', title: 'Click: station window + centre view (in add-order mode: add this station to the vehicle\'s orders)',
             style: { display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 1fr 0.7fr', textAlign: 'left' },
-            onclick: () => { app.open('station', st.id); app.centerOn(st.x, st.y); } },
+            onclick: () => {
+              const tool = app.tool;
+              if (tool && tool.id === 'addOrder' && typeof tool.vehicleId === 'number') {
+                appendOrder(app, tool.vehicleId, st.id); // add-order mode: the row is the order; keep this window open
+                return;
+              }
+              app.open('station', st.id); app.centerOn(st.x, st.y);
+            } },
           el('span.name'), el('span.mono.num'), el('span.mono.num'), el('span.fac')),
           (row, st) => {
             const c = row.children;

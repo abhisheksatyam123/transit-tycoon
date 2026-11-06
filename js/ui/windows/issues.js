@@ -63,21 +63,21 @@ export function openIssues(app) {
       const refresh = () => {
         const r = scanIssues(app.game);
         if (!r.available) { setText(status, r.error); clear(list); list.append(el('div.empty', { text: 'Diagnostics not available' })); return; }
-        if (!r.issues) { setText(status, r.error || 'Scanning…'); return; }
+        if (!r.issues) { setText(status, r.error || 'No issues found so far · scanning…'); return; }
         const issues = r.issues;
         const sum = r.summary || { error: 0, warn: 0, info: 0 };
-        const sig = JSON.stringify([issues.length, sum.error, sum.warn, sum.info, sevFilter, catFilter, issues.map((i) => i.id).join('|')]);
+        const sig = JSON.stringify([issues.length, sum.error, sum.warn, sum.info, sevFilter, catFilter, !!r.scanning, issues.map((i) => i.id).join('|')]);
         paintFilters();
         if (sig === lastSig) return;
         lastSig = sig;
-        setText(status, r.error ? r.error : `${issues.length} issue(s)` + (r.at ? ` · scanned ${new Date(r.at).toLocaleTimeString()}` : ''));
+        setText(status, r.error ? r.error : `${issues.length} issue(s)` + (r.scanning ? ' · scanning…' : r.at ? ` · scanned ${new Date(r.at).toLocaleTimeString()}` : ''));
         clear(chips);
         for (const s of SEVERITIES) {
           chips.append(el('span.chip', { style: { color: SEV_COLOR[s], borderColor: SEV_COLOR[s] } }, `${SEV_LABEL[s]}: ${sum[s] || 0}`));
         }
         clear(list);
         const shown = issues.filter((i) => (!sevFilter || i.severity === sevFilter) && (!catFilter || i.category === catFilter));
-        if (!shown.length) { list.append(el('div.empty', { text: issues.length ? 'No issues match this filter' : 'No issues found' })); return; }
+        if (!shown.length) { list.append(el('div.empty', { text: issues.length ? 'No issues match this filter' : r.scanning ? 'No issues found so far' : 'No issues found' })); return; }
         for (const i of shown.slice(0, 300)) {
           const clickable = typeof i.x === 'number' || typeof i.vehicleId === 'number' || typeof i.stationId === 'number' || typeof i.townId === 'number';
           list.append(el('button.list-row.issue-row', {

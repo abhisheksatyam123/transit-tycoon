@@ -131,6 +131,13 @@ function wireMinimapToggle(wrap, btn) {
 }
 
 /** Boot the app. */
+/** Prefix a tool label unless the hint already starts with it ("Bus stop: click…" under "Bus Stop"). */
+function withLabel(label, hint) {
+  const h = String(hint || '');
+  if (!label) return h;
+  return h.toLowerCase().startsWith(String(label).toLowerCase()) ? h : `${label}: ${h}`;
+}
+
 async function main() {
   const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
   const canvas = /** @type {HTMLCanvasElement} */ ($('world'));
@@ -161,14 +168,14 @@ async function main() {
     if (h && typeof h === 'object') {
       // two-line hint: main sentence + smaller key-hint line
       const main = document.createElement('div');
-      main.textContent = `${t.label}: ${h.main}`;
+      main.textContent = withLabel(t.label, h.main);
       const keys = document.createElement('div');
       keys.className = 'tool-hint-keys';
       keys.textContent = h.keys || '';
       keys.hidden = !h.keys;
       hintEl.replaceChildren(main, keys);
     } else {
-      hintEl.textContent = `${t.label}: ${h}`;
+      hintEl.textContent = withLabel(t.label, h);
     }
   };
   app.ui.onNews = () => statusbar.flashNews();

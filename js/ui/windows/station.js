@@ -32,9 +32,11 @@ export function openStation(app, id) {
       const kinds = el('div.muted');
       const catchLine = el('div.muted');
       const cargoList = el('div.list');
+      const noSource = el('div.muted.small', { text: 'No cargo produced here yet — place the stop near an industry or houses', style: { fontStyle: 'italic' } });
+      noSource.hidden = true;
       const accepts = el('div.chips');
       const vehList = el('div.list');
-      body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
+      body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
         el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
           const st = app.findStation(id);
           if (st) app.centerOn(st.x, st.y);
@@ -63,6 +65,8 @@ export function openStation(app, id) {
             setBar(b, rating / 100, ratingColor(rating));
             setText(p, typeof r.r === 'number' ? Math.round(rating) + '%' : '—');
           }, 'No cargo yet');
+        // muted hint: a bus/truck stop nobody supplies yet (no waiting cargo, no rating)
+        noSource.hidden = !(rows.length === 0 && (k.bus || k.truck) && !k.rail && !airport);
         const acc = Object.keys(st.accepts || {}).filter((c) => st.accepts[c]);
         const sig = acc.join(',');
         if (sig !== accSig) {

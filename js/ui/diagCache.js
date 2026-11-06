@@ -101,5 +101,6 @@ export function scanIssues(game, force = false) {
   if (isFresh(game)) return cache;
   scheduleIdleScan(game);
   if (cache && cache.game === game) return cache;
-  return { issues: null, error: 'Scanning…', summary: null, available: true };
+  // first scan still running: show an empty result now (never a stuck "Scanning…"); the scan fills it in on idle
+  return { issues: [], error: null, summary: countIssues([]), available: true, scanning: true, at: null };
 }

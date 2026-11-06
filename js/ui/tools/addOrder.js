@@ -1,4 +1,19 @@
-/** Transient "add order" mode: next click on a station tile appends it to a vehicle's orders. */
+/** Transient "add order" mode: next click on a station tile (or a row in the Stations list) appends it to a vehicle's orders. */
+
+/**
+ * Append a station to a vehicle's order list (shared by the map tool, the Stations list and the Orders picker).
+ * @param {import('../app.js').App} app
+ * @param {number} vehicleId
+ * @param {number} stationId
+ * @returns {boolean} true when the order was added
+ */
+export function appendOrder(app, vehicleId, stationId) {
+  const v = app.findVehicle(vehicleId);
+  if (!v) return false;
+  const orders = v.orders.map((o) => ({ ...o }));
+  orders.push({ stationId, full: false });
+  return !!app.exec(app.game.setOrders(vehicleId, orders), { sound: 'click', quiet: true });
+}
 
 /**
  * @param {import('../app.js').App} app
@@ -8,8 +23,9 @@
 export function createAddOrderTool(app, vehicleId) {
   return {
     id: 'addOrder',
+    vehicleId,
     label: 'Add order',
-    hint: 'Click a station of the right type to add it to the orders. Esc cancels.',
+    hint: 'Click a station on the map or in the Stations list. Esc cancels.',
     move(t) {
       const tile = app.game.tile(t.x, t.y);
       const ok = !!(tile && tile.building && tile.building.type === 'station');
@@ -24,9 +40,7 @@ export function createAddOrderTool(app, vehicleId) {
         app.toast('Click on a station', 'error', true);
         return;
       }
-      const orders = v.orders.map((o) => ({ ...o }));
-      orders.push({ stationId: tile.building.stationId, full: false });
-      app.exec(app.game.setOrders(vehicleId, orders), { sound: 'click', quiet: true });
+      appendOrder(app, vehicleId, tile.building.stationId);
     },
     cancel() { app.renderer.overlay.preview = null; },
   };
