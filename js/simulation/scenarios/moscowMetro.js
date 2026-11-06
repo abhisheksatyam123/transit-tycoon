@@ -3,6 +3,7 @@
  * stations), turns stops into rail stations, adds a depot on a spur and passenger trains.
  */
 import { tl, TS } from './moscowScale.js';
+import { englishName } from './translit.js';
 import { routeRail, layRailPath, nearestStraight, placeStationTile, stationAxis } from './moscowRoute.js';
 import { spurDepot } from './moscowLand.js';
 
@@ -160,7 +161,7 @@ export function buildMetroLine(game, line, stops, log, lineIndex = 0, geo = null
   const before = Uint8Array.from(map.tiles, (t) => (t.rail ? 1 : 0));
   const { path, failed } = routeLine(state, idxs, ring, log, label, geo);
   if (!path.length) return null;
-  const names = line.stations.map((s) => s.nameEn || s.name);
+  const names = line.stations.map((s) => englishName(s.name, s.nameEn));
   const placed = placeStops(state, idxs, names, path, log, label, line.color);
   const depotId = spurDepot(game, 'rail', path);
   if (depotId == null) { log.push(`metro ${label}: no depot site beside the line`); return null; }
@@ -191,5 +192,5 @@ export function buildMetroLine(game, line, stops, log, lineIndex = 0, geo = null
       trains++;
     }
   }
-  return { ref: label, name: line.name, nameEn: line.nameEn, color: line.color, ring, stationIds, vehicleIds, depotId, trains, requested: services.length * TRAINS_PER_SERVICE, services: services.length, failed, stops: placed.length };
+  return { ref: label, name: line.name, nameEn: englishName(line.name, line.nameEn), color: line.color, ring, stationIds, vehicleIds, depotId, trains, requested: services.length * TRAINS_PER_SERVICE, services: services.length, failed, stops: placed.length };
 }

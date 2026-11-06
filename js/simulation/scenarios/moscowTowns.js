@@ -5,6 +5,7 @@
 import { tl, TS } from './moscowScale.js';
 import { placeHouse, nextToRoad, recomputePopulation } from '../towns.js';
 import { allocId } from '../state.js';
+import { englishName } from './translit.js';
 import { pickStyle, clampLevel, tileDist, LANDUSE_STYLE } from './moscowStyles.js';
 
 /** Maximum number of towns created from districts. */
@@ -85,7 +86,7 @@ export function makeTowns(state, districts, kremlin, log) {
   const used = new Set();
   const pts = districts
     .filter((d) => Number.isFinite(d.x) && Number.isFinite(d.y) && (d.nameEn || d.name))
-    .map((d) => ({ x: d.x, y: d.y, name: d.nameEn || d.name, nameRu: d.name, sat: !!d.sat }));
+    .map((d) => ({ x: d.x, y: d.y, name: englishName(d.name, d.nameEn), nameRu: d.name, sat: !!d.sat }));
   const seed = { x: kremlin.x, y: kremlin.y };
   // satellite cities (flag `sat`) always become towns; the rest fill the remaining slots by farthest-point sampling
   const must = pts.filter((p) => p.sat).slice(0, MAX_TOWNS - 1);

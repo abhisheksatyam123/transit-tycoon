@@ -242,7 +242,7 @@ export function buildMoscow(game, map) {
   const industries = buildIndustries(state, major, kremlin, log) + planIndustries(state, map, { L, major, kremlin, log }).placed;
   state.traffic = createTraffic(state);
   recomputeAllAcceptance(state);
-  state.metro = { lines: metro.map((m) => ({ ref: m.ref, name: m.name, nameEn: m.nameEn, color: m.color, ring: m.ring, stationIds: m.stationIds, vehicleIds: m.vehicleIds })) };
+  state.metro = { lines: metro.map((m) => ({ ref: m.ref, name: m.nameEn, nameEn: m.nameEn, color: m.color, ring: m.ring, stationIds: m.stationIds, vehicleIds: m.vehicleIds })) };
   const air = buildAirports(game, map, log);
   state.scenarioMeta = { metro, bus, air, focus: { x: kremlin.x, y: kremlin.y }, landmarks };
   // prebuilt vehicles were routed before the last road joins/prunes: re-plan any left lost, so day 0 starts clean
