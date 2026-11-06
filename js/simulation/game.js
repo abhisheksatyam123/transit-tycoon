@@ -10,6 +10,7 @@ import { generateTowns } from './towns.js';
 import { generateIndustries, placeExtraIndustries } from './industries.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
+import { isEditor, playScenario } from './scenarioEditor.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
 import { acceptTakeover } from './aiCompanies.js';
 import { buildObject, estimateObject } from './cmdObject.js';
@@ -81,6 +82,27 @@ function applyOptions(game, o) {
   if (obj && obj.type && obj.type !== 'none') st.objective = createObjective(st, obj);
 }
 
+/**
+ * Scenario editor map (see scenarioEditor.js): empty flat land, or generated terrain with no towns or industries.
+ * Only reached with opts.editor, so normal games never get `state.editor`.
+ */
+function createEditorGame(game, o) {
+  const state = game.state;
+  state.editor = { startYear: state.date.year };
+  if (!o.emptyFlat) {
+    const mg = mapgenOptions(o.mapgen);
+    if (Object.keys(mg).length) state.mapgen = mg;
+    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
+  } else {
+    // flat land at height 1 (height 0 reads as sea level, so towns and industries would refuse it)
+    for (const t of state.map.tiles) t.height = 1;
+  }
+  state.traffic = createTraffic(state);
+  recomputeAllAcceptance(state);
+  notify(game.ctx, `Scenario editor: build the landscape, towns and industries, then Play. Time is paused and editing is free.`, 'info', undefined, undefined, 'general');
+  return game;
+}
+
 /** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness, densities; climate + snowLine for sub-arctic). */
 const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', smoothness: 'normal', townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5 };
 export function mapgenOptions(src) {
@@ -117,6 +139,7 @@ export class Game {
     };
     const game = new Game(state);
     if (o.maxLoan > 0) state.company.maxLoan = Math.max(state.company.loan, Math.floor(o.maxLoan));
+    if (o.editor) return createEditorGame(game, o);
     if (o.scenario && o.scenario !== 'random') {
       createScenarioGame(game, o);
       applyOptions(game, o);
@@ -155,6 +178,15 @@ export class Game {
 
   /** Goal progress for the UI: scenario objectives, or the random-world tutorial list (created on first call). */
   goals() { return this.state.scenario ? goalSnapshot(this.state) : randomGoalSnapshot(this.ctx); }
+
+  /** Scenario editor: leave editor mode and start the company (see scenarioEditor.js). */
+  playScenario() {
+    const r = playScenario(this.state);
+    if (r.ok) notify(this.ctx, `Scenario started: ${this.state.company.name} was founded in ${r.year}. Build the network and earn money.`, 'good', undefined, undefined, 'general');
+    return r;
+  }
+  /** True while the map is in scenario editor mode. */
+  isEditor() { return isEditor(this.state); }
 
   /** Subscribe to an event; returns unsubscribe fn. */
   on(event, fn) { return this.events.on(event, fn); }

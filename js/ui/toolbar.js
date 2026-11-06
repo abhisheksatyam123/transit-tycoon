@@ -11,6 +11,8 @@ import { scanIssues } from './diagCache.js';
 import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
 import { AIRPORT_TOOL_TYPE } from './tools/airport.js';
 import { AIRPORT_TYPES } from '../simulation/airportTypes.js';
+import { EDITOR_TOOLS } from '../simulation/scenarioEditor.js';
+import { syncEditorBanner } from './windows/scenarioEditor.js';
 
 /** "Available from <year>" when an airport tool's type is not introduced in `year`, else null. */
 export function airportLocked(toolId, year) {
@@ -375,6 +377,20 @@ export function createToolbar(root, app) {
   root.appendChild(el('div.tb-group', { 'aria-label': 'Windows' }, cat(winBtns.slice(0, 2), groupBtn('lists'), groupBtn('stats'), groupBtn('shots'), winBtns.slice(2), sound)));
 
   /** Greys out airport tools whose type is not introduced yet (tooltip: available from <year>). */
+  /** Scenario editor: only landscape tools (terraform, trees, towns, industries, canals, objects) stay; the rest are hidden. */
+  const applyEditorMode = () => {
+    const on = !!(app.game && app.game.state && app.game.state.editor);
+    const allowed = (b) => !on || !b.dataset.tool || EDITOR_TOOLS.includes(b.dataset.tool);
+    for (const g of groups) {
+      if (g.id === 'lists') continue; // windows only
+      for (const b of g.items) b.style.display = allowed(b) ? '' : 'none';
+      const hide = on && !g.items.some(allowed);
+      g.btn.style.display = hide ? 'none' : '';
+      if (hide && openGroup === g) closeFlyouts();
+    }
+    for (const b of toolBtns) b.style.display = allowed(b) ? '' : 'none';
+    syncEditorBanner(app.game);
+  };
   const applyAirAvailability = () => {
     const year = app.game.state.date.year;
     for (const g of groups) for (const b of g.items) {
@@ -390,6 +406,7 @@ export function createToolbar(root, app) {
   let lastTool = undefined;
   const refresh = () => {
     applyAirAvailability();
+    applyEditorMode();
     for (const b of speedBtns) { const on = Number(b.dataset.speed) === app.speed; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
     const cur = app.tool ? app.tool.id : null;
     if (cur !== lastTool) {

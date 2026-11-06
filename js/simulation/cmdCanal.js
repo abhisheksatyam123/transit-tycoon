@@ -155,7 +155,7 @@ export function buildCanal(ctx, x0, y0, x1, y1, opts = {}) {
     t.terrain = 'water';
     t.canal = 1;
   }
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   return { ok: true, cost, tiles: build.length, area: areaOf(build) };
 }
 
@@ -189,7 +189,7 @@ export function buildLock(ctx, x, y, opts = {}) {
     t.canal = 1;
     t.lock = { dir: bit, part: p.part };
   }
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   return { ok: true, cost, dir: bit, area: areaOf(parts) };
 }
 

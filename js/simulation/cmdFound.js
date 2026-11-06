@@ -95,7 +95,7 @@ function commitTown(ctx, x, y, opts) {
   if (opts.dryRun) return { ok: true, cost };
   const rng = ctx.rng || createRng(state);
   const town = createTown(state, rng, x, y);
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   recomputeAllAcceptance(state);
   return { ok: true, cost, town: { id: town.id, name: town.name, x, y } };
 }
@@ -112,7 +112,7 @@ function commitIndustry(ctx, typeId, x, y, opts) {
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost };
   const ind = placeIndustry(state, typeId, x, y);
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   recomputeAllAcceptance(state);
   return { ok: true, cost, industry: { id: ind.id, name: ind.name, typeId, x, y } };
 }

@@ -191,6 +191,6 @@ export function terraform(ctx, op, rect, opts = {}) {
     if (c.terrain) t.terrain = c.terrain;
     else t.height = c.to;
   }
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   return { ok: true, cost, tiles: p.changes.length, area: p.area };
 }

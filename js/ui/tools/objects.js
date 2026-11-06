@@ -5,6 +5,7 @@
  */
 import { createPlacementTool } from './placement.js';
 import { money } from '../format.js';
+import { costText } from '../editorCost.js';
 import { OBJECT_TYPES } from '../../simulation/cmdObject.js';
 
 /** Kinds in cycle order: the three cmdObject types, then the HQ. */
@@ -18,7 +19,7 @@ export function createObjectsTool(app) {
   const tool = createPlacementTool(app, {
     id: 'objects',
     label: 'Objects',
-    hint: () => `Objects: ${LABEL[kind]} (${money(price())}). Click a site to build; J cycles kind (Transmitter, Lighthouse, Owned land, HQ). Esc cancels.`,
+    hint: () => `Objects: ${LABEL[kind]} (${costText(app.game, price())}). Click a site to build; J cycles kind (Transmitter, Lighthouse, Owned land, HQ). Esc cancels.`,
     command: (game, x, y, opts) => (kind === 'hq' ? game.buildHQ(x, y, opts) : game.buildObject(kind, x, y, opts)),
     footprint: (x, y) => (kind === 'hq'
       ? [{ x, y }, { x: x + 1, y }, { x, y: y + 1 }, { x: x + 1, y: y + 1 }]

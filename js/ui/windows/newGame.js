@@ -13,7 +13,7 @@ import { mapgenOptions } from '../../simulation/game.js';
  * @param {HTMLElement} input
  * @returns {HTMLElement}
  */
-function field(label, input) {
+export function field(label, input) {
   return el('label.field', null, el('span.field-label', { text: label }), input);
 }
 

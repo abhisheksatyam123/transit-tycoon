@@ -3,6 +3,7 @@
  * preview (green/red with cost) plus the catchment area for stations.
  */
 import { money } from '../format.js';
+import { costText } from '../editorCost.js';
 import { catchmentAround } from './geometry.js';
 import { adjacentOwn, joinChoices, openJoinPicker } from './joinPicker.js';
 
@@ -35,7 +36,7 @@ export function createPlacementTool(app, o) {
     if (key === lastKey && ov.preview) return;
     lastKey = key;
     const res = o.command(app.game, hover.x, hover.y, { dryRun: true });
-    last = res && res.ok ? { ok: true, label: money(res.cost || 0) } : { ok: false, label: (res && res.error) || 'Not possible' };
+    last = res && res.ok ? { ok: true, label: costText(app.game, res.cost || 0) } : { ok: false, label: (res && res.error) || 'Not possible' };
     const tiles = o.footprint(hover.x, hover.y);
     ov.preview = { tiles, ok: last.ok, label: last.label };
     if (o.catchment) {

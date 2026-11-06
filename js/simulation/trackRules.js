@@ -116,6 +116,7 @@ export function coordsOk(map, ...coords) {
  * @returns {{ok:false,error:string}|null}
  */
 export function checkMoney(state, cost, company = state.company) {
+  if (state.editor) return null; // scenario editor is free (scenarioEditor.js)
   if (cost > company.money) return { ok: false, error: ERR.money };
   return null;
 }

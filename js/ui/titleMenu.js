@@ -7,6 +7,7 @@ import { el } from './dom.js';
 import { loadSlotData } from './storage.js';
 import { runWithLoading, buildingLabel } from './loading.js';
 import { openNewGame } from './windows/newGame.js';
+import { openScenarioSetup } from './windows/scenarioEditor.js';
 import { createGameFast } from './scenarioSnapshot.js';
 
 export const TITLE_VERSION = '0.1.0';
@@ -64,6 +65,7 @@ export function openTitleMenu(app) {
     }), ' primary'));
   }
   rows.push(btn('New game', 'Choose seed, map size and towns', then(() => openNewGame(app)), hadAutosave ? '' : ' primary'));
+  rows.push(btn('Scenario editor', 'Build a map from scratch: terrain, towns, industries; set the start year and Play', then(() => openScenarioSetup(app))));
   rows.push(btn('Moscow scenario', 'Real-OSM Moscow with staged goals', then(async () => {
     const game = await runWithLoading(buildingLabel(MOSCOW_REQUEST.scenario), () => createGameFast(MOSCOW_REQUEST, app.GameClass));
     app.setGame(game);

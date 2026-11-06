@@ -68,7 +68,7 @@ export function buildObject(ctx, type, x, y, opts = {}) {
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost };
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost);
   state.map.tiles[y * state.map.width + x].object = { type };
   notify(ctx, `A ${type === 'owned' ? 'parcel of owned land' : type} was built at ${x},${y}`, 'build');
   return { ok: true, cost };

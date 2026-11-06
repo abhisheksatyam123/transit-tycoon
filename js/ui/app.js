@@ -134,6 +134,9 @@ export class App {
     window.__game = game;
     this.subscribe();
     this.centerOnInterest();
+    // scenario editor maps start paused (time does not run while editing)
+    if (game.state && game.state.editor) this.speed = 0;
+    this.ui.refreshToolbar();
   }
 
   /**
@@ -167,8 +170,12 @@ export class App {
   loadFromString(data) {
     try {
       const game = this.GameClass.deserialize(data);
+      // a saved scenario-editor map opens in play mode: a fresh company on its start year
+      const fromEditor = !!game.state.editor;
+      if (fromEditor) game.playScenario();
       this.setGame(game);
-      this.toast('Game loaded', 'good');
+      if (fromEditor) this.setSpeed(1);
+      this.toast(fromEditor ? 'Scenario loaded: play mode, fresh company' : 'Game loaded', 'good');
       return true;
     } catch (err) {
       console.warn('Load failed', err);
@@ -219,6 +226,7 @@ export class App {
    * @param {number} s
    */
   setSpeed(s) {
+    if (this.game && this.game.state && this.game.state.editor) s = 0; // scenario editor: time stays paused
     if (s > 0) this.prevSpeed = s;
     this.speed = s;
     this.ui.refreshToolbar();
@@ -242,7 +250,7 @@ export class App {
       return false;
     }
     if (o.sound) play(/** @type {any} */ (o.sound));
-    if (!o.quiet && res.cost && typeof o.x === 'number') {
+    if (!o.quiet && res.cost && typeof o.x === 'number' && !(this.game.state && this.game.state.editor)) {
       this.renderer.addFloatingText(o.x, o.y, signedMoney(-res.cost), '#fca5a5');
     }
     this.minimap.lastBase = -Infinity;

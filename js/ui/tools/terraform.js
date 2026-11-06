@@ -4,6 +4,7 @@
  * (red + reason when invalid or unaffordable). Commits on release via game.terraform.
  */
 import { money } from '../format.js';
+import { costText } from '../editorCost.js';
 import { rectTiles } from './geometry.js';
 
 export const TERRA_MODES = ['raise', 'lower', 'level'];
@@ -31,12 +32,12 @@ function makeTerraformTool(app, o) {
       const plan = app.game.planTerraform(opFor(), rect);
       if (!plan.ok) {
         const est = app.game.estimateTerraform(opFor(), rect);
-        last = { ok: false, label: plan.error + (est.cost ? ` (${money(est.cost)})` : '') };
+        last = { ok: false, label: plan.error + (est.cost ? ` (${costText(app.game, est.cost)})` : '') };
       } else {
         const est = app.game.estimateTerraform(opFor(), rect);
         last = est.ok
-          ? { ok: true, label: `${money(est.cost)} · ${est.tiles} tile${est.tiles === 1 ? '' : 's'}` }
-          : { ok: false, label: `${est.error} (${money(est.cost)})` };
+          ? { ok: true, label: `${costText(app.game, est.cost)} · ${est.tiles} tile${est.tiles === 1 ? '' : 's'}` }
+          : { ok: false, label: `${est.error} (${costText(app.game, est.cost)})` };
       }
       app.ui?.updateHint?.();
     }

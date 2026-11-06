@@ -21,6 +21,7 @@ import { openNews } from './news.js';
 import { openTraffic } from './traffic.js';
 import { openIssues } from './issues.js';
 import { openNewGame } from './newGame.js';
+import { openScenarioSetup, openScenarioEditor } from './scenarioEditor.js';
 import { openHelp } from './help.js';
 import { openSave, openLoad } from './saveLoad.js';
 import { openMetro } from './metro.js';
@@ -57,6 +58,8 @@ const REGISTRY = {
   traffic: openTraffic,
   issues: openIssues,
   newGame: openNewGame,
+  scenarioSetup: openScenarioSetup,
+  scenarioEditor: openScenarioEditor,
   help: openHelp,
   save: openSave,
   load: openLoad,
