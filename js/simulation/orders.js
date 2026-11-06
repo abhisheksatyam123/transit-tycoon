@@ -5,7 +5,7 @@ import { TICKS_PER_DAY } from './constants.js';
 import { earn } from './economy.js';
 import { calculateDeliveredCargoPayment } from './loco/economy.js';
 import { recordDelivery } from './loco/company.js';
-import { companyOf } from './owner.js';
+import { companyOf, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, manhattan, findIndustry, nearestTown } from './state.js';
@@ -512,6 +512,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (!hasStop) {
       return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind === 'ship' ? 'dock or buoy' : kind + ' stop'}` };
     }
+    // a vehicle orders only its own company's stations (a rival's stop/airport is refused to the player)
+    if (ownerMismatch(st, { owner: v.ownerId ?? null })) return { ok: false, error: RIVAL_OWNED };
     if (!stationFitsVehicle(state, st, v)) {
       return { ok: false, error: `${st.name} cannot take this aircraft (planes need an airport, small airports only take small planes)` };
     }

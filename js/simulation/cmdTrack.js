@@ -333,7 +333,10 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (layer === 'rail' && (t.rail | bits) !== t.rail) delete t.signal; // new rail bits: signal no longer on straight track
     t[layer] |= bits;
     if (isHwy) t.highway = 1;
-    if (!t.owner) t.owner = opts.owner != null ? 'rival' : 'company'; // rival roads: no player upkeep (economy.js)
+    if (!t.owner) {
+      t.owner = opts.owner != null ? 'rival' : 'company'; // rival roads: no player upkeep (economy.js)
+      if (opts.owner != null) t.rivalId = opts.owner; // lazy: which rival pays the road upkeep (economy.upkeepFor)
+    }
   }
   for (const i of want.keys()) pruneOneWay(map.tiles[i]); // T42: a junction or rail crossing is never one-way
   invalidateBlocks(state);

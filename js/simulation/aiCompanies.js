@@ -29,7 +29,9 @@ import { straightAxis } from './network.js';
 import { companyById } from './owner.js';
 import { pushNews } from './news.js';
 import { buildFreightRoute, addFreightTrucks } from './aiFreight.js';
+import { buildAirRoute, addAirPlanes, airRouteBudget, airRoutesOf, MAX_AIR_ROUTES } from './aiAir.js';
 import { buildHQ, hqPrice, hqSiteError, removeHQ } from './cmdHQ.js';
+import { airportType } from './airportTypes.js';
 
 export const AI_NAMES = ['Northern Lines', 'Velox Transit', 'Iron Coach Co.'];
 export const AI_COLOURS = ['#d9482b', '#2b7fd9', '#3aa35a'];
@@ -85,8 +87,10 @@ export function updateMonthly(game) {
     manageLoan(r);
     sellUnprofitable(ctx, r);
     if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
+    if (r.routes.some((q) => !q.air) && airRoutesOf(r).length < MAX_AIR_ROUTES && r.money >= airRouteBudget(state, airportType('small').cost) && r.negValueMonths === 0) buildAirRoute(ctx, r);
     addBuses(ctx, r);
     addFreightTrucks(ctx, r);
+    addAirPlanes(ctx, r);
     buildRivalHQ(ctx, r);
     refreshStats(state, r);
     updateTakeover(ctx, r);
@@ -154,7 +158,7 @@ function refreshStats(state, r) {
 /** One new route per month: buses or freight, whichever the rival has fewer of (bus first on a tie). */
 function buildNewRoute(ctx, r) {
   const freight = r.routes.filter((q) => q.freight).length;
-  const bus = r.routes.length - freight;
+  const bus = r.routes.length - freight - airRoutesOf(r).length;
   // freight roads are long and cost more: only with a spare reserve, and once bus routes exist
   const freightOk = bus >= 2 && r.money >= FREIGHT_BUDGET && freight < MAX_FREIGHT_ROUTES;
   if (freightOk && bus > freight) { if (buildFreightRoute(ctx, r)) return; }
@@ -204,6 +208,8 @@ export function acceptTakeover(ctx, rivalId) {
   if (price > state.company.money) return { ok: false, error: 'Not enough money for the takeover' };
   spend(state.company, 'property', price);
   for (const v of state.vehicles) if (v.ownerId === r.id) delete v.ownerId;
+  // the rival's own roads and rail become the player's (their upkeep follows the tile owner)
+  for (const t of state.map.tiles) if (t.owner === 'rival' && t.rivalId === r.id) { t.owner = 'company'; delete t.rivalId; }
   for (const st of state.stations) if (st.ownerId === r.id) delete st.ownerId;
   for (const d of state.depots) if (d.ownerId === r.id) delete d.ownerId;
   // the rival's HQ: the player keeps it when they have none; otherwise it is removed (one HQ per company)
@@ -407,6 +413,7 @@ function addBuses(ctx, r) {
   const { state } = ctx;
   if (r.money < ROUTE_BUDGET / 2) return;
   for (const route of r.routes) {
+    if (route.air || route.freight) continue; // air and freight routes have their own adders
     const onRoute = state.vehicles.filter((v) => v.ownerId === r.id && v.orders.length && v.orders.some((o) => o.stationId === route.a || o.stationId === route.b));
     if (onRoute.length >= MAX_BUSES_PER_ROUTE) continue;
     if (waitingAt(state, route.a) + waitingAt(state, route.b) < WAITING_FOR_BUS) continue;

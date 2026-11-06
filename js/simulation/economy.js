@@ -79,7 +79,7 @@ export function propertyUpkeep(state) {
 /**
  * Property upkeep of one owner (gap #25): ownerId null = the player. A station/depot tile counts for the
  * owner of its station/depot record; rail/road is the player's when not a rival's station/depot tile.
- * Rival road/rail is not tagged per owner in stage 1, so rivals pay station and depot tiles only.
+ * Rival road/rail tiles carry their rival's id (rivalId) and are paid by that rival (gap #25 stage 4).
  */
 export function upkeepFor(state, ownerId) {
   const owner = ownerId ?? null;
@@ -87,7 +87,14 @@ export function upkeepFor(state, ownerId) {
   for (const t of state.map.tiles) {
     const b = t.building;
     const isStop = b && (b.type === 'station' || b.type === 'depot');
-    if (t.owner !== 'company' && !isStop) continue;
+    if (t.owner !== 'company' && t.owner !== 'rival' && !isStop) continue;
+    // a rival's own road/rail tile (gap #25): paid by the rival named on the tile (lazy rivalId)
+    if (t.owner === 'rival' && !isStop) {
+      if ((t.rivalId ?? null) !== owner || owner === null || state.rivals.find((q) => q.id === owner)?.bankrupt) continue;
+      if (t.rail) cost += COSTS.upkeepRail;
+      if (t.road) cost += COSTS.upkeepRoad;
+      continue;
+    }
     const tileOwner = isStop ? recordOwner(state, b) : null;
     if (tileOwner !== owner) continue;
     if (b && b.type === 'station') cost += COSTS.upkeepStationTile;

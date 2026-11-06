@@ -11,6 +11,7 @@ import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } fr
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findTown, nearestTown } from './state.js';
 import { removeStationTile, removeDepot } from './cmdStation.js';
+import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 
 /**
  * Build an airport with its top-left footprint corner at (x,y). opts.type: airport type id (default city).
@@ -26,6 +27,9 @@ export function buildAirport(ctx, x, y, opts = {}) {
   const tagged = typeId !== DEFAULT_AIRPORT_TYPE; // city stays untagged
   if (type.introYear && (state.date?.year ?? 0) < type.introYear) return { ok: false, error: `${type.name} not yet available (from ${type.introYear})` };
   if (!coordsOk(map, x, y, x + type.w - 1, y + type.h - 1)) return { ok: false, error: ERR.bounds };
+  // opts.owner: a rival company builds and pays (gap #25 AI air routes); null = the player
+  const payee = companyById(state, opts.owner ?? null);
+  if (opts.owner != null && !payee) return { ok: false, error: 'Unknown company' };
   const tiles = type.layout.map((p) => ({ x: x + p.dx, y: y + p.dy, dx: p.dx, dy: p.dy, part: p.part }));
   let cost = type.cost, minH = Infinity, maxH = -Infinity;
   const houses = [];
@@ -45,9 +49,10 @@ export function buildAirport(ctx, x, y, opts = {}) {
   }
   if (maxH - minH > 1) return { ok: false, error: `${type.name} needs flat land (heights differ by more than 1)` };
   cost = constructionTotal(state, cost);
-  const money = checkMoney(state, cost);
+  const money = checkMoney(state, cost, payee || state.company);
   if (money) return money;
   const existing = adjacentStation(state, tiles);
+  if (existing && ownerMismatch(existing, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null, depotId: null };
   for (const p of houses) {
     const t = map.tiles[p.y * map.width + p.x];
@@ -55,13 +60,13 @@ export function buildAirport(ctx, x, y, opts = {}) {
     if (town) town.houses = town.houses.filter((h) => h.x !== p.x || h.y !== p.y);
     t.building = null; t.owner = null;
   }
-  const st = existing || createStation(state, x, y);
+  const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   if (!existing) st.name = airportName(state, x, y, type.name);
   const depotTile = tiles.find((p) => p.part === type.depotPart);
   const depotId = allocId(state);
   const depot = { id: depotId, kind: 'air', x: depotTile.x, y: depotTile.y, dir: 4 };
   if (tagged) depot.airportType = typeId;
-  state.depots.push(depot);
+  state.depots.push(stampOwner(state, depot, opts.owner ?? null));
   for (const p of tiles) {
     const t = map.tiles[p.y * map.width + p.x];
     clearTerrain(t);
@@ -69,12 +74,12 @@ export function buildAirport(ctx, x, y, opts = {}) {
     if (tagged) building.airportType = typeId;
     if (p.part === type.depotPart) building.depotId = depotId;
     t.building = building;
-    t.owner = 'company';
+    t.owner = opts.owner != null ? 'rival' : 'company'; // rival airport tiles: no player upkeep (economy.js)
     st.tiles.push({ x: p.x, y: p.y, kind: 'airport' });
   }
   refreshKinds(st);
   recomputeAcceptance(state, st);
-  spend(state.company, 'construction', cost);
+  spend(payee || state.company, 'construction', cost);
   return { ok: true, cost, stationId: st.id, depotId, area: { x0: x, y0: y, x1: x + type.w - 1, y1: y + type.h - 1 } };
 }
 
