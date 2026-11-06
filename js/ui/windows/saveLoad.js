@@ -31,7 +31,11 @@ export function openSave(app) {
         const d = el('span.muted.small');
         const b = el('button.btn', { type: 'button', text: `Slot ${slot}`, onclick: () => {
           const r = saveToSlot(slot, app.game);
-          if (app.exec(r, { quiet: true, sound: 'click' })) app.toast(`Saved to slot ${slot}`, 'good');
+          if (app.exec(r, { quiet: true, sound: 'click' })) {
+            app.toast(`Saved to slot ${slot}`, 'good');
+            app.wm.close('save'); // OpenTTD closes the save dialog after a successful save
+            return;
+          }
           setText(d, describe(slot));
         } });
         setText(d, describe(slot));
