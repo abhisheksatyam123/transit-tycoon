@@ -38,6 +38,10 @@ export const COSTS = {
   advertiseLarge: 9000,
   statue: 35000,
   fundBuildings: 48000,
+  /** OpenTTD town_action_costs entries 35 (road rebuild), 117 (exclusive rights), 175 (bribe), scaled x1000 like the rest */
+  roadRebuild: 35000,
+  buyRights: 117000,
+  bribe: 175000,
   /** found a town (OpenTTD CMD_FOUND_TOWN): flat price for a new town centre, scaled by inflation */
   foundTown: 40000,
   /** company headquarters (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ): flat price, inflated; relocating costs the same */

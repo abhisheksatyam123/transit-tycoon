@@ -9,6 +9,7 @@ import { hashSeed, createRng } from './rng.js';
 import { roadConnected } from './network.js';
 import { dirBetween } from './constants.js';
 import { planTrip, repath, linkBit, tileIndex } from './trafficTrips.js';
+import { authorityTown, ROAD_WORKS_SPEED } from './townAuthority.js';
 import {
   MAX_CARS, MAX_CARS_LIMIT, POP_PER_CAR_CAP, TRIPS_PER_POP_PER_DAY, CAR_SPEED, LANE_CAPACITY, CONGESTION_SLOW, LANE_OFFSET, GAP_MIN, ACCEL, DECEL, CORNER_SLOW,
   STUCK_TICKS, HISTORY_DAYS, CONGESTED_LOAD, LOAD_ALPHA, JAM_CONGESTED, JAM_ALPHA, HWY_LANE_OFFSET, HWY_LANE_CAPACITY,
@@ -46,6 +47,27 @@ export function createTraffic(state) {
     /** daily accumulators: per-tile car-tick samples, speed ratio sum and sample count */
     acc: { samples: new Array(n).fill(0), blocked: new Array(n).fill(0), speedSum: 0, speedN: 0 },
   };
+}
+
+/**
+ * Towns with active road reconstruction (townAuthority 'roadworks') for this tick, or null.
+ * Null in every game without the action, so the default car speed path is unchanged.
+ */
+let worksTowns = null;
+/** tile -> under road works, memoised for the tick (authorityTown scans towns). */
+let worksMemo = null;
+function roadWorksAt(state, tile) {
+  if (!worksTowns) return false;
+  const hit = worksMemo.get(tile);
+  if (hit !== undefined) return hit;
+  const t = state.map.tiles[tile];
+  let r = false;
+  if (t && t.road) {
+    const town = authorityTown(state, tile % state.map.width, Math.floor(tile / state.map.width));
+    r = !!town && worksTowns.has(town);
+  }
+  worksMemo.set(tile, r);
+  return r;
 }
 
 /** Occupancy key for cars/vehicles leaving tile `tile` in direction bit `bit`. */
@@ -194,6 +216,7 @@ function moveCar(ctx, tr, c, occ, lanes) {
   const here = occKey(a, linkBit(map, a, b));
   const load = occ[here] / laneCapacity(map, a);
   let target = CAR_SPEED * (1 - CONGESTION_SLOW * Math.min(1, load));
+  if (worksTowns && roadWorksAt(state, a)) target *= ROAD_WORKS_SPEED;
   if (bendsAt(W, c.path, c.i)) target *= CORNER_SLOW;
   // car ahead in the same lane (larger progress on this tile)
   const lead = c._ahead;
@@ -249,6 +272,9 @@ export function trafficTick(ctx) {
   if (!tr) return;
   const rng = createRng(tr, 'rngState');
   const occ = occupancyScratch(state);
+  const works = (state.towns || []).filter((t) => t.roadWorksMonths > 0);
+  worksTowns = works.length ? new Set(works) : null;
+  worksMemo = worksTowns ? new Map() : null;
   buildOccupancy(state, tr.cars, occ);
   spawnCars(ctx, tr, rng, occ);
   const kept = [];
@@ -256,6 +282,8 @@ export function trafficTick(ctx) {
   for (const c of tr.cars) if (!moveCar(ctx, tr, c, occ, lanes)) kept.push(c);
   if (laneFirst) for (const c of lanes) laneFirst[c._key] = -1;
   tr.cars = kept;
+  worksTowns = null;
+  worksMemo = null;
   sampleTick(tr);
 }
 
