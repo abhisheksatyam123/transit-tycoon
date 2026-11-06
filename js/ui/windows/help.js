@@ -11,7 +11,7 @@ const STEPS = [
   ['Buy a train', 'Click the depot → Buy vehicle. Choose an engine, Hopper Wagons for coal, and a few wagons.'],
   ['Set orders', 'In the Orders window: Add order → click the mine station, then Add order → the power station. Tick "Full load" on the mine order. Press Start.'],
   ['Earn money', 'You are paid on delivery: farther and faster pays more. Watch income pop up and check Finances (F). Borrow if needed — interest is charged monthly.'],
-  ['Goals (O)', 'In Moscow, staged goals pay bonuses: a first route, busy months, serving six districts and the landmarks, a Kremlin–VDNKh link, and a company value of $8M. Each one unlocks the next.'],
+  ['Goals (O)', null], // scenario-specific text: see goalsText()
   ['Grow', 'Run buses between two towns (Road, Bus Stop, Road Depot). Serving towns makes them grow. Deliver goods from secondary industries to towns.'],
 ];
 
@@ -20,8 +20,17 @@ const KEYS = [
   ['1 – 9', 'Build tools'], ['0', 'Airport (6×4, R rotates runway)'], ['R', 'Rotate station / depot'], ['[ ]', 'Station length'],
   ['Esc', 'Cancel tool / close window'], ['V F T B I N O H L', 'Vehicles, Finances, Towns, Stations, Industries, News, Goals, Help, Load'],
   ['P E', 'Map (terrain, industries, routes, vehicles, towns), Company graphs and league'],
+  ['Z (C cycles) Y', 'Terraform raise / lower / level, Plant trees'],
   ['K', 'Toggle graphics: OpenGFX / Procedural'],   ['M', 'Mute sound'], ['Click map', 'Inspect tile, station, depot, vehicle'],
 ];
+
+const MOSCOW_GOALS = 'In Moscow, staged goals pay bonuses: a first route, busy months, serving six districts and the landmarks, a Kremlin–VDNKh link, and a company value of $8M. Each one unlocks the next.';
+const GENERIC_GOALS = 'The Goals window (O) shows your company objective and its progress; reach it before the deadline.';
+
+/** Goals step text for the running game (Moscow staged goals only in the Moscow scenario). */
+function goalsText(app) {
+  return app.game && app.game.state && app.game.state.scenario === 'moscow' ? MOSCOW_GOALS : GENERIC_GOALS;
+}
 
 /**
  * @param {import('../app.js').App} app
@@ -34,13 +43,13 @@ export function openHelp(app) {
     build(body) {
       body.appendChild(el('p.lead', { text: 'Build a transport company: connect industries and towns with rail and road, run vehicles with orders, and make a profit.' }));
       const ol = el('ol.steps');
-      for (const [t, d] of STEPS) ol.appendChild(el('li', null, el('b', { text: t + '. ' }), d));
+      for (const [t, d] of STEPS) ol.appendChild(el('li', null, el('b', { text: t + '. ' }), d ?? goalsText(app)));
       body.appendChild(ol);
       body.appendChild(el('h4.win-h', { text: 'Controls' }));
       const grid = el('div.kv-grid.keys');
       for (const [k, v] of KEYS) grid.append(el('span.kbd', { text: k }), el('span', { text: v }));
       body.appendChild(grid);
-      body.appendChild(el('p.muted.small', { text: 'The game auto-saves every in-game month. Transit Tycoon JS is original code inspired by the gameplay of OpenTTD.' }));
+      body.appendChild(el('p.muted.small', { text: 'The game auto-saves regularly (and when the tab is hidden). Transit Tycoon JS is original code inspired by the gameplay of OpenTTD.' }));
     },
   });
 }

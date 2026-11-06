@@ -1,7 +1,6 @@
 /**
- * Company finances: payment formula, ledger, loan, interest, upkeep.
+ * Company finances: ledger, loan, interest, upkeep (cargo payment: loco/economy.js).
  */
-import { CARGO_BY_ID } from '../config/cargos.js';
 import { COSTS } from '../config/costs.js';
 import { noteExpenditure, companyDefaults } from './loco/company.js';
 import { START_MONEY, START_LOAN, MAX_LOAN, LOAN_STEP, INTEREST_RATE } from './constants.js';
@@ -21,32 +20,6 @@ export function createCompany(name = 'Transit Tycoon Co.') {
 
 function emptyLedger() {
   return { income: 0, expenses: 0, byType: Object.fromEntries(LEDGER_TYPES.map((t) => [t, 0])) };
-}
-
-/**
- * Time factor for payment (1 until days1, linear decay, floor 31/255).
- * @param {object} cargo cargo record
- * @param {number} days days in transit
- */
-export function timeFactor(cargo, days) {
-  const min = 31 / 255;
-  if (days <= cargo.days1) return 1;
-  if (days <= cargo.days1 + cargo.days2) return Math.max(min, 1 - ((days - cargo.days1) / cargo.days2) * 0.5);
-  return Math.max(min, 0.5 - (days - cargo.days1 - cargo.days2) / 255);
-}
-
-/**
- * Payment for delivering cargo.
- * @param {string} cargoId
- * @param {number} amount
- * @param {number} distance manhattan tiles
- * @param {number} days days in transit
- * @returns {number} integer money
- */
-export function cargoPayment(cargoId, amount, distance, days) {
-  const c = CARGO_BY_ID[cargoId];
-  if (!c || amount <= 0 || distance <= 0) return 0;
-  return Math.round(c.basePay * amount * distance * timeFactor(c, days));
 }
 
 /**

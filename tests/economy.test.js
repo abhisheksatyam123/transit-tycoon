@@ -1,37 +1,8 @@
 import { test, expect, describe } from 'bun:test';
 import { Game } from '../js/simulation/game.js';
-import { CARGO_BY_ID } from '../js/config/cargos.js';
-import { timeFactor, cargoPayment, createCompany } from '../js/simulation/economy.js';
+import { createCompany } from '../js/simulation/economy.js';
 
 describe('economy', () => {
-  test('timeFactor is 1 within days1 and non-increasing afterwards', () => {
-    for (const id of Object.keys(CARGO_BY_ID)) {
-      const c = CARGO_BY_ID[id];
-      expect(timeFactor(c, 0)).toBe(1);
-      expect(timeFactor(c, c.days1)).toBe(1);
-      let prev = Infinity;
-      for (let d = 0; d <= 600; d++) {
-        const f = timeFactor(c, d);
-        expect(f).toBeLessThanOrEqual(prev + 1e-12);
-        expect(f).toBeGreaterThanOrEqual(31 / 255 - 1e-12);
-        prev = f;
-      }
-    }
-  });
-
-  test('cargoPayment is positive for valid delivery and zero otherwise', () => {
-    const p = cargoPayment('COAL', 30, 20, 5);
-    expect(p).toBeGreaterThan(0);
-    expect(Number.isInteger(p)).toBe(true);
-    expect(cargoPayment('COAL', 0, 20, 5)).toBe(0);
-    expect(cargoPayment('COAL', 30, 0, 5)).toBe(0);
-    expect(cargoPayment('NOPE', 30, 20, 5)).toBe(0);
-  });
-
-  test('cargoPayment decreases with transit time', () => {
-    expect(cargoPayment('COAL', 30, 20, 200)).toBeLessThan(cargoPayment('COAL', 30, 20, 5));
-  });
-
   test('borrow respects LOAN_STEP and maxLoan', () => {
     const g = Game.create({ seed: 3, width: 64, height: 64 });
     const c = g.state.company;
