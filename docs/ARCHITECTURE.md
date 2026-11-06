@@ -273,3 +273,25 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - **Cost:** each new deck tile costs `COSTS.bridgeRail` (300) or `COSTS.bridgeRoad` (220) on top of the normal heads' track cost; the drag preview and dry run report the same total.
 - **Demolish:** demolishing any tile of a bridge (head or deck) removes the whole bridge (`bridgeCells`), charged as track demolition per tile.
 - **Tunnels:** not built. The height model has one integer height per tile with no separate underground layer, so a tunnel needs a new representation. Left out.
+
+## Town ratings + authority actions (T8)
+
+Gap #8. Sources: OpenLoco `World/Town.cpp` (`adjustCompanyRating`, `companyRatings` -1000..1000, default 500),
+`GameCommands/Buildings/RemoveBuilding.cpp` (refusal when rating < 0), `TownWindow.cpp` (rank titles); OpenTTD
+`town_cmd.cpp` (`UpdateTownRating` station steps +12/-15, tree -35, road edge -18, advertising, statue, fund buildings).
+
+- Code: `js/simulation/townAuthority.js` (rating helpers, refusal/penalty gates, monthly update, `townAction`);
+  rating storage reuses `loco/town.js` `companyRating` (lazy: absent = 500).
+- Titles: >=400 Excellent, >=200 Good, >=0 Average, >=-500 Poor, else Appalling.
+- Monthly (`loco/townManager.updateMonthly` -> `updateAuthorityMonthly`): per station within 20 tiles of a town,
+  +12 if it picked up cargo in the last 20 days, else -15; then drift 1/20 of the distance toward 500.
+- Refusal (rating < 0): station construction within 20 tiles is refused, and so is demolition of houses and
+  town roads. The error text names the town ("<Town> local authority refuses permission") and reaches the UI via `app.exec`.
+- Penalties on a real demolition: each forest tile -35, each town road tile -18 (within the authority radius).
+- Actions (`game.townAction(townId, id)`, costs in `config/costs.js`, inflated via `constructionTotal`):
+  advertise small/medium/large $2k/$4k/$9k: stations within 10/15/20 tiles get a cargo rating target bonus
+  +15/+25/+35 for 2/3/4 months (`stations.updateRatings` via `advertBonus`); statue $35k: once per town,
+  permanent +200 rating; fund new buildings $48k: build speed 4 for 3 months.
+- Save: new fields `companyRating`, `statue`, `fundMonths` (towns) and `adBoost` (stations) appear only once used.
+- Left out: bribe, exclusive transport rights, road reconstruction, statue tile placement, OpenTTD's
+  per-company rating list (single company only), tunnel/bridge rating steps.

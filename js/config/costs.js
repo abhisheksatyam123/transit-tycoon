@@ -27,4 +27,10 @@ export const COSTS = {
   upkeepRoad: 1,
   upkeepStationTile: 12,
   upkeepDepot: 20,
+  /** town authority actions (OpenTTD town action costs 2/4/9/35/48/53/117/175, scaled to this money scale) */
+  advertiseSmall: 2000,
+  advertiseMedium: 4000,
+  advertiseLarge: 9000,
+  statue: 35000,
+  fundBuildings: 48000,
 };

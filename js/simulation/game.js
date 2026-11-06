@@ -17,6 +17,7 @@ import { buildLine, demolish } from './cmdTrack.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
+import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
 import { findStation, findVehicle } from './state.js';
@@ -175,6 +176,8 @@ export class Game {
   renameStation(id, name, opts) { return renameStation(this.ctx, id, name, opts); }
   renameVehicle(id, name, opts) { return renameVehicle(this.ctx, id, name, opts); }
   renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }
+  /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
+  townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }
   renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }

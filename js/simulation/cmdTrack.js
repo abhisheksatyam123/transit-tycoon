@@ -14,6 +14,7 @@ import { ERR, MAX_BRIDGE_LENGTH, canAddBits, clearingCost, clearTerrain, coordsO
 import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayout } from './aircraft.js';
 import { findTown } from './state.js';
+import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
 
 /**
  * Plan player bridges for a line. A bridge is a straight run of water tiles (its deck) between two
@@ -284,10 +285,13 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (t.terrain === 'forest' || t.terrain === 'rock') { jobs.push({ x, y, kind: 'clear' }); cost += clearingCost(t); }
   }
   if (jobs.length === 0) return { ok: false, error: sawIndustry ? "Can't demolish an industry" : 'Nothing to demolish' };
+  const refused = demolishRefusal(state, jobs);
+  if (refused) return { ok: false, error: refused };
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: jobs.length };
+  applyDemolishPenalty(state, jobs);
   for (const j of jobs) {
     const t = map.tiles[j.y * map.width + j.x];
     if (j.kind === 'depot') {

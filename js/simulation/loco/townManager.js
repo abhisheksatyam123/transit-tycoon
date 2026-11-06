@@ -8,6 +8,7 @@ import { rollTownStats } from '../townGrowth.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
 import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown } from './town.js';
+import { updateAuthorityMonthly, FUND_BUILD_SPEED } from '../townAuthority.js';
 
 /** TownManager::tick: every 8th scenario tick one town (slot (ticks/8) % 0x7F) updates. */
 export function tick(game) {
@@ -22,8 +23,10 @@ export function updateMonthly(game) {
   const s = game.state;
   for (const town of s.towns) {
     updateMonthlyTown(town);
+    if (town.fundMonths > 0) town.buildSpeed = FUND_BUILD_SPEED; // fund new buildings (townAuthority.js)
     rollTownStats(s, town);
   }
+  updateAuthorityMonthly(s);
   recomputeAllAcceptance(s);
 }
 

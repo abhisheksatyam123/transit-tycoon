@@ -11,6 +11,7 @@ import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, canAddBits } fro
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findStation } from './state.js';
 import { stationTileBits } from './stationLinks.js';
+import { refusalAt } from './townAuthority.js';
 
 /**
  * True when a non-depot vehicle occupies (x,y) (head, next tile or trailing tiles).
@@ -42,6 +43,8 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   for (let i = 0; i < length; i++) tiles.push(axis === 'x' ? { x: x + i, y } : { x, y: y + i });
   const last = tiles[tiles.length - 1];
   if (!coordsOk(map, x, y, last.x, last.y)) return { ok: false, error: ERR.bounds };
+  const refused = refusalAt(state, x, y);
+  if (refused) return { ok: false, error: refused };
   let cost = 0;
   for (const p of tiles) {
     const t = getTile(map, p.x, p.y);
@@ -81,6 +84,8 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   const map = state.map;
   if (kind !== 'bus' && kind !== 'truck') return { ok: false, error: 'Invalid stop kind' };
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
+  const refused = refusalAt(state, x, y);
+  if (refused) return { ok: false, error: refused };
   const t = getTile(map, x, y);
   if (t.terrain === 'water') return { ok: false, error: ERR.water };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
