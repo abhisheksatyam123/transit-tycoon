@@ -38,6 +38,8 @@ export class WindowManager {
     this.container = container;
     /** @type {Map<string, FloatingWindow>} */
     this.windows = new Map();
+    /** @type {Map<string, HTMLElement|null>} element focused before each window opened */
+    this.openers = new Map();
     this.z = 10;
     this.cascade = 0;
   }
@@ -56,15 +58,18 @@ export class WindowManager {
       return existing;
     }
     const titleEl = el('span.win-title', { id: 'win-title-' + (++winSeq), text: spec.title });
-    const closeBtn = el('button.win-close', { type: 'button', title: 'Close (Esc)', 'aria-label': 'Close', text: '×' });
+    const closeBtn = el('button.win-close', { type: 'button', title: 'Close (Esc)', 'aria-label': 'Close ' + spec.title, text: '×' });
     const header = el('div.win-header', null, titleEl, closeBtn);
     const body = el('div.win-body');
-    const root = el('section.win.hud-surface' + (spec.className ? '.' + spec.className : ''), { role: 'dialog', 'aria-labelledby': titleEl.id }, header, body);
+    const root = el('section.win.hud-surface' + (spec.className ? '.' + spec.className : ''), { role: 'dialog', tabindex: '-1', 'aria-labelledby': titleEl.id }, header, body);
     if (spec.width) root.style.width = spec.width + 'px';
     /** @type {FloatingWindow} */
     const win = {
       id, root, body, titleEl, spec, update: null,
-      setTitle: (t) => { if (titleEl.textContent !== t) titleEl.textContent = t; },
+      setTitle: (t) => {
+        if (titleEl.textContent !== t) titleEl.textContent = t;
+        closeBtn.setAttribute('aria-label', 'Close ' + t);
+      },
       close: () => this.close(id),
     };
     closeBtn.addEventListener('click', () => this.close(id));
@@ -87,6 +92,9 @@ export class WindowManager {
     const upd = spec.build(body, win);
     win.update = typeof upd === 'function' ? upd : null;
     if (win.update) this.safeUpdate(win);
+    // keyboard/screen-reader users land inside the new dialog; remember the opener to return to on close
+    if (!this.openers.has(id)) this.openers.set(id, /** @type {HTMLElement|null} */ (document.activeElement));
+    root.focus({ preventScroll: true });
     return win;
   }
 
@@ -106,7 +114,11 @@ export class WindowManager {
     const win = this.windows.get(id);
     if (!win) return;
     this.windows.delete(id);
+    const opener = this.openers.get(id);
+    this.openers.delete(id);
+    const hadFocus = win.root.contains(document.activeElement);
     win.root.remove();
+    if (hadFocus && opener && opener.isConnected) opener.focus({ preventScroll: true });
     if (win.spec.onClose) win.spec.onClose();
   }
 

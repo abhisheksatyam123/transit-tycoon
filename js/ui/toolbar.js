@@ -20,6 +20,7 @@ export function airportLocked(toolId, year) {
   return `${t.name} not yet available: available from ${t.introYear}`;
 }
 import { screenshotCanvas, giantScreenshot } from './screenshot.js';
+import { announce } from './liveRegion.js';
 
 /** Build tool buttons: [toolId, label, icon, shortcut]. */
 export const TOOL_BUTTONS = [
@@ -131,8 +132,8 @@ function tbButton(iconName, label, title, onClick) {
  * @param {()=>void} onClick
  * @returns {HTMLButtonElement}
  */
-function flyItem(iconName, label, key, onClick) {
-  return /** @type {HTMLButtonElement} */ (el('button.tb-fly-item', { type: 'button', title: key ? `${label} (${key})` : label, onclick: onClick },
+function flyItem(iconName, label, key, onClick, role = 'menuitem') {
+  return /** @type {HTMLButtonElement} */ (el('button.tb-fly-item', { type: 'button', role, tabindex: '-1', title: key ? `${label} (${key})` : label, onclick: onClick },
     icon(iconName), el('span.tb-fly-label', { text: label }), key ? el('kbd', { text: key }) : null));
 }
 
@@ -234,11 +235,25 @@ export function createToolbar(root, app) {
   /** @type {{id:string, btn:HTMLButtonElement, panel:HTMLElement, icon:string, shown:string, items:HTMLButtonElement[], tools:string[]}[]} */
   const groups = [];
   let openGroup = null;
-  const closeFlyouts = () => {
+  /** Close the open flyout; focus returns to its trigger when focus was inside the panel (or restore is true and it was). */
+  const closeFlyouts = (restore = true) => {
     if (!openGroup) return;
-    openGroup.panel.classList.remove('open');
-    openGroup.btn.setAttribute('aria-expanded', 'false');
+    const g = openGroup;
+    const hadFocus = g.panel.contains(document.activeElement);
+    g.panel.classList.remove('open');
+    g.btn.setAttribute('aria-expanded', 'false');
     openGroup = null;
+    if (restore && hadFocus) g.btn.focus();
+  };
+  /** Open a group's panel; focusIdx 0 = first item, -1 = last item, undefined = leave focus on the trigger. */
+  const openFlyout = (g, focusIdx) => {
+    closeFlyouts();
+    openGroup = g;
+    g.btn.setAttribute('aria-expanded', 'true');
+    placePanel(g);
+    if (focusIdx !== undefined && g.items.length) {
+      (focusIdx < 0 ? g.items[g.items.length - 1] : g.items[0]).focus({ preventScroll: true });
+    }
   };
   /** Place the panel under its button, clamped to the viewport (flips above when there is no room below). */
   const placePanel = (g) => {
@@ -264,7 +279,7 @@ export function createToolbar(root, app) {
       if (m.startsWith('win:')) {
         const name = m.slice(4);
         const [, wl, wi, wk] = /** @type {any} */ (winInfo.get(name));
-        const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); });
+        const b = flyItem(wi, wl, wk, () => { closeFlyouts(); app.open(name); }, 'menuitem');
         b.dataset.win = name;
         if (wk) titled.push([b, wl, 'win:' + name]);
         items.push(b);
@@ -272,7 +287,7 @@ export function createToolbar(root, app) {
       }
       if (SHOT_ITEMS[m]) {
         const [sl, si, sk] = SHOT_ITEMS[m];
-        const b = flyItem(si, sl, sk, () => { closeFlyouts(); shotAction(m); });
+        const b = flyItem(si, sl, sk, () => { closeFlyouts(); shotAction(m); }, 'menuitem');
         b.dataset.shot = m;
         if (sk) titled.push([b, sl, 'screenshot']);
         items.push(b);
@@ -284,33 +299,60 @@ export function createToolbar(root, app) {
         const late = airportLocked(m, app.game.state.date.year);
         if (late) { closeFlyouts(); play('error'); app.toast(late, 'error', true); return; }
         closeFlyouts(); play('click'); app.setTool(m);
-      });
+      }, 'menuitemradio');
       b.dataset.tool = m;
       if (tk) titled.push([b, tl, 'tool:' + m]);
       items.push(b);
       return b;
     });
-    const panel = el('div.tb-flyout', { role: 'menu', 'data-group': gid, 'aria-label': label }, panelItems);
+    const panelId = 'tb-fly-' + gid;
+    const panel = el('div.tb-flyout', { id: panelId, role: 'menu', 'data-group': gid, 'aria-label': label }, panelItems);
     document.body.appendChild(panel);
     /** @type {any} */
     const g = { id: gid, btn: null, panel, icon: gicon, shown: gicon, items, tools: toolIds };
-    const btn = tbButton(gicon, label, `${label} ▾`, () => {
+    // WAI-ARIA menu button: Enter/Space (click with detail 0) and ArrowDown/ArrowUp open and focus an item
+    const btn = tbButton(gicon, label, `${label} ▾`, (ev) => {
       if (openGroup === g) { closeFlyouts(); return; }
-      closeFlyouts();
-      openGroup = g;
-      btn.setAttribute('aria-expanded', 'true');
-      placePanel(g);
+      const fromKeyboard = !!ev && ev.detail === 0;
+      openFlyout(g, fromKeyboard ? 0 : undefined);
     });
     btn.classList.add('tb-grp');
     btn.dataset.group = gid;
     btn.setAttribute('aria-haspopup', 'menu');
     btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', panelId);
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation(); // do not pan the map
+        if (openGroup !== g) openFlyout(g, e.key === 'ArrowUp' ? -1 : 0);
+        else g.items[e.key === 'ArrowUp' ? g.items.length - 1 : 0].focus({ preventScroll: true });
+      } else if (e.key === 'Escape' && openGroup === g) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeFlyouts();
+      }
+    });
+    // Menu keys: arrows/Home/End move between items; Escape closes; Tab closes and lets focus move on.
+    panel.addEventListener('keydown', (e) => {
+      const n = g.items.length;
+      const i = g.items.indexOf(/** @type {any} */ (document.activeElement));
+      const go = (j) => { e.preventDefault(); e.stopPropagation(); g.items[j].focus({ preventScroll: true }); };
+      if (e.key === 'ArrowDown') go(i < 0 ? 0 : (i + 1) % n);
+      else if (e.key === 'ArrowUp') go(i < 0 ? n - 1 : (i - 1 + n) % n);
+      else if (e.key === 'Home') go(0);
+      else if (e.key === 'End') go(n - 1);
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFlyouts(); }
+      else if (e.key === 'Tab') closeFlyouts(false);
+    });
     btn.appendChild(el('span.tb-caret', { text: '▾' }));
     g.btn = btn;
     groups.push(g);
   }
   const groupBtn = (id) => { const g = groups.find((x) => x.id === id); return g ? g.btn : null; };
   // Dismiss on outside click / Escape / resize.
+  // (Escape is handled by the panel and trigger keydown listeners above, which stop propagation so the
+  // game's Escape handling does not also cancel a tool or close a window.)
   document.addEventListener('pointerdown', (e) => {
     if (!openGroup) return;
     const t = /** @type {Node} */ (e.target);
@@ -344,15 +386,25 @@ export function createToolbar(root, app) {
       else if (tid && AIRPORT_TOOL_TYPE[tid]) b.title = toolInfo.get(tid)[1];
     }
   };
+  /** Tool id last announced (undefined until the first refresh, so startup is silent). */
+  let lastTool = undefined;
   const refresh = () => {
     applyAirAvailability();
     for (const b of speedBtns) { const on = Number(b.dataset.speed) === app.speed; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
     const cur = app.tool ? app.tool.id : null;
+    if (cur !== lastTool) {
+      if (lastTool !== undefined && cur) announce(`${(toolInfo.get(cur) || [0, cur])[1]} selected`);
+      lastTool = cur;
+    }
     for (const b of toolBtns) { const on = !!cur && cur === b.dataset.tool; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); }
     for (const g of groups) {
       const inGroup = !!cur && g.tools.includes(cur);
       g.btn.classList.toggle('active', inGroup);
-      for (const b of g.items) b.classList.toggle('active', !!cur && b.dataset.tool === cur);
+      for (const b of g.items) {
+        const on = !!cur && b.dataset.tool === cur;
+        b.classList.toggle('active', on);
+        if (b.getAttribute('role') === 'menuitemradio') b.setAttribute('aria-checked', String(on));
+      }
       // while a tool from this group is active, show that tool's icon on the group button
       const want = inGroup ? toolInfo.get(cur)[2] : g.icon;
       if (g.shown !== want) {

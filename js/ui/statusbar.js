@@ -3,6 +3,7 @@
  * (click jumps to its location), and the current tool hint.
  */
 import { newsLevel, loadNewsPrefs } from './newsPrefs.js';
+import { announce } from './liveRegion.js';
 import { newsCategoryOf } from '../simulation/news.js';
 import { localizeMoneyText } from './newsMoney.js';
 import { currentCurrency } from './units.js';
@@ -30,7 +31,7 @@ export function createStatusbar(root, app) {
   const moneyEl = el('span.sb-value.mono');
   const loanEl = el('span.sb-value.mono');
   const valueEl = el('span.sb-value.mono');
-  const newsEl = el('button.sb-news', { type: 'button', title: 'Latest news (click to jump to location)', 'aria-live': 'polite' });
+  const newsEl = el('button.sb-news', { type: 'button', title: 'Latest news (click to jump to location)' });
   const item = (label, v, cls) => el('div.sb-item' + (cls ? '.' + cls : ''), null, el('span.sb-label', { text: label }), v);
   root.appendChild(item('Date', dateEl));
   root.appendChild(el('div.metric-divider'));
@@ -44,6 +45,7 @@ export function createStatusbar(root, app) {
 
   /** @type {any} */
   let shownNews = null;
+  let newsSeen = false; // the first ticker value at startup is not announced
   newsEl.addEventListener('click', () => {
     if (shownNews && typeof shownNews.x === 'number') app.centerOn(shownNews.x, shownNews.y);
     else app.open('news');
@@ -67,8 +69,11 @@ export function createStatusbar(root, app) {
       newsEl.textContent = '';
       if (latest) {
         newsEl.appendChild(el('span.sb-news-date.mono', { text: latest.dateStr || '' }));
-        newsEl.appendChild(el('span.sb-news-text.' + (latest.kind || 'info'), { text: localizeMoneyText(latest.text, currentCurrency()) }));
+        const text = localizeMoneyText(latest.text, currentCurrency());
+        newsEl.appendChild(el('span.sb-news-text.' + (latest.kind || 'info'), { text }));
+        if (newsSeen) announce(`News: ${latest.dateStr ? latest.dateStr + ': ' : ''}${text}`);
       }
+      newsSeen = true;
     }
   };
 
