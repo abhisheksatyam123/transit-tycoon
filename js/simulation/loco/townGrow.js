@@ -160,6 +160,42 @@ function buildInitialRoad(game, town) {
 }
 
 /**
+ * M4 (Moscow only): shortest 4-connected land path (BFS, free to turn) from a source tile to a goal
+ * tile. Intermediate tiles must be open ground (no road, building, rail, water, tunnel/bridge, or
+ * a step taller than 1). Used when findRoadPath finds no path (its straight-run rule blocks bends).
+ */
+function bfsRoadPath(map, sources, goals, allowed, prot) {
+  const W = map.width, H = map.height, N = W * H;
+  const prev = new Int32Array(N).fill(-2);
+  const q = [];
+  for (const s of sources) { const i = s.y * W + s.x; if (prev[i] === -2) { prev[i] = -1; q.push(i); } }
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi];
+    if (goals.has(i)) {
+      const out = [];
+      for (let c = i; c !== -1; c = prev[c]) out.push({ x: c % W, y: Math.floor(c / W) });
+      return out.reverse();
+    }
+    const x = i % W, y = Math.floor(i / W), cur = map.tiles[i];
+    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || !allowed(nx, ny)) continue;
+      const j = ny * W + nx;
+      if (prev[j] !== -2) continue;
+      const t = map.tiles[j];
+      if (!goals.has(j)) {
+        if (t.road || t.terrain === 'water' || t.building || t.rail || t.playerTunnel || t.playerBridge || t.bridgeDeck !== undefined) continue;
+        if (prot && prot[j]) continue;
+      } else if (!t.road) continue;
+      if (Math.abs(t.height - cur.height) > 1) continue;
+      prev[j] = i;
+      q.push(j);
+    }
+  }
+  return null;
+}
+
+/**
  * M3 (Moscow only): monthly repair of a town's core road network. Any core road piece that is not on
  * the town's largest network piece is joined to it by a short road (<= REPAIR_MAX_LEN tiles), mirroring
  * OpenTTD towns that only grow from connected road. Returns the number of joins laid.
@@ -191,7 +227,8 @@ export function repairTownRoads(state, town, labels) {
       else if (labels[i] === main && map.tiles[i].road) goals.add(i);
     }
     if (!sources.length || !goals.size) continue;
-    const path = findRoadPath(map, sources, goals, { x: town.x, y: town.y }, allowed);
+    let path = findRoadPath(map, sources, goals, { x: town.x, y: town.y }, allowed);
+    if (!path) path = bfsRoadPath(map, sources, goals, allowed, prot);  // findRoadPath cannot turn after a source
     if (path && path.length <= REPAIR_MAX_LEN) { layRoadPath(state, path); joins++; }
   }
   return joins;
