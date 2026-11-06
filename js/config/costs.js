@@ -5,6 +5,8 @@ export const COSTS = {
   /** player bridge: extra per water deck tile (on top of the heads' normal track cost) */
   bridgeRail: 300,
   bridgeRoad: 220,
+  /** player rail tunnel: extra per underground tile (on top of normal track cost); portals are normal track */
+  tunnelRail: 350,
   railStation: 700,
   roadStop: 500,
   depotRail: 1200,

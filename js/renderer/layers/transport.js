@@ -16,6 +16,8 @@ import { gradeSepSprite } from '../sprites/gradeSep.js';
 import { metroPlazaGround } from '../sprites/metroPlaza.js';
 import { metroEntranceSprite } from '../sprites/metro.js';
 import { blit } from '../sprites/canvas.js';
+import { tunnelPortalSprite } from '../sprites/tunnelPortal.js';
+import { straightAxis } from '../../simulation/network.js';
 
 /** Array memos indexed by mask/class/variant (no per-frame string keys). */
 const rails = new Array(16 * 2);
@@ -83,6 +85,18 @@ export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
   }
   if (drawPackTransport(ctx, tile, sx, sy, c, diag)) return;
   drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag);
+}
+
+/**
+ * Dark arch on a player tunnel portal, facing the underground run (sprites/tunnelPortal.js). Drawn in the
+ * renderer's object pass (after ground chunks, rails and the smooth-rail net), sy = flat tile centre.
+ */
+export function drawTunnelPortal(ctx, tile, sx, sy, c, map, x, y) {
+  const axis = straightAxis(tile.rail) === 'x' ? 'x' : 'y';
+  const [ax, ay] = axis === 'x' ? [1, 0] : [0, 1];
+  const inside = (dx, dy) => { const n = map.tiles[(y + dy) * map.width + x + dx]; return !!(n && n.tunnel); };
+  const side = inside(ax, ay) ? '+' : inside(-ax, -ay) ? '-' : null;
+  if (side) drawSloped(ctx, tunnelPortalSprite(axis, side), sx, sy, c);
 }
 
 /**

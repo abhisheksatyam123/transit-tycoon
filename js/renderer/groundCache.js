@@ -93,7 +93,7 @@ export class GroundCache {
         const b = t.building;
         const lm = b && b.type === 'landmark' ? 7 + (b.dx | 0) * 3 + (b.dy | 0) * 5 + (b.id ? b.id.length : 0) * 11 : 0;
         const bc = b ? (b.type === 'station' ? (b.kind === 'rail' ? 3 : 4) + (b.axis === 'y' ? 8 : 0) : b.type === 'depot' ? 5 : 1) : 0;
-        h = (Math.imul(h, 31) + (TERRAIN_CODE[t.terrain] | 0) * 7 + t.height * 131 + t.rail * 1031 + t.road * 16411 + bc * 262147 + (t.avenue | 0) * 1048583 + lm + (t.tunnel | 0) * 2097143 + (t.gradeSep | 0) * 4194301) | 0;
+        h = (Math.imul(h, 31) + (TERRAIN_CODE[t.terrain] | 0) * 7 + t.height * 131 + t.rail * 1031 + t.road * 16411 + bc * 262147 + (t.avenue | 0) * 1048583 + lm + (t.tunnel | 0) * 2097143 + (t.gradeSep | 0) * 4194301 + (t.tunnelPortal | 0) * 8388593) | 0;
       }
     }
     // corner heights of the chunk (incl. the shared south/east border) capture neighbour influence

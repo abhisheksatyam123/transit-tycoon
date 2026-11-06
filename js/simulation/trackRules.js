@@ -18,6 +18,7 @@ export const ERR = {
   built: 'Already built',
   track: 'Track or road in the way',
   vehicle: 'Vehicle in the way',
+  tunnel: 'Tunnel in the way: build beside it or at its portals',
 };
 
 /**
@@ -27,6 +28,9 @@ export const ERR = {
 export function canAddBits(tile, layer, bits, deck = false) {
   if (!tile) return ERR.bounds;
   if (tile.terrain === 'water' && !deck) return ERR.water;
+  // a tunnel's underground run takes no surface track; a portal only continues along its own axis
+  if (tile.playerTunnel && tile.tunnel && bits) return ERR.tunnel;
+  if (tile.playerTunnel && tile.tunnelPortal && (bits & ~AXIS_BITS[straightAxis(tile.rail) || 'x'])) return ERR.tunnel;
   if (deck && tile.terrain !== 'water') return ERR.water;
   const b = tile.building;
   if (b) {
@@ -53,6 +57,8 @@ export function canAddBits(tile, layer, bits, deck = false) {
 
 /** Longest player bridge in tiles, heads included (OpenTTD-style span limit). */
 export const MAX_BRIDGE_LENGTH = 12;
+/** Longest player rail tunnel in tiles, both portals included. */
+export const MAX_TUNNEL_LENGTH = 16;
 
 /**
  * Extra cost to clear terrain before building (forest/rock), 0 otherwise.

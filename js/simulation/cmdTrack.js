@@ -10,7 +10,7 @@ import { pathOk } from './shapes.js';
 import { getTile, inBounds } from './map.js';
 import { straightAxis } from './network.js';
 import { spend } from './economy.js';
-import { ERR, MAX_BRIDGE_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
 import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayout } from './aircraft.js';
 import { findTown } from './state.js';
@@ -45,6 +45,129 @@ export function planBridges(map, pts) {
     i = j;
   }
   return { ok: true, deck };
+}
+
+/**
+ * Plan a player rail tunnel along a straight run of tiles: the first and last tile are the portals
+ * (equal height, free or carrying straight track on the axis), the tiles between are the underground
+ * run (no water, building, track or road; each strictly higher than the portals). Interior tiles keep
+ * their surface terrain.
+ * @returns {{ok:true,inner:Set<number>,portals:Set<number>}|{ok:false,error:string}}
+ */
+export function planTunnel(map, pts) {
+  const n = pts.length;
+  if (n < 3) return { ok: false, error: 'Tunnel needs at least one tile between the portals' };
+  const straight = pts.every((p) => p.x === pts[0].x) || pts.every((p) => p.y === pts[0].y);
+  if (!straight) return { ok: false, error: 'Tunnels must be straight' };
+  if (n > MAX_TUNNEL_LENGTH) return { ok: false, error: `Tunnel too long (max ${MAX_TUNNEL_LENGTH} tiles)` };
+  const axis = pts[0].x === pts[1].x ? 'y' : 'x';
+  const tiles = pts.map((p) => map.tiles[p.y * map.width + p.x]);
+  const a = tiles[0], b = tiles[n - 1];
+  if (a.height !== b.height) return { ok: false, error: 'Tunnel portals must be at the same height' };
+  for (const t of [a, b]) {
+    if (t.terrain === 'water' || t.building || t.road || (t.rail & ~AXIS_BITS[axis])) {
+      return { ok: false, error: 'Tunnel portals need a free tile or straight track on the axis' };
+    }
+  }
+  const inner = new Set();
+  for (let k = 1; k < n - 1; k++) {
+    const t = tiles[k];
+    if (t.terrain === 'water') return { ok: false, error: ERR.water };
+    if (t.building) return { ok: false, error: 'Tunnel is blocked by a building' };
+    if (t.rail || t.road) return { ok: false, error: 'Tunnel is blocked by track or road' };
+    if (t.height <= a.height) return { ok: false, error: 'Tunnel must run higher than its portals' };
+    inner.add(pts[k].y * map.width + pts[k].x);
+  }
+  const portals = new Set([pts[0].y * map.width + pts[0].x, pts[n - 1].y * map.width + pts[n - 1].x]);
+  return { ok: true, inner, portals };
+}
+
+/** A tile belongs to a player-built tunnel (not a Moscow metro tunnel). */
+const isPlayerTunnel = (t) => !!(t && t.playerTunnel);
+
+/**
+ * All cells of the player tunnel that (x,y) belongs to: both portals and the underground run between
+ * them, found by walking along the rail axis from (x,y). Returns [] for anything that is not a player tunnel.
+ * @returns {{x:number,y:number}[]}
+ */
+export function tunnelCells(map, x, y) {
+  const t = map.tiles[y * map.width + x];
+  if (!isPlayerTunnel(t) || !t.rail) return [];
+  const axis = straightAxis(t.rail);
+  if (!axis) return [];
+  const cells = [{ x, y }];
+  for (const d of (axis === 'x' ? [DIRS[3], DIRS[1]] : [DIRS[0], DIRS[2]])) {
+    let cx = x, cy = y;
+    for (;;) {
+      const nx = cx + d.dx, ny = cy + d.dy;
+      if (!inBounds(map, nx, ny)) break;
+      const nt = map.tiles[ny * map.width + nx];
+      if (!isPlayerTunnel(nt) || !(nt.rail & OPPOSITE[d.bit])) break;
+      cells.push({ x: nx, y: ny });
+      if (nt.tunnelPortal) break;
+      cx = nx; cy = ny;
+    }
+  }
+  return cells;
+}
+
+/**
+ * Build a straight player rail tunnel along a drag (portal, underground run, portal). Portals are
+ * ordinary surface track tiles flagged tunnelPortal; the run between them gets tunnel=1 (rendered
+ * underground, hidden vehicles) and playerTunnel=1. Costs a normal track tile per tile plus tunnelRail
+ * per underground tile. The portals' outer neighbours connect to existing track of the same line.
+ * @returns {{ok:true,cost:number,tiles:number}|{ok:false,error:string}}
+ */
+export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
+  const { state } = ctx;
+  const map = state.map;
+  if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
+  const pts = linePath(x0, y0, x1, y1);
+  const plan = planTunnel(map, pts);
+  if (!plan.ok) return plan;
+  const n = pts.length;
+  const axis = pts[0].x === pts[1].x ? 'y' : 'x';
+  const bits = AXIS_BITS[axis];
+  let cost = 0, changed = 0;
+  const outer = [];
+  for (let k = 0; k < n; k++) {
+    const p = pts[k];
+    const i = p.y * map.width + p.x;
+    const t = map.tiles[i];
+    const err = canAddBits(t, 'rail', bits);
+    if (err) return { ok: false, error: err };
+    if (plan.inner.has(i)) { cost += COSTS.rail + COSTS.tunnelRail + clearingCost(t); changed++; continue; }
+    if ((t.rail | bits) !== t.rail) { cost += COSTS.rail + clearingCost(t); changed++; }
+  }
+  // the outer neighbours of both portals connect to the existing track beyond them, if any
+  for (const [p, out] of [[pts[0], -1], [pts[n - 1], 1]]) {
+    const d = axis === 'x' ? DIRS[out < 0 ? 3 : 1] : DIRS[out < 0 ? 0 : 2];
+    const nx = p.x + d.dx, ny = p.y + d.dy;
+    if (!inBounds(map, nx, ny)) continue;
+    const nt = map.tiles[ny * map.width + nx];
+    if (nt.rail && !canAddBits(nt, 'rail', OPPOSITE[d.bit])) outer.push({ x: nx, y: ny, bit: OPPOSITE[d.bit] });
+  }
+  if (changed === 0) return { ok: false, error: ERR.built };
+  cost = constructionTotal(state, cost);
+  const money = checkMoney(state, cost);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost, tiles: n };
+  for (const p of pts) {
+    const i = p.y * map.width + p.x;
+    const t = map.tiles[i];
+    clearTerrain(t);
+    t.rail |= bits;
+    t.playerTunnel = 1;
+    if (plan.inner.has(i)) t.tunnel = 1;
+    else { t.tunnelPortal = 1; delete t.tunnel; }
+    delete t.signal;
+    if (!t.owner) t.owner = 'company';
+    pruneOneWay(t);
+  }
+  for (const o of outer) map.tiles[o.y * map.width + o.x].rail |= o.bit;
+  invalidateBlocks(state);
+  spend(state.company, 'construction', cost);
+  return { ok: true, cost, tiles: n };
 }
 
 /**
@@ -104,6 +227,10 @@ export function bridgeCells(map, x, y, layer) {
 export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
+  if (opts.tunnel === true) {
+    if (layer !== 'rail') return { ok: false, error: 'Only rail can be tunnelled' };
+    return buildTunnel(ctx, x0, y0, x1, y1, opts);
+  }
   const custom = Array.isArray(opts.path) ? opts.path : null;
   const loop = !!(custom && opts.loop === true);
   if (custom) {
@@ -249,6 +376,12 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       }
     }
   }
+  // a player tunnel (both portals and the run between) is removed as a whole
+  for (const c of [...cells]) {
+    for (const q of tunnelCells(map, c.x, c.y)) {
+      if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
+    }
+  }
   for (const c of [...cells]) {
     const b = map.tiles[c.y * map.width + c.x].building;
     if (!b || b.type !== 'station' || b.kind !== 'airport') continue;
@@ -323,6 +456,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       t.building = null; t.owner = null;
     } else if (j.kind === 'track') {
       delete t.signal;
+      if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }
       stripLayer(map, j.x, j.y, 'rail');
       stripLayer(map, j.x, j.y, 'road');
       t.owner = null;

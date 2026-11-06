@@ -30,6 +30,7 @@ export const TERRA_ERR = {
   min: 'Minimum height reached',
   nothing: 'Nothing to change here',
   steep: 'Too much terrain would change',
+  tunnel: 'Tunnel below: its ground cannot change',
 };
 
 /** Why a tile may not change height ('' when it may). */
@@ -37,6 +38,7 @@ function blockReason(map, x, y) {
   const t = map.tiles[y * map.width + x];
   if (t.terrain === 'water') return ERR.water;
   if (t.building) return TERRA_ERR.structure;
+  if (t.tunnel || t.tunnelPortal) return TERRA_ERR.tunnel;
   if (t.rail || t.road) return ERR.track;
   for (const [dx, dy] of NB8) {
     const nx = x + dx, ny = y + dy;

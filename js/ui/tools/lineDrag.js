@@ -29,6 +29,7 @@ export function createLineTool(app, o) {
   let lastKey = '';
   let shape = 'L';
   let highway = false;
+  let tunnel = false; // rail only: U toggles a player tunnel for the drag
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
@@ -38,17 +39,18 @@ export function createLineTool(app, o) {
   };
   const build = (g, x0, y0, x1, y1, opts) => {
     const r = shape === 'L' ? null : routeFor(shape, x0, y0, x1, y1);
-    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway });
+    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel });
+    if (tunnel) return { ok: false, error: 'Tunnels must be straight' };
     const fn = o.layer === 'rail' ? g.buildRailPath : g.buildRoadPath;
     return fn.call(g, r.path, { ...opts, highway, loop: r.loop });
   };
 
   const preview = (end) => {
     if (!start || !end) return;
-    const key = `${shape},${highway},${start.x},${start.y},${end.x},${end.y}`;
+    const key = `${shape},${highway},${tunnel},${start.x},${start.y},${end.x},${end.y}`;
     if (key !== lastKey) {
       lastKey = key;
-      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway });
+      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel });
       lastResult = res && res.ok
         ? { ok: true, label: money(res.cost || 0) }
         : { ok: false, label: (res && res.error) || 'Not possible' };
@@ -62,10 +64,19 @@ export function createLineTool(app, o) {
     get hint() {
       const base = (typeof o.hint === 'function' ? o.hint() : o.hint)
         + (o.layer ? ` Shape: ${SHAPES.map((k) => (k === shape ? `[${SHAPE_LABEL[k]}]` : SHAPE_LABEL[k])).join(' | ')} (C cycles).` : '');
+      if (o.layer === 'rail') return base + ` Underground: ${tunnel ? '[Tunnel]' : 'Surface'} (U toggles).`;
       return o.layer === 'road' ? base + ` Class: ${highway ? '[Highway — 4-lane]' : 'Local'} (H toggles).` : base;
     },
     key(e) {
       if (!o.layer) return false;
+      if (o.layer === 'rail' && (e.key === 'u' || e.key === 'U')) {
+        tunnel = !tunnel;
+        lastKey = '';
+        if (start) preview(start);
+        app.ui?.updateHint?.();
+        app.toast?.(`Rail: ${tunnel ? 'tunnel (underground)' : 'surface'}`, 'info');
+        return true;
+      }
       if (o.layer === 'road' && (e.key === 'h' || e.key === 'H')) {
         highway = !highway;
         lastKey = '';

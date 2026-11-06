@@ -24,6 +24,7 @@ import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
 import { drawSignalPost } from './layers/signals.js';
 import { drawOneWayArrow } from './layers/oneway.js';
+import { drawTunnelPortal } from './layers/transport.js';
 
 export class Renderer {
   /**
@@ -212,9 +213,9 @@ export class Renderer {
       try { segs = game.getVehicleSegments(v); } catch { continue; }
       if (!segs) continue;
       for (const s of segs) {
-        if (v.metroLine && !this.showMetro) {
+        if (!this.showMetro || !v.metroLine) {
           const tt = tiles[Math.round(s.y) * W + Math.round(s.x)];
-          if (tt && tt.tunnel) continue;
+          if (tt && tt.tunnel) continue; // underground: metro overlay shows metro trains only; player tunnels are always hidden
         }
         s._vid = v.id;
         s._info = v;
@@ -338,6 +339,7 @@ export class Renderer {
           }
         }
         if (tile.oneWay && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawOneWayArrow(ctx, sx, sy, tile.oneWay, tile.road | 0);
+        if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
         if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, false);
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
