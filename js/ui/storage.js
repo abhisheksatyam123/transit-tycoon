@@ -34,6 +34,74 @@ export function saveToSlot(slot, game) {
   }
 }
 
+/** Lazily created packing worker (null when workers are unavailable). */
+let packer = undefined;
+let packSeq = 0;
+const packWaiters = new Map();
+
+/** @returns {Worker|null} */
+function getPacker() {
+  if (packer !== undefined) return packer;
+  try {
+    packer = new Worker(new URL('./saveWorker.js', import.meta.url), { type: 'module' });
+    packer.onmessage = (ev) => {
+      const w = packWaiters.get(ev.data.id);
+      if (!w) return;
+      packWaiters.delete(ev.data.id);
+      if (ev.data.error) w.reject(new Error(ev.data.error)); else w.resolve(ev.data.packed);
+    };
+    packer.onerror = (e) => {
+      for (const w of packWaiters.values()) w.reject(new Error(e.message || 'worker failed'));
+      packWaiters.clear();
+      packer = null; // fall back to synchronous packing next time
+    };
+  } catch {
+    packer = null;
+  }
+  return packer;
+}
+
+/**
+ * Save a slot without blocking the main thread on compression (the game serialisation
+ * itself still runs here). Falls back to saveToSlot when workers are unavailable.
+ * @param {string} slot
+ * @param {any} game
+ * @returns {Promise<{ok:boolean,quota?:boolean,error?:string}>}
+ */
+export function saveToSlotAsync(slot, game) {
+  const w = getPacker();
+  if (!w) return Promise.resolve(saveToSlot(slot, game));
+  try {
+    const s = game.state;
+    const meta = { date: s.date, money: s.company.money, savedAt: Date.now(), seed: s.seed };
+    const data = game.serialize();
+    const id = ++packSeq;
+    return new Promise((resolve) => {
+      packWaiters.set(id, {
+        resolve: (packed) => {
+          try {
+            localStorage.setItem(PREFIX + slot, ZPREFIX + packed);
+            try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* ignore */ }
+            resolve({ ok: true });
+          } catch (err) {
+            resolve(quotaResult(err));
+          }
+        },
+        reject: () => resolve(saveToSlot(slot, game)),
+      });
+      w.postMessage({ id, meta, data });
+    });
+  } catch (err) {
+    return Promise.resolve(quotaResult(err));
+  }
+}
+
+/** Map a storage error to the saveToSlot result shape. */
+function quotaResult(err) {
+  const quota = !!err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014);
+  return { ok: false, quota, error: quota ? 'Save too large for browser storage' : 'Save failed: ' + (err && err.message ? err.message : err) };
+}
+
 /**
  * Read a slot's serialized game string.
  * @param {string} slot

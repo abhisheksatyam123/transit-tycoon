@@ -61,6 +61,8 @@ export function setupInput(app, canvas, shortcuts) {
         return;
       }
     }
+    // Right click with an active tool cancels the tool (OpenTTD convention); otherwise it pans.
+    if (e.button === 2 && app.tool) { app.setTool(null); e.preventDefault(); return; }
     canvas.setPointerCapture(e.pointerId);
     const panButton = e.button === 1 || e.button === 2 || (e.pointerType === 'touch' && !app.tool);
     if (panButton) {

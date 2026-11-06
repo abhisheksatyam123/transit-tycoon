@@ -89,18 +89,27 @@ function collectEdges(map) {
   return edges;
 }
 
+/** Generation-stamped visited marks: a node is seen when mark[node] === gen (no per-call clearing). */
+let markGen = 0;
+let marks = new Int32Array(1 << 16);
+
 /** Bounded BFS from a to b over adjacency lists; true when distance <= limit. */
 function withinDistance(adj, a, b, limit) {
   if (a === b) return true;
+  const g = ++markGen;
+  if (marks.length <= Math.max(a, b)) { const nm = new Int32Array((Math.max(a, b) + 1) * 2); nm.set(marks); marks = nm; }
   let frontier = [a];
-  const seen = new Map([[a, 0]]);
+  marks[a] = g;
   for (let d = 0; d < limit && frontier.length; d++) {
     const next = [];
     for (const u of frontier) {
-      for (const v of adj.get(u) || []) {
-        if (seen.has(v)) continue;
+      const nb = adj.get(u);
+      if (!nb) continue;
+      for (const v of nb) {
+        if (v >= marks.length) { const nm = new Int32Array((v + 1) * 2); nm.set(marks); marks = nm; }
+        if (marks[v] === g) continue;
         if (v === b) return true;
-        seen.set(v, d + 1);
+        marks[v] = g;
         next.push(v);
       }
     }
@@ -262,34 +271,51 @@ function nearStationRail(map, i, r) {
 
 /**
  * Partition of terminal tiles (station/depot/tunnel rail) by connectivity over all rail links.
- * Returns a string signature; equal signatures before and after mean connectivity is preserved.
+ * Returns an Int32Array of [tileIndex, componentLabel] pairs; labels are relabelled by first terminal
+ * appearance in index order. Equal arrays before and after mean connectivity is preserved.
  */
 function terminalSignature(map) {
   const { width: W, height: H, tiles: T } = map;
   const n = T.length, comp = new Int32Array(n).fill(-1);
+  const stack = new Int32Array(n);
   let c = 0;
-  const term = [];
   for (let i = 0; i < n; i++) {
     if (!T[i].rail || comp[i] >= 0) continue;
-    const stack = [i]; comp[i] = c;
-    while (stack.length) {
-      const u = stack.pop();
+    let sp = 0; stack[sp++] = i; comp[i] = c;
+    while (sp) {
+      const u = stack[--sp];
+      const ux = u % W, uy = (u / W) | 0, r = T[u].rail;
       for (const b of BITS) {
-        if (!(T[u].rail & b)) continue;
-        const d = DIR_BY_BIT[b], x = u % W + d.dx, y = Math.floor(u / W) + d.dy;
+        if (!(r & b)) continue;
+        const d = DIR_BY_BIT[b], x = ux + d.dx, y = uy + d.dy;
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const v = y * W + x;
         if (comp[v] >= 0 || !(T[v].rail & OPP[b])) continue;
-        comp[v] = c; stack.push(v);
+        comp[v] = c; stack[sp++] = v;
       }
     }
     c++;
   }
-  for (let i = 0; i < n; i++) if (T[i].rail && (T[i].tunnel || isStationOrDepot(T[i]))) term.push(`${i}:${comp[i]}`);
-  // partition signature: relabel components by first terminal appearance
-  const relabel = new Map(); const out = [];
-  for (const t of term) { const k = +t.split(':')[1]; if (!relabel.has(k)) relabel.set(k, relabel.size); out.push(`${t.split(':')[0]}=${relabel.get(k)}`); }
-  return out.join(',');
+  const relabel = new Int32Array(c).fill(-1);
+  let next = 0;
+  let cnt = 0;
+  for (let i = 0; i < n; i++) if (T[i].rail && (T[i].tunnel || isStationOrDepot(T[i]))) cnt++;
+  const out = new Int32Array(cnt * 2);
+  let o = 0;
+  for (let i = 0; i < n; i++) {
+    if (!(T[i].rail && (T[i].tunnel || isStationOrDepot(T[i])))) continue;
+    const k = comp[i];
+    if (relabel[k] < 0) relabel[k] = next++;
+    out[o++] = i; out[o++] = relabel[k];
+  }
+  return out;
+}
+
+/** Element-wise equality of two terminal signatures. */
+function sameSignature(p, q) {
+  if (p.length !== q.length) return false;
+  for (let k = 0; k < p.length; k++) if (p[k] !== q[k]) return false;
+  return true;
 }
 
 /** Tile usable for new surface rail: no rail, no building, not water, not on the map border. */
@@ -389,7 +415,7 @@ export function pruneStubs(map, maxLen = tl(12)) {
     const saved = chain.map((c) => [c, map.tiles[c].rail]);
     const nbr = chain.flatMap((c) => links(map, c).map((l) => [l.j, map.tiles[l.j].rail]));
     for (const c of chain) disconnect(map, c);
-    if (terminalSignature(map) !== sig0) {
+    if (!sameSignature(terminalSignature(map), sig0)) {
       // rollback: this stub carries a terminal link
       for (const [c, r] of saved) map.tiles[c].rail = r;
       for (const [j, r] of nbr) map.tiles[j].rail = r;

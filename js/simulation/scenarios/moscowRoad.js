@@ -41,17 +41,26 @@ function links(map, i) {
   return out;
 }
 
+/** Generation-stamped visited marks (no per-call Set). Same BFS order as the original Set version. */
+let markGen = 0;
+let marks = new Int32Array(1 << 16);
+
 /** Bounded BFS from a to b over adjacency lists; true when distance <= limit. */
 function withinDistance(adj, a, b, limit) {
+  const g = ++markGen;
+  if (marks.length <= a) { const nm = new Int32Array((a + 1) * 2); nm.set(marks); marks = nm; }
   let frontier = [a];
-  const seen = new Set([a]);
+  marks[a] = g;
   for (let d = 0; d < limit && frontier.length; d++) {
     const next = [];
     for (const u of frontier) {
-      for (const v of adj.get(u) || []) {
+      const nb = adj.get(u);
+      if (!nb) continue;
+      for (const v of nb) {
         if (v === b) return true;
-        if (seen.has(v)) continue;
-        seen.add(v); next.push(v);
+        if (v >= marks.length) { const nm = new Int32Array((v + 1) * 2); nm.set(marks); marks = nm; }
+        if (marks[v] === g) continue;
+        marks[v] = g; next.push(v);
       }
     }
     frontier = next;

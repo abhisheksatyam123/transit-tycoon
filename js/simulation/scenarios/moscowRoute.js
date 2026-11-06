@@ -7,31 +7,50 @@ import { DIRS, OPPOSITE } from '../constants.js';
 import { inBounds } from '../map.js';
 import { createStation } from '../stations.js';
 
-/** Minimal binary min-heap keyed by numeric priority. */
+/**
+ * Binary min-heap keyed by numeric priority, stored in typed arrays. Same sift rules as the old
+ * array heap (strict < comparisons), so pop order and ties are unchanged.
+ */
 class Heap {
-  constructor() { this.a = []; }
-  push(pri, v) {
-    const a = this.a; a.push([pri, v]);
-    let i = a.length - 1;
-    while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; }
+  constructor() { this.p = new Float64Array(1024); this.v = new Int32Array(1024); this.n = 0; }
+  push(pri, val) {
+    if (this.n === this.p.length) {
+      const np = new Float64Array(this.n * 2); np.set(this.p); this.p = np;
+      const nv = new Int32Array(this.n * 2); nv.set(this.v); this.v = nv;
+    }
+    const P = this.p, V = this.v;
+    let i = this.n++;
+    while (i > 0) {
+      const q = (i - 1) >> 1;
+      if (P[q] <= pri) break;
+      P[i] = P[q]; V[i] = V[q]; i = q;
+    }
+    P[i] = pri; V[i] = val;
   }
   pop() {
-    const a = this.a, top = a[0], last = a.pop();
-    if (a.length) {
-      a[0] = last;
+    const P = this.p, V = this.v;
+    const top = V[0];
+    const n = --this.n;
+    if (n > 0) {
+      const pri = P[n], val = V[n];
       let i = 0;
       for (;;) {
-        const l = 2 * i + 1, r = l + 1; let m = i;
-        if (l < a.length && a[l][0] < a[m][0]) m = l;
-        if (r < a.length && a[r][0] < a[m][0]) m = r;
+        const l = 2 * i + 1, r = l + 1;
+        let m = i, mp = pri;
+        if (l < n && P[l] < mp) { m = l; mp = P[l]; }
+        if (r < n && P[r] < mp) { m = r; mp = P[r]; }
         if (m === i) break;
-        [a[m], a[i]] = [a[i], a[m]]; i = m;
+        P[i] = P[m]; V[i] = V[m]; i = m;
       }
+      P[i] = pri; V[i] = val;
     }
-    return top[1];
+    return top;
   }
-  get size() { return this.a.length; }
+  get size() { return this.n; }
 }
+
+/** Reusable scratch buffers for routeRail; only touched entries are reset after each call. */
+let scratch = null;
 
 /** Tiles that rail may never take (industries, depots; houses are demolished when crossed). */
 function blockedForRail(t) {
@@ -63,39 +82,62 @@ function metroStep(t, j, geo) {
  * @returns {number[]|null} tile indices from a to b inclusive
  */
 export function routeRail(map, a, b, maxNodes = 200000, geo = null) {
-  const W = map.width, n = map.tiles.length;
-  const gScore = new Float64Array(n).fill(Infinity), came = new Int32Array(n).fill(-1);
-  const closed = new Uint8Array(n);
-  const hx = (i) => i % W, hy = (i) => Math.floor(i / W);
-  const bx = hx(b), by = hy(b);
+  const W = map.width, H = map.height, n = map.tiles.length, T = map.tiles;
+  if (!scratch || scratch.n !== n) {
+    scratch = { n, gScore: new Float64Array(n).fill(Infinity), came: new Int32Array(n).fill(-1), closed: new Uint8Array(n), touched: new Int32Array(4096), nt: 0 };
+  }
+  const { gScore, came, closed } = scratch;
+  let touched = scratch.touched, nt = 0;
+  const bx = b % W, by = (b / W) | 0;
   const hw = geo ? 0.3 : 1;
-  const h = (i) => (Math.abs(hx(i) - bx) + Math.abs(hy(i) - by)) * hw;
   const open = new Heap();
-  gScore[a] = 0; open.push(h(a), a);
+  gScore[a] = 0;
+  touched[nt++] = a;
+  open.push((Math.abs(a % W - bx) + Math.abs(((a / W) | 0) - by)) * hw, a);
+  const metro = geo ? geo.metro : null, metroLine = geo ? geo.metroLine : null, ch = geo ? geo.ch : null;
   let nodes = 0;
   while (open.size && nodes++ < maxNodes) {
     const cur = open.pop();
     if (cur === b) break;
     if (closed[cur]) continue;
     closed[cur] = 1;
-    const x = hx(cur), y = hy(cur);
-    for (const d of DIRS) {
-      const nx = x + d.dx, ny = y + d.dy;
-      if (!inBounds(map, nx, ny)) continue;
-      const j = ny * W + nx;
+    if (nt === touched.length) { const nb = new Int32Array(nt * 2); nb.set(touched); touched = nb; scratch.touched = nb; }
+    touched[nt++] = cur;
+    const x = cur % W, y = (cur / W) | 0;
+    const gc = gScore[cur];
+    for (let k = 0; k < 4; k++) {
+      // neighbour order matches DIRS (N, E, S, W) so heap pushes are identical
+      let j;
+      if (k === 0) { if (y - 1 < 0) continue; j = cur - W; }
+      else if (k === 1) { if (x + 1 >= W) continue; j = cur + 1; }
+      else if (k === 2) { if (y + 1 >= H) continue; j = cur + W; }
+      else { if (x - 1 < 0) continue; j = cur - 1; }
       if (closed[j]) continue;
-      const t = map.tiles[j];
-      if (blockedForRail(t) && !(j === b && t.building && t.building.type === 'station')) continue;
-      if (j !== b && t.building && t.building.type === 'station') continue;
-      if (t.building && t.building.type === 'landmark') continue;
-      const g = gScore[cur] + (geo ? metroStep(t, j, geo) : stepCost(t));
-      if (g < gScore[j]) { gScore[j] = g; came[j] = cur; open.push(g + h(j), j); }
+      const t = T[j];
+      const bd = t.building;
+      const bt = bd ? bd.type : null;
+      if (bd && bt !== 'station' && bt !== 'house') continue;
+      if (j !== b && bt === 'station') continue;
+      if (bt === 'landmark') continue;
+      const g = gc + (geo ? metroStep(t, j, geo) : stepCost(t));
+      if (g < gScore[j]) {
+        if (gScore[j] === Infinity) {
+          if (nt === touched.length) { const nb = new Int32Array(nt * 2); nb.set(touched); touched = nb; scratch.touched = nb; }
+          touched[nt++] = j;
+        }
+        gScore[j] = g; came[j] = cur;
+        open.push(g + (Math.abs(j % W - bx) + Math.abs(((j / W) | 0) - by)) * hw, j);
+      }
     }
   }
-  if (!Number.isFinite(gScore[b])) return null;
-  const out = [];
-  for (let c = b; c !== -1; c = came[c]) { out.push(c); if (c === a) break; }
-  return out.reverse();
+  let out = null;
+  if (Number.isFinite(gScore[b])) {
+    out = [];
+    for (let c = b; c !== -1; c = came[c]) { out.push(c); if (c === a) break; }
+    out.reverse();
+  }
+  for (let k = 0; k < nt; k++) { const j = touched[k]; gScore[j] = Infinity; came[j] = -1; closed[j] = 0; }
+  return out;
 }
 
 /** Remove the house on tile i (and from its town's house list). */

@@ -11,7 +11,7 @@ import { createToolbar } from './ui/toolbar.js';
 import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
-import { saveToSlot, loadSlotData } from './ui/storage.js';
+import { saveToSlotAsync, saveToSlot, loadSlotData } from './ui/storage.js';
 import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
 import { TOOL_BUTTONS } from './ui/toolbar.js';
@@ -58,15 +58,20 @@ async function initialGame() {
 
 /** Autosave; warns once per session when the browser storage quota is exceeded. */
 let autosaveWarned = false;
+let autosaveBusy = false;
 /**
+ * Compression runs in a worker; a month that ends while a save is in flight is skipped.
  * @param {any} app
  */
 function autosave(app) {
-  const r = saveToSlot('autosave', app.game);
-  if (!r.ok && r.quota && !autosaveWarned) {
-    autosaveWarned = true;
-    app.toast('Autosave skipped: save too large for browser storage', 'error');
-  }
+  if (autosaveBusy) return;
+  autosaveBusy = true;
+  saveToSlotAsync('autosave', app.game).then((r) => {
+    if (!r.ok && r.quota && !autosaveWarned) {
+      autosaveWarned = true;
+      app.toast('Autosave skipped: save too large for browser storage', 'error');
+    }
+  }).finally(() => { autosaveBusy = false; });
 }
 
 /** Boot the app. */
@@ -127,7 +132,7 @@ async function main() {
     },
   });
 
-  window.addEventListener('beforeunload', () => autosave(app));
+  window.addEventListener('beforeunload', () => saveToSlot('autosave', app.game));
   /** Keep floating windows on-screen after rotation / resize (landscape phones). */
   const clampWindows = () => app.wm.clampAll();
   window.addEventListener('resize', clampWindows);

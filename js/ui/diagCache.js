@@ -7,9 +7,9 @@
 let mod;
 /** @type {Promise<any>|null} */
 let loading = null;
-/** @type {{game:any, at:number, issues:any[]|null, error:string|null, summary:any}|null} */
+/** @type {{game:any, at:number, month:number, issues:any[]|null, error:string|null, summary:any, available:boolean}|null} */
 let cache = null;
-/** Minimum interval between real scans (ms). */
+/** @deprecated kept for compatibility; see MAX_AGE_MS. */
 export const SCAN_INTERVAL_MS = 2000;
 
 /** Load the diagnostics module once. @returns {Promise<any>} */
@@ -37,22 +37,25 @@ export function countIssues(issues) {
   return out;
 }
 
-/**
- * Get the latest issues, rescanning at most once per SCAN_INTERVAL_MS unless forced.
- * Synchronous when the module is already loaded; otherwise returns null until loaded.
- * @param {any} game
- * @param {boolean} [force]
- * @returns {{issues:any[]|null, error:string|null, summary:any, available:boolean}}
- */
-export function scanIssues(game, force = false) {
-  if (mod === undefined) { loadModule(); }
-  if (!mod || typeof mod.runDiagnostics !== 'function') {
-    if (mod === null) return { issues: null, error: 'Diagnostics not available', summary: null, available: false };
-    return { issues: null, error: 'Loading…', summary: null, available: true };
-  }
-  const now = Date.now();
-  const fresh = cache && cache.game === game && now - cache.at < SCAN_INTERVAL_MS;
-  if (!force && fresh) return cache;
+/** Real-time staleness limit for the cached scan (ms), in addition to the game-month rule. */
+export const MAX_AGE_MS = 30000;
+/** @type {ReturnType<typeof setTimeout>|number|null} pending idle rescan */
+let pending = null;
+
+/** Month key of a game: a scan is due when this changes. */
+function monthKey(game) {
+  const d = game && game.state && game.state.date;
+  return d ? d.year * 12 + d.month : -1;
+}
+
+/** Whether the cached scan can still be served for this game. */
+function isFresh(game) {
+  if (!cache || cache.game !== game) return false;
+  return cache.month === monthKey(game) && Date.now() - cache.at < MAX_AGE_MS;
+}
+
+/** Run a scan now and store it. @returns {object} the new cache entry */
+function runScan(game) {
   let issues = null, error = null;
   try {
     issues = mod.runDiagnostics(game) || [];
@@ -65,6 +68,38 @@ export function scanIssues(game, force = false) {
       summary = typeof mod.summarizeIssues === 'function' ? mod.summarizeIssues(issues) : countIssues(issues);
     } catch { summary = countIssues(issues); }
   }
-  cache = { game, at: now, issues, error, summary, available: true };
+  cache = { game, at: Date.now(), month: monthKey(game), issues, error, summary, available: true };
   return cache;
+}
+
+/** Schedule one background rescan on idle time (requestIdleCallback, setTimeout fallback). */
+function scheduleIdleScan(game) {
+  if (pending !== null) return;
+  const go = () => {
+    pending = null;
+    if (!isFresh(game) && mod && typeof mod.runDiagnostics === 'function') runScan(game);
+  };
+  if (typeof requestIdleCallback === 'function') pending = requestIdleCallback(go, { timeout: 2000 });
+  else pending = setTimeout(go, 0);
+}
+
+/**
+ * Get the latest issues. The scan is cached until the game month changes or
+ * MAX_AGE_MS passes; a stale or missing cache is served as-is while a rescan runs
+ * on idle time (never inside the caller's frame). Pass force=true to scan synchronously.
+ * @param {any} game
+ * @param {boolean} [force]
+ * @returns {{issues:any[]|null, error:string|null, summary:any, available:boolean}}
+ */
+export function scanIssues(game, force = false) {
+  if (mod === undefined) { loadModule(); }
+  if (!mod || typeof mod.runDiagnostics !== 'function') {
+    if (mod === null) return { issues: null, error: 'Diagnostics not available', summary: null, available: false };
+    return { issues: null, error: 'Loading…', summary: null, available: true };
+  }
+  if (force) return runScan(game);
+  if (isFresh(game)) return cache;
+  scheduleIdleScan(game);
+  if (cache && cache.game === game) return cache;
+  return { issues: null, error: 'Scanning…', summary: null, available: true };
 }

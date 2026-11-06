@@ -58,10 +58,11 @@ export function checkTownRoads(state) {
   const { map, towns } = state;
   const out = [];
   const R2 = TOWN_CORE_RADIUS * TOWN_CORE_RADIUS;
+  // global labels (depend only on the map, so computed once for all towns): core pieces joined
+  // through roads outside the radius are still connected
+  const labels = towns.length ? labelComponents(map, 'road', () => true) : null;
   for (const town of towns) {
-    // global labels: core pieces joined through roads outside the radius are still connected
     const inCore = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= R2;
-    const labels = labelComponents(map, 'road', () => true);
     const seen = new Set();
     for (let y = town.y - TOWN_CORE_RADIUS; y <= town.y + TOWN_CORE_RADIUS; y++) {
       for (let x = town.x - TOWN_CORE_RADIUS; x <= town.x + TOWN_CORE_RADIUS; x++) {

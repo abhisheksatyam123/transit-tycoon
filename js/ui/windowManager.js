@@ -72,7 +72,10 @@ export class WindowManager {
     const vh = this.container.clientHeight || window.innerHeight;
     const w = spec.width || 320;
     const x = pos && pos.x !== undefined ? pos.x : Math.max(8, Math.min(vw - w - 8, 80 + (this.cascade % 8) * 26));
-    const y = pos && pos.y !== undefined ? pos.y : Math.max(8, Math.min(vh - 120, 20 + (this.cascade % 8) * 26));
+    let y = pos && pos.y !== undefined ? pos.y : Math.max(8, Math.min(vh - 120, 20 + (this.cascade % 8) * 26));
+    // Narrow screens: the sheet is capped at 100dvh-12px (css/windows.css), so anchor it at the top
+    // edge; a cascaded top (66px) would push its bottom past the viewport.
+    if (!(pos && pos.y !== undefined) && vw <= 640) y = 8;
     this.cascade++;
     root.style.left = x + 'px';
     root.style.top = y + 'px';
