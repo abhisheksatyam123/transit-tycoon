@@ -62,8 +62,9 @@ let autosaveBusy = false;
 /** game.serialize() cost of the last autosave (ms): big games (Moscow ~150 ms) save less often. */
 let lastSerializeMs = 0;
 let monthsSinceSave = 0;
-/** Months between autosaves when a save is expensive (> SLOW_SAVE_MS); cheap saves stay monthly. */
-const SLOW_SAVE_MONTHS = 3;
+/** Months between timed autosaves when a save is expensive (> SLOW_SAVE_MS, e.g. Moscow ~150 ms): a fallback only,
+ *  since pausing, hiding the tab and closing the page also save. Cheap saves stay monthly. */
+const SLOW_SAVE_MONTHS = 12;
 const SLOW_SAVE_MS = 40;
 
 /**
@@ -93,7 +94,7 @@ function whenIdle(fn) {
 
 /**
  * Month ended: autosave in idle time. Expensive saves (large maps) only every SLOW_SAVE_MONTHS months
- * while the game runs; hiding the tab, pausing and closing the page also save (see main()).
+ * while the game runs (yearly); hiding the tab, pausing and closing the page also save (see main()).
  * @param {any} app
  */
 function onMonthAutosave(app) {
