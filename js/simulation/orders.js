@@ -17,7 +17,7 @@ import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
-import { cdApplies, cargodistOn, loadFilter, nextHop, noteLeg, CD_CARGOS } from './cargodist.js';
+import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle } from './routing.js';
 import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
@@ -280,8 +280,8 @@ function unloadDist(ctx, v, st, mode) {
       continue;
     }
     if (!dropAll) {
-      const h = nextHop(state, cargo, st.id, d);
-      if (h === undefined || h === nxtId) continue; // next hop is the vehicle's next stop (or unknown): stays aboard
+      const hs = nextHops(state, cargo, st.id, d);
+      if (hs === undefined || (nxtId != null && hs.includes(nxtId))) continue; // next hop is the vehicle's next stop (or unknown): stays aboard
     }
     takeDests(load, k, transferUnits(ctx, v, st, load.dests[k], d));
   }
@@ -554,10 +554,10 @@ export function cargoName(id) {
  * to the edge (station -> next stop). Only when the setting is on (no-op otherwise).
  */
 export function noteDepartureLeg(state, v) {
-  if (!cargodistOn(state) || !v.atStationId) return;
+  if (!v.atStationId) return;
   const st = findStation(state, v.atStationId);
   const nxt = vehicleNextStop(v);
   if (!st || nxt == null || nxt === st.id) return;
   const slices = v.consist ? cargoSlices(v) : (v.cargoId ? [{ cargoId: v.cargoId, capacity: v.capacity || 0 }] : []);
-  noteLeg(state, st, nxt, slices.filter((x) => CD_CARGOS.includes(x.cargoId)));
+  noteLeg(state, st, nxt, slices.filter((x) => cdApplies(state, x.cargoId)));
 }

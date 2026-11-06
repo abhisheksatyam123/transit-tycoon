@@ -10,7 +10,7 @@
  * collectLinks is pure (no DOM, no canvas) so it is unit-tested; drawLinkOverlay is screen-space and runs after the
  * world, below the station name signs.
  */
-import { cargodistOn, CD_CARGOS } from '../../simulation/cargodist.js';
+import { cdCargoList } from '../../simulation/cargodist.js';
 
 /** Usage colour stops (OTTD LINK_COLOURS: unused green, half used yellow, full red). */
 export const LINK_COLOURS = [[0, [34, 197, 94]], [0.5, [250, 204, 21]], [1, [239, 68, 68]]];
@@ -48,8 +48,8 @@ export function linkWidth(cap) {
 export function collectLinks(state, opts = {}) {
   const on = (c) => !opts.cargos || opts.cargos[c] !== false;
   const out = [];
-  if (cargodistOn(state)) {
-    for (const c of CD_CARGOS) {
+  if (cdCargoList(state).length) {
+    for (const c of cdCargoList(state)) {
       const g = state.cargoDist && state.cargoDist[c];
       if (!g || !g.edges || !on(c)) continue;
       for (const e of Object.values(g.edges)) {

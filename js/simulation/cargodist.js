@@ -20,9 +20,14 @@
  */
 import { getSetting } from './settings.js';
 import { manhattan } from './state.js';
+import { CARGOS } from '../config/cargos.js';
+import { catchmentTiles, tileAcceptance } from './stations.js';
+import { ACCEPT_THRESHOLD } from './constants.js';
 
-/** Cargos the distribution applies to (other cargo keeps the classic model). */
+/** Passenger / mail cargos (cargodist setting, OpenTTD symmetric/asymmetric demand). */
 export const CD_CARGOS = ['PASS', 'MAIL'];
+/** Freight cargos (setting freightDistribution = asymmetric): OpenTTD asymmetric demand. */
+export const FREIGHT_CARGOS = CARGOS.map((c) => c.id).filter((id) => !CD_CARGOS.includes(id));
 /** Months without any vehicle using an edge before it is removed. */
 export const EDGE_EXPIRE_MONTHS = 3;
 
@@ -36,9 +41,28 @@ export function cargodistOn(state) {
   return cargodistMode(state) !== 'off';
 }
 
-/** Whether the distribution applies to this cargo (setting on and a supported cargo). */
+/** @returns {'manual'|'asymmetric'} freight distribution mode (setting freightDistribution). */
+export function freightMode(state) {
+  return getSetting(state, 'freightDistribution') === 'asymmetric' ? 'asymmetric' : 'manual';
+}
+
+/** Capacity-constrained routing (OpenTTD MCF passes) on (setting cargodistMcf). */
+export function cdMcfOn(state) {
+  return getSetting(state, 'cargodistMcf') === true;
+}
+
+/** Cargos that currently have a link graph: pax/mail when cargodist is on, freight when freightDistribution is on. */
+export function cdCargoList(state) {
+  const out = [];
+  if (cargodistOn(state)) out.push(...CD_CARGOS);
+  if (freightMode(state) === 'asymmetric') out.push(...FREIGHT_CARGOS);
+  return out;
+}
+
+/** Whether the distribution applies to this cargo (its setting is on). */
 export function cdApplies(state, cargoId) {
-  return CD_CARGOS.includes(cargoId) && cargodistOn(state);
+  if (CD_CARGOS.includes(cargoId)) return cargodistOn(state);
+  return freightMode(state) === 'asymmetric' && FREIGHT_CARGOS.includes(cargoId);
 }
 
 /** Lazily created link graph of a cargo. */
@@ -60,9 +84,9 @@ export function edgeKey(a, b) { return a + '>' + b; }
  * Adds the seats to the link-graph edge of each distributed cargo.
  */
 export function noteLeg(state, st, nextId, slices) {
-  if (!cargodistOn(state) || nextId == null || nextId === st.id) return;
+  if (nextId == null || nextId === st.id) return;
   for (const s of slices) {
-    if (!CD_CARGOS.includes(s.cargoId) || !(s.capacity > 0)) continue;
+    if (!cdApplies(state, s.cargoId) || !(s.capacity > 0)) continue;
     const g = ensureGraph(state, s.cargoId);
     const k = edgeKey(st.id, nextId);
     let e = g.edges[k];
@@ -78,6 +102,20 @@ export function nextHop(state, cargoId, fromId, dest) {
   if (!g || dest == null) return undefined;
   const row = g.nh[fromId];
   return row ? row[dest] : undefined;
+}
+
+/**
+ * All first hops a parcel may take from `fromId` to `dest` (MCF: every hop carrying flow; otherwise the single
+ * shortest-path hop). undefined when no route is known.
+ * @returns {number[]|undefined}
+ */
+export function nextHops(state, cargoId, fromId, dest) {
+  const g = state.cargoDist && state.cargoDist[cargoId];
+  if (!g || dest == null) return undefined;
+  const flows = g.nhs && g.nhs[fromId] && g.nhs[fromId][dest];
+  if (flows && flows.length) return flows.map((f) => f[0]);
+  const h = nextHop(state, cargoId, fromId, dest);
+  return h === undefined ? undefined : [h];
 }
 
 /**
@@ -109,8 +147,8 @@ export function noteSupply(st, cargoId, amount) {
 export function loadFilter(state, st, cargoId, nextId) {
   if (nextId == null || nextId === st.id) return undefined;
   return (p) => p.dest == null || (() => {
-    const h = nextHop(state, cargoId, st.id, p.dest);
-    return h === undefined || h === nextId;
+    const hs = nextHops(state, cargoId, st.id, p.dest);
+    return hs === undefined || hs.includes(nextId);
   })();
 }
 
@@ -171,6 +209,57 @@ function shortest(src, adj, pos) {
   return { dist, first, prev };
 }
 
+/** Augmenting paths per demand pair in the capacity-constrained first pass (simplification: OTTD runs to saturation). */
+const MCF_AUGMENT = 8;
+
+/**
+ * OpenTTD MCF (simplified). First pass: demand pairs in order of their unconstrained distance (ties by ids); each
+ * pair sends flow along the shortest path over edges with residual capacity, up to MCF_AUGMENT paths or until the
+ * bottleneck saturates. Second pass: the remaining demand takes the unconstrained shortest path (ignores capacity).
+ * @param {{s:number,d:number,amt:number,dist:number}[]} pairs
+ * @param {Map<number,number[]>} adj
+ * @param {Map<string,number>} capMap edge key -> capacity per month
+ * @param {Map<number,object>} trees shortest-path trees (second pass)
+ * @returns {Map<string, Map<number,number>>} 's>d' -> (first hop -> units)
+ */
+function mcfFlows(pairs, adj, capMap, pos, trees) {
+  const res = new Map(capMap);
+  const flows = new Map();
+  const add = (k, hop, amt) => {
+    let m = flows.get(k);
+    if (!m) flows.set(k, m = new Map());
+    m.set(hop, (m.get(hop) || 0) + amt);
+  };
+  const sorted = pairs.slice().sort((a, b) => a.dist - b.dist || a.s - b.s || a.d - b.d);
+  for (const p of sorted) {
+    let left = p.amt;
+    for (let i = 0; i < MCF_AUGMENT && left > 0; i++) {
+      const adjR = new Map();
+      for (const [u, vs] of adj) {
+        const ok = vs.filter((v) => (res.get(edgeKey(u, v)) || 0) > 0);
+        if (ok.length) adjR.set(u, ok);
+      }
+      const t = shortest(p.s, adjR, pos);
+      if (!t.dist.has(p.d)) break;
+      const path = [];
+      for (let v = p.d; v !== p.s; v = t.prev.get(v)) path.push(edgeKey(t.prev.get(v), v));
+      let f = left;
+      for (const k of path) f = Math.min(f, res.get(k));
+      if (!(f > 0)) break;
+      for (const k of path) res.set(k, res.get(k) - f);
+      add(p.s + '>' + p.d, t.first.get(p.d), f);
+      left -= f;
+    }
+    p.left = left;
+  }
+  for (const p of sorted) {
+    if (!(p.left > 0)) continue;
+    const hop = trees.get(p.s).first.get(p.d);
+    if (hop !== undefined) add(p.s + '>' + p.d, hop, p.left);
+  }
+  return flows;
+}
+
 /** Parcels whose destination is no longer reachable become unrouted again (any vehicle may take them). */
 function clearStranded(state, cargoId, g) {
   for (const st of state.stations) {
@@ -197,12 +286,13 @@ export function rebuildGraph(state, cargoId, mode) {
     e.used = 0;
     if (g.month - e.last > EDGE_EXPIRE_MONTHS) delete g.edges[k];
   }
-  const adj = new Map(), pos = new Map(), nodeSet = new Set();
+  const adj = new Map(), pos = new Map(), nodeSet = new Set(), capMap = new Map();
   for (const e of Object.values(g.edges)) {
     if (!(e.cap > 0)) continue;
     nodeSet.add(e.a); nodeSet.add(e.b);
     if (!adj.has(e.a)) adj.set(e.a, []);
     adj.get(e.a).push(e.b);
+    capMap.set(edgeKey(e.a, e.b), e.cap);
   }
   const nodes = [...nodeSet].sort((a, b) => a - b);
   // one pass over the stations (findStation is a linear scan)
@@ -216,23 +306,30 @@ export function rebuildGraph(state, cargoId, mode) {
   }
   for (const n of nodes) if (!supply.has(n)) supply.set(n, 0);
   g.nodes = nodes;
-  g.dem = {}; g.nh = {};
+  g.dem = {}; g.nh = {}; g.nhs = {};
   if (nodes.length < 2) { clearStranded(state, cargoId, g); return nodes.length; }
 
   // routing: one shortest-path tree per source
   const trees = new Map();
   for (const s of nodes) trees.set(s, shortest(s, adj, pos));
-  // demand: supply of the source spread over reachable destinations, weighted by their supply
+  // freight (OpenTTD asymmetric demand): only stations accepting the cargo are destinations, weighted by their
+  // acceptance in the catchment; pax/mail: weighted by the destination's supply
+  const freight = FREIGHT_CARGOS.includes(cargoId);
+  const acc = freight ? acceptanceOf(state, cargoId, nodeSet) : null;
+  const wOf = (d) => (freight ? acc.get(d) || 0 : Math.max(1, supply.get(d)));
+  // demand: supply of the source spread over reachable destinations, weighted by their weight
   const dem = new Map();
   for (const s of nodes) {
-    const reach = [...trees.get(s).dist.keys()].filter((d) => d !== s);
-    const W = reach.reduce((n, d) => n + Math.max(1, supply.get(d)), 0);
+    const reach = [...trees.get(s).dist.keys()].filter((d) => d !== s && (!freight || wOf(d) > 0));
+    const W = reach.reduce((n, d) => n + wOf(d), 0);
+    if (!(W > 0)) continue;
     for (const d of reach) {
       // shares only matter (rows are normalised below), so a source with no recent supply still gets routes
-      const v = Math.max(1, supply.get(s)) * Math.max(1, supply.get(d)) / W;
+      const v = Math.max(1, supply.get(s)) * wOf(d) / W;
       dem.set(s + '>' + d, v);
     }
   }
+  const pairs = [];
   for (const s of nodes) {
     for (const d of trees.get(s).dist.keys()) {
       if (d === s) continue;
@@ -240,12 +337,28 @@ export function rebuildGraph(state, cargoId, mode) {
       const back = mode === 'symmetric' ? (dem.get(d + '>' + s) || 0) : fwd;
       const amount = mode === 'symmetric' ? (fwd + back) / 2 : fwd;
       if (!(amount > 0)) continue;
-      // demand rows: pax generated at s go to d with this share
+      // demand rows: cargo generated at s goes to d with this share
       (g.dem[s] = g.dem[s] || []).push([d, amount]);
+      pairs.push({ s, d, amt: amount, dist: trees.get(s).dist.get(d) });
     }
     // next hop table: first hop from s to every reachable node
     const nhRow = (g.nh[s] = g.nh[s] || {});
     for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
+  }
+  // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
+  if (cdMcfOn(state)) {
+    const flows = mcfFlows(pairs, adj, capMap, pos, trees);
+    for (const [k, m] of flows) {
+      const [s, d] = k.split('>').map(Number);
+      const tot = [...m.values()].reduce((n, x) => n + x, 0);
+      if (!(tot > 0)) continue;
+      const list = [...m.entries()].map(([h, x]) => [h, x / tot]).sort((a, b) => a[0] - b[0]);
+      (g.nhs[s] = g.nhs[s] || {})[d] = list;
+      // the single next hop used for unloading decisions: the largest share (lowest id on ties)
+      let best = list[0];
+      for (const x of list) if (x[1] > best[1]) best = x;
+      g.nh[s][d] = best[0];
+    }
   }
   clearStranded(state, cargoId, g);
   for (const s of Object.keys(g.dem)) {
@@ -256,11 +369,22 @@ export function rebuildGraph(state, cargoId, mode) {
   return nodes.length;
 }
 
-/** Monthly update of every distributed cargo's link graph (only when the setting is on). */
+/** Acceptance weight of each graph node for a freight cargo: sum of its catchment's acceptance (0 = not accepting). */
+function acceptanceOf(state, cargoId, nodeSet) {
+  const out = new Map();
+  for (const st of state.stations) {
+    if (!nodeSet.has(st.id)) continue;
+    let sum = 0;
+    for (const p of catchmentTiles(state, st)) sum += tileAcceptance(state, p.x, p.y)[cargoId] || 0;
+    out.set(st.id, sum >= ACCEPT_THRESHOLD ? sum : 0);
+  }
+  return out;
+}
+
+/** Monthly update of every distributed cargo's link graph (only the cargos whose setting is on). */
 export function updateMonthly(state) {
   const mode = cargodistMode(state);
-  if (mode === 'off') return;
-  for (const c of CD_CARGOS) rebuildGraph(state, c, mode);
+  for (const c of cdCargoList(state)) rebuildGraph(state, c, FREIGHT_CARGOS.includes(c) ? 'asymmetric' : mode);
 }
 
 /**
