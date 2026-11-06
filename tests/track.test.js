@@ -31,10 +31,11 @@ describe('track building', () => {
     expect(g.tile(20, 30).road & E).toBeTruthy();
   });
 
-  test('water is rejected with an error', () => {
+  test('water is rejected with an error (a line that cannot bridge it)', () => {
     const g = flatGame();
     g.tile(30, 30).terrain = 'water';
-    const r = g.buildRail(28, 30, 32, 30);
+    g.tile(31, 30).terrain = 'water';
+    const r = g.buildRail(28, 30, 31, 30); // ends on water: no far head, so no bridge
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/water/i);
   });

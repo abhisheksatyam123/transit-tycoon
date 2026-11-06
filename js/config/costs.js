@@ -2,6 +2,9 @@
 export const COSTS = {
   rail: 120,
   road: 90,
+  /** player bridge: extra per water deck tile (on top of the heads' normal track cost) */
+  bridgeRail: 300,
+  bridgeRoad: 220,
   railStation: 700,
   roadStop: 500,
   depotRail: 1200,

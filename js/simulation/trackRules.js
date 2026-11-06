@@ -24,9 +24,10 @@ export const ERR = {
  * Check whether `bits` can be added to tile on `layer` ('rail'|'road').
  * @returns {string|null} error message or null when allowed
  */
-export function canAddBits(tile, layer, bits) {
+export function canAddBits(tile, layer, bits, deck = false) {
   if (!tile) return ERR.bounds;
-  if (tile.terrain === 'water') return ERR.water;
+  if (tile.terrain === 'water' && !deck) return ERR.water;
+  if (deck && tile.terrain !== 'water') return ERR.water;
   const b = tile.building;
   if (b) {
     if (b.type === 'house') return ERR.house;
@@ -49,6 +50,9 @@ export function canAddBits(tile, layer, bits) {
   }
   return null;
 }
+
+/** Longest player bridge in tiles, heads included (OpenTTD-style span limit). */
+export const MAX_BRIDGE_LENGTH = 12;
 
 /**
  * Extra cost to clear terrain before building (forest/rock), 0 otherwise.

@@ -265,3 +265,11 @@ track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
 - `js/ui/prompt.js`: reusable modal text prompt (input, OK/Cancel, Enter/Escape, error shown inline). `js/ui/rename.js` opens it for each kind. Game shortcuts ignore INPUT targets (input.js), so typing does not fire them.
 - Reverse (`cmdVehicle.reverseVehicle`, trains only): flips the consist on its recorded track history (`flipTrain`), clears the path and re-plans a running or lost train to its current order or depot. Refused in a depot or while loading. A stopped train stays stopped and leaves in the new direction when started.
 - Mass start/stop (`cmdVehicle.massStartStop(ids, start)`): loops the single-vehicle commands and skips vehicles that cannot change state. Used by the depot window (Start all / Stop all) and the vehicle list (current kind filter).
+
+## Player bridges/tunnels (T7)
+
+- **Tile representation (same as Moscow scenario bridges):** a bridge is a straight run of tiles with `terrain: 'water'` that carry the layer bits (`rail` or `road`), between two land "heads" at the same `height` on the same line. The renderer draws water track as deck (`layers/transport.js`), and routing/movement already traverse those bits, so no special traversal code exists.
+- **Planner:** `planBridges(map, pts)` in `js/simulation/cmdTrack.js`. Water on a drag is allowed only if the line is straight, both ends are land, the heads have equal height, and the total length (deck + 2 heads) is at most `MAX_BRIDGE_LENGTH` = 12 (`trackRules.js`). Otherwise the drag returns the error (`Can't build on water`, `Bridge heads must be at the same height`, `Bridge too long (max 12 tiles)`).
+- **Cost:** each new deck tile costs `COSTS.bridgeRail` (300) or `COSTS.bridgeRoad` (220) on top of the normal heads' track cost; the drag preview and dry run report the same total.
+- **Demolish:** demolishing any tile of a bridge (head or deck) removes the whole bridge (`bridgeCells`), charged as track demolition per tile.
+- **Tunnels:** not built. The height model has one integer height per tile with no separate underground layer, so a tunnel needs a new representation. Left out.
