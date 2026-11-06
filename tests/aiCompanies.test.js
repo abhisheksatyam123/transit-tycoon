@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Game } from '../js/simulation/game.js';
 import { setSetting } from '../js/simulation/settings.js';
 import { companyOf, ownerMismatch, RIVAL_OWNED } from '../js/simulation/owner.js';
+import { vehicleOnTile } from '../js/simulation/cmdStation.js';
 import { ROUTE_MIN_DIST, ROUTE_MAX_DIST } from '../js/simulation/aiCompanies.js';
 import { manhattan } from '../js/simulation/state.js';
 
@@ -54,6 +55,7 @@ describe('aiCompanies', () => {
     expect(r.vehicles.length).toBeGreaterThanOrEqual(2);
     // every route's towns are 15..40 apart
     for (const rt of r.routes) {
+      if (rt.freight || rt.air || rt.rail) continue; // only bus routes join towns
       const [a, b] = rt.towns.map((id) => g.state.towns.find((t) => t.id === id));
       const d = manhattan(a.x, a.y, b.x, b.y);
       expect(d).toBeGreaterThanOrEqual(ROUTE_MIN_DIST);
@@ -79,9 +81,10 @@ describe('aiCompanies', () => {
     expect(g.setOrders(v.id, []).error).toBe(RIVAL_OWNED);
     expect(g.stopVehicle(v.id).error).toBe(RIVAL_OWNED);
     expect(g.state.vehicles.includes(v)).toBe(true);
-    const st = g.state.stations.find((s) => s.ownerId != null);
+    // a rival station tile with no vehicle on it (a parked rival train would be refused first, for another reason)
+    const st = g.state.stations.find((s) => s.ownerId != null && s.tiles.some((t) => !vehicleOnTile(g.state, t.x, t.y)));
     expect(st).toBeTruthy();
-    const tile = st.tiles[0];
+    const tile = st.tiles.find((t) => !vehicleOnTile(g.state, t.x, t.y));
     expect(g.demolish(tile.x, tile.y, tile.x, tile.y).error).toBe(RIVAL_OWNED);
   }, 30000);
 
