@@ -5,6 +5,7 @@
 import { el, setText, clear } from '../dom.js';
 import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
+import { chooseBuyDefaults } from '../buyDefaults.js';
 
 /**
  * Build a <select> of models.
@@ -117,9 +118,14 @@ export function openBuyVehicle(app, depotId) {
         const freight = wagons.find((m) => m.id === 'wag_hopper') || wagons.find((m) => !(m.cargos || []).includes('PASS'));
         if (freight) wagonSel.value = freight.id;
       }
+      // F10: road depot next to truck stops serving freight preselects that model + cargo (else a Passenger bus).
+      let smart = null;
+      if (!rail && !air && !ship && roadSel) smart = chooseBuyDefaults(g.state, depot);
+      if (smart && smart.modelId && roadSel.querySelector(`option[value="${smart.modelId}"]`)) roadSel.value = smart.modelId;
       const onModel = () => { fillCargo(cargoSel, current()); recompute(); };
       for (const s of [engineSel, wagonSel, roadSel, countIn]) if (s) s.addEventListener('input', onModel);
       onModel();
+      if (smart && smart.cargo && [...cargoSel.options].some((o) => o.value === smart.cargo)) cargoSel.value = smart.cargo;
       if (rail && !engines.length) setText(total, 'No engines available yet');
 
       buyBtn.addEventListener('click', () => {
