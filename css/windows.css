@@ -180,3 +180,16 @@
 .goal-row.locked { opacity: 0.45; }
 .goal-head { display: flex; justify-content: space-between; gap: 8px; }
 .goal-reward { color: #86efac; }
+
+/* T43 settings groups: collapsible sections, one row per setting with its help line */
+.set-group { border: 1px solid var(--panel-border); border-radius: 6px; margin: 6px 0; padding: 4px 8px; }
+.set-group > summary { cursor: pointer; font-weight: 600; padding: 2px 0; }
+.set-group > .small { margin: 2px 0 4px; }
+.set-row, .set-line { display: grid; gap: 2px; padding: 4px 0; }
+.set-line { grid-template-columns: auto 1fr; align-items: center; gap: 8px; cursor: pointer; }
+.set-row > .set-help { font-size: 11px; padding-left: 0; }
+.set-label { font-size: 12px; }
+.set-changed { font-weight: 700; }
+.set-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent, #38bdf8); margin-left: 5px; vertical-align: middle; }
+.set-dot[hidden] { display: none; }
+.set-foot { display: flex; justify-content: flex-end; margin: 8px 0 4px; }

@@ -11,6 +11,7 @@ import { createToolbar } from './ui/toolbar.js';
 import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
+import { updateCostReadout } from './ui/costReadout.js';
 import { saveToSlotAsync, saveToSlot, loadSlotData } from './ui/storage.js';
 import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
@@ -159,6 +160,7 @@ async function main() {
       input.update(dt);
       app.updateFollow();
       renderer.render(dt);
+      updateCostReadout(app); // T43 construction cost readout (no-op unless a build tool previews)
       minimap.draw(now);
       if (now - lastStatus > STATUS_REFRESH_MS) { statusbar.update(); lastStatus = now; }
       if (now - lastWin > WINDOW_REFRESH_MS) { app.wm.updateAll(); lastWin = now; }
