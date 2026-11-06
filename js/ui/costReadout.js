@@ -4,6 +4,8 @@
  * shows the cost, the balance after building, or the refusal reason in red. No tool command logic is touched.
  */
 import { money } from './format.js';
+import { parseMoney } from '../simulation/currency.js';
+import { currentCurrency } from './units.js';
 
 /**
  * Parse a money label produced by format.money ("$1,234", "-$12"). Returns null for anything else
@@ -12,10 +14,7 @@ import { money } from './format.js';
  * @returns {number|null}
  */
 export function parseMoneyLabel(s) {
-  const m = /^(-?)\$([\d,]+)$/.exec(String(s || '').trim());
-  if (!m) return null;
-  const v = Number(m[2].replace(/,/g, ''));
-  return m[1] ? -v : v;
+  return parseMoney(s, currentCurrency());
 }
 
 /**

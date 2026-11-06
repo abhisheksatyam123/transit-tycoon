@@ -2,18 +2,18 @@
  * Formatting helpers (money, numbers, dates, speeds).
  */
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from '../simulation/loco/vehicleMotion.js';
+import { formatMoney, formatSpeed } from '../simulation/currency.js';
+import { currentCurrency, currentSpeedUnit } from './units.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Format money as "$1,234" / "-$1,234".
- * @param {number} n
+ * Format money in the player's chosen currency (default "$1,234" / "-$1,234"). The only money formatter for the UI.
+ * @param {number} n internal value
  * @returns {string}
  */
 export function money(n) {
-  const v = Math.round(n || 0);
-  const s = Math.abs(v).toLocaleString('en-US');
-  return (v < 0 ? '-$' : '$') + s;
+  return formatMoney(n, currentCurrency());
 }
 
 /**
@@ -64,14 +64,14 @@ export function monthName(m) {
 }
 
 /**
- * Convert a speed in tiles/tick into a display km/h figure (inverse of KMH_TO_TILES_PER_TICK / AIR_KMH_TO_TILES_PER_TICK).
+ * Convert a speed in tiles/tick into the display speed (km/h or mph, per the Interface setting).
  * @param {number} tilesPerTick
  * @param {string} [kind] vehicle kind ('aircraft' uses the air conversion)
  * @returns {string}
  */
 export function speed(tilesPerTick, kind) {
   const k = kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK;
-  return Math.round((tilesPerTick || 0) / k) + " km/h";
+  return formatSpeed(Math.round((tilesPerTick || 0) / k), currentSpeedUnit());
 }
 
 /**
@@ -81,4 +81,13 @@ export function speed(tilesPerTick, kind) {
  */
 export function cap(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : '';
+}
+
+/**
+ * A km/h figure (e.g. a model's top speed) in the chosen speed unit.
+ * @param {number} kmh
+ * @returns {string}
+ */
+export function kmhText(kmh) {
+  return formatSpeed(kmh, currentSpeedUnit());
 }

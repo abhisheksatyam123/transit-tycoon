@@ -5,6 +5,7 @@
  * so random-world saves are unchanged). Pure: no DOM.
  */
 import { notify } from './news.js';
+import { formatMoney } from './currency.js';
 import { findStation, manhattan } from './state.js';
 
 /** Distance (tiles) within which a station counts as serving a town or landmark. */
@@ -159,5 +160,6 @@ export function goalSnapshot(state) {
 
 /** Money formatting for news text (no DOM dependency). */
 function money(n) {
-  return '$' + Math.round(n).toLocaleString('en-US');
+  // Same rule as the UI formatter in its default look; stored news text is baked at generation time (not display-time).
+  return formatMoney(n, 'DEFAULT');
 }

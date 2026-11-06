@@ -10,6 +10,8 @@ import { isMuted, setMuted } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
+import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
+import { loadUnits, setUnits } from '../units.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -54,6 +56,19 @@ export function openSettings(app) {
       for (const g of SETTING_GROUPS) {
         const inner = [];
         if (g.id === 'interface') {
+          // Units: display-only selects (localStorage 'tt.units'); applied on the next window refresh tick.
+          const unitSel = (id, label, help, options, key) => {
+            const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...options.map(([v, t]) => el('option', { value: v, text: t }))));
+            sel.addEventListener('change', () => { setUnits({ [key]: sel.value }); });
+            const row = el('div.set-row', null, el('label.set-line', { title: help }, sel, el('span.set-label', { text: label })), el('span.set-help.muted', { text: help }));
+            const item = { label, help, group: g.id };
+            rows.push({ item, row, pref: true, sync: () => { if (document.activeElement !== sel) sel.value = loadUnits()[key]; } });
+            inner.push(row);
+          };
+          unitSel('currency', 'Currency', 'Money display only: $, £, €, ¥ or roubles. Simulation values are unchanged.',
+            Object.values(CURRENCIES).map((c) => [c.id, c.name]), 'currency');
+          unitSel('speed', 'Speed units', 'Vehicle speeds in km/h or mph. Display only.',
+            Object.values(SPEED_UNITS).map((u) => [u.id, u.name]), 'speed');
           for (const p of PREF_META) {
             const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
             if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); app.ui.refreshToolbar?.(); });
@@ -71,6 +86,11 @@ export function openSettings(app) {
             } });
             inner.push(row);
           }
+        }
+        if (g.id === 'interface') {
+          const hk = el('button.btn', { type: 'button', text: 'Keyboard shortcuts…', title: 'View and change the keyboard shortcuts' });
+          hk.addEventListener('click', () => app.open('hotkeys'));
+          inner.push(el('div.set-row', null, hk, el('span.set-help.muted', { text: 'Rebind keys for windows and build tools. Stored in this browser.' })));
         }
         for (const m of SETTING_META.filter((x) => x.group === g.id)) {
           const c = control(m);

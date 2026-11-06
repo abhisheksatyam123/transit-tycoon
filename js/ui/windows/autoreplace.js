@@ -5,6 +5,7 @@
  */
 import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
+import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { replacementCandidates } from '../../simulation/autoreplace.js';
 
@@ -50,7 +51,7 @@ export function openAutoreplace(app) {
             };
             const cur = rules[m.id] || '';
             sel.replaceChildren(el('option', { value: '', text: '— keep (no rule) —' }),
-              ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${c2.speed} km/h)` })));
+              ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${kmhText(c2.speed)})` })));
             sel.value = cur;
             c[3].disabled = !cur;
           }, 'No vehicles yet — buy one first');

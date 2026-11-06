@@ -7,6 +7,7 @@
  */
 import { notify } from './news.js';
 import { ensureCompany } from './loco/company.js';
+import { formatMoney } from './currency.js';
 
 /** Objective types: id -> label and default target. */
 export const OBJECTIVE_TYPES = {
@@ -60,7 +61,7 @@ export function monthsElapsed(state, obj) {
 export function describeObjective(obj) {
   const def = OBJECTIVE_TYPES[obj.type];
   const t = obj.target;
-  const amount = def.unit === 'money' ? '$' + Math.round(t).toLocaleString('en-US')
+  const amount = def.unit === 'money' ? formatMoney(t, 'DEFAULT')
     : def.unit === 'units' ? Math.round(t).toLocaleString('en-US') + ' units' : String(Math.round(t));
   const lead = obj.type === 'companyValue' ? `Reach a company value of ${amount}`
     : obj.type === 'vehicleProfit' ? `Earn a vehicle profit of ${amount}`

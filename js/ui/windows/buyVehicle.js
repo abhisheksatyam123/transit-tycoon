@@ -3,7 +3,7 @@
  * Road depot: bus/truck model + cargo. Calls game.buyVehicle(depotId, {...}).
  */
 import { el, setText, clear } from '../dom.js';
-import { money, num } from '../format.js';
+import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
 
 /**
@@ -49,7 +49,7 @@ function field(label, input) {
 function stats(m) {
   if (!m) return '';
   const parts = [];
-  if (m.speed) parts.push(`${m.speed} km/h`);
+  if (m.speed) parts.push(kmhText(m.speed));
   if (m.capacity) parts.push(`cap ${num(m.capacity)}`);
   if (m.power) parts.push(`${num(m.power)} hp`);
   parts.push(`run ${money(m.running)}/yr`);
