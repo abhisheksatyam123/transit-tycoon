@@ -7,7 +7,8 @@ import { cargoChip, cargoName } from '../cargo.js';
 import { num } from '../format.js';
 import { heading, packetTotal, listOrEmpty } from './common.js';
 import { openRename } from '../rename.js';
-import { styleById, tileRadius } from '../../config/stationTypes.js';
+import { styleById } from '../../config/stationTypes.js';
+import { catchRadius } from '../../simulation/stations.js';
 
 /**
  * Rating colour (red -> yellow -> green).
@@ -54,11 +55,17 @@ export function openStation(app, id) {
         const k = st.kinds || {};
         const airport = k.airport || (st.tiles || []).some((t) => { const tt = app.game.state.map.tiles[t.y * app.game.state.map.width + t.x]; return tt && tt.building && tt.building.kind === 'airport'; });
         setText(kinds, airport ? `Airport · ${st.tiles.length} tile(s)` : ['rail', 'bus', 'truck'].filter((x) => k[x]).map((x) => (x === 'rail' ? 'Rail' : x === 'bus' ? 'Bus' : 'Truck')).join(' · ') + ` station · ${st.tiles.length} tile(s)`);
-        const sk = (st.tiles || []).find((t) => t.style);
-        const kindKey = ['rail', 'bus', 'truck'].find((x) => k[x]) || 'rail';
-        const styleName = sk ? styleById(sk.kind, sk.style).name : styleById(kindKey, null).name;
-        const radius = (st.tiles || []).reduce((m, t) => Math.max(m, tileRadius(t) ?? 0), 0);
-        setText(catchLine, `Style: ${styleName} · catchment radius ${radius}`);
+        // radius = what the catchment code uses (airports per type, docks their own radius)
+        const radius = (st.tiles || []).reduce((m, t) => Math.max(m, catchRadius(app.game.state, t)), 0);
+        const railLike = (st.tiles || []).some((t) => ['rail', 'bus', 'truck'].includes(t.kind));
+        if (railLike && !airport) {
+          const sk = (st.tiles || []).find((t) => t.style);
+          const kindKey = ['rail', 'bus', 'truck'].find((x) => k[x]) || 'rail';
+          const styleName = sk ? styleById(sk.kind, sk.style).name : styleById(kindKey, null).name;
+          setText(catchLine, `Style: ${styleName} · catchment radius ${radius}`);
+        } else {
+          setText(catchLine, `Catchment radius ${radius}`);
+        }
         const ids = new Set([...Object.keys(st.cargo || {}), ...Object.keys(st.rating || {})]);
         const rows = Array.from(ids).map((c) => ({ c, n: packetTotal(st.cargo && st.cargo[c]), r: st.rating ? st.rating[c] : undefined }));
         listOrEmpty(cargoList, rows, (r) => r.c,

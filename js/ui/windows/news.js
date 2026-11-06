@@ -4,6 +4,8 @@
  * full history, as OpenTTD does); "Message settings" sets Off / Summary / Full per category.
  */
 import { el, setText } from '../dom.js';
+import { localizeMoneyText } from '../newsMoney.js';
+import { currentCurrency } from '../units.js';
 import { listOrEmpty } from './common.js';
 import { NEWS_CATEGORIES, newsCategoryOf } from '../../simulation/news.js';
 import { loadNewsPrefs, saveNewsPrefs, newsLevel, NEWS_LEVELS, NEWS_LEVEL_LABEL } from '../newsPrefs.js';
@@ -45,7 +47,7 @@ export function openNews(app) {
           el('span.mono.news-date'), el('span.news-text')),
           (row, it) => {
             setText(row.firstChild, it.n.dateStr || '');
-            setText(row.lastChild, it.n.text);
+            setText(row.lastChild, localizeMoneyText(it.n.text, currentCurrency()));
             const lvl = newsLevel(prefs, newsCategoryOf(it.n));
             row.classList.toggle('news-off', lvl === 'off');
             row.title = `${NEWS_CATEGORIES.find((c) => c.id === newsCategoryOf(it.n))?.label || ''} (${NEWS_LEVEL_LABEL[lvl]})`;

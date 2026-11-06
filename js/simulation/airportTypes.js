@@ -39,11 +39,14 @@ const SMALL_LAYOUT = (() => {
 
 const HELIPORT_LAYOUT = [{ dx: 0, dy: 0, part: 'helipad' }];
 
-/** Airport type table. `depotPart` marks the tile that holds the air depot (hangar, or the helipad). */
+/**
+ * Airport type table. `catchment` = station catchment radius (tiles). City keeps 6 so existing saves and the
+ * Moscow sim are unchanged (OpenTTD airport_defaults.h uses 5 for city, 4 for country/small and heliport).
+ * `depotPart` marks the tile that holds the air depot (hangar, or the helipad). */
 export const AIRPORT_TYPES = {
-  city: { id: 'city', name: 'City Airport', w: 6, h: 4, cost: COSTS.airport, introYear: 0, layout: CITY_LAYOUT, goal: { dx: 2, dy: 2, part: 'runway' }, depotPart: 'hangar' },
-  small: { id: 'small', name: 'Small Airport', w: 4, h: 3, cost: 25000, introYear: 1930, layout: SMALL_LAYOUT, goal: { dx: 1, dy: 1, part: 'runway' }, depotPart: 'hangar' },
-  heliport: { id: 'heliport', name: 'Heliport', w: 1, h: 1, cost: 12000, introYear: 1963, layout: HELIPORT_LAYOUT, goal: { dx: 0, dy: 0, part: 'helipad' }, depotPart: 'helipad' },
+  city: { id: 'city', name: 'City Airport', w: 6, h: 4, catchment: 6, cost: COSTS.airport, introYear: 0, layout: CITY_LAYOUT, goal: { dx: 2, dy: 2, part: 'runway' }, depotPart: 'hangar' },
+  small: { id: 'small', name: 'Small Airport', w: 4, h: 3, catchment: 4, cost: 25000, introYear: 1930, layout: SMALL_LAYOUT, goal: { dx: 1, dy: 1, part: 'runway' }, depotPart: 'hangar' },
+  heliport: { id: 'heliport', name: 'Heliport', w: 1, h: 1, catchment: 4, cost: 12000, introYear: 1963, layout: HELIPORT_LAYOUT, goal: { dx: 0, dy: 0, part: 'helipad' }, depotPart: 'helipad' },
 };
 
 /** Type id of an airport record, station tile building or air depot (absent = city). */

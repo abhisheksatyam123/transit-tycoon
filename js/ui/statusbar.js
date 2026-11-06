@@ -4,6 +4,8 @@
  */
 import { newsLevel, loadNewsPrefs } from './newsPrefs.js';
 import { newsCategoryOf } from '../simulation/news.js';
+import { localizeMoneyText } from './newsMoney.js';
+import { currentCurrency } from './units.js';
 import { el, setText } from './dom.js';
 import { money, date } from './format.js';
 
@@ -65,7 +67,7 @@ export function createStatusbar(root, app) {
       newsEl.textContent = '';
       if (latest) {
         newsEl.appendChild(el('span.sb-news-date.mono', { text: latest.dateStr || '' }));
-        newsEl.appendChild(el('span.sb-news-text.' + (latest.kind || 'info'), { text: latest.text }));
+        newsEl.appendChild(el('span.sb-news-text.' + (latest.kind || 'info'), { text: localizeMoneyText(latest.text, currentCurrency()) }));
       }
     }
   };

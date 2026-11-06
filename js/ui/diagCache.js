@@ -48,9 +48,34 @@ function monthKey(game) {
   return d ? d.year * 12 + d.month : -1;
 }
 
+/** Minimum gap between two scans triggered by player commands (ms). */
+export const COMMAND_SCAN_GAP_MS = 1000;
+/** Set by touchIssues(): the cached scan no longer reflects the world. */
+let dirty = false;
+/** @type {ReturnType<typeof setTimeout>|null} trailing timer after a command */
+let trailing = null;
+
+/**
+ * Mark the cached scan stale after a command that changed orders, vehicles, stations or track.
+ * The next scanIssues() rescans, but never more than once per COMMAND_SCAN_GAP_MS; a trailing
+ * timer makes sure a window that is not being redrawn still picks the change up.
+ * @param {any} game
+ */
+export function touchIssues(game) {
+  if (!cache || cache.game !== game) return;
+  dirty = true;
+  if (trailing === null) {
+    trailing = setTimeout(() => {
+      trailing = null;
+      if (dirty) scheduleIdleScan(game);
+    }, COMMAND_SCAN_GAP_MS);
+  }
+}
+
 /** Whether the cached scan can still be served for this game. */
 function isFresh(game) {
   if (!cache || cache.game !== game) return false;
+  if (dirty) return false;
   return cache.month === monthKey(game) && Date.now() - cache.at < MAX_AGE_MS;
 }
 
@@ -69,6 +94,7 @@ function runScan(game) {
     } catch { summary = countIssues(issues); }
   }
   cache = { game, at: Date.now(), month: monthKey(game), issues, error, summary, available: true };
+  dirty = false;
   return cache;
 }
 
@@ -99,6 +125,8 @@ export function scanIssues(game, force = false) {
   }
   if (force) return runScan(game);
   if (isFresh(game)) return cache;
+  // a command changed the world: rescan now if the last scan is old enough, else on idle
+  if (dirty && cache && cache.game === game && Date.now() - cache.at >= COMMAND_SCAN_GAP_MS) return runScan(game);
   scheduleIdleScan(game);
   if (cache && cache.game === game) return cache;
   // first scan still running: show an empty result now (never a stuck "Scanning…"); the scan fills it in on idle

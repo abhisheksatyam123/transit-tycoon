@@ -9,6 +9,7 @@ import { stationName } from './naming.js';
 import { advertBonus } from './townAuthority.js';
 import { getSetting } from './settings.js';
 import { inBounds } from './map.js';
+import { airportType, airportTypeId } from './airportTypes.js';
 
 /**
  * Create a new station record (not yet having tiles).
@@ -48,6 +49,23 @@ export function refreshKinds(st) {
 }
 
 /**
+ * Catchment radius of one station tile (the radius the catchment code uses).
+ * Airport tiles take the radius of their airport type (city 6, small/heliport 4); rail/bus/truck use the
+ * kind base plus style bonus; anything else falls back to CATCHMENT or 3.
+ * @returns {number}
+ */
+export function catchRadius(state, t) {
+  const r = t.radius ?? tileRadius(t);
+  if (r !== undefined) return r;
+  if (t.kind === 'airport') {
+    const map = state && state.map;
+    const b = map && map.tiles[t.y * map.width + t.x] ? map.tiles[t.y * map.width + t.x].building : null;
+    return airportType(airportTypeId(b)).catchment;
+  }
+  return CATCHMENT[t.kind] ?? 3;
+}
+
+/**
  * Catchment tiles of a station (deduplicated, in scan order).
  * @returns {{x:number,y:number}[]}
  */
@@ -56,7 +74,7 @@ export function catchmentTiles(state, st) {
   if (!st || st.tiles.length === 0) return [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const t of st.tiles) {
-    const r = t.radius ?? tileRadius(t) ?? CATCHMENT[t.kind] ?? 3;
+    const r = catchRadius(state, t);
     x0 = Math.min(x0, t.x - r); y0 = Math.min(y0, t.y - r);
     x1 = Math.max(x1, t.x + r); y1 = Math.max(y1, t.y + r);
   }
@@ -66,7 +84,7 @@ export function catchmentTiles(state, st) {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       for (const t of st.tiles) {
-        const r = t.radius ?? tileRadius(t) ?? CATCHMENT[t.kind] ?? 3;
+        const r = catchRadius(state, t);
         if (Math.abs(t.x - x) <= r && Math.abs(t.y - y) <= r) { out.push({ x, y }); break; }
       }
     }

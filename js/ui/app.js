@@ -14,6 +14,37 @@ import { play, playVehicle } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
 import { createGameFast } from './scenarioSnapshot.js';
 import { checkBankruptcy } from './bankruptcy.js';
+import { touchIssues } from './diagCache.js';
+import { localizeMoneyText } from './newsMoney.js';
+import { currentCurrency } from './units.js';
+
+/** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
+const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
+  'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'buildSignal', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
+  'removeSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy',
+  'buildCanal', 'buildLock', 'buyVehicle', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot',
+  'sellVehicle', 'reverseVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
+  'sellWagon', 'moveWagon', 'unshareOrders', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderTimetable',
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'buildHQ', 'buildObject'];
+
+/**
+ * Wrap the game's command methods on the instance (so UI and window.__game calls both count) to mark
+ * the Issues scan stale after a successful command. Results are passed through unchanged.
+ * @param {any} game
+ */
+export function watchIssueCommands(game) {
+  for (const name of ISSUE_COMMANDS) {
+    const fn = game[name];
+    if (typeof fn !== 'function' || fn.__issuesWrapped) continue;
+    const wrapped = function (...args) {
+      const r = fn.apply(this, args);
+      if (!r || r.ok !== false) touchIssues(game);
+      return r;
+    };
+    wrapped.__issuesWrapped = true;
+    game[name] = wrapped;
+  }
+}
 
 export class App {
   /**
@@ -22,6 +53,7 @@ export class App {
    */
   constructor(o) {
     this.game = o.game;
+    watchIssueCommands(this.game);
     this.GameClass = o.GameClass;
     this.renderer = o.renderer;
     this.minimap = o.minimap;
@@ -60,7 +92,7 @@ export class App {
       const d = newsDisplay(newsLevel(loadNewsPrefs(), newsCategoryOf(n)));
       if (d.sound) play('news');
       if (d.flash) this.ui.onNews(n);
-      if (d.toast) this.toast(n.text, n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
+      if (d.toast) this.toast(localizeMoneyText(n.text, currentCurrency()), n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
     });
     on('crash', (e) => { // planeCrash.js: explosion of smoke at the crash tile
       if (!e || typeof e.x !== 'number' || !this.renderer || !this.renderer.smoke) return;
@@ -91,6 +123,7 @@ export class App {
     this.wm.closeAll();
     this.unsubscribe();
     this.game = game;
+    watchIssueCommands(game);
     this.renderer.setGame(game);
     this.renderer.overlay.selection = null;
     this.renderer.overlay.catchment = null;

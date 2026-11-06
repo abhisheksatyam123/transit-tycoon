@@ -24,7 +24,7 @@ export const AXIS_BITS = { x: 2 | 8, y: 1 | 4 };
 export const TICKS_PER_DAY = 96;
 
 /** Catchment radius per station kind. */
-export const CATCHMENT = { rail: 4, bus: 3, truck: 3, tram: 3, airport: 6 };
+export const CATCHMENT = { rail: 4, bus: 3, truck: 3, tram: 3, airport: 6 }; // airports: per type via airportTypes.js (city 6, small/heliport 4); this is the fallback
 
 /** Airport footprint (tiles). Local layout: see cmdAirport.js. */
 export const AIRPORT_W = 6;
