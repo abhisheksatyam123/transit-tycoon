@@ -121,7 +121,7 @@ export function createToolbar(root, app) {
   // ---- top-level tool and window buttons ----
   const toolBtns = TOP_TOOLS.filter((id) => toolInfo.has(id)).map((id) => {
     const [, label, ic, key] = /** @type {any} */ (toolInfo.get(id));
-    const b = tbButton(ic, label, `${label} (${key})`, () => { play('click'); app.setTool(id); });
+    const b = tbButton(ic, label, key ? `${label} (${key})` : label, () => { play('click'); app.setTool(id); });
     b.dataset.tool = id;
     return b;
   });
