@@ -141,38 +141,54 @@ export function waitingAmount(st, cargoId) {
 
 /**
  * Add waiting cargo to a station (merges with last packet of same source).
+ * `feeder` (optional, lazy): OpenTTD feeder share carried by the units, stored on the packet only when non-zero.
  */
-export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap) {
+export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0) {
   if (amount <= 0) return 0;
   const list = st.cargo[cargoId] || (st.cargo[cargoId] = []);
   const have = waitingAmount(st, cargoId);
   const add = Math.max(0, Math.min(amount, cap - have));
   if (add <= 0) return 0;
+  const fs = feeder > 0 ? Math.round((feeder * add) / amount) : 0;
   const last = list[list.length - 1];
   if (last && last.sourceX === sourceX && last.sourceY === sourceY) {
     last.sinceTick = Math.round((last.sinceTick * last.amount + tick * add) / (last.amount + add));
     last.amount += add;
-  } else list.push({ amount: add, sourceX, sourceY, sinceTick: tick });
+    if (fs) last.feeder = (last.feeder || 0) + fs;
+  } else {
+    const p = { amount: add, sourceX, sourceY, sinceTick: tick };
+    if (fs) p.feeder = fs;
+    list.push(p);
+  }
   return add;
 }
 
 /**
  * Take up to `amount` of a cargo from a station (oldest first).
- * @returns {{amount:number,sourceX:number,sourceY:number,sinceTick:number}}
+ * `feeder` is the feeder share of the units taken (present only when non-zero).
+ * @returns {{amount:number,sourceX:number,sourceY:number,sinceTick:number,feeder?:number}}
  */
 export function takeWaiting(st, cargoId, amount) {
   const list = st.cargo[cargoId] || [];
-  let taken = 0, sx = 0, sy = 0, since = 0;
+  let taken = 0, sx = 0, sy = 0, since = 0, feeder = 0;
   while (taken < amount && list.length) {
     const p = list[0];
     const n = Math.min(p.amount, amount - taken);
     sx += p.sourceX * n; sy += p.sourceY * n; since += p.sinceTick * n;
+    if (p.feeder) {
+      const fs = p.amount === n ? p.feeder : Math.round((p.feeder * n) / p.amount);
+      feeder += fs;
+      p.feeder -= fs;
+      if (!p.feeder) delete p.feeder;
+    }
     taken += n;
     p.amount -= n;
     if (p.amount <= 0) list.shift();
   }
   if (taken === 0) return { amount: 0, sourceX: st.x, sourceY: st.y, sinceTick: 0 };
-  return { amount: taken, sourceX: Math.round(sx / taken), sourceY: Math.round(sy / taken), sinceTick: Math.round(since / taken) };
+  const out = { amount: taken, sourceX: Math.round(sx / taken), sourceY: Math.round(sy / taken), sinceTick: Math.round(since / taken) };
+  if (feeder) out.feeder = feeder;
+  return out;
 }
 
 /**

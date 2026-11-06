@@ -17,6 +17,9 @@ import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 
+/** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
+export const FEEDER_PAYMENT_SHARE = 75;
+
 /** Ticks spent at a station before (re)trying to load and depart. */
 export const LOAD_TICKS = 40;
 /** Ticks between load attempts while waiting for a full load. */
@@ -25,7 +28,8 @@ export const FULL_LOAD_RETRY = 20;
 /**
  * Order flags (OpenTTD order_type.h). Stored on an order only when non-default, so
  * existing saves stay identical: `full: true` (full load), `load: 'none'`, `unload: 'all'|'transfer'|'none'`.
- * nonStop is not modelled: trains only stop at the station of their current order.
+ * All orders behave as OpenTTD non-stop orders (its default for new orders): arrival is only checked at the end
+ * of the path against the current order's station, so vehicles never stop at intermediate stations.
  */
 export const LOAD_MODES = ['normal', 'full', 'none'];
 export const UNLOAD_MODES = ['normal', 'all', 'transfer', 'none'];
@@ -88,12 +92,12 @@ export function advanceOrder(v) {
  * Unload the vehicle's cargo at a station according to the current order's unload flag.
  * - normal: deliver and pay when the station accepts the cargo (default).
  * - all: deliver and pay when accepted; otherwise the cargo is moved to the station as waiting cargo.
- * - transfer: move the cargo to the station as waiting cargo for another vehicle; no payment here.
- *   The packet keeps its origin and start tick, so the final delivery pays for the whole trip
- *   (simplification of OpenTTD's transfer credits, which are a feeder share paid early).
+ * - transfer: move the cargo to the station as waiting cargo for another vehicle; no cash payment here.
+ *   The vehicle gets a virtual transfer credit (OpenTTD CargoPayment::PayTransfer, see transferCredit()); the
+ *   packet keeps its origin, start tick and accumulated feeder share, so the final delivery pays the full trip.
  * - none: keep the cargo aboard.
  * Cargo that the station cannot hold (MAX_WAITING) stays aboard.
- * @returns {number} income earned
+ * @returns {number} cash income earned (transfer credits are not cash)
  */
 export function unload(ctx, v, st) {
   const load = v.load;
@@ -105,10 +109,39 @@ export function unload(ctx, v, st) {
     if (mode === 'normal') return 0;
   }
   if (load.fromStationId === st.id) return 0; // never dump cargo back where it was loaded
-  const moved = addWaiting(st, v.cargoId, load.amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING);
+  const amount = Math.min(load.amount, Math.max(0, MAX_WAITING - waitingAmount(st, v.cargoId)));
+  if (amount <= 0) return 0;
+  const held = load.feeder || 0;
+  const feederOut = held && amount < load.amount ? Math.round((held * amount) / load.amount) : held;
+  const credit = transferCredit(ctx.state, v, st, amount, feederOut);
+  // the packet keeps its feeder share and gains this leg's transfer credit (OpenTTD AddFeederShare(profit))
+  const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit);
+  if (credit) {
+    v.profitThisYear = (v.profitThisYear || 0) + credit;
+    v.transferCredits = (v.transferCredits || 0) + credit; // lazy: shown in the vehicle window, reset yearly
+    ctx.emit && ctx.emit('transfer', { amount: credit, x: st.x, y: st.y, vehicleId: v.id, cargoId: v.cargoId, units: moved });
+  }
   load.amount -= moved;
-  if (load.amount <= 0) { load.amount = 0; load.fromStationId = null; }
+  if (held) {
+    load.feeder = held - feederOut;
+    if (!load.feeder) delete load.feeder;
+  }
+  if (load.amount <= 0) { load.amount = 0; load.fromStationId = null; delete load.feeder; }
   return 0;
+}
+
+/**
+ * OpenTTD CargoPayment::PayTransfer: the feeder vehicle is credited the income of its leg (source to this station,
+ * distance and days so far) minus the feeder share the units already hold, times FEEDER_PAYMENT_SHARE percent.
+ * The credit is virtual: it goes into the vehicle's profit and the packet's feeder share, never into company cash.
+ * @returns {number} credit (integer money)
+ */
+export function transferCredit(state, v, st, amount, feederOfAmount) {
+  const load = v.load;
+  const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
+  const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
+  const income = calculateDeliveredCargoPayment(state, v.cargoId, amount, dist, days);
+  return Math.round(((income - feederOfAmount) * FEEDER_PAYMENT_SHARE) / 100);
 }
 
 /** Pay for and deliver the vehicle's cargo to an accepting station (the original unload path). */
@@ -126,9 +159,13 @@ function deliverLoad(ctx, v, st) {
   const amount = load.amount;
   load.amount = 0;
   load.fromStationId = null;
+  // OpenTTD: the company is paid the full trip income; the delivering vehicle keeps income minus the feeder share
+  // already credited to earlier transfer vehicles, so vehicle profits add up to the payment.
+  const feeder = load.feeder || 0;
+  delete load.feeder;
   if (pay > 0) {
     earn(state.company, pay);
-    v.profitThisYear += pay;
+    v.profitThisYear += pay - feeder;
     ctx.emit('income', { amount: pay, x: st.x, y: st.y, vehicleId: v.id, cargoId: v.cargoId, units: amount });
   }
   return pay;
@@ -170,6 +207,7 @@ export function loadCargo(ctx, v, st) {
   l.sourceY = Math.round((l.sourceY * l.amount + got.sourceY * got.amount) / total);
   l.sinceTick = Math.round((l.sinceTick * l.amount + state.tick * got.amount) / total);
   l.amount = total;
+  if (got.feeder) l.feeder = (l.feeder || 0) + got.feeder;
   l.fromStationId = st.id;
   return got.amount;
 }

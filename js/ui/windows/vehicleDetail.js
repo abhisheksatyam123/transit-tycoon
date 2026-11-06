@@ -39,7 +39,7 @@ export function openVehicleDetail(app, id) {
     onClose: () => { if (app.renderer.overlay.selectedVehicleId === id && app.followId !== id) app.renderer.overlay.selectedVehicleId = null; },
     build(body, win) {
       app.renderer.overlay.selectedVehicleId = id;
-      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
+      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Transfer credits', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
       const loadBar = bar(0);
       body.appendChild(loadBar);
       const startStop = el('button.btn', { type: 'button' });
@@ -117,6 +117,7 @@ export function openVehicleDetail(app, id) {
         set['Age'](ageText(v.age));
         set['Profit this year'](money(v.profitThisYear));
         set['Profit last year'](money(v.profitLastYear));
+        if (v.transferCredits) set['Transfer credits'](`${money(v.transferCredits)} (virtual, not cash)`);
         set['Value'](money(v.value));
         const groups = groupList(app.game.state);
         const sig = groups.map((x) => x.id + ':' + x.name).join('|');

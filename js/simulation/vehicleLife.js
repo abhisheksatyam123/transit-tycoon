@@ -15,6 +15,7 @@ export function vehiclesYearly(ctx, year) {
     v.profitLastYear = v.profitThisYear;
     v.profitThisYear = 0;
     v.profitMonthMark = 0;
+    delete v.transferCredits; // lazy: absent when no transfer credit was earned this year
   }
   // era news (OpenLoco/OpenTTD new-vehicle news): fires once, when the model's intro year starts. Starting a
   // game never fires it (the yearly hook runs on the year change only), so a 1920 start gets no burst.
