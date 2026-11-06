@@ -4,6 +4,7 @@
  * length (the rectangle's long side along the axis, its other side = platform count).
  * A plain click builds one platform of `length`, as before.
  */
+import { AXIS_BITS } from '../../simulation/constants.js';
 import { createPlacementTool } from './placement.js';
 import { stationFootprint } from './geometry.js';
 import { availableStyles, styleById, DEFAULT_STYLE } from '../../config/stationTypes.js';
@@ -20,19 +21,37 @@ export function createStationTool(app) {
   let style = DEFAULT_STYLE;
   let dragStart = /** @type {{x:number,y:number}|null} */ (null);
   const year = () => app.game.state.date.year;
+  /**
+   * Axis actually used at (x,y) (OpenLoco-style auto orientation): a one-tile-thick drag runs along its
+   * long side; a plain click on straight track follows the track; otherwise the R-rotated axis.
+   */
+  const axisAt = (x, y) => {
+    if (dragStart && (dragStart.x !== x || dragStart.y !== y)) {
+      const w = Math.abs(dragStart.x - x) + 1, h = Math.abs(dragStart.y - y) + 1;
+      if (h === 1 && w > 1) return 'x';
+      if (w === 1 && h > 1) return 'y';
+      return axis;
+    }
+    const t = app.game.tile ? app.game.tile(x, y) : null;
+    const bits = t ? t.rail | 0 : 0;
+    if (bits === AXIS_BITS.x) return 'x';
+    if (bits === AXIS_BITS.y) return 'y';
+    return axis;
+  };
   /** Drag rectangle from dragStart to (x,y): origin, length and platforms (null = plain click). */
   const rectFor = (x, y) => {
     if (!dragStart || (dragStart.x === x && dragStart.y === y)) return null;
+    const a = axisAt(x, y);
     const x0 = Math.min(dragStart.x, x), y0 = Math.min(dragStart.y, y);
     const w = Math.abs(dragStart.x - x) + 1, h = Math.abs(dragStart.y - y) + 1;
-    const along = axis === 'x' ? w : h;
-    const across = axis === 'x' ? h : w;
-    return { x: x0, y: y0, length: Math.min(10, along), platforms: Math.min(6, across) };
+    const along = a === 'x' ? w : h;
+    const across = a === 'x' ? h : w;
+    return { x: x0, y: y0, length: Math.min(10, along), platforms: Math.min(6, across), axis: a };
   };
   const plan = (x, y) => {
     const r = rectFor(x, y);
     if (r) return r;
-    return { x, y, length, platforms: 1 };
+    return { x, y, length, platforms: 1, axis: axisAt(x, y) };
   };
   const tool = createPlacementTool(app, {
     id: 'station', label: 'Rail Station', catchment: RADIUS, joinKind: 'rail',
@@ -43,13 +62,14 @@ export function createStationTool(app) {
     },
     command: (g, x, y, opts) => {
       const p = (opts && opts.plan) || plan(x, y);
-      return g.buildRailStation(p.x, p.y, axis, p.length, { ...(opts || {}), plan: undefined, platforms: p.platforms, style, player: true });
+      return g.buildRailStation(p.x, p.y, p.axis || axis, p.length, { ...(opts || {}), plan: undefined, platforms: p.platforms, style, player: true });
     },
     footprint: (x, y) => {
       const p = plan(x, y);
-      if (p.platforms === 1) return stationFootprint(p.x, p.y, axis, p.length);
+      const a = p.axis;
+      if (p.platforms === 1) return stationFootprint(p.x, p.y, a, p.length);
       const out = [];
-      for (let q = 0; q < p.platforms; q++) out.push(...stationFootprint(p.x + (axis === 'y' ? q : 0), p.y + (axis === 'x' ? q : 0), axis, p.length));
+      for (let q = 0; q < p.platforms; q++) out.push(...stationFootprint(p.x + (a === 'y' ? q : 0), p.y + (a === 'x' ? q : 0), a, p.length));
       return out;
     },
     key(e) {
