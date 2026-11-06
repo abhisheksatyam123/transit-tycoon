@@ -3,7 +3,7 @@
  * Connects two land heads at equal height across lower terrain (valleys/water).
  */
 import { COSTS } from '../config/costs.js';
-import { MAX_BRIDGE_LENGTH, ERR, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { MAX_BRIDGE_LENGTH, ERR, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney, objectBlocks } from './trackRules.js';
 import { DIRS, OPPOSITE, AXIS_BITS } from './constants.js';
 import { linePath, straightAxis, pruneOneWay } from './network.js';
 import { inBounds } from './map.js';
@@ -45,6 +45,7 @@ export function planLandBridge(map, pts, layer = 'rail') {
   const h = a.height;
 
   for (const t of [a, b]) {
+    if (objectBlocks(t)) return { ok: false, error: ERR.object };
     if (t.building || t[other] || t.overBridge || (t[layer] & ~AXIS_BITS[axis])) {
       return { ok: false, error: 'Bridge heads need a free tile or straight track on the axis' };
     }

@@ -11,7 +11,7 @@ import { DIRS } from './constants.js';
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { spend } from './economy.js';
-import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectBlocks } from './trackRules.js';
 import { getTile } from './map.js';
 
 export const CANAL_ERR = {
@@ -32,7 +32,7 @@ const LOW_HIGH = {
 
 /** True when the tile has track, road, tram or a building (no canal possible). */
 function occupied(t) {
-  return !!(t.building || t.rail || t.road || t.tram);
+  return !!(t.building || t.rail || t.road || t.tram || objectBlocks(t));
 }
 
 /** Vector (DIRS entry) for a direction bit. */

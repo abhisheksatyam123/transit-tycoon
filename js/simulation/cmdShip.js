@@ -9,7 +9,7 @@ import { DIRS } from './constants.js';
 import { constructionTotal } from './prices.js';
 import { SHIP_COSTS } from '../config/ships.js';
 import { spend } from './economy.js';
-import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId } from './state.js';
 import { getTile } from './map.js';
@@ -45,6 +45,7 @@ function hasWaterAccess(map, x, y) {
 function dockError(map, x, y) {
   const t = getTile(map, x, y);
   if (t.terrain === 'water') return SHIP_ERR.dockWater;
+  if (objectError(t)) return objectError(t);
   if (occupied(t)) return ERR[t.building && t.building.type] || ERR.track;
   if (!hasWaterAccess(map, x, y)) return SHIP_ERR.noWaterAccess;
   return null;
@@ -114,6 +115,7 @@ export function buildBuoy(ctx, x, y, opts = {}) {
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
   const t = getTile(map, x, y);
   if (t.terrain !== 'water') return { ok: false, error: SHIP_ERR.buoyLand };
+  if (objectError(t)) return { ok: false, error: objectError(t) };
   if (occupied(t)) return { ok: false, error: ERR[t.building && t.building.type] || ERR.track };
   let cost = constructionTotal(state, SHIP_COSTS.buoy);
   const money = checkMoney(state, cost);

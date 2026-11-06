@@ -14,7 +14,7 @@
 import { COSTS } from '../config/costs.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
-import { ERR, checkMoney, coordsOk } from './trackRules.js';
+import { ERR, checkMoney, coordsOk, objectError } from './trackRules.js';
 
 export const MIN_HEIGHT = 0;
 export const MAX_HEIGHT = 7;
@@ -37,6 +37,7 @@ export const TERRA_ERR = {
 function blockReason(map, x, y) {
   const t = map.tiles[y * map.width + x];
   if (t.terrain === 'water') return ERR.water;
+  if (objectError(t)) return objectError(t);
   if (t.building) return TERRA_ERR.structure;
   if (t.tunnel || t.tunnelPortal) return TERRA_ERR.tunnel;
   if (t.bridgeDeck !== undefined || t.playerBridge) return 'Bridge above: its ground cannot change';

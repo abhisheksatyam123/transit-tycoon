@@ -7,7 +7,7 @@ import { airportType, airportTypeId, AIRPORT_TYPES, DEFAULT_AIRPORT_TYPE } from 
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { spend } from './economy.js';
-import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findTown, nearestTown } from './state.js';
 import { removeStationTile, removeDepot } from './cmdStation.js';
@@ -31,6 +31,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
   for (const p of tiles) {
     const t = map.tiles[p.y * map.width + p.x];
     if (t.terrain === 'water') return { ok: false, error: ERR.water };
+    if (objectError(t)) return { ok: false, error: objectError(t) };
     minH = Math.min(minH, t.height); maxH = Math.max(maxH, t.height);
     const b = t.building;
     if (b) {

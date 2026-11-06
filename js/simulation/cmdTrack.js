@@ -11,7 +11,7 @@ import { pathOk } from './shapes.js';
 import { getTile, inBounds } from './map.js';
 import { straightAxis } from './network.js';
 import { spend } from './economy.js';
-import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney } from './trackRules.js';
+import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { removeStationTile, removeDepot, vehicleOnTile } from './cmdStation.js';
 import { airportLayoutFor, airportTypeId, airportType } from './airportTypes.js';
 
@@ -75,6 +75,7 @@ export function planTunnel(map, pts, layer = 'rail') {
   const a = tiles[0], b = tiles[n - 1];
   if (a.height !== b.height) return { ok: false, error: 'Tunnel portals must be at the same height' };
   for (const t of [a, b]) {
+    if (objectError(t)) return { ok: false, error: objectError(t) };
     if (t.terrain === 'water' || t.building || t[other] || (t[layer] & ~AXIS_BITS[axis])) {
       return { ok: false, error: 'Tunnel portals need a free tile or straight track on the axis' };
     }

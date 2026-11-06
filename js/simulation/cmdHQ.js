@@ -9,7 +9,7 @@
 import { COSTS } from '../config/costs.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
-import { checkMoney, coordsOk } from './trackRules.js';
+import { checkMoney, coordsOk, objectError } from './trackRules.js';
 import { headquarterVariation } from './loco/company.js';
 import { companyById } from './owner.js';
 import { notify } from './news.js';
@@ -44,6 +44,7 @@ export function hqSiteError(state, x, y, owner = null) {
     const t = map.tiles[yy * map.width + xx];
     if (t.terrain === 'water') return HQ_ERR.water;
     if (t.terrain === 'forest' || t.terrain === 'rock') return HQ_ERR.terrain;
+    if (objectError(t)) return objectError(t);
     if (t.building || t.rail || t.road) return HQ_ERR.occupied;
     hmin = Math.min(hmin, t.height); hmax = Math.max(hmax, t.height);
   }
@@ -106,6 +107,7 @@ export function buildHQ(ctx, x, y, opts = {}) {
   const map = state.map;
   for (let dy = 0; dy < HQ_SIZE; dy++) for (let dx = 0; dx < HQ_SIZE; dx++) {
     const t = map.tiles[(y + dy) * map.width + x + dx];
+    if (t.object && t.object.type === 'owned') delete t.object; // owned land is cleared by building on it
     t.building = { type: 'hq', dx, dy, level };
     t.owner = null;
   }

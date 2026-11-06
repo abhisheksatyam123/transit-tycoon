@@ -20,7 +20,22 @@ export const ERR = {
   vehicle: 'Vehicle in the way',
   tunnel: 'Tunnel in the way: build beside it or at its portals',
   bridge: 'Bridge in the way: build beside it or at its ends',
+  object: 'Transmitter or lighthouse in the way: demolish it first',
 };
+
+/**
+ * OpenTTD object_cmd.cpp ClearTile_Object: transmitters and lighthouses block building until demolished.
+ * Owned land is not a blocker: the player's own owned land is cleared when they build on it (see clearTerrain).
+ * @returns {boolean}
+ */
+export function objectBlocks(tile) {
+  return !!(tile && tile.object && (tile.object.type === 'transmitter' || tile.object.type === 'lighthouse'));
+}
+
+/** Shared build check for a tile (any build command). @returns {string|null} error or null */
+export function objectError(tile) {
+  return objectBlocks(tile) ? ERR.object : null;
+}
 
 /**
  * Check whether `bits` can be added to tile on `layer` ('rail'|'road').
@@ -28,6 +43,7 @@ export const ERR = {
  */
 export function canAddBits(tile, layer, bits, deck = false) {
   if (!tile) return ERR.bounds;
+  if (objectBlocks(tile)) return ERR.object;
   if (tile.overBridge) return ERR.bridge;
   if (tile.terrain === 'water' && !deck) return ERR.water;
   // a tunnel's underground run takes no surface track; a portal only continues along its own axis
@@ -79,6 +95,7 @@ export function clearingCost(tile) {
 
 /** Clear terrain for building (forest/rock -> grass). */
 export function clearTerrain(tile) {
+  if (tile.object && tile.object.type === 'owned') delete tile.object; // owned land is cleared by building on it (no refund)
   if (tile.terrain === 'forest' || tile.terrain === 'rock') tile.terrain = 'grass';
   if (tile.field !== undefined) delete tile.field; // T29: building over a farm field clears it
 }

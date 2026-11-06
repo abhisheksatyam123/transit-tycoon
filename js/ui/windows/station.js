@@ -36,7 +36,12 @@ export function openStation(app, id) {
       noSource.hidden = true;
       const accepts = el('div.chips');
       const vehList = el('div.list');
+      // B1: airports with an air depot (hangar, or a heliport's helipad) get Open hangar / Buy aircraft
+      const hangarRow = el('div.btn-row');
+      hangarRow.hidden = true;
+      let hangarDepot = null;
       body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
+        hangarRow,
         el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
           const st = app.findStation(id);
           if (st) app.centerOn(st.x, st.y);
@@ -74,6 +79,26 @@ export function openStation(app, id) {
           accepts.textContent = '';
           if (!acc.length) accepts.appendChild(el('span.empty', { text: 'Nothing' }));
           for (const c of acc) accepts.appendChild(cargoChip(c));
+        }
+        // air depot on one of this station's tiles (hangar or helipad)
+        const depotId = (st.tiles || []).reduce((found, t) => {
+          if (found != null) return found;
+          const tt = app.game.state.map.tiles[t.y * app.game.state.map.width + t.x];
+          return tt && tt.building && tt.building.depotId != null && tt.building.kind !== 'rail' ? tt.building.depotId : null;
+        }, null);
+        const dep = depotId != null ? app.findDepot(depotId) : null;
+        if (dep && dep.kind === 'air') {
+          if (hangarDepot !== depotId) {
+            hangarDepot = depotId;
+            hangarRow.textContent = '';
+            hangarRow.append(
+              el('button.btn', { type: 'button', text: 'Open hangar', onclick: () => app.open('depot', depotId) }),
+              el('button.btn.primary', { type: 'button', text: 'Buy aircraft…', onclick: () => app.open('buyVehicle', depotId) }));
+          }
+          hangarRow.hidden = false;
+        } else {
+          hangarDepot = null;
+          hangarRow.hidden = true;
         }
         const vs = app.game.state.vehicles.filter((v) => v.orders && v.orders.some((o) => o.stationId === id));
         listOrEmpty(vehList, vs, (v) => v.id,

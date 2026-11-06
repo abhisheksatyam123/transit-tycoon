@@ -8,7 +8,7 @@ import { getTile, inBounds } from './map.js';
 import { spend } from './economy.js';
 import { companyById, stampOwner, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { straightAxis } from './network.js';
-import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, canAddBits } from './trackRules.js';
+import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, canAddBits, objectError } from './trackRules.js';
 import { createStation, adjacentStations, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
 import { DEFAULT_STYLE, styleAvailable, styleById } from '../config/stationTypes.js';
 import { allocId, findStation } from './state.js';
@@ -78,6 +78,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   for (const p of tiles) {
     const t = getTile(map, p.x, p.y);
     if (t.terrain === 'water') return { ok: false, error: ERR.water };
+    if (objectError(t)) return { ok: false, error: objectError(t) };
     if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
     if (t.road) return { ok: false, error: ERR.track };
     if (t.rail && straightAxis(t.rail) !== axis) return { ok: false, error: ERR.track };
@@ -131,6 +132,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (refused) return { ok: false, error: refused };
   const t = getTile(map, x, y);
   if (t.terrain === 'water') return { ok: false, error: ERR.water };
+  if (objectError(t)) return { ok: false, error: objectError(t) };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail) return { ok: false, error: ERR.track };
   let axis;
@@ -193,6 +195,7 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
   const t = getTile(map, x, y);
   if (t.terrain === 'water') return { ok: false, error: ERR.water };
+  if (objectError(t)) return { ok: false, error: objectError(t) };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail || t.road) return { ok: false, error: ERR.track };
   let cost = (kind === 'rail' ? COSTS.depotRail : COSTS.depotRoad) + clearingCost(t);
