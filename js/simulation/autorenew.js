@@ -23,9 +23,15 @@ const NAG_DAYS = 30;
  * Replace `v` (stopped in a depot) with a new vehicle of model `newModelId`.
  * @returns {{ok:true,vehicle:object,cost:number}|{ok:false,error:string}}
  */
-export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace') {
+/** Fields a replacement takes from its own model / purchase (everything else moves over when keepRoute). */
+const OWN_FIELDS = new Set(['id', 'name', 'unitNumber', 'kind', 'roadType', 'modelId', 'wagonModelId', 'wagons',
+  'cargoId', 'capacity', 'maxSpeed', 'runningCost', 'value', 'age', 'maxAge', 'reliability', 'baseReliability',
+  'breakdownTicks', 'depotId', 'orders', 'orderIndex', 'orderGroup', 'profitThisYear', 'profitLastYear', 'alt']);
+
+export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts = {}) {
   const { state } = ctx;
-  const depot = state.depots.find((d) => d.id === v.depotId);
+  // keepRoute: a vehicle on a service visit to a depot (not stopped in it) is replaced in its current position
+  const depot = state.depots.find((d) => d.id === (opts.keepRoute ? v.goingToDepot : v.depotId));
   if (!depot) return { ok: false, error: 'No depot' };
   const spec = {
     modelId: newModelId,
@@ -60,6 +66,18 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace') {
   if (v.serviceIntervalDays) { nv.serviceIntervalDays = v.serviceIntervalDays; nv.lastServiceDay = v.lastServiceDay; }
   nv.profitThisYear = v.profitThisYear || 0;
   nv.profitLastYear = v.profitLastYear || 0;
+  if (opts.keepRoute) {
+    // the replacement continues the old vehicle's route: position, path, state, load and timetable carry over
+    for (const k of Object.keys(v)) if (!OWN_FIELDS.has(k)) nv[k] = v[k];
+    nv.depotId = v.depotId;
+    if (v.alt !== undefined) nv.alt = v.alt;
+    // the load stays only when the replacement carries the same cargo, capped at its capacity
+    if (v.load) {
+      nv.load = { ...v.load };
+      if (nv.cargoId !== v.cargoId) nv.load.amount = 0;
+      else if (nv.load.amount > nv.capacity) nv.load.amount = nv.capacity;
+    }
+  }
   // only the difference is paid; the resale value of the old vehicle is credited inside it
   spend(state.company, 'vehicles', diff);
   const oldName = MODEL_BY_ID[v.modelId] ? MODEL_BY_ID[v.modelId].name : v.modelId;
@@ -71,20 +89,22 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace') {
 }
 
 /**
- * Hook for a vehicle stopped in a depot (loco/vehicle.js vehicleDaily). Applies the company's autoreplace rule
- * for its model first, else autorenew (setting, past max age).
+ * Hook for a vehicle stopped in a depot (loco/vehicle.js vehicleDaily), or on an automatic service visit to a depot
+ * (opts.serviceVisit, movement.js serviceAtDepot: the replacement keeps the route). Applies the company's autoreplace
+ * rule for its model first, else autorenew (setting, past max age).
  * @returns {object|null} the new vehicle, or null when nothing happened
  */
-export function autorenewVehicle(ctx, v) {
+export function autorenewVehicle(ctx, v, opts = {}) {
   const { state } = ctx;
-  if (v.state !== 'depot') return null;
+  if (v.state !== 'depot' && !opts.serviceVisit) return null;
+  const ro = { keepRoute: !!opts.serviceVisit };
   const rules = state.company && state.company.autoreplace;
   const target = rules && rules[v.modelId];
   if (target && MODEL_BY_ID[target] && target !== v.modelId) {
-    const r = replaceVehicle(ctx, v, target, 'autoreplace');
+    const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
   if (!getSetting(state, 'autorenew') || !(v.age > v.maxAge)) return null;
-  const r = replaceVehicle(ctx, v, v.modelId, 'autorenew');
+  const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
   return r.ok ? r.vehicle : null;
 }

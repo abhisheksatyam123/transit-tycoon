@@ -14,6 +14,7 @@ import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindFor, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
 import { altitudeAt } from './aircraft.js';
 import { servicePerformed } from './service.js';
+import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick } from './orders.js';
@@ -293,10 +294,13 @@ export function enterDepot(ctx, v, depotId) {
  * restarts and the vehicle leaves again on its orders. Called when a service trip reaches the depot.
  */
 function serviceAtDepot(ctx, v) {
-  servicePerformed(ctx.state, v);
-  v.goingToDepot = null;
-  v.atStationId = null;
-  replan(ctx, v);
+  // autoreplace / autorenew apply on a service visit too (the replacement continues the route)
+  const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
+  const cur = nv || v;
+  servicePerformed(ctx.state, cur);
+  cur.goingToDepot = null;
+  cur.atStationId = null;
+  replan(ctx, cur);
 }
 
 /**

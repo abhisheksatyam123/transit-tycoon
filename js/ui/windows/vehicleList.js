@@ -6,6 +6,7 @@
 import { el, setText } from '../dom.js';
 import { money } from '../format.js';
 import { listOrEmpty } from './common.js';
+import { hasTimetable } from '../../simulation/orders.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -15,8 +16,24 @@ export const STATE_LABEL = {
 /** Sort keys: [key, label]. */
 export const VEHICLE_SORTS = [
   ['name', 'Name'], ['profitThisYear', 'Profit this year'], ['profitLastYear', 'Profit last year'],
-  ['age', 'Age'], ['reliability', 'Reliability'],
+  ['age', 'Age'], ['reliability', 'Reliability'], ['lateDays', 'Lateness'],
 ];
+
+/** True when the vehicle runs to a timetable (any order with a wait or travel time). */
+export function hasVehicleTimetable(v) {
+  return Array.isArray(v.orders) && v.orders.some((o) => hasTimetable(o));
+}
+
+/**
+ * Label of the late column: '' for vehicles without a timetable, else 'on time', '+N d' (late), '−N d' (early).
+ * @param {any} v
+ */
+export function lateLabel(v) {
+  if (!hasVehicleTimetable(v)) return '';
+  const d = Number(v.lateDays) || 0;
+  if (!d) return 'on time';
+  return d > 0 ? `+${d} d` : `${d} d`;
+}
 
 /** Kind filters: [value, label]. */
 export const VEHICLE_FILTERS = [['all', 'All'], ['train', 'Trains'], ['road', 'Road'], ['aircraft', 'Aircraft']];
@@ -42,6 +59,7 @@ export function sortVehicles(vehicles, opts = {}) {
       case 'profitLastYear': return Number(v.profitLastYear) || 0;
       case 'age': return Number(v.age) || 0;
       case 'reliability': return relFraction(v);
+      case 'lateDays': return Number(v.lateDays) || 0;
       default: return null; // name: string compare
     }
   };
@@ -83,7 +101,7 @@ export function openVehicleList(app) {
         el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel,
         massBtn('Start all', true), massBtn('Stop all', false),
         el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
-      const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span'));
+      const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span', { text: 'Late' }), el('span'));
       const list = el('div.list.scroll.table');
       body.append(summary, controls, head, list);
       const refresh = () => {
@@ -98,7 +116,7 @@ export function openVehicleList(app) {
         listOrEmpty(list, vs, (v) => v.id,
           (v) => el('div.table-row', null,
             el('button.link', { type: 'button', onclick: () => app.open('vehicle', v.id) }),
-            el('span.state'), el('span.mono.num'), el('span.mono.num'),
+            el('span.state'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num.late'),
             el('button.btn.sm', { type: 'button', text: 'Follow', title: 'Follow with camera', onclick: () => { app.follow(v.id); } })),
           (row, v) => {
             const c = row.children;
@@ -109,6 +127,8 @@ export function openVehicleList(app) {
             c[2].classList.toggle('neg', v.profitThisYear < 0);
             setText(c[3], money(v.profitLastYear));
             c[3].classList.toggle('neg', v.profitLastYear < 0);
+            setText(c[4], lateLabel(v));
+            c[4].classList.toggle('neg', hasVehicleTimetable(v) && (Number(v.lateDays) || 0) > 0);
           }, 'No vehicles yet — build a depot and buy one');
       };
       refresh();

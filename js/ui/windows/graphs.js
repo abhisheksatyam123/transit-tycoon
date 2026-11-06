@@ -120,7 +120,7 @@ export function drawChart(canvas, o) {
     ctx.fillText('No data yet: a point is recorded at each month end.', w / 2, h / 2);
     return;
   }
-  const padL = 64, padR = 12, padT = 10, padB = 26;
+  const padL = 64, padR = 12, padT = 26, padB = 26; // padT leaves a row for the legend
   const pw = w - padL - padR, ph = h - padT - padB;
   const sc = niceScale(all, 4);
   const yOf = (v) => padT + ph - ((v - sc.min) / (sc.max - sc.min)) * ph;
@@ -149,16 +149,19 @@ export function drawChart(canvas, o) {
     const last = s.values.length - 1;
     ctx.fillStyle = s.color;
     ctx.beginPath(); ctx.arc(xOf(last), yOf(s.values[last]), 3, 0, Math.PI * 2); ctx.fill();
-    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.textAlign = 'right';
     ctx.fillStyle = text;
-    ctx.fillText(fmt(s.values[last]), Math.min(xOf(last), w - padR), yOf(s.values[last]) - 5);
+    const ly = yOf(s.values[last]);
+    // keep the value label inside the plot: below the point when it would reach the legend row
+    if (ly - 17 < padT) { ctx.textBaseline = 'top'; ctx.fillText(fmt(s.values[last]), Math.min(xOf(last), w - padR), ly + 5); }
+    else { ctx.textBaseline = 'bottom'; ctx.fillText(fmt(s.values[last]), Math.min(xOf(last), w - padR), ly - 5); }
   }
   // legend
   ctx.textBaseline = 'top'; ctx.textAlign = 'left';
   let lx = padL;
   for (const s of o.series) {
-    ctx.fillStyle = s.color; ctx.fillRect(lx, 2, 10, 3);
-    ctx.fillStyle = text; ctx.fillText(s.name, lx + 14, 0);
+    ctx.fillStyle = s.color; ctx.fillRect(lx, 6, 10, 3);
+    ctx.fillStyle = text; ctx.fillText(s.name, lx + 14, 2);
     lx += 14 + ctx.measureText(s.name).width + 14;
   }
 }
