@@ -144,6 +144,9 @@ export function waitingAmount(st, cargoId) {
  * Add waiting cargo to a station (merges with last packet of same source).
  * `feeder` (optional, lazy): OpenTTD feeder share carried by the units, stored on the packet only when non-zero.
  */
+/** Max parcels (packets) per station cargo list; overflow merges into the newest packet. */
+export const MAX_PARCELS = 32;
+
 export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0) {
   if (amount <= 0) return 0;
   const list = st.cargo[cargoId] || (st.cargo[cargoId] = []);
@@ -151,11 +154,18 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
   const add = Math.max(0, Math.min(amount, cap - have));
   if (add <= 0) return 0;
   const fs = feeder > 0 ? Math.round((feeder * add) / amount) : 0;
-  const last = list[list.length - 1];
-  if (last && last.sourceX === sourceX && last.sourceY === sourceY) {
-    last.sinceTick = Math.round((last.sinceTick * last.amount + tick * add) / (last.amount + add));
-    last.amount += add;
-    if (fs) last.feeder = (last.feeder || 0) + fs;
+  // OpenTTD CargoList: units from the same source merge into one packet (weighted age) instead of piling up;
+  // the list is also capped at MAX_PARCELS by folding overflow into the newest packet.
+  let hit = null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const p = list[i];
+    if (p.sourceX === sourceX && p.sourceY === sourceY) { hit = p; break; }
+  }
+  if (!hit && list.length >= MAX_PARCELS) hit = list[list.length - 1];
+  if (hit) {
+    hit.sinceTick = Math.round((hit.sinceTick * hit.amount + tick * add) / (hit.amount + add));
+    hit.amount += add;
+    if (fs) hit.feeder = (hit.feeder || 0) + fs;
   } else {
     const p = { amount: add, sourceX, sourceY, sinceTick: tick };
     if (fs) p.feeder = fs;

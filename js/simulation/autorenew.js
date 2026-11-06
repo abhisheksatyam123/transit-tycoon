@@ -38,6 +38,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
     wagonModelId: v.wagonModelId || undefined,
     wagons: v.wagons || 0,
     cargoId: v.cargoId || undefined,
+    consist: v.consist ? v.consist.map((w) => ({ ...w })) : undefined,
   };
   // road vehicles keep their cargo when the new model carries it; otherwise the model's default cargo
   if (v.kind === 'road' && MODEL_BY_ID[newModelId] && !MODEL_BY_ID[newModelId].cargos.includes(v.cargoId)) spec.cargoId = undefined;
@@ -75,7 +76,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
     // the load stays only when the replacement carries the same cargo, capped at its capacity
     if (v.load) {
       nv.load = { ...v.load };
-      if (nv.cargoId !== v.cargoId) nv.load.amount = 0;
+      if (nv.cargoId !== v.cargoId || JSON.stringify(nv.consist || null) !== JSON.stringify(v.consist || null)) nv.load.amount = 0;
       else if (nv.load.amount > nv.capacity) nv.load.amount = nv.capacity;
     }
   }

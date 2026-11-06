@@ -32,12 +32,14 @@ export function openOrders(app, id) {
       const sharedLabel = el('div.muted.small.shared-orders', { text: '' });
       const unshareBtn = el('button.btn.sm', { type: 'button', text: 'Unshare', title: 'Give this vehicle its own copy of the order list', onclick: () => app.exec(app.game.unshareOrders(id), { quiet: true, sound: 'click' }) });
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
+      const needs2 = el('div.warn.small', { text: 'Needs 2+ orders (stations) to run a route.' });
+      needs2.hidden = true;
       const autofillBtn = el('button.btn.sm', { type: 'button', text: 'Autofill timetable', title: 'Record the measured wait and travel times over one round of orders', onclick: () => {
         const v = app.findVehicle(id);
         if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill), { quiet: true, sound: 'click' });
       } });
       const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear the recorded lateness', onclick: () => app.exec(app.game.resetLateness(id), { quiet: true, sound: 'click' }) });
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), hint);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn), el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), needs2, hint);
 
       const edit = (fn) => {
         const v = app.findVehicle(id);
@@ -55,6 +57,7 @@ export function openOrders(app, id) {
         const v = app.findVehicle(id);
         if (!v) { win.close(); return; }
         win.setTitle(`Orders — ${v.name}`);
+        needs2.hidden = new Set(v.orders.map((o) => o.stationId)).size >= 2;
         const adding = !!app.tool && app.tool.id === 'addOrder';
         addBtn.classList.toggle('active', adding);
         setText(addBtn, adding ? 'Click a station… (Esc)' : '+ Add order');

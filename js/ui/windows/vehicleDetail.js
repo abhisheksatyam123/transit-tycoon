@@ -5,6 +5,7 @@ import { el, setText, bar, setBar } from '../dom.js';
 import { money, num, speed } from '../format.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
+import { cargoSlices } from '../../simulation/orders.js';
 import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText, hasTimetable } from '../../simulation/orders.js';
@@ -110,9 +111,13 @@ export function openVehicleDetail(app, id) {
         set['State'](STATE_LABEL[v.state] || v.state);
         set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
         set['Altitude'](v.kind !== 'aircraft' ? '—' : (v.alt || 0) > 0.01 ? (v.alt >= 0.99 ? `${Math.round(v.alt * 100)}% · cruising` : `${Math.round(v.alt * 100)}% · climbing / descending`) : 'on the ground');
-        set['Cargo'](`${cargoName(v.cargoId)}${v.kind === 'train' ? ` · ${v.wagons} wagon(s)` : ''}`);
+        set['Cargo'](`${v.consist ? cargoSlices(v).map((c) => cargoName(c.cargoId)).join(' + ') : cargoName(v.cargoId)}${v.kind === 'train' ? ` · ${v.wagons} wagon(s)` : ''}`);
         const amt = v.load ? v.load.amount || 0 : 0;
         set['Load'](`${num(amt)} / ${num(v.capacity)}`);
+        if (v.consist) { // mixed consist: one line per cargo carried (with its share of the capacity)
+          const lines = cargoSlices(v).map((c) => `${cargoName(c.cargoId)} ${num((v.loads && v.loads[c.cargoId] && v.loads[c.cargoId].amount) || 0)} / ${num(c.capacity)}`);
+          set['Load'](`${num(amt)} / ${num(v.capacity)} · ${lines.join(' · ')}`);
+        }
         setBar(loadBar, v.capacity ? amt / v.capacity : 0, cargoColor(v.cargoId));
         set['Reliability'](Math.round((v.reliability || 0) * (v.reliability <= 1 ? 100 : 1)) + '%');
         set['Age'](ageText(v.age));

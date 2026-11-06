@@ -7,6 +7,7 @@ import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle, purchasable, modelAvailable } from './vehicles.js';
 import { MAX_WAGONS } from './constants.js';
+import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField } from './orders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain } from './routing.js';
@@ -16,6 +17,7 @@ import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { DIRS } from './constants.js';
+import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -197,6 +199,7 @@ export function cloneVehicle(ctx, id, opts = {}) {
   const depot = findDepot(state, src.depotId);
   if (!depot) return { ok: false, error: 'Vehicle has no depot to clone it in' };
   const spec = { modelId: src.modelId, wagonModelId: src.wagonModelId || undefined, wagons: src.wagons || 0, cargoId: src.cargoId || undefined };
+  if (src.consist) spec.consist = src.consist.map((w) => ({ ...w })); // mixed consist: same wagons in the same order
   const r = buyVehicle(ctx, depot.id, spec, { dryRun: !!opts.dryRun });
   if (!r.ok || opts.dryRun) return r;
   const v = r.vehicle;
@@ -352,6 +355,7 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   if (!supported.length) return { ok: false, error: 'Vehicle has no cargo to refit' };
   if (!supported.includes(cargoId)) return { ok: false, error: `Cannot carry ${cargoId}` };
   if (cargoId === v.cargoId) return { ok: false, error: 'Vehicle already carries that cargo' };
+  if (v.consist) return { ok: false, error: 'Mixed consist: wagons carry their own cargo' };
   if ((v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the vehicle before refitting' };
   let capacity = v.capacity;
   let base = model.cost;
@@ -406,6 +410,14 @@ function consistCheck(ctx, id, n) {
  */
 function applyWagonDelta(state, v, wagon, delta, unit) {
   const k = Math.abs(delta);
+  if (v.consist) {
+    const list = wagonList(v);
+    if (delta > 0) for (let i = 0; i < k; i++) list.push({ modelId: wagon.id, cargoId: wagon.cargos[0] });
+    else list.splice(list.length - k, k);
+    setWagonList(state, v, list);
+    if (delta > 0) v.value = (v.value || 0) + unit * k;
+    return k;
+  }
   v.wagonModelId = wagon.id;
   v.cargoId = v.cargoId || wagon.cargos[0];
   v.wagons += delta;
@@ -453,7 +465,7 @@ export function removeWagons(ctx, id, n, opts = {}) {
   // refund = the removed wagons' share of the train's current (depreciated) value: a new train refunds the
   // purchase price, an old one less (OpenTTD sells parts at their depreciated value)
   const engine = MODEL_BY_ID[v.modelId];
-  const fullPrice = (engine ? vehiclePrice(state, engine.cost) : 0) + unit * v.wagons;
+  const fullPrice = (engine ? vehiclePrice(state, engine.cost) : 0) + (v.consist ? consistPrice(state, v) : unit * v.wagons);
   const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit * n) / fullPrice)) : 0;
   if (opts.dryRun) return { ok: true, cost: refund, wagons: v.wagons - n, capacity: wagon.capacity * (v.wagons - n) };
   earn(state.company, refund, 'vehicles');
@@ -471,4 +483,91 @@ function depotOnTram(state, depot) {
   const nx = depot.x + (d ? d.dx : 0), ny = depot.y + (d ? d.dy : 0);
   if (!d || nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) return false;
   return !!map.tiles[ny * map.width + nx].tram;
+}
+
+/** Inflated price of all wagons of a mixed consist (what they cost to buy). */
+export function consistPrice(state, v) {
+  return wagonList(v).reduce((sum, w) => sum + wagonUnitPrice(state, w.modelId), 0);
+}
+
+/** Consist check for a mixed-consist edit: a train stopped in a depot (no load requirement: cargo follows its wagon). */
+function trainInDepot(ctx, id) {
+  const v = findVehicle(ctx.state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (v.kind !== 'train') return { ok: false, error: 'Only trains have wagons' };
+  if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its wagons' };
+  return { ok: true, v };
+}
+
+/**
+ * Add one wagon of model `modelId` to the end of a train (mixed consist when it differs from the others).
+ * opts.cargoId picks the cargo (default: the wagon model's first cargo). The train must be empty.
+ * @returns {{ok:true,cost:number,wagons:number,capacity:number}|{ok:false,error:string}}
+ */
+export function addWagonModel(ctx, id, modelId, opts = {}) {
+  const { state } = ctx;
+  const c = trainInDepot(ctx, id);
+  if (!c.ok) return c;
+  const { v } = c;
+  const wagon = MODEL_BY_ID[modelId];
+  if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
+  if (wagon.introYear > state.date.year) return { ok: false, error: 'Wagon not yet available' };
+  if (!purchasable(wagon, state.date.year)) return { ok: false, error: 'Wagon is obsolete' };
+  const cargoId = opts.cargoId || wagon.cargos[0];
+  if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
+  const list = wagonList(v);
+  if (list.length >= MAX_WAGONS) return { ok: false, error: `A train can have at most ${MAX_WAGONS} wagons` };
+  const cost = wagonUnitPrice(state, modelId);
+  const money = checkMoney(state, cost);
+  if (money) return money;
+  list.push({ modelId, cargoId });
+  if (opts.dryRun) return { ok: true, cost, wagons: list.length, capacity: listCapacity(list) };
+  spend(state.company, 'vehicles', cost);
+  setWagonList(state, v, list);
+  v.value = (v.value || 0) + cost;
+  return { ok: true, cost, wagons: v.wagons, capacity: v.capacity };
+}
+
+/**
+ * Sell the wagon at `index` of a train (mixed or not). Refund = its share of the train's depreciated value (as in
+ * removeWagons). The train must be stopped in a depot and empty of the sold wagon's cargo.
+ * @returns {{ok:true,cost:number,wagons:number,capacity:number}|{ok:false,error:string}}
+ */
+export function sellWagon(ctx, id, index, opts = {}) {
+  const { state } = ctx;
+  const c = trainInDepot(ctx, id);
+  if (!c.ok) return c;
+  const { v } = c;
+  const list = wagonList(v);
+  if (!Number.isInteger(index) || index < 0 || index >= list.length) return { ok: false, error: 'No such wagon' };
+  if ((v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the train before changing its wagons' };
+  const unit = wagonUnitPrice(state, list[index].modelId);
+  const engine = MODEL_BY_ID[v.modelId];
+  const fullPrice = (engine ? vehiclePrice(state, engine.cost) : 0) + consistPrice(state, v);
+  const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit) / fullPrice)) : 0;
+  list.splice(index, 1);
+  if (opts.dryRun) return { ok: true, cost: refund, wagons: list.length, capacity: listCapacity(list) };
+  earn(state.company, refund, 'vehicles');
+  setWagonList(state, v, list);
+  v.value = (v.value || 0) - refund;
+  return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
+}
+
+/**
+ * Move the wagon at `index` one place towards the engine (delta -1) or away (+1). Only the order of the wagons
+ * changes; the train must be stopped in a depot.
+ * @returns {{ok:true,index:number}|{ok:false,error:string}}
+ */
+export function moveWagon(ctx, id, index, delta, opts = {}) {
+  const c = trainInDepot(ctx, id);
+  if (!c.ok) return c;
+  const { v } = c;
+  const list = wagonList(v);
+  const to = index + (delta < 0 ? -1 : 1);
+  if (!Number.isInteger(index) || index < 0 || index >= list.length) return { ok: false, error: 'No such wagon' };
+  if (to < 0 || to >= list.length) return { ok: false, error: 'Wagon is already at the end' };
+  if (opts.dryRun) return { ok: true, index: to };
+  [list[index], list[to]] = [list[to], list[index]];
+  setWagonList(ctx.state, v, list);
+  return { ok: true, index: to };
 }

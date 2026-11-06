@@ -3,7 +3,9 @@
  */
 import { el, setText } from '../dom.js';
 import { money } from '../format.js';
-import { cargoName } from '../cargo.js';
+import { cargoName, cargoColor } from '../cargo.js';
+import { MODEL_BY_ID } from '../../config/vehicles.js';
+import { wagonList } from '../../simulation/consist.js';
 import { listOrEmpty } from './common.js';
 
 /**
@@ -12,28 +14,58 @@ import { listOrEmpty } from './common.js';
  */
 function consistStrip(app, id) {
   const blocks = el('span.consist-blocks');
-  const add = el('button.btn.sm', { type: 'button', text: '+ wagon', onclick: () => app.exec(app.game.addWagons(id, 1), { sound: 'click' }) });
+  const pick = el('select.sm', { title: 'Wagon model to add', 'aria-label': 'Wagon model' });
+  const add = el('button.btn.sm', { type: 'button', text: '+ wagon', onclick: () => {
+    const modelId = pick.value;
+    const r = modelId ? app.game.addWagonModel(id, modelId) : app.game.addWagons(id, 1);
+    app.exec(r, { sound: 'click' });
+  } });
   const del = el('button.btn.sm.danger', { type: 'button', text: '− wagon', onclick: () => app.exec(app.game.removeWagons(id, 1), { sound: 'click' }) });
   const note = el('span.muted.small');
-  return el('div.consist-row', null, blocks, add, del, note);
+  const row = el('div.consist-row', null, blocks, pick, add, del, note);
+  row._pick = pick;
+  return row;
 }
 
-/** Refresh a consist strip: blocks, button labels (price / refund) and disabled reasons. */
+/** Wagon models that can be bought in the current year (the picker's options). */
+function wagonOptions(app) {
+  return app.game.listModels('wagon').filter((m) => m.kind === 'wagon');
+}
+
+/** Refresh a consist strip: per-wagon blocks (with move / sell), button labels (price / refund), disabled reasons. */
 function updateConsistStrip(strip, app, v) {
-  const [blocks, add, del, note] = strip.children;
+  const [blocks, pick, add, del, note] = strip.children;
+  const g = app.game;
+  // picker: keep the current options (wagon models) and the last choice
+  if (!pick.options.length || pick.dataset.n !== String(wagonOptions(app).length)) {
+    pick.textContent = '';
+    for (const m of wagonOptions(app)) pick.appendChild(el('option', { value: m.id, text: `${m.name} (${money(m.cost)})` }));
+    pick.dataset.n = String(wagonOptions(app).length);
+  }
   blocks.textContent = '';
   blocks.appendChild(el('span.consist-block.engine', { text: 'E', title: 'Engine' }));
-  for (let i = 0; i < (v.wagons || 0); i++) blocks.appendChild(el('span.consist-block.wagon', { text: 'W', title: 'Wagon' }));
-  const g = app.game;
-  const a = g.addWagons(v.id, 1, { dryRun: true });
+  const list = wagonList(v);
+  list.forEach((w, i) => {
+    const m = MODEL_BY_ID[w.modelId];
+    const title = `${m ? m.name : w.modelId} (${cargoName(w.cargoId)})`;
+    const b = el('span.consist-block.wagon', { text: 'W', title });
+    b.dataset.index = String(i);
+    b.style.background = cargoColor(w.cargoId);
+    const toLeft = el('button.btn.sm.wagon-move', { type: 'button', text: '◀', title: 'Move wagon towards the engine', onclick: () => app.exec(g.moveWagon(v.id, i, -1), { sound: 'click' }) });
+    const toRight = el('button.btn.sm.wagon-move', { type: 'button', text: '▶', title: 'Move wagon away from the engine', onclick: () => app.exec(g.moveWagon(v.id, i, 1), { sound: 'click' }) });
+    const sell = el('button.btn.sm.danger.wagon-sell', { type: 'button', text: '×', title: `Sell this ${title}`, onclick: () => app.exec(g.sellWagon(v.id, i), { sound: 'click' }) });
+    blocks.appendChild(el('span.wagon-cell', null, toLeft, b, toRight, sell));
+  });
+  const a = g.addWagonModel(v.id, pick.value || 'wag_hopper', { dryRun: true });
   const r = g.removeWagons(v.id, 1, { dryRun: true });
   add.textContent = a.ok ? `+ wagon (${money(a.cost)})` : '+ wagon';
   add.disabled = !a.ok;
-  add.title = a.ok ? 'Buy one more wagon for this train' : a.error;
-  del.textContent = r.ok ? `− wagon (refund ${money(r.cost)})` : '− wagon';
+  add.title = a.ok ? 'Buy one more wagon of the chosen model at the end of this train' : a.error;
+  del.textContent = r.ok ? `− last wagon (refund ${money(r.cost)})` : '− wagon';
   del.disabled = !r.ok;
-  del.title = r.ok ? 'Sell one wagon of this train' : r.error;
-  setText(note, `${v.wagons || 0} wagon(s) · ${v.capacity || 0} capacity`);
+  del.title = r.ok ? 'Sell the last wagon of this train' : r.error;
+  const mixed = !!v.consist;
+  setText(note, `${v.wagons || 0} wagon(s) · ${v.capacity || 0} capacity${mixed ? ' · mixed consist' : ''}`);
 }
 
 /**

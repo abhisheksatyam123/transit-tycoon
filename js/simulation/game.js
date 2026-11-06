@@ -249,6 +249,12 @@ export class Game {
   /** Consist editor (T19): add / sell wagons of a train stopped empty in a depot. */
   addWagons(id, n, opts) { return vcmd.addWagons(this.ctx, id, n, opts); }
   removeWagons(id, n, opts) { return vcmd.removeWagons(this.ctx, id, n, opts); }
+  /** Mixed consists: add a wagon of `modelId` at the end of a train (cargoId optional). */
+  addWagonModel(id, modelId, opts) { return vcmd.addWagonModel(this.ctx, id, modelId, opts); }
+  /** Mixed consists: sell the wagon at `index` (its share of the depreciated value is refunded). */
+  sellWagon(id, index, opts) { return vcmd.sellWagon(this.ctx, id, index, opts); }
+  /** Mixed consists: move the wagon at `index` one place (delta -1 towards the engine, +1 away). */
+  moveWagon(id, index, delta, opts) { return vcmd.moveWagon(this.ctx, id, index, delta, opts); }
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   /** Service interval in days for one vehicle (0 = off). */

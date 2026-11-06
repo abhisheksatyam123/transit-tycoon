@@ -69,6 +69,7 @@ export function resolvePurchase(depot, spec, year) {
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
   if (isTrain) {
+    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running);
     wagons = spec.wagons === undefined ? 3 : Math.floor(spec.wagons);
     if (!(wagons >= 0 && wagons <= MAX_WAGONS)) return { ok: false, error: `Wagons must be 0..${MAX_WAGONS}` };
     if (wagons > 0) {
@@ -90,6 +91,31 @@ export function resolvePurchase(depot, spec, year) {
     if (!model.cargos.includes(cargoId)) return { ok: false, error: `${model.name} cannot carry ${cargoId}` };
   }
   return { ok: true, cost, template: { model, wagonModelId, wagons, cargoId, capacity, running } };
+}
+
+/**
+ * Mixed consist (spec.consist = [{modelId, cargoId?}] per wagon, engine excluded): every wagon is checked like a
+ * single-model purchase; the template carries the list so createVehicle can set v.consist.
+ */
+function resolveMixed(model, list, year, cost, running) {
+  const consist = [];
+  for (const w of list) {
+    const wagon = MODEL_BY_ID[w && w.modelId];
+    if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
+    if (wagon.introYear > year) return { ok: false, error: 'Wagon not yet available' };
+    if (!purchasable(wagon, year)) return { ok: false, error: 'Wagon is obsolete' };
+    const cargoId = (w.cargoId) || wagon.cargos[0];
+    if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
+    consist.push({ modelId: wagon.id, cargoId });
+    cost += wagon.cost;
+    running += wagon.running;
+  }
+  if (consist.length > MAX_WAGONS) return { ok: false, error: `Wagons must be 0..${MAX_WAGONS}` };
+  const capacity = consist.reduce((s, w) => s + MODEL_BY_ID[w.modelId].capacity, 0);
+  const uniform = consist.every((w) => w.modelId === consist[0].modelId && w.cargoId === consist[0].cargoId);
+  const first = consist[0] || {};
+  return { ok: true, cost, template: { model, wagonModelId: first.modelId || null, wagons: consist.length, cargoId: first.cargoId || null,
+    capacity, running, consist: uniform ? null : consist } };
 }
 
 /**
@@ -120,6 +146,7 @@ export function createVehicle(state, depot, template, cost) {
     ...(model.kind === 'aircraft' ? { alt: 0 } : {}),
     ...defaultServiceFields(state), // service interval (setting default; absent when off)
   };
+  if (template.consist) { v.consist = template.consist.map((w) => ({ ...w })); } // mixed consist (resolveMixed)
   state.vehicles.push(v);
   return v;
 }

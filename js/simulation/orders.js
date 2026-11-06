@@ -16,6 +16,7 @@ import { notify } from './news.js';
 import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
+import { MODEL_BY_ID } from '../config/vehicles.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
 export const FEEDER_PAYMENT_SHARE = 75;
@@ -78,6 +79,14 @@ export function setOrderField(state, v, idx, patch) {
   }
 }
 
+/**
+ * Number of distinct stations in a vehicle's orders. A full-load order needs at least 2 (OpenTTD-style: a
+ * single-station route cannot wait for cargo that only it could deliver), so with fewer the vehicle departs.
+ */
+export function distinctOrderStations(v) {
+  return new Set(v.orders.map((o) => o.stationId)).size;
+}
+
 /** Current order of a vehicle or null. */
 export function currentOrder(v) {
   return v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
@@ -100,6 +109,57 @@ export function advanceOrder(v) {
  * @returns {number} cash income earned (transfer credits are not cash)
  */
 export function unload(ctx, v, st) {
+  if (!v.consist) return unloadSlice(ctx, v, st);
+  let income = 0;
+  for (const s of cargoSlices(v)) income += inSlice(v, s.cargoId, s.capacity, () => unloadSlice(ctx, v, st));
+  return income;
+}
+
+/** Mixed consists (v.consist): the wagons' cargo slices, one per cargo, with their total capacity. */
+export function cargoSlices(v) {
+  const out = [];
+  for (const w of v.consist || []) {
+    const s = out.find((x) => x.cargoId === w.cargoId);
+    const cap = (MODEL_BY_ID[w.modelId] ? MODEL_BY_ID[w.modelId].capacity : 0);
+    if (s) s.capacity += cap; else out.push({ cargoId: w.cargoId, capacity: cap });
+  }
+  return out;
+}
+
+/**
+ * Mixed consists: run fn with v.load / v.cargoId / v.capacity set to one cargo slice (its packet is kept in
+ * v.loads[cargo]), then restore the whole-train view and recount v.load.amount. Single-cargo trains never call this.
+ */
+function inSlice(v, cargoId, capacity, fn) {
+  const whole = { load: v.load, cargoId: v.cargoId, capacity: v.capacity };
+  v.loads = v.loads || {};
+  const packet = v.loads[cargoId] || (v.loads[cargoId] = { amount: 0, sourceX: whole.load.sourceX, sourceY: whole.load.sourceY, sinceTick: whole.load.sinceTick, fromStationId: null });
+  v.load = packet; v.cargoId = cargoId; v.capacity = capacity;
+  try { return fn(); } finally {
+    v.load = whole.load; v.cargoId = whole.cargoId; v.capacity = whole.capacity;
+    syncLoad(v);
+  }
+}
+
+/** Full load: a plain train is full at capacity; a mixed consist only when every cargo slice is full. */
+export function isFull(v) {
+  if (!v.consist) return v.load.amount >= v.capacity;
+  return cargoSlices(v).every((s) => ((v.loads && v.loads[s.cargoId] && v.loads[s.cargoId].amount) || 0) >= s.capacity);
+}
+
+/** Whole-train load amount of a mixed consist = sum of its cargo packets (drops empty packets). */
+export function syncLoad(v) {
+  if (!v.consist) return;
+  let total = 0;
+  for (const k of Object.keys(v.loads || {})) {
+    const p = v.loads[k];
+    if (!p || !(p.amount > 0)) { delete v.loads[k]; continue; }
+    total += p.amount;
+  }
+  v.load.amount = total;
+}
+
+function unloadSlice(ctx, v, st) {
   const load = v.load;
   const mode = unloadMode(currentOrder(v));
   if (mode === 'none' || !load.amount || !v.cargoId) return 0;
@@ -193,6 +253,13 @@ function creditDelivery(state, st, cargoId, amount) {
  * @returns {number} amount loaded
  */
 export function loadCargo(ctx, v, st) {
+  if (!v.consist) return loadSlice(ctx, v, st);
+  let got = 0;
+  for (const s of cargoSlices(v)) got += inSlice(v, s.cargoId, s.capacity, () => loadSlice(ctx, v, st));
+  return got;
+}
+
+function loadSlice(ctx, v, st) {
   const { state } = ctx;
   if (!v.cargoId || v.capacity <= 0) return 0;
   const model = vehicleModel(v);
@@ -264,7 +331,7 @@ export function loadingTick(ctx, v) {
   const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
   if (!order || (order.load !== 'none' && !dropped)) loadCargo(ctx, v, st);
   if (order && order.full && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
-    && order.stationId === st.id && v.load.amount < v.capacity) {
+    && order.stationId === st.id && !isFull(v) && distinctOrderStations(v) >= 2) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
   }
