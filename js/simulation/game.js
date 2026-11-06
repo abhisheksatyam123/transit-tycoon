@@ -168,6 +168,8 @@ export class Game {
   buildRail(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, opts); }
   /** Player rail tunnel between two portals on a straight line (see cmdTrack buildTunnel). */
   buildTunnel(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }); }
+  /** Player rail valley bridge between two heads on a straight line (see cmdTrack buildLandBridge). */
+  buildLandBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
   buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}); }
   /** Build along an explicit 4-connected tile path (opts.loop = closed ring); see shapes.js. */
   buildRailPath(path, opts) { return buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...(opts || {}), path }); }

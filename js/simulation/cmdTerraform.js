@@ -39,6 +39,7 @@ function blockReason(map, x, y) {
   if (t.terrain === 'water') return ERR.water;
   if (t.building) return TERRA_ERR.structure;
   if (t.tunnel || t.tunnelPortal) return TERRA_ERR.tunnel;
+  if (t.bridgeDeck !== undefined || t.playerBridge) return 'Bridge above: its ground cannot change';
   if (t.rail || t.road) return ERR.track;
   for (const [dx, dy] of NB8) {
     const nx = x + dx, ny = y + dy;

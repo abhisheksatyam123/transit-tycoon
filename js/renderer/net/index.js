@@ -19,7 +19,7 @@ const cache = new WeakMap();
 export const RIBBON_MARGIN = 0.5;
 
 function bitsOf(t, kind) {
-  if (kind === 'rail') return t.tunnel ? 0 : (t.rail | 0);
+  if (kind === 'rail') return (t.tunnel || t.bridgeDeck !== undefined) ? 0 : (t.rail | 0);
   return t.road | 0;
 }
 

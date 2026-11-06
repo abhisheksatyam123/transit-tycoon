@@ -1,3 +1,4 @@
+import { buildLandBridge, landBridgeCells } from './landBridges.js';
 /**
  * Track commands: buildRail, buildRoad (shared line builder) and demolish.
  */
@@ -227,6 +228,10 @@ export function bridgeCells(map, x, y, layer) {
 export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
   const map = state.map;
+  if (opts.bridge === true) {
+    if (layer !== 'rail') return { ok: false, error: 'Only rail can have valley bridges' };
+    return buildLandBridge(ctx, x0, y0, x1, y1, opts);
+  }
   if (opts.tunnel === true) {
     if (layer !== 'rail') return { ok: false, error: 'Only rail can be tunnelled' };
     return buildTunnel(ctx, x0, y0, x1, y1, opts);
@@ -376,6 +381,12 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       }
     }
   }
+  // a player land bridge (deck + both heads) is removed as a whole
+  for (const c of [...cells]) {
+    for (const q of landBridgeCells(map, c.x, c.y)) {
+      if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
+    }
+  }
   // a player tunnel (both portals and the run between) is removed as a whole
   for (const c of [...cells]) {
     for (const q of tunnelCells(map, c.x, c.y)) {
@@ -457,6 +468,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else if (j.kind === 'track') {
       delete t.signal;
       if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }
+      if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; }
       stripLayer(map, j.x, j.y, 'rail');
       stripLayer(map, j.x, j.y, 'road');
       t.owner = null;
@@ -466,3 +478,5 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   spend(state.company, 'construction', cost);
   return { ok: true, cost, tiles: jobs.length };
 }
+
+export { buildLandBridge, landBridgeCells } from './landBridges.js';

@@ -29,7 +29,7 @@ export function createLineTool(app, o) {
   let lastKey = '';
   let shape = 'L';
   let highway = false;
-  let tunnel = false; // rail only: U toggles a player tunnel for the drag
+  let railMode = 'normal'; // rail only: U cycles normal -> tunnel -> bridge -> normal
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
@@ -38,19 +38,22 @@ export function createLineTool(app, o) {
     return r ? r.path : lTiles(x0, y0, x1, y1);
   };
   const build = (g, x0, y0, x1, y1, opts) => {
+    const tunnel = railMode === 'tunnel';
+    const bridge = railMode === 'bridge';
     const r = shape === 'L' ? null : routeFor(shape, x0, y0, x1, y1);
-    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel });
+    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge });
     if (tunnel) return { ok: false, error: 'Tunnels must be straight' };
+    if (bridge) return { ok: false, error: 'Bridges must be straight' };
     const fn = o.layer === 'rail' ? g.buildRailPath : g.buildRoadPath;
     return fn.call(g, r.path, { ...opts, highway, loop: r.loop });
   };
 
   const preview = (end) => {
     if (!start || !end) return;
-    const key = `${shape},${highway},${tunnel},${start.x},${start.y},${end.x},${end.y}`;
+    const key = `${shape},${highway},${railMode},${start.x},${start.y},${end.x},${end.y}`;
     if (key !== lastKey) {
       lastKey = key;
-      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel });
+      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel: railMode === 'tunnel', bridge: railMode === 'bridge' });
       lastResult = res && res.ok
         ? { ok: true, label: money(res.cost || 0) }
         : { ok: false, label: (res && res.error) || 'Not possible' };
@@ -64,17 +67,21 @@ export function createLineTool(app, o) {
     get hint() {
       const base = (typeof o.hint === 'function' ? o.hint() : o.hint)
         + (o.layer ? ` Shape: ${SHAPES.map((k) => (k === shape ? `[${SHAPE_LABEL[k]}]` : SHAPE_LABEL[k])).join(' | ')} (C cycles).` : '');
-      if (o.layer === 'rail') return base + ` Underground: ${tunnel ? '[Tunnel]' : 'Surface'} (U toggles).`;
+      if (o.layer === 'rail') {
+        const modeLabel = railMode === 'tunnel' ? '[Tunnel]' : railMode === 'bridge' ? '[Bridge]' : 'Surface';
+        return base + ` Mode: ${modeLabel} (U cycles).`;
+      }
       return o.layer === 'road' ? base + ` Class: ${highway ? '[Highway — 4-lane]' : 'Local'} (H toggles).` : base;
     },
     key(e) {
       if (!o.layer) return false;
       if (o.layer === 'rail' && (e.key === 'u' || e.key === 'U')) {
-        tunnel = !tunnel;
+        railMode = railMode === 'normal' ? 'tunnel' : railMode === 'tunnel' ? 'bridge' : 'normal';
         lastKey = '';
         if (start) preview(start);
         app.ui?.updateHint?.();
-        app.toast?.(`Rail: ${tunnel ? 'tunnel (underground)' : 'surface'}`, 'info');
+        const desc = railMode === 'tunnel' ? 'tunnel (underground)' : railMode === 'bridge' ? 'bridge (over valley)' : 'surface';
+        app.toast?.(`Rail: ${desc}`, 'info');
         return true;
       }
       if (o.layer === 'road' && (e.key === 'h' || e.key === 'H')) {

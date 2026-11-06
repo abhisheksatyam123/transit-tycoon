@@ -72,6 +72,7 @@ export function isStaircaseCorner(map, x, y, mask) {
  * @param {number} [y] tile y
  */
 export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
+  if (tile.bridgeDeck !== undefined) return; // drawn as elevated deck by drawLandBridgeDeck in objects pass
   // smooth net ribbons draw this road/rail surface (drawNetTile); terrain already drew the ground
   if (map && netDrawsSurface(map, tile, x, y)) return;
   const b = tile.building;
