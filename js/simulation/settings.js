@@ -9,6 +9,8 @@ export const DEFAULT_SETTINGS = {
   /** monthly inflation of costs and cargo payments (OpenLoco Economy::updateMonthly) */
   /** building eras (gap #31b): towns build period-appropriate houses by year. Off = unchanged. */
   buildingEras: false,
+  /** multi-tile houses (OpenTTD 1x2 / 2x2 temperate houses, largeHouses.js): towns may build them. Off = unchanged. */
+  largeHouses: false,
   inflation: true,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,

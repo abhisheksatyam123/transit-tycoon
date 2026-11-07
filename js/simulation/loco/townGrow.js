@@ -23,6 +23,7 @@
  */
 import { DIR_BY_BIT, OPPOSITE } from '../constants.js';
 import { layStreet, placeHouse, nextToRoad } from '../towns.js';
+import { placeLargeHouse } from '../largeHouses.js';
 import { erasEnabled, eraHouse, houseAllowedInYear, pickEraHouse } from '../buildingEras.js';
 import { roadAllowedHere, nextGrowthAction } from '../townLayout.js';
 import { pickStyle, tileDist } from '../scenarios/moscowStyles.js';
@@ -258,6 +259,8 @@ function constructBuilding(game, town, x, y, dir) {
   const dist = Math.abs(bx - town.x) + Math.abs(by - town.y);
   const centrality = Math.max(0, 1 - dist / (R * 1.5));
   const level = Math.max(1, Math.min(cap, 1 + Math.floor(centrality * 3 * rng.range(0.6, 1.3))));
+  // largeHouses (opt-in): a 1x2 / 2x2 house may cover this site instead of a 1x1 house
+  if (placeLargeHouse(state, rng, town, bx, by, level, state.date.year)) return;
   if (!placeHouse(state, rng, town, bx, by, level)) return;
   if (state.scenario === 'moscow') {
     const k = state.scenarioMeta?.focus ?? town;

@@ -25,6 +25,7 @@ import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
 import { removeHQ } from './cmdHQ.js';
 import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
+import { clearHouseAt } from './largeHouses.js';
 import { lockParts } from './cmdCanal.js';
 
 /**
@@ -502,6 +503,8 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else if (j.kind === 'hq') {
       removeHQ(state); // T31: no refund
     } else if (j.kind === 'house') {
+      if (!t.building) continue; // already cleared as a part of a multi-tile house
+      if (t.building.size) { clearHouseAt(state, j.x, j.y); continue; } // largeHouses: all parts go together
       const town = findTown(state, t.building.townId);
       if (town) town.houses = town.houses.filter((h) => h.x !== j.x || h.y !== j.y);
       t.building = null; t.owner = null;

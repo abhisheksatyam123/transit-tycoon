@@ -12,6 +12,7 @@ import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } fro
 import { allocId, findTown, nearestTown } from './state.js';
 import { removeStationTile, removeDepot } from './cmdStation.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
+import { clearHouseAt } from './largeHouses.js';
 
 /**
  * Build an airport with its top-left footprint corner at (x,y). opts.type: airport type id (default city).
@@ -56,6 +57,8 @@ export function buildAirport(ctx, x, y, opts = {}) {
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null, depotId: null };
   for (const p of houses) {
     const t = map.tiles[p.y * map.width + p.x];
+    if (!t.building) continue; // cleared with an earlier part of a multi-tile house
+    if (t.building.size) { clearHouseAt(state, p.x, p.y); continue; }
     const town = findTown(state, t.building.townId);
     if (town) town.houses = town.houses.filter((h) => h.x !== p.x || h.y !== p.y);
     t.building = null; t.owner = null;

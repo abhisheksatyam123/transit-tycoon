@@ -65,6 +65,8 @@ export const SETTING_META = [
     help: 'Banks (valuables) appear in towns of 1200+ people. Also adds quarries, paper mills, printing works, building materials and food plants (stone, paper, food chains) with their vehicles. Changing it later only affects new placements.' },
   { key: 'buildingEras', group: 'environment', label: 'Building eras', type: 'check', newGame: true,
     help: 'Towns build houses of their period: 1950s cottages and terraces, then 1960s+ office blocks and flats, 1970s+ tower blocks. Old houses are rebuilt as newer types. Off = the classic house mix.' },
+  { key: 'largeHouses', group: 'environment', label: 'Large houses (2x1, 2x2)', type: 'check', newGame: true,
+    help: 'Towns sometimes build multi-tile houses (1x2 and 2x2, OpenTTD style) on free flat land inside the town. Off = 1x1 houses only.' },
 ];
 
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */
