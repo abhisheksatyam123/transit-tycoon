@@ -234,7 +234,9 @@ export function updateMonthly(game, ind, notify) {
   if (getSetting(state, 'farmFields')) updateFarmMonthly(game, ind); // T29 opt-in: fields grow, productionRate follows
   const primary = requiredCargos(type).length === 0;
   const at = (text, kind, cat) => notify && notify(text, kind, ind.x + (ind.w >> 1), ind.y + (ind.h >> 1), cat);
-  if (!ind.closingDown && primary) {
+  // EF economyType 'frozen' (OpenTTD ET_FROZEN, industry_cmd.cpp:2926): no production changes and no closures; no draws.
+  const frozen = getSetting(state, 'economyType') === 'frozen';
+  if (!frozen && !ind.closingDown && primary) {
     if (isMonthlyProductionUp(rng, ind)) {
       ind.dailyProductionTarget[0] = Math.min(100, ind.dailyProductionTarget[0] * 2);
       ind.dailyProductionTarget[1] = Math.min(100, ind.dailyProductionTarget[1] * 2);
@@ -247,7 +249,7 @@ export function updateMonthly(game, ind, notify) {
       hasEvent = true;
     }
   }
-  if (!hasEvent && !state.disallowIndustriesCloseDown && !ind.closingDown) {
+  if (!frozen && !hasEvent && !state.disallowIndustriesCloseDown && !ind.closingDown) {
     if (isMonthlyProductionClosing(rng, state, ind)) {
       ind.closingDown = true;
       ind.dailyProductionTarget = [0, 0];

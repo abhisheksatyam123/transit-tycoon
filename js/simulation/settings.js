@@ -63,6 +63,8 @@ export const DEFAULT_SETTINGS = {
   /** articulatedRV: articulated buses / lorries / trams (config ARTIC_VEHICLE_MODELS, articulated.js). Off = not offered. */
   articulatedRV: false,
   /** economy recessions (OpenTTD fluct): cargo and passengers halved for ~a year, every 1-3 years. Off by default. */
+  /** EF economy type (OpenTTD economy.type, economy_settings.ini:197): 'openloco' = current TT/OpenLoco monthly production up/down and closures (default); 'frozen' = OpenTTD Frozen (ChangeIndustryProduction early return, industry_cmd.cpp:2926): no production changes and no closures; new industries still appear. */
+  economyType: 'openloco',
   economyRecessions: false,
   /** disasters (OpenTTD difficulty.disasters): a zeppelin crashes on an airport runway and blocks landings for a while; a small UFO destroys a road vehicle. Off by default. */
   disasters: false,
