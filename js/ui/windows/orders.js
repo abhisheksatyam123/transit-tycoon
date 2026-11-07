@@ -27,7 +27,7 @@ import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
-import { depotDisplayName } from '../../simulation/cmdRename.js';
+import { depotDisplayName, waypointDisplayName, isWaypointRecord } from '../../simulation/cmdRename.js';
 import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['fullAny', 'Full load any'], ['none', 'No loading']];
@@ -333,7 +333,7 @@ export function openOrders(app, id) {
             const depotName = nearest ? 'nearest depot' : dep ? depotDisplayName(dep) : `depot #${it.o.depotId} (removed)`;
             const depotText = `Go to ${depotName}${orderFlagText(it.o)}`;
             setText(row.children[1], isDepot ? depotText
-              : `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);
+              : `${orderVerb(it.o)} ${st ? (isWaypointRecord(st) ? waypointDisplayName(st) : st.name) : `Station #${it.o.stationId} (removed)`}`);
             const ctl = row.querySelector(':scope > .order-flags > .depot-ctl');
             if (ctl) {
               ctl.hidden = !isDepot;

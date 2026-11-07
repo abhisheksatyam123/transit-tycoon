@@ -5,13 +5,14 @@
  */
 import { openPrompt } from './prompt.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
-import { depotDisplayName, engineDisplayName, presidentDisplayName } from '../simulation/cmdRename.js';
+import { depotDisplayName, engineDisplayName, presidentDisplayName, waypointDisplayName } from '../simulation/cmdRename.js';
 
 /** @type {Record<string,{title:string,current:(app:any,id:any)=>string|undefined,cmd:(g:any,id:any,name:string)=>any}>} */
 const KINDS = {
   station: { title: 'Rename station', current: (app, id) => (app.findStation(id) || {}).name, cmd: (g, id, n) => g.renameStation(id, n) },
   vehicle: { title: 'Rename vehicle', current: (app, id) => (app.findVehicle(id) || {}).name, cmd: (g, id, n) => g.renameVehicle(id, n) },
   depot: { title: 'Rename depot', current: (app, id) => { const d = app.findDepot(id); return d ? depotDisplayName(d) : undefined; }, cmd: (g, id, n) => g.renameDepot(id, n) },
+  waypoint: { title: 'Rename waypoint', current: (app, id) => { const w = app.findStation(id); return w ? waypointDisplayName(w) : undefined; }, cmd: (g, id, n) => g.renameWaypoint(id, n) },
   town: { title: 'Rename town', current: (app, id) => (app.findTown(id) || {}).name, cmd: (g, id, n) => g.renameTown(id, n) },
   engine: { title: 'Rename engine', current: (app, id) => engineLabel(app, id), cmd: (g, id, n) => g.renameEngine(id, n) },
   president: { title: 'Rename president', current: (app) => presidentDisplayName(app.game.state), cmd: (g, _id, n) => g.renamePresident(n) },
@@ -26,7 +27,7 @@ function engineLabel(app, id) {
 
 /**
  * @param {import('./app.js').App} app
- * @param {'station'|'vehicle'|'town'|'company'|'depot'|'engine'|'president'} kind
+ * @param {'station'|'vehicle'|'town'|'company'|'depot'|'engine'|'president'|'waypoint'} kind
  * @param {number|null} [id] entity id (null for the company / president)
  * @param {() => void} [after] called after a successful rename (e.g. to refresh a list)
  */

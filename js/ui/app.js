@@ -31,7 +31,7 @@ const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoa
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setTypeColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'copyOrders', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
-  'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameEngine', 'renamePresident', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
   'expandTown', 'deleteTown', 'demolishIndustry'];
 
 /**
@@ -377,6 +377,7 @@ export class App {
     if (!forceInfo && b) {
       if (b.type === 'depot') return this.open('depot', b.depotId);
       if (b.type === 'station' && b.kind === 'airport' && b.part === 'hangar' && b.depotId != null) return this.open('depot', b.depotId);
+      if (b.type === 'station' && b.kind === 'waypoint') return this.open('waypoint', b.stationId);
       if (b.type === 'station') return this.open('station', b.stationId);
       if (b.type === 'industry') return this.open('industry', b.industryId);
     }

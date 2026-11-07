@@ -162,3 +162,39 @@ export const PRESIDENT_DEFAULT_NAME = 'Unnamed president';
 export function presidentDisplayName(state) {
   return (state && state.company && state.company.presidentName) || PRESIDENT_DEFAULT_NAME;
 }
+
+/**
+ * Default label of a waypoint (its station record name when never renamed): "Waypoint n" for rail,
+ * "Road waypoint n" for road (cmdWaypoint.js). The station record always holds a name; blank resets to this.
+ */
+export function waypointDefaultName(st) {
+  return st && st.tiles && st.tiles.length && st.tiles[0].road ? `Road waypoint ${st.id}` : `Waypoint ${st.id}`;
+}
+
+/** Display name of a waypoint: its name, else the default label. Used by the waypoint and orders windows. */
+export function waypointDisplayName(st) {
+  return (st && st.name) || waypointDefaultName(st);
+}
+
+/** True when a station record is a waypoint (rail or road): every tile is kind 'waypoint'. */
+export function isWaypointRecord(st) {
+  return !!st && st.tiles.length > 0 && st.tiles.every((p) => p.kind === 'waypoint');
+}
+
+/**
+ * Rename a rail or road waypoint (OpenTTD CmdRenameStation applied to a waypoint). Owner-checked (rival
+ * waypoints refused). Names are unique among waypoints only (case-insensitive, the waypoint excluded).
+ * A blank name resets to the default label ("Waypoint n" / "Road waypoint n").
+ */
+export function renameWaypoint(ctx, id, name, opts = {}) {
+  const { state } = ctx;
+  const st = findStation(state, id);
+  if (!st || !isWaypointRecord(st)) return { ok: false, error: 'Unknown waypoint' };
+  if (ownerMismatch(st, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (typeof name === 'string' && !name.trim()) {
+    if (!opts.dryRun) st.name = waypointDefaultName(st);
+    return { ok: true, cost: 0, name: waypointDefaultName(st) };
+  }
+  const others = state.stations.filter((s) => isWaypointRecord(s));
+  return renameWith(st, name, others, 'A waypoint with this name already exists', opts);
+}
