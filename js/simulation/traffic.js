@@ -76,10 +76,32 @@ function occKey(tile, bit) { return tile * 4 + BIT_INDEX[bit]; }
 
 /** Reused occupancy buffer (one Int32 per tile and outgoing direction), sized to the map. */
 let scratch = null;
+let occOwner = null;
+/** Keys incremented this tick (cleared at the start of the next tick instead of refilling the map). */
+let occTouched = new Int32Array(1024);
+let nOccTouched = 0;
 function occupancyScratch(state) {
   const n = state.map.width * state.map.height * 4;
-  if (!scratch || scratch.length !== n) scratch = new Int32Array(n);
+  if (!scratch || scratch.length !== n || occOwner !== state) {
+    scratch = new Int32Array(n);
+    occOwner = state;
+    nOccTouched = 0;
+  } else {
+    for (let i = 0; i < nOccTouched; i++) scratch[occTouched[i]] = 0;
+    nOccTouched = 0;
+  }
   return scratch;
+}
+
+/** Increment an occupancy count and remember the key so it can be cleared next tick. */
+function occAdd(occ, k) {
+  occ[k]++;
+  if (nOccTouched === occTouched.length) {
+    const grown = new Int32Array(occTouched.length * 2);
+    grown.set(occTouched);
+    occTouched = grown;
+  }
+  occTouched[nOccTouched++] = k;
 }
 
 /**
@@ -87,19 +109,17 @@ function occupancyScratch(state) {
  * @returns {Map<number,number>}
  */
 function buildOccupancy(state, cars, occ) {
-  occ.fill(0);
-  const add = (k) => { occ[k]++; };
   const W = state.map.width;
   for (const c of cars) {
     const a = c.path[c.i], b = c.path[c.i + 1];
     if (b === undefined) continue;
-    add(occKey(a, linkBit(state.map, a, b)));
+    occAdd(occ, occKey(a, linkBit(state.map, a, b)));
   }
   for (const v of state.vehicles) {
     // loading buses/trucks stand in the stop bay and do not block the through lane
     if (v.kind !== 'road' || v.roadType === 'tram' || v.state === 'loading' || !v.path || v.pathIndex >= v.path.length - 1) continue;
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
-    add(occKey(a.y * W + a.x, linkBit(state.map, a.y * W + a.x, b.y * W + b.x)));
+    occAdd(occ, occKey(a.y * W + a.x, linkBit(state.map, a.y * W + a.x, b.y * W + b.x)));
   }
   return occ;
 }
@@ -137,7 +157,7 @@ function spawnCars(ctx, tr, rng, occ) {
     // origin lane full: the trip is suppressed (demand the street cannot absorb)
     const k0 = occKey(plan.path[0], linkBit(state.map, plan.path[0], plan.path[1]));
     if (occ[k0] >= laneCapacity(state.map, plan.path[0])) { tr.stats.suppressedToday++; tr.stats.suppressedTotal++; continue; }
-    occ[k0]++;
+    occAdd(occ, k0);
     tr.cars.push({
       id: tr.nextCarId++, townId: town.id, path: plan.path, i: 0, t: 0, speed: CAR_SPEED,
       wait: 0, born: state.tick, kind: rng.chance(0.15) ? 'van' : 'car', color: rng.int(0, 7),
@@ -166,6 +186,8 @@ let laneHead = null;
 let laneNext = new Int32Array(0);
 let laneTouched = new Int32Array(0);
 
+let laneKeyed = [];
+let laneGroup = new Int32Array(64);
 /**
  * Index cars by the lane they occupy this tick: sets c._key, c._ahead (car just ahead on the same
  * lane, or null) and returns the scratch array of lane-first cars for next-tile lookups.
@@ -187,21 +209,48 @@ function laneIndex(map, cars, nKeys) {
     laneNext[j] = laneHead[k];
     laneHead[k] = j;
   }
-  const touched = laneTouched.subarray(0, nTouched).sort();
+  // lane visit order is irrelevant: every lookup is per lane (laneFirst/_ahead), so no key sort is needed.
   // within a lane: order by progress on the tile, then car id (a total order, so the result is unique)
-  const keyed = [];
+  const keyed = laneKeyed;
+  let nk = 0;
   for (let q = 0; q < nTouched; q++) {
-    const k = touched[q];
-    const group = [];
-    for (let j = laneHead[k]; j >= 0; j = laneNext[j]) group.push(cars[j]);
+    const k = laneTouched[q];
+    let m = 0;
+    for (let j = laneHead[k]; j >= 0; j = laneNext[j]) {
+      if (m === laneGroup.length) { const g = new Int32Array(m * 2); g.set(laneGroup); laneGroup = g; }
+      laneGroup[m++] = j;
+    }
     laneHead[k] = -1;
-    group.sort((p, r) => p.t - r.t || p.id - r.id);
-    for (const c of group) keyed.push(c);
+    if (m > 1) {
+      if (m <= 32) {
+        // stable insertion sort: small lanes, no allocation
+        for (let x = 1; x < m; x++) {
+          const v = laneGroup[x], cv = cars[v];
+          let y = x - 1;
+          while (y >= 0) {
+            const cy = cars[laneGroup[y]];
+            if ((cy.t - cv.t || cy.id - cv.id) <= 0) break;
+            laneGroup[y + 1] = laneGroup[y];
+            y--;
+          }
+          laneGroup[y + 1] = v;
+        }
+      } else {
+        const grp = new Array(m);
+        for (let x = 0; x < m; x++) grp[x] = cars[laneGroup[x]];
+        grp.sort((p, r) => p.t - r.t || p.id - r.id);
+        for (let x = 0; x < m; x++) keyed[nk + x] = grp[x];
+        nk += m;
+        continue;
+      }
+    }
+    for (let x = 0; x < m; x++) keyed[nk++] = cars[laneGroup[x]];
   }
-  for (let p = 0; p < keyed.length; p++) {
+  keyed.length = nk;
+  for (let p = 0; p < nk; p++) {
     const c = keyed[p];
     if (laneFirst[c._key] < 0) laneFirst[c._key] = p;
-    if (p + 1 < keyed.length && keyed[p + 1]._key === c._key) c._ahead = keyed[p + 1];
+    if (p + 1 < nk && keyed[p + 1]._key === c._key) c._ahead = keyed[p + 1];
   }
   return keyed;
 }
@@ -232,7 +281,7 @@ function moveCar(ctx, tr, c, occ, lanes) {
   const last = c.path.length - 1;
   if (c.i >= last) { endCar(tr, c, true, state.tick); return true; }
   const a = c.path[c.i], b = c.path[c.i + 1];
-  const here = occKey(a, linkBit(map, a, b));
+  const here = c._key; // lane key of this tile's outgoing link, set by laneIndex this tick
   const load = occ[here] / laneCapacity(map, a);
   let target = CAR_SPEED * (1 - CONGESTION_SLOW * Math.min(1, load));
   if (worksTowns && roadWorksAt(state, a)) target *= ROAD_WORKS_SPEED;
@@ -291,8 +340,9 @@ export function trafficTick(ctx) {
   if (!tr) return;
   const rng = createRng(tr, 'rngState');
   const occ = occupancyScratch(state);
-  const works = (state.towns || []).filter((t) => t.roadWorksMonths > 0);
-  worksTowns = works.length ? new Set(works) : null;
+  let works = null;
+  for (const t of state.towns || []) if (t.roadWorksMonths > 0) (works ||= new Set()).add(t);
+  worksTowns = works;
   worksMemo = worksTowns ? new Map() : null;
   buildOccupancy(state, tr.cars, occ);
   spawnCars(ctx, tr, rng, occ);
@@ -323,6 +373,8 @@ export function trafficDaily(ctx) {
   const st = tr.stats, acc = tr.acc;
   let congested = 0;
   for (let i = 0; i < tr.load.length; i++) {
+    // an idle tile with no samples and no load/jam is a fixed point of the update below
+    if (acc.samples[i] === 0 && acc.blocked[i] === 0 && tr.load[i] === 0 && tr.jam[i] === 0) continue;
     const sample = acc.samples[i] / TICKS_PER_DAY;
     const v = tr.load[i] * (1 - LOAD_ALPHA) + sample * LOAD_ALPHA;
     tr.load[i] = Math.round(v * 100) / 100;

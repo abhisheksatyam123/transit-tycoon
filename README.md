@@ -19,6 +19,21 @@ bun run simulate   # headless city run + diagnostics (see below)
 ```
 No build step and no runtime dependencies: the browser loads native ES modules from `js/`.
 
+## Publish the web build (static hosting)
+The dev path (`bun run dev`, native ES modules from `js/`) is unchanged and is what the tests and e2e use.
+For a fast cold load, publish a bundled build instead:
+
+```sh
+bun run build:web        # -> dist/: bundled + minified js (code-split), index.html, css/, assets/
+bun run serve:dist       # optional local check on http://localhost:5174 (PORT=xxxx)
+```
+
+`dist/` is git-ignored and built on demand. Upload the **contents** of `dist/` to any static host that serves
+files at the site root (GitHub Pages, Netlify, Cloudflare Pages, an nginx `root`). Serve `.js` as
+`text/javascript`, and enable gzip or brotli on `.js`, `.css`, `.json` and `.png`. Assets are relative
+URLs, so the site can live under a sub-path such as `https://user.github.io/transit-tycoon/`.
+The save worker is bundled too (`js/saveWorker.js` next to `js/main.js`).
+
 ## How to play
 1. Open **Help** in the toolbar for the in-game tutorial.
 2. Find a Coal Mine and a Power Station (Industries window or the minimap).

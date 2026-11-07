@@ -4,3 +4,4 @@ node_modules/
 *.bak
 tools/lm3d/.blocked.json
 scratchpad/
+dist/
