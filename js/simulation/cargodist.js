@@ -475,7 +475,7 @@ function acceptanceOf(state, cargoId, nodeSet) {
 /**
  * Monthly link graph schedule (OpenTTD linkgraphschedule.cpp, in months). A job starts every linkgraphRecalcInterval
  * months (only one job per cargo at a time); its result is applied linkgraphRecalcTime months later (0 = at once).
- * Defaults (1 and 0) rebuild every month, as before. The pending job is lazy (g.pending) and not saved.
+ * Defaults (1 and 0) rebuild every month, as before. The pending job is lazy (g.pending = { res, due }) and saved with the state (plain JSON; tests/cargodistJobSave.test.js).
  */
 export function updateMonthly(state) {
   const now = state.date.year * 12 + state.date.month;
