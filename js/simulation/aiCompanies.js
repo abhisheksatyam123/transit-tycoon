@@ -18,6 +18,7 @@ import { getSetting } from './settings.js';
 import { createCompany, borrow, repay, spend, earn } from './economy.js';
 import { allocId, findStation, manhattan } from './state.js';
 import { renewRivalFleet } from './aiRenew.js';
+import { upgradeRivalAirports } from './aiAirUpgrade.js';
 import { getTile, inBounds } from './map.js';
 import { labelComponents } from './diagIssue.js';
 import { TOWN_CORE_RADIUS } from './diagChecksMap.js';
@@ -92,6 +93,7 @@ export function updateMonthly(game) {
     sellUnprofitable(ctx, r);
     if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
     if (r.routes.some((q) => !q.air) && airRoutesOf(r).length < MAX_AIR_ROUTES && r.money >= airRouteBudget(state, airportType('small').cost) && r.negValueMonths === 0) buildAirRoute(ctx, r);
+    upgradeRivalAirports(ctx, r); // a route's airport grows in place when its towns pass the next bar (aiAirUpgrade.js)
     renewRivalFleet(ctx, r); // old or obsolete vehicles renewed (aiRenew.js)
     addBuses(ctx, r);
     addFreightTrucks(ctx, r);

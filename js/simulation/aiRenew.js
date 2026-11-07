@@ -7,7 +7,7 @@
  * for aircraft, a plane the depot's airport type accepts and the same helicopter/plane class). Stopped in a
  * depot it is replaced at once (replaceVehicle keeps name, orders and route; the new vehicle stays the rival's).
  * Running, it is sent to the nearest depot (sendToDepot, owner-checked) and replaced there on the next monthly
- * pass. Trains are not renewed here (their consists need the engine/wagon pairing).
+ * pass. Trains: the engine is renewed with the fastest non-electric one on sale; the wagons stay (replaceVehicle).
  * Nothing draws from the rng (determinism): candidates are chosen by capacity, then id.
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
@@ -18,13 +18,15 @@ import { purchasable } from './vehicles.js';
 import { vehiclePrice } from './prices.js';
 import { airportTypeId, vehicleFitsAirport } from './airportTypes.js';
 import { findDepot } from './state.js';
+import { railEngineModel } from './aiRail.js';
 
 /** The best model a rival may renew this vehicle with now (null when none). */
 export function renewalModel(state, v) {
   const cur = MODEL_BY_ID[v.modelId];
   if (!cur) return null;
+  if (v.kind === 'train') return trainRenewalModel(state, cur);
   const kind = v.kind === 'road' ? cur.kind : v.kind === 'aircraft' ? 'aircraft' : null;
-  if (!kind || kind === 'engine' || kind === 'wagon') return null; // trains: not renewed here
+  if (!kind || kind === 'engine' || kind === 'wagon') return null;
   let models = listModels(state, kind);
   if (v.kind === 'aircraft') {
     const depot = findDepot(state, v.depotId);
@@ -35,6 +37,15 @@ export function renewalModel(state, v) {
   }
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
+}
+
+/**
+ * Train renewal: the fastest non-electric engine on sale (railEngineModel, the rival's own choice). The wagons
+ * are kept by replaceVehicle (same consist). Returns the engine or null.
+ */
+function trainRenewalModel(state, cur) {
+  if (cur.kind !== 'engine') return null;
+  return railEngineModel(state);
 }
 
 /** Renew this rival's old or obsolete vehicles (see file comment). */
