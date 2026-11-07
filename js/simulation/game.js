@@ -358,6 +358,7 @@ export class Game {
   moveWagon(id, index, delta, opts) { return vcmd.moveWagon(this.ctx, id, index, delta, opts); }
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
+  copyOrders(targetId, sourceId, opts) { return vcmd.copyOrders(this.ctx, targetId, sourceId, opts); }
   /** Service interval in days for one vehicle (0 = off). */
   setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
   /** Autoreplace rule (T18b): replace model oldModelId with newModelId in depots (null clears). */

@@ -77,6 +77,28 @@ export function openOrders(app, id) {
       const startBtn = el('button.btn', { type: 'button', text: 'Start vehicle', onclick: () => { const v = app.findVehicle(id); if (app.exec(app.game.startVehicle(id), { sound: 'horn' })) app.toast(`${v ? v.name : 'Vehicle'} started`, 'good'); } });
       const sharedLabel = el('div.muted.small.shared-orders', { text: '' });
       const unshareBtn = el('button.btn.sm', { type: 'button', text: 'Unshare', title: 'Give this vehicle its own copy of the order list', onclick: () => app.exec(app.game.unshareOrders(id), { quiet: true, sound: 'click' }) });
+      // OpenTTD copy / share orders from another own vehicle (CmdCloneOrder CO_COPY / CO_SHARE): a picker lists compatible vehicles
+      const coPicker = el('div.list.co-picker', { 'aria-label': 'Vehicles to copy or share orders with' });
+      coPicker.hidden = true;
+      let coMode = null;
+      const coToggle = (mode) => { coMode = coMode === mode ? null : mode; coPicker.hidden = !coMode; coFill(); };
+      const coCopyBtn = el('button.btn.sm', { type: 'button', text: 'Copy orders from…', title: 'Replace this vehicle\'s orders with a copy of another vehicle\'s orders', onclick: () => coToggle('copy') });
+      const coShareBtn = el('button.btn.sm', { type: 'button', text: 'Share orders with…', title: 'Make this vehicle share the order list of another vehicle', onclick: () => coToggle('share') });
+      /** Own vehicles that can copy from / share with v: same kind and road kind, with orders, not v. */
+      const coCandidates = (v) => app.game.state.vehicles.filter((w) => w !== v && (w.ownerId ?? null) === (v.ownerId ?? null)
+        && w.kind === v.kind && (w.roadType || null) === (v.roadType || null) && w.orders && w.orders.length);
+      const coFill = () => {
+        if (!coMode) return;
+        const v = app.findVehicle(id);
+        const list = v ? coCandidates(v) : [];
+        coPicker.replaceChildren(...(list.length ? list : [null]).map((w) => w
+          ? el('button.btn.sm', { type: 'button', text: w.name, onclick: () => {
+            const share = coMode === 'share';
+            coToggle(null);
+            app.exec(app.game.copyOrders(id, w.id, { share }), { sound: 'click' });
+          } })
+          : el('span.muted.small', { text: 'No compatible vehicle with orders' })));
+      };
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
       const needs2 = el('div.warn.small', { text: 'Needs 2+ orders (stations) to run a route.' });
       needs2.hidden = true;
@@ -134,7 +156,7 @@ export function openOrders(app, id) {
       const totalLabel = el('div.muted.small.tt-total', { text: '' });
       const lateLine = el('div.small.tt-late', { text: '' });
       const ttRow = el('div.btn-row', null, el('span.small', { text: 'Start date: ' }), startIn, el('span.small', { text: ' days from now ' }), startLabel, spreadBtn);
-      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn, nearestBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn, nearestBtn), pickRow, el('div.btn-row', null, coCopyBtn, coShareBtn), coPicker, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
 
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },

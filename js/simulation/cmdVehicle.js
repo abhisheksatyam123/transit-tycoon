@@ -313,6 +313,40 @@ export function cloneVehicle(ctx, id, opts = {}) {
 }
 
 /**
+ * Copy or share another vehicle's orders onto an existing vehicle (OpenTTD CmdCloneOrder CO_COPY / CO_SHARE).
+ * Both vehicles must be the player's, of the same vehicle type (rail / road of the same road kind / air / ship),
+ * differ, and the source must have orders the target can use (validated like setOrders).
+ * copy: the target leaves its shared group and gets its own deep copy of the orders (index reset to 0).
+ * (The service interval is not copied: OpenTTD copy orders only touches the order list.)
+ * share: the target joins the source's shared order list.
+ * @returns {{ok:true,cost:number}|{ok:false,error:string}}
+ */
+export function copyOrders(ctx, targetId, sourceId, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, targetId);
+  const src = findVehicle(state, sourceId);
+  if (!v || !src) return { ok: false, error: 'Unknown vehicle' };
+  if (v === src) return { ok: false, error: 'Pick a different vehicle' };
+  if (ownerMismatch(v, opts) || ownerMismatch(src, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (v.kind !== src.kind || (v.roadType || null) !== (src.roadType || null)) return { ok: false, error: 'Vehicles of different types cannot share orders' };
+  if (!src.orders || !src.orders.length) return { ok: false, error: 'That vehicle has no orders' };
+  const r = normaliseOrders(state, v, src.orders.map((o) => ({ ...o })), stopKindFor);
+  if (!r.ok) return r;
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  leaveOrderGroup(state, v);
+  if (opts.share) {
+    joinSharedOrders(state, v, src, (s) => allocId(s));
+    v.orders = src.orders.map((o) => ({ ...o }));
+    v.orderIndex = v.orders.length ? v.orderIndex % v.orders.length : 0;
+  } else {
+    v.orders = r.orders;
+    v.orderIndex = 0;
+  }
+  if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
+  return { ok: true, cost: 0 };
+}
+
+/**
  * Set the timetable of one order: `waitDays` (minimum days held at the station) and `travelDays`
  * (scheduled days from the previous stop). 0 or absent clears the field. Shared orders: all members.
  */
