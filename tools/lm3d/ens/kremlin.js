@@ -20,6 +20,35 @@ function kremlinColours(B) {
   }
 }
 
+// Kremlin wall tops: swallow-tail merlons (M-shaped profile, extruded through the wall) every 4 m along each long
+// building=wall outline; faces go on b.extraFaces (metres, scaled with the ensemble by bake.js).
+const MERLON = { period: 4, w: 2.2, h: 1.6, t: 1.2 };
+function kremlinMerlons(B) {
+  for (const b of B) {
+    if (!b.tags || b.tags.building !== 'wall') continue;
+    const r = b.poly.outer[0], n = r.length; let per = 0;
+    for (let i = 0; i < n; i++) per += Math.hypot(r[(i + 1) % n][0] - r[i][0], r[(i + 1) % n][1] - r[i][1]);
+    if (per < 100) continue;
+    const top = b.spec.top, col = b.spec.wall, out = [];
+    const hw = MERLON.w / 2, ht = MERLON.t / 2;
+    // M profile in (u along wall, z): flat base, two merlon tips with a V swallow-tail notch
+    const prof = [[-hw, 0], [hw, 0], [hw, MERLON.h], [hw / 2, MERLON.h], [0, MERLON.h - 0.6], [-hw / 2, MERLON.h], [-hw, MERLON.h]];
+    for (let i = 0; i < n; i++) {
+      const a = r[i], q = r[(i + 1) % n], L = Math.hypot(q[0] - a[0], q[1] - a[1]);
+      if (L < 2) continue;
+      const d = [(q[0] - a[0]) / L, (q[1] - a[1]) / L], nn = [-d[1], d[0]];
+      for (let s = MERLON.period / 2; s < L - 1; s += MERLON.period) {
+        const cx = a[0] + d[0] * s, cy = a[1] + d[1] * s;
+        const P = (u, z, e) => [cx + d[0] * u + nn[0] * e, cy + d[1] * u + nn[1] * e, top + z];
+        out.push({ pts: prof.map(([u, z]) => P(u, z, ht)), col, kind: 'wall' });
+        out.push({ pts: prof.map(([u, z]) => P(u, z, -ht)).reverse(), col, kind: 'wall' });
+        for (let k = 0; k < prof.length; k++) { const j = (k + 1) % prof.length; out.push({ pts: [P(prof[k][0], prof[k][1], -ht), P(prof[j][0], prof[j][1], -ht), P(prof[j][0], prof[j][1], ht), P(prof[k][0], prof[k][1], ht)], col, kind: 'wall' }); }
+      }
+    }
+    b.extraFaces = out;
+  }
+}
+
 // Spasskaya clock: white disc with black hands on the Red Square (south-east) face, ~63 m high.
 function spasskayaClock(toM) {
   const o = [], z = 63;
@@ -54,7 +83,7 @@ export const KREMLIN = [
     id: 'kremlin', src: 'kremlin', covers: ['kremlin', 'red_square', 'gum'], anchor: [55.7492, 37.6175], title: 'Moscow Kremlin, Red Square, St Basil\'s Cathedral & GUM', ground: 'grass',
     sel: { poly: [[55.74885, 37.61130], [55.75060, 37.61090], [55.75290, 37.61190], [55.75470, 37.61500], [55.75610, 37.61700],
       [55.75610, 37.61840], [55.75600, 37.62290], [55.75440, 37.62340], [55.75180, 37.62420], [55.75020, 37.62340], [55.74930, 37.62180]] },
-    styles: [stBasil, enlargeOnions, kremlinColours, senateMuted, byBuilding([
+    styles: [stBasil, enlargeOnions, kremlinColours, senateMuted, kremlinMerlons, byBuilding([
       { osm: 'r51497', wall: '#dcbb6c', roof: '#8d969a' }, // Arsenal: ochre
       { osm: 'r225033', wall: '#efe4c6', roof: '#5f7d6a', force: true }, // Grand Kremlin Palace: cream, green roof
       { osm: 'r1359335', wall: '#ece0bf', roof: '#47805e' }, // Armoury

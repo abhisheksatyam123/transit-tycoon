@@ -140,6 +140,7 @@ export function bakeOne(E) {
   const faces = [];
   for (const b of B) faces.push(...partFaces(b.poly, b.spec));
   for (const f of E.extraFaces ? E.extraFaces(toM) : []) faces.push(f);
+  for (const b of B) if (b.extraFaces) faces.push(...b.extraFaces); // per-building extras (e.g. Kremlin merlons)
   // ground: footprint tile squares (base) + OSM parks/squares inside the selection
   const anc = E.anchor ? toM(E.anchor[0], E.anchor[1]) : centroid(ring);
   const P = PLAN.get(E.id) ?? { k: LM_SCALE, off: [0, 0] };
@@ -164,7 +165,9 @@ export function bakeOne(E) {
   }
   for (const g of src ? loadGround(src) : []) {
     if (g.kind === 'water' || !inRing(centroid(g.poly.outer[0]), ring)) continue;
-    faces.push({ pts: g.poly.outer[0].map((p) => S([p[0], p[1], 0.05])), holes: g.poly.inner.map((r) => r.map((p) => S([p[0], p[1], 0.05]))), col: GROUND[g.kind], kind: 'ground', bias: -2, light: 0.82 });
+    // depth bias: higher wins. Base tiles -3, grass/water polygons -2; a cobble/sett polygon (e.g. Red Square) sits on top of the grass base, inside its own outline only
+    const bias = g.kind === 'cobble' ? -1.8 : -2;
+    faces.push({ pts: g.poly.outer[0].map((p) => S([p[0], p[1], 0.05])), holes: g.poly.inner.map((r) => r.map((p) => S([p[0], p[1], 0.05]))), col: GROUND[g.kind], kind: 'ground', bias, light: 0.82 });
   }
   if (E.trees && src) for (const f of treeFaces(loadGround(src).filter((g) => g.kind === 'grass' && g.tags && (g.tags.leisure || g.tags.natural === 'wood') && inRing(centroid(g.poly.outer[0]), ring)), B, E.treeStep || 11)) { const q = f.pts.map(S), mx = q.reduce((a, p) => a + p[0], 0) / q.length, my = q.reduce((a, p) => a + p[1], 0) / q.length; if (tset.has(Math.round(mx / TILE_M) + ',' + Math.round(my / TILE_M))) faces.push({ ...f, pts: q }); }
   if (E.streets !== false && src) for (const st of loadStreets(src)) {
@@ -196,7 +199,10 @@ export function bakeOne(E) {
 
 /** Tiles an ensemble must not own (water, stations/depots/industries) in the scenario world without ensembles. Roads under an ensemble are removed by the scenario. */
 async function blockedTiles() {
-  const cache = ROOT + 'tools/lm3d/.blocked.json';
+  // tools/lm3d/blocked.json is TRACKED and pins the blocked-tile set used for the committed bakes (the gitignored
+  // .blocked.json used to be regenerated per checkout, from a different grid, which silently changed every footprint).
+  const pinned = ROOT + 'tools/lm3d/blocked.json', cache = ROOT + 'tools/lm3d/.blocked.json';
+  if (existsSync(pinned) && !process.env.LM_REBLOCK) return new Set(JSON.parse(readFileSync(pinned, 'utf8')));
   if (existsSync(cache) && !process.env.LM_REBLOCK) return new Set(JSON.parse(readFileSync(cache, 'utf8')));
   process.env.NO_LM3D = '1';
   const { Game } = await import('../../js/simulation/game.js');
