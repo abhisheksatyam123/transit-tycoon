@@ -22,6 +22,8 @@ function airportDepotPart(b) {
 import { findTown, findStation } from './state.js';
 import { RIVAL_OWNED, companyById } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
+import { magicBulldozer } from './cheats.js';
+import { recomputeAllAcceptance } from './stations.js';
 import { removeHQ } from './cmdHQ.js';
 import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile removes the whole HQ
 import { invalidateBlocks } from './signals.js';
@@ -452,7 +454,10 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (vehicleOnTile(state, x, y)) return { ok: false, error: ERR.vehicle };
       jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue;
     }
-      if (b && b.type === 'industry') { sawIndustry = true; continue; }
+      if (b && b.type === 'industry') {
+        if (magicBulldozer(state) && b.industryId != null) { jobs.push({ x, y, kind: 'industry', industryId: b.industryId }); continue; } // cheat: magic bulldozer (cheats.js)
+        sawIndustry = true; continue;
+      }
       if (b && b.type === 'depot') {
         if (state.vehicles.some((v) => v.state === 'depot' && v.tx === x && v.ty === y)) {
           return { ok: false, error: 'Depot contains vehicles' };
@@ -487,7 +492,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (t.terrain === 'forest' || t.terrain === 'rock') { jobs.push({ x, y, kind: 'clear' }); cost += clearingCost(t); }
   }
   if (jobs.length === 0) return { ok: false, error: sawIndustry ? "Can't demolish an industry" : 'Nothing to demolish' };
-  const refused = demolishRefusal(state, jobs);
+  const refused = magicBulldozer(state) ? null : demolishRefusal(state, jobs); // magic bulldozer ignores the town authority (cheats.js)
   if (refused) return { ok: false, error: refused };
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost);
@@ -510,6 +515,15 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;
       if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; delete t.elec; }
+    } else if (j.kind === 'industry') { // magic bulldozer: the whole footprint and the industry record go (industryManager removeIndustry)
+      const ind = state.industries.find((i) => i.id === j.industryId);
+      if (!ind) continue; // already removed by an earlier tile of this footprint
+      for (let yy = ind.y; yy < ind.y + ind.h; yy++) for (let xx = ind.x; xx < ind.x + ind.w; xx++) {
+        const ft = map.tiles[yy * map.width + xx];
+        if (ft.building && ft.building.type === 'industry' && ft.building.industryId === ind.id) ft.building = null;
+      }
+      state.industries = state.industries.filter((i) => i.id !== ind.id);
+      recomputeAllAcceptance(state);
     } else if (j.kind === 'object') {
       delete t.object;
     } else if (j.kind === 'hq') {

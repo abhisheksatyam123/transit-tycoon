@@ -111,6 +111,9 @@ export function openSettings(app) {
           const hk = el('button.btn', { type: 'button', text: 'Keyboard shortcuts…', title: 'View and change the keyboard shortcuts' });
           hk.addEventListener('click', () => app.open('hotkeys'));
           inner.push(el('div.set-row', null, hk, el('span.set-help.muted', { text: 'Rebind keys for windows and build tools. Stored in this browser.' })));
+          const ch = el('button.btn', { type: 'button', text: 'Cheats…', title: 'Cheats window (Ctrl+Alt+C)' });
+          ch.addEventListener('click', () => app.open('cheats'));
+          inner.push(el('div.set-row', null, ch, el('span.set-help.muted', { text: 'Money, change year, magic bulldozer. Marks the game as cheated. Hidden hotkey: Ctrl+Alt+C.' })));
         }
         for (const m of SETTING_META.filter((x) => x.group === g.id)) {
           const c = control(m);

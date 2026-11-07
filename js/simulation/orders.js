@@ -544,7 +544,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
     const st = o && findStation(state, o.stationId);
     if (!st) return { ok: false, error: 'Unknown station in orders' };
     const kind = kindOf(v);
-    const waypoint = kind === 'rail' && st.tiles.length > 0 && st.tiles.every((t) => t.kind === 'waypoint');
+    const waypoint = st.tiles.length > 0 && (kind === 'rail' ? st.tiles.every((t) => t.kind === 'waypoint' && !t.road)
+      : (kind === 'bus' || kind === 'truck') && st.tiles.every((t) => t.kind === 'waypoint' && !!t.road));
     const hasStop = kind === 'ship' ? st.tiles.some((t) => t.kind === 'dock' || t.kind === 'buoy')
       : waypoint || st.tiles.some((t) => stopKindOk(v, t.kind));
     if (!hasStop) {

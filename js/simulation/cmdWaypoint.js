@@ -11,8 +11,9 @@ import { getTile } from './map.js';
 import { straightAxis } from './network.js';
 import { ERR, checkMoney, coordsOk, objectError } from './trackRules.js';
 import { createStation, refreshKinds } from './stations.js';
-import { companyById } from './owner.js';
+import { companyById, stampOwner } from './owner.js';
 import { invalidateBlocks } from './signals.js';
+import { refusalAt } from './townAuthority.js';
 
 export const WAYPOINT_ERR = {
   notStraight: 'A waypoint needs a straight rail tile (no curve or junction)',
@@ -61,9 +62,69 @@ export function buildRailWaypoint(ctx, x, y, opts = {}) {
   return { ok: true, cost, stationId: st.id };
 }
 
-/** True when a station is a rail waypoint (every tile of kind 'waypoint'). */
+/** True when a station is a rail waypoint (every tile of kind 'waypoint', none of them road). */
 export function isWaypointStation(st) {
-  return !!st && st.tiles.length > 0 && st.tiles.every((p) => p.kind === 'waypoint');
+  return !!st && st.tiles.length > 0 && st.tiles.every((p) => p.kind === 'waypoint' && !p.road);
+}
+
+/** Road waypoint (OpenTTD CmdBuildRoadWaypoint, one tile): every tile is kind 'waypoint' with road: true. */
+export function isRoadWaypointStation(st) {
+  return !!st && st.tiles.length > 0 && st.tiles.every((p) => p.kind === 'waypoint' && p.road === true);
+}
+
+export const ROAD_WAYPOINT_ERR = {
+  notStraight: 'A road waypoint needs a straight road tile (no junction or curve)',
+  noRoad: 'A road waypoint must be built on road',
+  special: 'A road waypoint cannot be built on rail, tram, a level crossing, a signal, a bridge or a tunnel',
+};
+
+/** Validation shared by the dry run and the build of a road waypoint. @returns {string|null} error */
+function roadWaypointError(state, x, y) {
+  const t = getTile(state.map, x, y);
+  if (!t) return ERR.bounds;
+  if (t.terrain === 'water') return ERR.water;
+  if (objectError(t)) return objectError(t);
+  if (t.building) return t.building.type === 'station' ? WAYPOINT_ERR.occupied : (ERR[t.building.type] || WAYPOINT_ERR.occupied);
+  if (!t.road) return ROAD_WAYPOINT_ERR.noRoad;
+  if (t.rail || t.tram || t.signal || t.overBridge || t.tunnel || t.gradeSep || t.bridgeDeck || t.playerBridge) return ROAD_WAYPOINT_ERR.special;
+  if (!straightAxis(t.road)) return ROAD_WAYPOINT_ERR.notStraight;
+  return null;
+}
+
+/**
+ * Build a road waypoint on the straight road tile (x,y) (OpenTTD waypoint_cmd.cpp CmdBuildRoadWaypoint, one tile):
+ * a new station record of kind 'waypoint' with road: true. Road vehicles order it as go-via; the road keeps its bits.
+ * Owner and money follow the road-stop rules (stampOwner, town authority refusal), cost COSTS.roadWaypoint.
+ * @returns {{ok:true,cost:number,stationId:number|null}|{ok:false,error:string}}
+ */
+export function buildRoadWaypoint(ctx, x, y, opts = {}) {
+  const { state } = ctx;
+  if (!coordsOk(state.map, x, y)) return { ok: false, error: ERR.bounds };
+  const err = roadWaypointError(state, x, y);
+  if (err) return { ok: false, error: err };
+  if (opts.owner != null && !companyById(state, opts.owner)) return { ok: false, error: 'Unknown company' };
+  const refused = refusalAt(state, x, y);
+  if (refused) return { ok: false, error: refused };
+  const t = getTile(state.map, x, y);
+  const payee = companyById(state, opts.owner ?? null);
+  const cost = constructionTotal(state, COSTS.roadWaypoint);
+  const money = checkMoney(state, cost, payee);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost, stationId: null };
+  const st = stampOwner(state, createStation(state, x, y), opts.owner ?? null);
+  st.name = `Road waypoint ${st.id}`;
+  invalidateBlocks(state);
+  t.building = { type: 'station', stationId: st.id, kind: 'waypoint', axis: straightAxis(t.road), road: true };
+  if (!t.owner) t.owner = 'company';
+  st.tiles.push({ x, y, kind: 'waypoint', road: true, radius: 0 });
+  refreshKinds(st);
+  spend(payee, 'construction', cost);
+  return { ok: true, cost, stationId: st.id };
+}
+
+/** Road waypoint tile (waypoint station building with road: true). */
+export function isRoadWaypointTile(tile) {
+  return isWaypointTile(tile) && tile.building.road === true;
 }
 
 /** Rail waypoint tile (kind 'waypoint' station building) at (x,y). */

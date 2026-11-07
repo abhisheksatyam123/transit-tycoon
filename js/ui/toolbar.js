@@ -38,6 +38,7 @@ export const TOOL_BUTTONS = [
   ['demolish', 'Demolish', 'demolish', '8'],
   ['electrify', 'Electrify', 'electrify', ''],
   ['waypoint', 'Waypoint', 'waypoint', ''],
+  ['roadWaypoint', 'Road waypoint', 'waypoint', ''],
   ['query', 'Query', 'query', '9'],
   ['signal', 'Signal', 'signal', ''],
   ['sign', 'Sign', 'sign', ''],
@@ -99,7 +100,7 @@ const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load
  */
 export const TOOL_GROUPS = [
   ['rail', 'Rail+', 'electrify', ['electrify', 'waypoint']],
-  ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
+  ['road', 'Road+', 'oneWay', ['oneWay', 'tram', 'roadWaypoint']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],

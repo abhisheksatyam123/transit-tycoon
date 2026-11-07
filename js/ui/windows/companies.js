@@ -54,7 +54,8 @@ export function openCompanies(app) {
       return () => {
         const rows = companyRows(app.game.state);
         const withShares = !!getSetting(app.game.state, 'shares');
-        const s = JSON.stringify(rows) + withShares;
+        const cheated = !!app.game.state.cheated; // OpenTTD marks a cheated company (lazy state.cheated, cheats.js)
+        const s = JSON.stringify(rows) + withShares + cheated;
         if (s === sig) return;
         sig = s;
         clear(table);
@@ -76,6 +77,7 @@ export function openCompanies(app) {
             withShares ? el('td', null, r.player ? null : shareButtons(app, r)) : null));
         }
         table.appendChild(tbl);
+        if (cheated) table.appendChild(el('p.small.neg', { text: 'Cheated game: a cheat was used (Settings > Cheats).' }));
       };
     },
   });

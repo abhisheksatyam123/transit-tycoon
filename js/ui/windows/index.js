@@ -27,6 +27,7 @@ import { openSave, openLoad } from './saveLoad.js';
 import { openMetro } from './metro.js';
 import { openGoals } from './goals.js';
 import { openSettings } from './settings.js';
+import { openCheats } from './cheats.js';
 import { openSubsidies } from './subsidies.js';
 import { openObjective } from './objective.js';
 import { openGraphs } from './graphs.js';
@@ -66,6 +67,7 @@ const REGISTRY = {
   metro: openMetro,
   goals: openGoals,
   settings: openSettings,
+  cheats: openCheats,
   subsidies: openSubsidies,
   objective: openObjective,
   graphs: openGraphs,

@@ -483,8 +483,8 @@ function onPathEnd(ctx, v) {
     const st = findStation(state, order.stationId);
     if (st && ftaLand(ctx, v, st, b)) return; // landed on the runway: taxi to a terminal (or hold)
   }
-  if (order && b && b.type === 'station' && b.kind === 'waypoint' && b.stationId === order.stationId && v.kind === 'train') {
-    advanceOrder(v); replan(ctx, v); return; // rail waypoint reached: passed, no stop (cmdWaypoint.js)
+  if (order && b && b.type === 'station' && b.kind === 'waypoint' && b.stationId === order.stationId && (v.kind === 'train' || v.kind === 'road')) {
+    advanceOrder(v); replan(ctx, v); return; // rail / road waypoint reached: passed, no stop (cmdWaypoint.js)
   }
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);

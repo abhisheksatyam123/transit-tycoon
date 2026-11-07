@@ -161,6 +161,9 @@ export function setupInput(app, canvas, shortcuts) {
   window.addEventListener('keydown', (e) => {
     const target = /** @type {HTMLElement} */ (e.target);
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
+    if (e.ctrlKey && e.altKey && !e.metaKey && e.key.toLowerCase() === 'c') { // hidden cheats window (OpenTTD cheat_gui)
+      e.preventDefault(); app.open('cheats'); return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 'escape') {

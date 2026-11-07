@@ -14,3 +14,18 @@ export function createWaypointTool(app) {
     footprint: (x, y) => [{ x, y }],
   });
 }
+
+/**
+ * Road waypoint tool (Road+ group): click a straight road tile. Road vehicles order it as go-via and pass without stopping.
+ * @param {import('../app.js').App} app
+ * @returns {import('./index.js').Tool}
+ */
+export function createRoadWaypointTool(app) {
+  return createPlacementTool(app, {
+    id: 'roadWaypoint',
+    label: 'Road waypoint',
+    hint: () => 'Road waypoint: build on a straight road tile. Road vehicles order it as go-via and pass without stopping.',
+    command: (g, x, y, opts) => g.buildRoadWaypoint(x, y, { ...(opts || {}) }),
+    footprint: (x, y) => [{ x, y }],
+  });
+}

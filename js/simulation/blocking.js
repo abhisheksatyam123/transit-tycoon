@@ -168,7 +168,7 @@ export function blockerOn(ctx, v, layer, x, y, dir) {
 /** True when tile (x,y) belongs to a station (a road stop bay or a rail platform). */
 function isStopTile(state, x, y) {
   const b = state.map.tiles[y * state.map.width + x].building;
-  return !!b && b.type === 'station';
+  return !!b && b.type === 'station' && b.kind !== 'waypoint'; // a waypoint is passed through, not a bay
 }
 
 /** True when another road vehicle (not v) is loading on tile (x,y): a stop bay in use. */

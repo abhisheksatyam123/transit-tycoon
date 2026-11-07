@@ -15,6 +15,8 @@ export const COSTS = {
   /** rail waypoint (OpenTTD Price::BuildWaypointRail 600 vs station base), demolish (ClearWaypointRail 80) */
   railWaypoint: 600,
   demolishWaypoint: 80,
+  /** road waypoint: OpenTTD CmdBuildRoadWaypoint unit cost = _price[Price::BuildStationTruck] (waypoint_cmd.cpp:397), as a road stop */
+  roadWaypoint: 500,
   roadStop: 500,
   depotRail: 1200,
   depotRoad: 900,
