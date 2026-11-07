@@ -616,10 +616,19 @@ function haltInDepot(state, v, depotId) {
  * restarts and the vehicle leaves again on its orders. Called when a service trip reaches the depot.
  */
 export function serviceAtDepot(ctx, v) {
+  const { state } = ctx;
+  // The current order may be the go-to-depot order for this very depot: this visit fulfils it (one visit = one
+  // service; refit / halt / advance as an order visit), else replan would route back here and service again.
+  const order = currentOrder(v);
+  if (isDepotOrder(order)) {
+    const at = state.map.tiles[v.ty * state.map.width + v.tx].building;
+    const depotId = at && at.depotId != null ? at.depotId : v.goingToDepot;
+    if (isNearestDepotOrder(order) || order.depotId === depotId) { depotOrderVisit(ctx, v, order); return; }
+  }
   // autoreplace / autorenew apply on a service visit too (the replacement continues the route)
   const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
   const cur = nv || v;
-  servicePerformed(ctx.state, cur);
+  servicePerformed(state, cur);
   cur.goingToDepot = null;
   cur.atStationId = null;
   replan(ctx, cur);
