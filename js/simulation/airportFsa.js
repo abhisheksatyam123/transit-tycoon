@@ -76,6 +76,10 @@ const CORNERS = [{ dx: 0, dy: -HOLD_RADIUS }, { dx: HOLD_RADIUS, dy: 0 }, { dx: 
  */
 export function holdFlyLeg(state, v, ax, ay) {
   if (!v.hold) v.hold = { x: ax, y: ay, i: 0 };
+  if (!v.hold.t) { // airport type of the anchor (display of the OTTD holding ring, airportHold.js)
+    const ab = state.map.tiles[ay * state.map.width + ax].building;
+    if (ab && ab.type === 'station' && ab.kind === 'airport') v.hold.t = airportTypeId(ab);
+  }
   const w = state.map.width, h = state.map.height;
   let path = null;
   for (let k = 0; k < CORNERS.length && !path; k++) {

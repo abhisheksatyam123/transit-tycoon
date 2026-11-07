@@ -13,6 +13,7 @@ import { Camera } from './camera.js';
 import { drawObject, drawSegment } from './layers/objects.js';
 import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
 import { drawAircraftLayer, pruneAir } from './layers/air.js';
+import { groundedAirOffset } from './layers/airGround.js';
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
@@ -267,6 +268,7 @@ export class Renderer {
         if (s.part === 'aircraft') {
           s._model = v.modelId;
           s._alt = s.alt !== undefined ? s.alt : (v.alt || 0);
+          if (v.ftaGroundEnd != null) groundedAirOffset(game.state, v, s); // display-only tile sub-offset (airportDisplay.js)
           this.airSegs.push(s);
           continue;
         }

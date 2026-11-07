@@ -10,6 +10,8 @@ import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
 import { defaultServiceFields } from './service.js';
 import { previewBlocks } from './enginePreview.js';
+import { holdDrawPos } from './airportHold.js';
+import { isHelicopter } from './airportTypes.js';
 
 /**
  * Whether a model can be bought in `year` (OpenLoco era rule): introduced (introYear <= year) and not yet
@@ -174,6 +176,21 @@ export function speedKmh(v) {
   return Math.round(v.speed / (v.kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK));
 }
 
+/**
+ * OpenTTD holding ring position of a holding plane (display only): the sim holds on its square loop of corners
+ * (airportFsa.js holdFlyLeg); the drawn head follows the OTTD AirportMovingData holding nodes instead. The leg is
+ * the plane's progress from the previous corner to its target corner. Null for helicopters or unknown types.
+ */
+function holdDrawPosFor(v) {
+  const h = v.hold;
+  if (!h || !h.t || isHelicopter(v)) return null;
+  // sim corner order (airportFsa.js CORNERS): N, E, S, W. The target is the corner picked last (h.i - 1).
+  const target = ((h.i - 1) % 4 + 4) % 4, from = (target + 3) % 4;
+  const n = Math.max(1, v.path.length - 1);
+  const f = ((v.pathIndex || 0) + (v.progress || 0)) / n; // progress along the current leg (tiles)
+  return holdDrawPos(h.t, h.x, h.y, from, target, f);
+}
+
 /** Number of tiles of history a vehicle needs for its trailing segments. */
 export function historyNeeded(v) {
   return v.kind === 'train' ? Math.ceil(v.wagons * SEGMENT_SPACING) + 3 : 3;
@@ -222,6 +239,10 @@ export function getVehicleSegments(v) {
       wagonIndex++;
     } else if (part !== 'loco') { segFill = fill; loaded = fill > 0; }
     out.push({ x: pos.x, y: pos.y, dir, part, cargoId: v.cargoId, loaded, fill: segFill, ...(v.kind === 'aircraft' ? { alt: v.alt || 0 } : {}) });
+  }
+  if (v.kind === 'aircraft' && v.hold && out.length) { // holding plane: drawn on the OTTD holding ring (display only)
+    const hp = holdDrawPosFor(v);
+    if (hp) { out[0].x = hp.x; out[0].y = hp.y; }
   }
   return out;
 }
