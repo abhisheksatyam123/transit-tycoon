@@ -112,6 +112,7 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
   const bits = kind === 'rail' ? (t.tunnel ? 0 : t.rail | 0) : (t.road | 0);
   if (bits && !net.covered[i]) return false; // node tile: keeps its own sprite
   let any = false;
+  const ef_ = new Map(); // per-edge paved/hwy flags (constant within one paint call)
   // per-span bounding boxes (tile units): a span whose box is > BBOX_M away from the pixel has every
   // centreline point farther than the 0.27 (squared, ~0.52) cut-off, so skipping it cannot change the result
   const nb = list.length;
@@ -155,8 +156,10 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
         }
       }
       if (!be || best > 0.27) continue; // |d| > ~0.52
-      const paved = kind === 'road' && isPaved(map, be);
-      const hwy = kind === 'road' && isHwy(map, be);
+      let ef = ef_.get(be);
+      if (ef === undefined) { ef = (kind === 'road' ? (isPaved(map, be) ? 1 : 0) | (isHwy(map, be) ? 2 : 0) : 0); ef_.set(be, ef); }
+      const paved = kind === 'road' && (ef & 1) !== 0;
+      const hwy = kind === 'road' && (ef & 2) !== 0;
       // highway tiles sample the procedural highway strip even in OpenGFX mode (no matching pack sprite)
   const src = hwy ? procHwy()
     : (ogfx ? spritePixels(kind === 'rail' ? RAIL_X : roadSprite(5, paved)) : procSprite(kind, paved));
@@ -226,7 +229,40 @@ function isPaved(map, e) {
  * Textured tile-top sprite for tile (x,y) (road then rail), or null when nothing to draw.
  * @returns {any|null} sprite for drawSloped
  */
+/**
+ * Memo of netTileSprite results (W7d). Chunks are rebuilt on zoom / lowRes / invalidate and the same tile
+ * was painted up to 3x in the first 10 s of Moscow. Keyed on the road+rail net objects: invalidateNet()
+ * (called by every ground invalidation) replaces them, which drops the memo. Holds the sprite itself.
+ */
+const memo = new WeakMap(); // road net -> { rail: railNet, m: Map<key, {sig, s}> }
+
 export function netTileSprite(map, x, y, ogfx = true) {
+  const rn = getNet(map, 'road'), gn = getNet(map, 'rail');
+  let mm = memo.get(rn);
+  if (!mm || mm.rail !== gn) { mm = { rail: gn, m: new Map() }; memo.set(rn, mm); }
+  const key = (y * map.width + x) * 2 + (ogfx ? 1 : 0);
+  // tile fields paint() reads directly; they can change without a net rebuild (owner, terrain from sim)
+  const t = map.tiles[y * map.width + x];
+  let sig = (t.road | 0) + ',' + (t.rail | 0) + ',' + (t.tunnel | 0) + ',' + t.terrain;
+  // isPaved/isHwy read the attributes of the edge's first tile: every edge listed for this tile
+  for (const kind of ['road', 'rail']) {
+    const list = getNet(map, kind).byTile[y * map.width + x];
+    if (!list) continue;
+    for (const sp of list) {
+      const e = getNet(map, kind).edges[sp.e];
+      const ti = e.tiles.length ? e.tiles[0] : e.a;
+      const et = ti >= 0 ? map.tiles[ti] : null;
+      sig += '|' + ti + ':' + (et ? (et.avenue | 0) + ',' + (et.highway | 0) + ',' + (et.road | 0) + ',' + et.owner : '-');
+    }
+  }
+  const hit = mm.m.get(key);
+  if (hit && hit.sig === sig) return hit.s;
+  const s = netTileSprite0(map, x, y, ogfx);
+  mm.m.set(key, { sig, s });
+  return s;
+}
+
+function netTileSprite0(map, x, y, ogfx) {
   const i = y * map.width + x;
   if (!getNet(map, 'road').byTile[i] && !getNet(map, 'rail').byTile[i]) return null;
   const W = 64, H = 32;
