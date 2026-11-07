@@ -77,6 +77,13 @@ export const DEFAULT_SETTINGS = {
   linkgraphDemandSize: 100,
   /** percent of capacity the first MCF pass saturates (OpenTTD short_path_saturation). 100 = current; OTTD default 80. */
   linkgraphShortPathSaturation: 100,
+  /** infrastructure maintenance (OpenTTD economy.infrastructure_maintenance, economy.cpp CompaniesGenStatistics): monthly
+   * fee for track, road and station tiles by count (infrastructure.js). Off = no fee (unchanged). */
+  infraMaintenance: false,
+  /** plane speed factor 1..4 (OpenTTD vehicle.plane_speed, aircraft_cmd.cpp): aircraft max speed is divided by N. 1 = full speed (unchanged). */
+  planeSpeedFactor: 1,
+  /** town growth rate (OpenTTD economy.town_growth_rate): 'none' | 'slow' | 'normal' | 'fast' | 'veryfast'. 'normal' = current growth. */
+  townGrowthRate: 'normal',
 };
 
 /** Read a setting (state.settings value or the default). */

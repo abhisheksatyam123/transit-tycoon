@@ -7,7 +7,7 @@ import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
 
 const LOAN_STEP = 10000;
-const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep' };
+const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep', infrastructure: 'Infrastructure maintenance' };
 
 /**
  * @param {import('../app.js').App} app
@@ -42,6 +42,8 @@ export function openFinances(app) {
         const table = el('table.ledger');
         table.appendChild(el('tr', null, el('th', { text: '' }), cols.map((col) => el('th', { text: col.label }))));
         for (const t of types) {
+          // infrastructure maintenance row only once a month was charged (setting on): default games keep their table
+          if (t === 'infrastructure' && cols.every((col) => !(col.h.byType || {})[t])) continue;
           table.appendChild(el('tr', null, el('td.lbl', { text: TYPE_LABEL[t] || t }),
             cols.map((col) => {
               const v = (col.h.byType || {})[t] || 0;

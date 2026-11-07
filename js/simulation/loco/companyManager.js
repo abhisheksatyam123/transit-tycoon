@@ -13,6 +13,7 @@ import { evaluateGoals, rollGoalMonth } from '../goals.js';
 import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
+import { infrastructureMaintenance } from '../infrastructure.js';
 import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest } from '../economy.js';
 import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
@@ -86,6 +87,8 @@ export function updateMonthly1(game) {
   spend(c, 'interest', monthlyInterest);
   spend(c, 'property', inflateCost(s, COST_INDEX.property, propertyUpkeep(s)));
   for (const r of s.rivals || []) spend(r, 'property', inflateCost(s, COST_INDEX.property, upkeepFor(s, r.id)));
+  // infrastructure maintenance (OpenTTD economy.infrastructure_maintenance, economy.cpp CompaniesGenStatistics): off by default
+  spend(c, 'infrastructure', inflateCost(s, COST_INDEX.property, infrastructureMaintenance(s)));
 
   // bankruptcy: 3 / 6 months warnings, 9 months declared
   if (!c.bankrupt) {

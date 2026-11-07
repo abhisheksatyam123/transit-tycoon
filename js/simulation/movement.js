@@ -300,7 +300,9 @@ function move(ctx, v) {
   if (tie) { hold(ctx, v, tie); return; }
   const blocker = v.kind === 'aircraft' ? null : nextBlocker(ctx, v);
   if (v.kind === 'aircraft') {
-    v.speed = airSpeedStep(v, v.maxSpeed);
+    // planeSpeedFactor (OpenTTD vehicle.plane_speed, aircraft_cmd.cpp): speed limit divided by N; 1 = unchanged
+    const pf = getSetting(state, 'planeSpeedFactor') || 1;
+    v.speed = airSpeedStep(v, pf > 1 ? v.maxSpeed / pf : v.maxSpeed);
     // diagonal (Bresenham) steps are sqrt(2) tiles long (kMovementNibbleToDistance diagonal / straight)
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;

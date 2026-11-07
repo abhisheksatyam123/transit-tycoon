@@ -10,6 +10,7 @@ import { isMuted, setMuted } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
+import { loadTransparency, setTransparency } from '../../renderer/transparency.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
@@ -43,7 +44,7 @@ export function openSettings(app) {
         }
         if (m.type === 'select') {
           const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...m.options.map(([v, t]) => el('option', { value: v, text: t }))));
-          sel.addEventListener('change', () => { const v = m.key === 'aiCompanies' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v); });
+          sel.addEventListener('change', () => { const v = m.key === 'aiCompanies' || m.key === 'planeSpeedFactor' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v); });
           return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); } };
         }
         const n = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: String(m.min), max: String(m.max), step: '1' }));
@@ -93,7 +94,10 @@ export function openSettings(app) {
             const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
             if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); app.ui.refreshToolbar?.(); });
             else if (p.id === 'fx') i.addEventListener('change', () => { setFxOn(i.checked); });
-            else if (p.id === 'townLabels' || p.id === 'stationLabels') {
+            else if (p.id.startsWith('tr:')) {
+              const tid = p.id.slice(3);
+              i.addEventListener('change', () => { setTransparency(tid, i.checked); app.renderer.invalidateGround(); });
+            } else if (p.id === 'townLabels' || p.id === 'stationLabels') {
               const key = p.id === 'townLabels' ? 'towns' : 'stations';
               i.addEventListener('change', () => { setLabelPref(key, i.checked); });
             } else i.addEventListener('change', () => { togglePack(app.renderer); });
@@ -102,6 +106,7 @@ export function openSettings(app) {
             rows.push({ item, row, pref: true, sync: () => {
               if (p.id === 'townLabels') i.checked = loadLabelPrefs().towns;
               else if (p.id === 'stationLabels') i.checked = loadLabelPrefs().stations;
+              else if (p.id.startsWith('tr:')) i.checked = !!(loadTransparency() || {})[p.id.slice(3)];
               else i.checked = p.id === 'sound' ? !isMuted() : p.id === 'fx' ? isFxOn() : savedGfxMode() === 'ogfx';
             } });
             inner.push(row);

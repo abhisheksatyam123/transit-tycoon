@@ -8,6 +8,7 @@ import { netActive, setNetActive } from '../renderer/net/state.js';
 import { labelAt } from '../renderer/layers/labels.js';
 import { openSignPrompt } from '../ui/tools/sign.js';
 import { findSign } from '../simulation/cmdSign.js';
+import { TRANSPARENCY_OPTIONS, loadTransparency, setTransparency } from '../renderer/transparency.js';
 
 
 const PAN_SPEED = 700; // CSS px per second
@@ -163,6 +164,15 @@ export function setupInput(app, canvas, shortcuts) {
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
     if (e.ctrlKey && e.altKey && !e.metaKey && e.key.toLowerCase() === 'c') { // hidden cheats window (OpenTTD cheat_gui)
       e.preventDefault(); app.open('cheats'); return;
+    }
+    if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-6]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..6 too, browsers keep Ctrl+1..8 for tabs
+      e.preventDefault();
+      const opt = TRANSPARENCY_OPTIONS[Number(e.code.slice(5)) - 1];
+      const on = !(loadTransparency() || {})[opt.id];
+      setTransparency(opt.id, on);
+      app.renderer.invalidateGround();
+      app.toast?.(`${opt.label} transparency: ${on ? 'on' : 'off'}`, 'info');
+      return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();

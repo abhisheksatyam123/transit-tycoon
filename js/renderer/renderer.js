@@ -41,6 +41,7 @@ import { drawCatenary, drawTramWires } from './layers/catenary.js';
 import { drawOneWayArrow } from './layers/oneway.js';
 import { drawTunnelPortal } from './layers/transport.js';
 import { drawLabels } from './layers/labels.js';
+import { loadTransparency, tileTransparency, TRANSPARENT_ALPHA } from './transparency.js';
 import { drawLinkOverlay } from './layers/linkOverlay.js';
 
 export class Renderer {
@@ -356,6 +357,7 @@ export class Renderer {
     }
     if (this.overlay.trafficHeat) drawTrafficHeat(ctx, this.game, this.heights, range);
 
+    const tr = loadTransparency(); // null when every transparency toggle is off (renderer/transparency.js)
     const showCars = this.overlay.trafficCars !== false;
     if (showCars) this.collectCars();
 
@@ -424,7 +426,14 @@ export class Renderer {
           continue;
         }
         if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.object || tile.terrain === 'forest' || tile.field !== undefined)) {
-          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup, waterAt, fieldAt);
+          // transparency toggles (UI only): hidden trees skip the draw, faded objects use globalAlpha; tr null = unchanged
+          const ta = tr ? tileTransparency(tile, tr) : 1;
+          let piece = null;
+          if (ta !== 0) {
+            if (ta !== 1) ctx.globalAlpha = ta;
+            piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup, waterAt, fieldAt);
+            if (ta !== 1) ctx.globalAlpha = 1;
+          }
           if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
             const [ou, ov, oz] = SMOKE[piece];
             const [px, py] = P(ou, ov, oz);
@@ -433,14 +442,22 @@ export class Renderer {
         }
         if (tile.oneWay && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawOneWayArrow(ctx, sx, sy, tile.oneWay, tile.road | 0);
         if (tile.bridgeDeck !== undefined && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) {
+          const fb = tr && tr.bridges ? TRANSPARENT_ALPHA : 1; // transparency toggle (UI only)
+          if (fb !== 1) ctx.globalAlpha = fb;
           if (packActive()) drawDeckFront(ctx, tile, sx, (x + y) * HALF_H);
           else drawLandBridgeDeck(ctx, tile, sx, sy, this.heights, map, x, y);
+          if (fb !== 1) ctx.globalAlpha = 1;
         }
         if (tile.aqueduct && tile.aqueduct.role === 'deck' && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawAqueductDeck(ctx, tile, sx, sy, this.heights, x, y);
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
         if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy);
         if (tile.tram && !tile.rail && (!tile.building || (tile.building.type === 'station' && tile.building.kind === 'tram')) && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawTramWires(ctx, tile, sx, sy, this.heights.tileCorners(x, y));
-        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block', typeof tile.signal === 'object' ? tile.signal.dir : 0);
+        if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) {
+          const fa = tr && tr.signs ? TRANSPARENT_ALPHA : 1; // signs toggle (UI only): fade the signal post
+          if (fa !== 1) ctx.globalAlpha = fa;
+          drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block', typeof tile.signal === 'object' ? tile.signal.dir : 0);
+          if (fa !== 1) ctx.globalAlpha = 1;
+        }
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
       }
     }

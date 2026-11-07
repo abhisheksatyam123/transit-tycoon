@@ -18,6 +18,7 @@
 import { growForTick } from './townGrow.js';
 import { townGrowthAllowed, tropicGrowthAllowed } from '../climate.js';
 import { recomputePopulation } from '../towns.js';
+import { getSetting } from '../settings.js';
 
 export const HISTORY_LEN = 20 * 12;
 export const MIN_COMPANY_RATING = -1000;
@@ -55,12 +56,28 @@ export function recalculateSize(town) {
   town.size = size;
 }
 
+/**
+ * Town growth rate (OpenTTD economy.town_growth_rate, town_cmd.cpp UpdateTownGrowthRate): 'normal' = one
+ * growForTick per town tick (unchanged). 'none' never grows; 'slow' grows on half the town ticks (rng);
+ * 'fast' and 'veryfast' run growForTick 2 and 4 times. Non-normal modes draw rng only when set.
+ */
+export function growForRate(game, town) {
+  const rate = getSetting(game.state, 'townGrowthRate');
+  if (rate === 'normal' || rate === undefined) return growForTick(game, town);
+  if (rate === 'none') return false;
+  if (rate === 'slow') return game.rng.chance(0.5) ? growForTick(game, town) : false;
+  const n = rate === 'veryfast' ? 4 : 2;
+  let grew = false;
+  for (let i = 0; i < n; i++) if (growForTick(game, town)) grew = true;
+  return grew;
+}
+
 /** Town::tick: recalculateSize, then grow (TT: growForTick) according to buildSpeed. */
 export function tickTown(game, town) {
   ensureTown(town);
   recalculateSize(town);
   // sub-arctic (opt-in): a town centred above the snow line grows only if it got food last month (climate.js)
-  const grew = townGrowthAllowed(game.state, town) && tropicGrowthAllowed(game.state, town) ? growForTick(game, town) : false;
+  const grew = townGrowthAllowed(game.state, town) && tropicGrowthAllowed(game.state, town) ? growForRate(game, town) : false;
   if (grew) {
     recomputePopulation(game.state, town);
     recalculateSize(town);
