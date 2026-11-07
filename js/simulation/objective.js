@@ -76,13 +76,15 @@ export function updateMonthly(game) {
   const obj = state.objective;
   if (!obj || obj.status !== 'active') return;
   obj.progress = objectiveValue(state, obj);
-  if (obj.progress >= obj.target) {
-    obj.status = 'won';
-    notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good', undefined, undefined, 'general');
-    game.events.emit('objective', { status: 'won', objective: obj });
-  } else if (obj.timeLimitYears && monthsElapsed(state, obj) >= obj.timeLimitYears * 12) {
+  // Company::getNewChallengeProgress (Company.cpp:1075): the time limit is checked BEFORE the target, so a
+  // target reached after the deadline is a loss, not a win.
+  if (obj.timeLimitYears && monthsElapsed(state, obj) >= obj.timeLimitYears * 12) {
     obj.status = 'lost';
     notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
     game.events.emit('objective', { status: 'lost', objective: obj });
+  } else if (obj.progress >= obj.target) {
+    obj.status = 'won';
+    notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good', undefined, undefined, 'general');
+    game.events.emit('objective', { status: 'won', objective: obj });
   }
 }

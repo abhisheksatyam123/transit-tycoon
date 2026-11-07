@@ -17,6 +17,8 @@ function packColor(hex) {
   return (0xff << 24) | ((n & 255) << 16) | (((n >> 8) & 255) << 8) | ((n >> 16) & 255);
 }
 
+/** W7i: per-frame time budget for the minimap base pass. */
+const MM_BUDGET_MS = 3;
 const PACKED = Object.fromEntries(Object.entries(MINIMAP).map(([k, v]) => [k, packColor(v)]));
 
 export class Minimap {
@@ -60,19 +62,33 @@ export class Minimap {
     this.renderer.camera.centerOn((a + b) / 2, (b - a) / 2);
   }
 
-  /** Rebuild the per-tile colour image. */
-  rebuildBase() {
+  /**
+   * Rebuild the per-tile colour image. W7i: the per-tile pass is sliced over frames (MM_BUDGET_MS per
+   * frame) into a persistent ImageData; the base is uploaded once when the pass completes, so the
+   * settled image is identical and no single frame pays the ~50-100 ms full-map loop.
+   * @param {boolean} [sync] run the whole pass now (tests / one-off callers)
+   */
+  rebuildBase(sync = false) {
     const state = this.renderer.game.state;
     const m = state.map;
-    if (this.base.width !== m.width || this.base.height !== m.height) {
-      this.base.width = m.width;
-      this.base.height = m.height;
+    if (!this._job) {
+      if (this.base.width !== m.width || this.base.height !== m.height) {
+        this.base.width = m.width;
+        this.base.height = m.height;
+      }
+      const bctx = /** @type {CanvasRenderingContext2D} */ (this.base.getContext('2d'));
+      if (!this._img || this._img.width !== m.width || this._img.height !== m.height) {
+        this._img = bctx.createImageData(m.width, m.height);
+        this._px = new Uint32Array(this._img.data.buffer);
+      }
+      this._job = { i: 0, m, bctx };
     }
-    const bctx = /** @type {CanvasRenderingContext2D} */ (this.base.getContext('2d'));
-    const img = bctx.createImageData(m.width, m.height);
-    const px = new Uint32Array(img.data.buffer);
-    for (let i = 0; i < m.tiles.length; i++) {
-      const t = m.tiles[i];
+    const job = this._job;
+    const t0 = sync ? -Infinity : performance.now();
+    const { tiles } = job.m, px = this._px, n = tiles.length;
+    let i = job.i;
+    while (i < n) {
+      const t = tiles[i];
       const b = t.building;
       let c;
       if (b && b.type === 'landmark') c = PACKED.landmark;
@@ -83,8 +99,15 @@ export class Minimap {
       else if (t.road) c = t.avenue === 1 ? PACKED.avenue : t.avenue === 2 ? PACKED.avenue2 : PACKED.road;
       else c = PACKED[t.terrain] || PACKED.grass;
       px[i] = c;
+      i++;
+      if ((i & 4095) === 0 && performance.now() - t0 > MM_BUDGET_MS) break;
     }
-    bctx.putImageData(img, 0, 0);
+    job.i = i;
+    if (i >= n) {
+      job.bctx.putImageData(this._img, 0, 0);
+      this._job = null;
+      this._key = null; // base terrain changed: repaint
+    }
   }
 
   /**
@@ -92,11 +115,11 @@ export class Minimap {
    * @param {number} now ms timestamp
    */
   draw(now) {
-    if (now - this.lastBase > 1000) {
-      this.rebuildBase();
+    if (!this._job && now - this.lastBase > 1000) {
       this.lastBase = now;
-      this._key = null; // base terrain changed: repaint
-    }
+      this.rebuildBase();
+    } else if (this._job) this.rebuildBase();
+    // base still being built: keep drawing the previous base image (viewport rect stays live)
     const { ctx, canvas } = this;
     const { s, ox, oy } = this.layout();
     // PF2: skip the repaint when everything it shows is unchanged (paused sim, still camera). The key

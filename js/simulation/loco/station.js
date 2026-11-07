@@ -24,7 +24,11 @@ const KMH_TO_MPH = 0.621371;
 /** VehicleHead.cpp typeAgeMap {train 0, bus 5, truck 3, tram 2, aircraft 0, ship 0}. */
 const TYPE_AGE = { rail: 0, bus: 5, truck: 3 };
 
-/** Station::calculateCargoRating. `c` = { age, quantity, vehicleSpeed(mph), vehicleAge }. */
+/**
+ * Station::calculateCargoRating. `c` = { age, quantity, vehicleSpeed(mph), vehicleAge, npc? }.
+ * npc: station owned by an AI rival (Station.cpp:790-793): rating is forced to 120 after the quantity terms
+ * and before the speed/vehicle-age terms. The player's stations (npc false) are unaffected.
+ */
 export function calculateCargoRating(c) {
   let rating = 0;
   if (c.age <= 7) rating += 165;
@@ -38,6 +42,8 @@ export function calculateCargoRating(c) {
   else if (c.quantity <= 300) rating += 90;
   else if (c.quantity <= 500) rating += 60;
   else if (c.quantity <= 1000) rating += 30;
+
+  if (c.npc) rating = 120;
 
   const speed = Math.min(c.vehicleSpeed, MAX_SPEED_MPH);
   if (speed > 35) rating += Math.trunc((speed - 35) / 4);
@@ -89,6 +95,7 @@ export function updateCargo(game, st) {
       age: st.cargoAge[cargoId], quantity,
       vehicleSpeed: (st.lastSpeed || 0) * KMH_TO_MPH,
       vehicleAge: vehicleAgeFactor(state, st, cargoId),
+      npc: st.ownerId !== undefined && st.ownerId !== null,
     });
     const delta = Math.max(-2, Math.min(2, target - st.rating200[cargoId]));
     let r = (st.rating200[cargoId] += delta);

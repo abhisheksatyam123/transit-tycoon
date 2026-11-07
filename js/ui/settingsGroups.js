@@ -64,6 +64,8 @@ export const SETTING_META = [
     help: 'Percent of a link capacity the first routing pass fills before longer paths (OpenTTD short_path_saturation). 100 = current; OpenTTD default 80.' },
   { key: 'cargoPaymentPercent', group: 'economy', label: 'Cargo payment %', type: 'number', min: 10, max: 300,
     help: 'Percent of the standard cargo payment rate.' },
+  { key: 'loanInterestRate', group: 'economy', label: 'Loan interest (OpenLoco units)', type: 'number', min: 0, max: 30,
+    help: 'Yearly loan interest in OpenLoco units (percent): monthly charge = loan x rate / 1200, for you and AI rivals. OpenLoco editor default 10; 5 = current.' },
   { key: 'subsidies', group: 'economy', label: 'Subsidies', type: 'check',
     help: 'Offer subsidies every month.' },
   { key: 'economyRecessions', group: 'economy', label: 'Recessions', type: 'check',

@@ -13,8 +13,7 @@ import { evaluateGoals, rollGoalMonth } from '../goals.js';
 import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
-import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend } from '../economy.js';
-import { INTEREST_RATE } from '../constants.js';
+import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest } from '../economy.js';
 import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
 import { stopVehicle } from '../cmdVehicle.js';
@@ -82,8 +81,8 @@ export function updateMonthly1(game) {
   c.vehicleProfit = value.vehicleProfit;
   c.historySize = Math.min(120, c.historySize + 1);
 
-  // loan interest (loanInterestRate is a percent: INTEREST_RATE*100), then property upkeep (transit-tycoon addition)
-  const monthlyInterest = Math.trunc((c.loan * Math.round(INTEREST_RATE * 100)) / 1200);
+  // loan interest (World/Company.cpp:724, loanInterestRate setting), then property upkeep (transit-tycoon addition)
+  const monthlyInterest = monthlyLoanInterest(s, c.loan);
   spend(c, 'interest', monthlyInterest);
   spend(c, 'property', inflateCost(s, COST_INDEX.property, propertyUpkeep(s)));
   for (const r of s.rivals || []) spend(r, 'property', inflateCost(s, COST_INDEX.property, upkeepFor(s, r.id)));

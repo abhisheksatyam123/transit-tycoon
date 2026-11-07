@@ -15,7 +15,7 @@
  *  4. company value below zero for 12 months: the company is wound up (vehicles and stations removed).
  */
 import { getSetting } from './settings.js';
-import { createCompany, borrow, repay, spend, earn } from './economy.js';
+import { createCompany, borrow, repay, spend, earn, monthlyLoanInterest } from './economy.js';
 import { allocId, findStation, manhattan } from './state.js';
 import { renewRivalFleet } from './aiRenew.js';
 import { upgradeRivalAirports } from './aiAirUpgrade.js';
@@ -88,7 +88,7 @@ export function updateMonthly(game) {
     r.vehicles = r.vehicles.filter((id) => state.vehicles.some((v) => v.id === id));
     for (const v of state.vehicles) if (v.ownerId === r.id) updateNegMonths(v);
     closeRivalLedger(r, ended);
-    chargeInterest(r);
+    chargeInterest(state, r);
     manageLoan(r);
     sellUnprofitable(ctx, r);
     if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
@@ -117,9 +117,9 @@ function closeRivalLedger(r, ended) {
   r.ledger.current = { income: 0, expenses: 0, byType: Object.fromEntries(Object.keys(cur.byType).map((k) => [k, 0])) };
 }
 
-/** Loan interest, same yearly rate as the player (5%, charged monthly). */
-function chargeInterest(r) {
-  spend(r, 'interest', Math.trunc((r.loan * 5) / 1200));
+/** Loan interest, same formula and loanInterestRate setting as the player (Company.cpp:724). */
+function chargeInterest(state, r) {
+  spend(r, 'interest', monthlyLoanInterest(state, r.loan));
 }
 
 /** Borrow when short of cash and still expanding; repay once cash is comfortably above the route budget. */

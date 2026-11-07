@@ -12,6 +12,8 @@ export const DEFAULT_SETTINGS = {
   /** multi-tile houses (OpenTTD 1x2 / 2x2 temperate houses, largeHouses.js): towns may build them. Off = unchanged. */
   largeHouses: false,
   inflation: true,
+  /** loan interest rate in OpenLoco units (percent per year, charged monthly as loan*rate/1200; World/Company.cpp:724). Editor default 10 in OL; 5 here keeps existing games unchanged. */
+  loanInterestRate: 5,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,
   /** vehicle breakdowns: 'none' | 'reduced' | 'normal' */

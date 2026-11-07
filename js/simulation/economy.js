@@ -3,7 +3,8 @@
  */
 import { COSTS } from '../config/costs.js';
 import { noteExpenditure, companyDefaults } from './loco/company.js';
-import { START_MONEY, START_LOAN, MAX_LOAN, LOAN_STEP, INTEREST_RATE } from './constants.js';
+import { START_MONEY, START_LOAN, MAX_LOAN, LOAN_STEP } from './constants.js';
+import { getSetting } from './settings.js';
 
 /** Ledger categories. */
 export const LEDGER_TYPES = ['construction', 'vehicles', 'running', 'income', 'interest', 'property'];
@@ -42,6 +43,14 @@ export function earn(company, amount, type = 'income') {
   company.ledger.current.income += amount;
   company.ledger.current.byType[type] = (company.ledger.current.byType[type] || 0) + amount;
   noteExpenditure(company, type, amount);
+}
+
+/**
+ * Monthly loan interest (World/Company.cpp:724): loan * loanInterestRate / 1200, with loanInterestRate in
+ * OpenLoco percent units from the `loanInterestRate` setting. Shared by the player and AI rivals.
+ */
+export function monthlyLoanInterest(state, loan) {
+  return Math.trunc((loan * getSetting(state, 'loanInterestRate')) / 1200);
 }
 
 /**
