@@ -123,7 +123,7 @@ export function setupInput(app, canvas, shortcuts) {
     if (app.tool) {
       const clamped = clampTile(t);
       // ctrl and the screen point let a station tool open its distant-join picker (ui/tools/joinPicker.js)
-      app.tool.up({ ...clamped, ctrl: !!(e.ctrlKey || e.metaKey), cx: e.clientX, cy: e.clientY });
+      app.tool.up({ ...clamped, ctrl: !!(e.ctrlKey || e.metaKey), cx: e.clientX, cy: e.clientY, sx: p.x, sy: p.y });
       lastTile = { x: -1, y: -1 };
     } else click(p);
   };

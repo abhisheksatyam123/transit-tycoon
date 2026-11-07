@@ -9,6 +9,8 @@ import { RAIL_SELECTOR, selectorTrack, trackTypeAvailable } from '../../config/r
 const RAIL_SEL_LABEL = { rail: 'Rail', electric: 'Electric', mono: 'Monorail', maglev: 'Maglev' };
 import { SHAPES, SHAPE_LABEL, routeFor } from '../../simulation/shapes.js';
 import { lTiles } from './geometry.js';
+import { isDiagonalDrag, choosePiece } from './autorail.js';
+import { screenToTileFloat, HEIGHT_STEP } from '../../renderer/iso.js';
 
 /**
  * @typedef {Object} LineToolOptions
@@ -37,11 +39,16 @@ export function createLineTool(app, o) {
   // rail track selector (config/railTypes.js RAIL_SELECTOR): ';' cycles Rail / Electric / Monorail / Maglev. Shared
   // with the station and depot tools through app.railSelector so one choice applies to every rail build.
   const railSelOf = () => app.railSelector || 'rail';
+  // OTTD autorail (always on for rail, like OTTD's rail tool): diagonal drags lay the staircase, single clicks pick X/Y from the cursor
+  const autoOn = () => o.layer === 'rail';
+  /** Shape actually used for a drag: autorail turns an L drag on a diagonal into the staircase. */
+  const effShape = (x0, y0, x1, y1) => (shape === 'L' && autoOn() && isDiagonalDrag(x0, y0, x1, y1) ? 'diag' : shape);
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
-    if (shape === 'L') return o.tiles(x0, y0, x1, y1);
-    const r = routeFor(shape, x0, y0, x1, y1);
+    const sh = effShape(x0, y0, x1, y1);
+    if (sh === 'L') return o.tiles(x0, y0, x1, y1);
+    const r = routeFor(sh, x0, y0, x1, y1);
     return r ? r.path : lTiles(x0, y0, x1, y1);
   };
   const build = (g, x0, y0, x1, y1, opts) => {
@@ -49,7 +56,8 @@ export function createLineTool(app, o) {
     const bridge = railMode === 'bridge';
     const railSel = railSelOf();
     const rsel = o.layer === 'rail' ? { trk: selectorTrack(railSel), electric: railSel === 'electric' } : {};
-    const r = shape === 'L' ? null : routeFor(shape, x0, y0, x1, y1);
+    const sh = effShape(x0, y0, x1, y1);
+    const r = sh === 'L' ? null : routeFor(sh, x0, y0, x1, y1);
     if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge, ...rsel });
     if (tunnel) return { ok: false, error: 'Tunnels must be straight' };
     if (bridge) return { ok: false, error: 'Bridges must be straight' };
@@ -141,7 +149,16 @@ export function createLineTool(app, o) {
       start = null;
       lastKey = '';
       app.renderer.overlay.preview = null;
-      const res = build(app.game, s.x, s.y, t.x, t.y, {});
+      // single-tile autorail click: pick the X/Y piece from the cursor's place inside the tile
+      let opts = {};
+      if (autoOn() && s.x === t.x && s.y === t.y && shape === 'L' && t.sx !== undefined) {
+        const w = app.renderer.camera.screenToWorld(t.sx, t.sy);
+        // the tile's surface sits h*HEIGHT_STEP above the flat projection: shift the point back down by that
+        const h = app.renderer.heights?.centerH?.(t.x, t.y) ?? 0;
+        const f = screenToTileFloat(w.x, w.y + Math.max(0, h) * HEIGHT_STEP);
+        opts = { axis: choosePiece(f.x - t.x + 0.5, f.y - t.y + 0.5) };
+      }
+      const res = build(app.game, s.x, s.y, t.x, t.y, opts);
       app.exec(res, { x: t.x, y: t.y, sound: o.sound });
     },
     cancel() {
