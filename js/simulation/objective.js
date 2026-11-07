@@ -71,9 +71,9 @@ export function describeObjective(obj) {
 }
 
 /** Fail the objective when its time limit has run out. */
-function failObjective(game, obj) {
+export function failObjective(game, obj, reason = 'time ran out') {
   obj.status = 'lost';
-  notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
+  notify(game.ctx, `Objective failed: ${reason}. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
   game.events.emit('objective', { status: 'lost', objective: obj });
 }
 
@@ -87,19 +87,27 @@ export function updateDaily(game) {
   const obj = game.state.objective;
   if (!obj || obj.status !== 'active' || !obj.timeLimitYears) return;
   const deadlineYear = obj.startYear + obj.timeLimitYears - 1;
-  if (game.state.date.year > deadlineYear && game.state.date.day !== 1) failObjective(game, obj);
+  if (game.state.date.year > deadlineYear && game.state.date.day !== 1) { failObjective(game, obj); return; }
+  // OL Company::updateDailyPlayer -> evaluateChallengeProgress runs daily; cargoDelivery is the one progress value that
+  // changes between months (Company.cpp:1120-1132 cargoDelivered is updated per delivery). Win here, not only monthly.
+  if (obj.type === 'cargoDelivery') checkWin(game);
 }
 
-/** Monthly update (progress, win). Runs after the company manager updated value / performance. */
-export function updateMonthly(game) {
+/** Progress and win check (shared by the daily cargoDelivery check and the monthly update). */
+function checkWin(game) {
   const state = game.state;
   const obj = state.objective;
   if (!obj || obj.status !== 'active') return;
   obj.progress = objectiveValue(state, obj);
   // The time limit is enforced daily (updateDaily). A target reached after the deadline is already lost by then.
-  if (obj.status === 'active' && obj.progress >= obj.target) {
+  if (obj.progress >= obj.target) {
     obj.status = 'won';
     notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good', undefined, undefined, 'general');
     game.events.emit('objective', { status: 'won', objective: obj });
   }
+}
+
+/** Monthly update (progress, win). Runs after the company manager updated value / performance. */
+export function updateMonthly(game) {
+  checkWin(game);
 }

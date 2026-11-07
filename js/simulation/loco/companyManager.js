@@ -17,6 +17,7 @@ import { infrastructureMaintenance } from '../infrastructure.js';
 import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest } from '../economy.js';
 import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
+import { failObjective } from '../objective.js';
 import { stopVehicle } from '../cmdVehicle.js';
 import * as VehicleManager from './vehicleManager.js';
 import { ensureEconomy, inflateCost, COST_INDEX, getCurrencyMultiplicationFactor } from './economy.js';
@@ -106,9 +107,12 @@ export function updateMonthly1(game) {
 }
 
 /** Bankruptcy: flag the company and stop every vehicle (stopAllCompanyVehicles). */
-function declareBankrupt(game, c) {
+export function declareBankrupt(game, c) {
   c.bankrupt = true;
   notify(game.ctx, `${c.name} has been declared bankrupt!`, 'bad', undefined, undefined, 'company');
+  // OL Company.cpp:745-748: bankruptcy sets challengeFailed unless the challenge is already beaten/completed.
+  const obj = game.state.objective;
+  if (obj && obj.status === 'active') failObjective(game, obj, 'the company went bankrupt');
   for (const v of game.state.vehicles) {
     if (v.ownerId != null) continue; // rivals' vehicles are not the player's
     if (findVehicle(game.state, v.id)) stopVehicle(game.ctx, v.id);

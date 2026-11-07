@@ -417,7 +417,8 @@ function deliverLoad(ctx, v, st) {
   if (mult !== 1) pay = Math.round(pay * mult);
   const payee = companyOf(state, v);
   recordDelivery(payee, v.cargoId, load.amount, dist);
-  creditDelivery(state, st, v.cargoId, load.amount);
+  const acceptingInd = creditDelivery(state, st, v.cargoId, load.amount);
+  noteFirstDelivery(ctx, state, st, v.cargoId, acceptingInd);
   noteDelivery(state, v.cargoId, load.amount, v.id);
   const amount = load.amount;
   load.amount = 0;
@@ -444,11 +445,37 @@ function creditDelivery(state, st, cargoId, amount) {
     const ind = findIndustry(state, b.industryId);
     if (ind && INDUSTRY_BY_ID[ind.typeId].accepts.includes(cargoId)) {
       deliverToIndustry(ind, cargoId, amount);
-      return;
+      return ind;
     }
   }
   const town = nearestTown(state, st.x, st.y);
   if (town) recordTownDelivery(town, cargoId, amount, state);
+  return null;
+}
+
+/**
+ * OL VehicleHead::updateUnloadCargoComponent (VehicleHead.cpp:3145-3167): the first delivery of a cargo to an
+ * industry posts workersCelebrate once per industry and cargo; the first delivery of a cargo to the station's town
+ * posts citizensCelebrate once per town and cargo. Flags are per cargo (OL var_1A8 / history_min_production bits),
+ * lazy on the town/industry records.
+ */
+export function noteFirstDelivery(ctx, state, st, cargoId, ind) {
+  const cargo = CARGO_BY_ID[cargoId];
+  const cargoName = cargo?.name || cargoId;
+  if (ind) {
+    ind.celebrated = ind.celebrated || {};
+    if (!ind.celebrated[cargoId]) {
+      ind.celebrated[cargoId] = true;
+      notify(ctx, `Workers Celebrate! First ${cargoName} delivered to ${ind.name}!`, 'good', ind.x, ind.y, 'arrival');
+    }
+  }
+  const town = nearestTown(state, st.x, st.y);
+  if (!town) return;
+  town.celebrated = town.celebrated || {};
+  if (!town.celebrated[cargoId]) {
+    town.celebrated[cargoId] = true;
+    notify(ctx, `Citizens Celebrate! First ${cargoName} arrive in ${town.name}!`, 'good', st.x, st.y, 'arrival');
+  }
 }
 
 /**
@@ -497,11 +524,9 @@ function loadSlice(ctx, v, st) {
 export function arriveAtStation(ctx, v, st, intermediate = false) {
   const { state } = ctx;
   const key = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
-  if (!st.arrived[key]) {
-    st.arrived[key] = true;
-    const what = v.kind === 'train' ? 'train' : v.kind === 'aircraft' ? 'aircraft' : v.kind === 'ship' ? 'ship' : v.roadType === 'bus' ? 'bus' : v.roadType === 'tram' ? 'tram' : 'truck';
-    notify(ctx, `Citizens celebrate... First ${what} arrives at ${st.name}!`, 'good', st.x, st.y, 'arrival');
-  }
+  // The per-vehicle-kind 'Citizens celebrate' news was not an OpenLoco message: OL celebrates the first delivery
+  // of each cargo (noteFirstDelivery). st.arrived is kept for its existing readers.
+  if (!st.arrived[key]) st.arrived[key] = true;
   ctx.emit('vehicleArrived', { vehicle: v, station: st });
   v.state = 'loading';
   v.speed = 0;

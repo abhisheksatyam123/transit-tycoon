@@ -16,6 +16,8 @@
  */
 import { waitingAmount, takeWaiting, recomputeAcceptance } from '../stations.js';
 import { stationRatingFixed } from '../cheats.js';
+import { notify } from '../news.js';
+import { CARGO_BY_ID } from '../../config/cargos.js';
 
 export const MIN_CARGO_RATING = 0;
 export const MAX_CARGO_RATING = 200;
@@ -163,5 +165,23 @@ export function updateCargo(game, st) {
 
 /** Station::tick -> updateCargoAcceptance. */
 export function tickStation(game, st) {
+  const before = st.accepts || {};
   recomputeAcceptance(game.state, st);
+  alertCargoAcceptanceChange(game, st, before);
+}
+
+/**
+ * OL Station::alertCargoAcceptanceChange (Station.cpp:225-262, msgs 401/402): news when a cargo flips acceptance at a
+ * player station. Category 'acceptance' so the player can mute it. Only the player's stations (rivals are silent).
+ */
+function alertCargoAcceptanceChange(game, st, before) {
+  if (st.ownerId != null) return;
+  const after = st.accepts || {};
+  for (const c of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const was = !!before[c], now = !!after[c];
+    if (was === now) continue;
+    const name = CARGO_BY_ID[c]?.name || c;
+    notify(game.ctx, now ? `${st.name} now accepts ${name}` : `${st.name} no longer accepts ${name}`,
+      'info', st.x, st.y, 'acceptance');
+  }
 }
