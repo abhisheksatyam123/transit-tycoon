@@ -273,6 +273,11 @@ export function removeStationTile(ctx, x, y) {
 export function removeDepot(ctx, depotId) {
   const { state } = ctx;
   state.depots = state.depots.filter((d) => d.id !== depotId);
+  // OpenTTD Depot::~Depot -> OrderBackup::Reset(tile): the depot's order backup goes with it
+  if (state.orderBackups) {
+    delete state.orderBackups[depotId];
+    if (!Object.keys(state.orderBackups).length) delete state.orderBackups;
+  }
   for (const v of state.vehicles) {
     if (v.goingToDepot === depotId) v.goingToDepot = null;
   }

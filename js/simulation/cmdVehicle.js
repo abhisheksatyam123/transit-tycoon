@@ -30,6 +30,7 @@ import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
+import { backupVehicleOrders, restoreVehicleOrders } from './orderBackup.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -71,6 +72,8 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
     if (rival) v.livery = rival.colour; // rival vehicles are drawn in the company colour (renderer reads info.livery)
   }
   spend(companyById(state, opts.owner ?? null), 'vehicles', r.cost);
+  // OpenTTD CmdBuildVehicle -> OrderBackup::Restore: the player's sold-vehicle backup for this depot (player only)
+  if (opts.owner == null && !opts.noRestore) restoreVehicleOrders(state, depot, v, (s) => allocId(s));
   return { ok: true, cost: r.cost, vehicle: v };
 }
 
@@ -221,6 +224,8 @@ export function sellVehicle(ctx, id, opts = {}) {
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot' };
   if (opts.dryRun) return { ok: true, cost: -v.value };
+  // OpenTTD CmdSellVehicle(backup_order): the depot window's single Sell keeps the orders (sell-all does not)
+  if (opts.backupOrders && opts.owner == null) backupVehicleOrders(state, v);
   leaveOrderGroup(state, v);
   state.vehicles = state.vehicles.filter((x) => x !== v);
   earn(companyOf(state, v), v.value, 'vehicles');
@@ -246,7 +251,7 @@ export function cloneVehicle(ctx, id, opts = {}) {
   if (!depot) return { ok: false, error: 'Vehicle has no depot to clone it in' };
   const spec = { modelId: src.modelId, wagonModelId: src.wagonModelId || undefined, wagons: src.wagons || 0, cargoId: src.cargoId || undefined };
   if (src.consist) spec.consist = src.consist.map((w) => ({ ...w })); // mixed consist: same wagons in the same order
-  const r = buyVehicle(ctx, depot.id, spec, { dryRun: !!opts.dryRun });
+  const r = buyVehicle(ctx, depot.id, spec, { dryRun: !!opts.dryRun, noRestore: true });
   if (!r.ok || opts.dryRun) return r;
   const v = r.vehicle;
   v.orders = src.orders.map((o) => ({ ...o }));

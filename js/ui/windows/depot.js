@@ -143,7 +143,7 @@ export function openDepot(app, id) {
               el('span.row-actions', null,
                 el('button.btn.sm', { type: 'button', text: 'Orders', onclick: () => app.open('orders', v.id) }),
                 el('button.btn.sm', { type: 'button', text: 'Start', onclick: () => app.exec(app.game.startVehicle(v.id), { sound: 'horn' }) }),
-                el('button.btn.sm.danger', { type: 'button', text: 'Sell', onclick: () => app.exec(app.game.sellVehicle(v.id), { sound: 'click' }) }))),
+                el('button.btn.sm.danger', { type: 'button', text: 'Sell', onclick: () => app.exec(app.game.sellVehicle(v.id, { backupOrders: true }), { sound: 'click' }) }))),
             v.kind === 'train' ? consistStrip(app, v.id) : null),
           (row, v) => {
             setText(row.firstChild.firstChild, `${v.name} · ${cargoName(v.cargoId)} · ${money(v.value || 0)}`);
