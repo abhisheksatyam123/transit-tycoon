@@ -8,12 +8,16 @@ import { placeLargeHouse, clearHouseAt, largeHousesEnabled, LARGE_GROUPS } from 
 const large = (g) => g.state.map.tiles.filter((t) => t.building && t.building.type === 'house' && t.building.size);
 const sizeTiles = (size) => (size === '1x2' ? 2 : 4);
 
+/** Groups a temperate town may pick in a year (the option list placeLargeHouse draws from). */
+const temperateOptions = (year) => LARGE_GROUPS.filter((g) => g.minYear <= year && g.climates.includes('temperate'));
+
 /** Deterministic rng stub: chance always true, int/pick take the first option (anchor = (x,y) for part 0). */
 const rngStub = { chance: () => true, int: () => 0, next: () => 0.5, range: (a) => a, pick: (xs) => xs[0] };
 
-/** rng stub: the group pick (the call with upper bound LARGE_GROUPS.length-1) returns idx; anchor picks return 0 (part 0 at (x,y)). */
+/** rng stub: the first int() call (the group pick) returns idx into the climate's option list; anchor picks return 0 (part 0 at (x,y)). */
 function pickGroup(idx) {
-  return { ...rngStub, int: (a, b) => (b === LARGE_GROUPS.length - 1 ? idx : 0) };
+  let first = true;
+  return { ...rngStub, int: () => { if (first) { first = false; return idx; } return 0; } };
 }
 
 function flatGame(on = true) {
@@ -44,9 +48,9 @@ test('setting on: a 2x2 house is placed on free flat land, parts share the ancho
   const g = flatGame(true);
   const s = openSite(g);
   expect(s).toBeTruthy();
-  const group = LARGE_GROUPS.find((q) => q.size === '2x2' && q.minYear <= 1990);
+  const group = temperateOptions(1990).find((q) => q.size === '2x2');
   // force the chosen group by stubbing int() to return its index
-  const idx = LARGE_GROUPS.indexOf(group);
+  const idx = temperateOptions(1990).indexOf(group);
   const rng = pickGroup(idx);
   const placed = placeLargeHouse(g.state, rng, s.town, s.x, s.y, 3, 1990);
   expect(placed).toBe(true);
@@ -65,7 +69,7 @@ test('setting on: a 2x2 house is placed on free flat land, parts share the ancho
 test('removing a multi-tile house clears all its tiles and its town entry', () => {
   const g = flatGame(true);
   const s = openSite(g);
-  const idx = LARGE_GROUPS.findIndex((q) => q.size === '2x2' && q.minYear <= 1990);
+  const idx = temperateOptions(1990).findIndex((q) => q.size === '2x2');
   const rng = pickGroup(idx);
   expect(placeLargeHouse(g.state, rng, s.town, s.x, s.y, 2, 1990)).toBe(true);
   const parts = large(g);
@@ -93,11 +97,75 @@ test('growth with largeHouses on places a multi-tile house in a grown town (slow
 test('save round-trip keeps multi-tile parts (fields persisted generically)', () => {
   const g = flatGame(true);
   const s = openSite(g);
-  const idx = LARGE_GROUPS.findIndex((q) => q.size === '2x2' && q.minYear <= 1990);
+  const idx = temperateOptions(1990).findIndex((q) => q.size === '2x2');
   placeLargeHouse(g.state, pickGroup(idx), s.town, s.x, s.y, 2, 1990);
   const before = large(g).length;
   const state = parseState(serializeState(g.state));
   const n = state.map.tiles.filter((t) => t.building && t.building.size).length;
   expect(n).toBe(before);
   expect(before).toBe(4);
+});
+
+// Sub-arctic / sub-tropic groups (OpenTTD specs 66, 68 and 32 in the arctic and tropic climates).
+const climateGame = (mapgen) => {
+  const g = Game.create({ seed: 7, startYear: 1990, mapgen, settings: { largeHouses: true } });
+  return g;
+};
+
+test('group table: climates per OpenTTD HouseZone (spec 40 temperate; 66 below snow; 68 above snow; 32 tropic + below)', () => {
+  const byId = (id) => LARGE_GROUPS.find((q) => q.id === id);
+  expect(byId(40).climates).toEqual(['temperate']);
+  expect(byId(40).size).toBe('2x2');
+  expect(byId(66).climates).toEqual(['arctic-below']);
+  expect(byId(66).size).toBe('1x2');
+  expect(byId(68).climates).toEqual(['arctic-above']);
+  expect(byId(68).size).toBe('1x2');
+  expect(byId(32).climates).toEqual(expect.arrayContaining(['tropic', 'arctic-below', 'temperate']));
+});
+
+test('sub-tropic game: placement uses only the tropic-capable groups (32), parts share the anchor', () => {
+  const g = climateGame({ climate: 'tropic' });
+  const s = openSite(g);
+  const opts = LARGE_GROUPS.filter((q) => q.minYear <= 1990 && q.climates.includes('tropic'));
+  expect(opts.map((q) => q.id)).toEqual([32]);
+  expect(placeLargeHouse(g.state, pickGroup(0), s.town, s.x, s.y, 2, 1990)).toBe(true);
+  const parts = large(g);
+  expect(parts.length).toBe(4);
+  expect(parts.every((t) => t.building.lgId === 32)).toBe(true);
+});
+
+test('sub-arctic below the snow line: placement picks 66 (1x2) or 32; above the line: 68 (1x2) or 32', () => {
+  const g = climateGame({ climate: 'arctic', snowLine: 3 });
+  const s = openSite(g);
+  const tile = g.state.map.tiles[s.y * g.state.map.width + s.x];
+  tile.height = 0; // below the line (snowLine 3): arctic-below
+  const below = LARGE_GROUPS.filter((q) => q.minYear <= 1990 && q.climates.includes('arctic-below')).map((q) => q.id);
+  expect(below).toEqual([32, 66]);
+  expect(placeLargeHouse(g.state, pickGroup(below.indexOf(66)), s.town, s.x, s.y, 2, 1990)).toBe(true);
+  const parts = large(g);
+  expect(parts.length).toBe(2);
+  expect(parts.every((t) => t.building.lgId === 66)).toBe(true);
+  for (const t of parts) expect(t.building.size).toBe('1x2');
+});
+
+test('sub-arctic above the snow line: placement uses 68 (1x2)', () => {
+  const g = climateGame({ climate: 'arctic', snowLine: 3 });
+  const s = openSite(g);
+  const tile = g.state.map.tiles[s.y * g.state.map.width + s.x];
+  for (const q of g.state.map.tiles) if (q.height < 5) q.height = 5; // flat site at height 5: above the snow line (3)
+  const above = LARGE_GROUPS.filter((q) => q.minYear <= 1990 && q.climates.includes('arctic-above')).map((q) => q.id);
+  expect(above).toEqual([68]);
+  // flat site at the snow height (above the line): only 68 is offered
+  expect(placeLargeHouse(g.state, pickGroup(0), s.town, s.x, s.y, 2, 1990)).toBe(true);
+  const parts = large(g);
+  expect(parts.length).toBe(2);
+  expect(parts.every((t) => t.building.lgId === 68)).toBe(true);
+  expect(tile).toBeTruthy();
+});
+
+test('temperate game: spec 40 (1983+) is offered only from 1983, and never in a tropic or arctic game', () => {
+  expect(LARGE_GROUPS.filter((q) => q.id === 40 && q.minYear <= 1982).length).toBe(0);
+  expect(LARGE_GROUPS.filter((q) => q.id === 40 && q.minYear <= 1983).length).toBe(1);
+  const tropic = LARGE_GROUPS.filter((q) => q.climates.includes('tropic')).map((q) => q.id);
+  expect(tropic).toEqual([32]);
 });

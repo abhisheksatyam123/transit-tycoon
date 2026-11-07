@@ -24,6 +24,10 @@ export const GROUPS = {
   'rail.station': [[1069, 1086]],
   // houses (1420 plain paved, 1421-1575 buildings incl. church)
   'houses': [[1420, 1575]],
+  // temperate 2x2 tall office (OpenTTD spec 40, base-4404-houses-town-snow.pnml spr4411-4417; large house group 40)
+  'houses.town_snow': [[4411, 4417]],
+  // sub-arctic 1x2 hotel parts (OpenTTD specs 66/68: arctichotel.png spr4475/4476 and 4583/4584; large house groups 66/68)
+  'houses.arctic_large': [[4475, 4476], [4583, 4584]],
   // road/rail vehicles, aircraft, airport objects, stops
   'roadveh.buses': [[3092, 3667]],
   'rail.engines': [[2905, 2920]],

@@ -9,24 +9,41 @@
  * Demolition and removal clear every part through clearHouseAt.
  */
 import { getSetting } from './settings.js';
-import { isArctic, isTropic } from './climate.js';
+import { isArctic, isToyland, isTropic, snowDensity, snowLineOf } from './climate.js';
 
 /**
- * Temperate multi-tile groups: first part id, size, offsets (dx, dy) of each part, earliest year. OpenTTD places part
- * p at TileDiffXY(0,1)/(1,0)/(1,1) in ITS axes; our x axis is OpenTTD's y (screen sx = (x - y) * W/2), so dx/dy are swapped.
+ * Multi-tile groups (OpenTTD _original_house_specs; ids and climates match the generated LARGE_HOUSE_GROUPS in
+ * renderer/pack/large_house_table.js): first part id, size, offsets (dx, dy) of each part, earliest year, and the
+ * climates it may be built in ('temperate', 'arctic-below' / 'arctic-above' = sub-arctic below / above the snow line,
+ * 'tropic' = sub-tropic). OpenTTD places part p at TileDiffXY(0,1)/(1,0)/(1,1) in ITS axes; our x axis is OpenTTD's y
+ * (screen sx = (x - y) * W/2), so dx/dy are swapped.
  */
 export const LARGE_GROUPS = [
-  { id: 7, size: '1x2', w: 2, h: 1, minYear: 1959, parts: [[0, 0], [1, 0]] },
-  { id: 20, size: '2x2', w: 2, h: 2, minYear: 0, parts: [[0, 0], [1, 0], [0, 1], [1, 1]] },
-  { id: 32, size: '2x2', w: 2, h: 2, minYear: 1958, parts: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: 7, size: '1x2', w: 2, h: 1, minYear: 1959, climates: ['temperate'], parts: [[0, 0], [1, 0]] },
+  { id: 20, size: '2x2', w: 2, h: 2, minYear: 0, climates: ['temperate'], parts: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: 32, size: '2x2', w: 2, h: 2, minYear: 1958, climates: ['temperate', 'arctic-below', 'tropic'], parts: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: 40, size: '2x2', w: 2, h: 2, minYear: 1983, climates: ['temperate'], parts: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+  { id: 66, size: '1x2', w: 2, h: 1, minYear: 1972, climates: ['arctic-below'], parts: [[0, 0], [1, 0]] },
+  { id: 68, size: '1x2', w: 2, h: 1, minYear: 1972, climates: ['arctic-above'], parts: [[0, 0], [1, 0]] },
 ];
 
 /** Chance that a successful 1x1 house attempt tries a multi-tile house instead. */
 export const LARGE_HOUSE_CHANCE = 0.2;
 
-/** True when the largeHouses setting is on (temperate towns only: the sub-tropic and sub-arctic pack has no sprites). */
+/** True when the largeHouses setting is on (every climate; each group names the climates it may be built in). */
 export function largeHousesEnabled(state) {
-  return !!getSetting(state, 'largeHouses') && !isTropic(state) && !isArctic(state);
+  return !!getSetting(state, 'largeHouses');
+}
+
+/**
+ * Climate tag of a footprint at height z (see LARGE_GROUPS.climates): sub-tropic games are 'tropic', sub-arctic games
+ * are 'arctic-above' at or above the snow line (snow density >= 0, as drawOgfxBuilding) and 'arctic-below' otherwise.
+ */
+export function largeClimateTag(state, z) {
+  if (isToyland(state)) return 'toyland'; // no toyland large-house groups yet: 1x1 houses only
+  if (isTropic(state)) return 'tropic';
+  if (isArctic(state)) return snowDensity(z, snowLineOf(state)) >= 0 ? 'arctic-above' : 'arctic-below';
+  return 'temperate';
 }
 
 /**
@@ -70,7 +87,11 @@ export function placeLargeHouse(state, rng, town, x, y, level, year) {
   if (!largeHousesEnabled(state) || state.scenario === 'moscow') return false;
   if (!rng.chance(LARGE_HOUSE_CHANCE)) return false;
   const { map } = state;
-  const options = LARGE_GROUPS.filter((g) => g.minYear <= year);
+  // the climate of the site decides which groups may cover it: the tile under (x, y) (footprint is flat, see below)
+  const site = map.tiles[y * map.width + x];
+  if (!site) return false;
+  const tag = largeClimateTag(state, site.height);
+  const options = LARGE_GROUPS.filter((g) => g.minYear <= year && g.climates.includes(tag));
   if (!options.length) return false;
   const g = options[rng.int(0, options.length - 1)];
   // anchor choices: the footprint must cover (x, y)
