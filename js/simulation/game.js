@@ -37,6 +37,7 @@ import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany, renameDepot } from './cmdRename.js';
+import { setAirportClosed } from './cmdAirport.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
 import { findStation, findVehicle } from './state.js';
@@ -326,6 +327,8 @@ export class Game {
   massStartStop(ids, start, opts) { return vcmd.massStartStop(this.ctx, ids, start, opts); }
   /** Rename commands (cmdRename.js): name is validated and stored in the entity's name field. */
   renameStation(id, name, opts) { return renameStation(this.ctx, id, name, opts); }
+  /** Open (closed=false) or close (true) an airport station to landings (cmdAirport.js setAirportClosed). */
+  setAirportClosed(id, closed, opts) { return setAirportClosed(this.ctx, id, closed, opts); }
   renameVehicle(id, name, opts) { return renameVehicle(this.ctx, id, name, opts); }
   /** Vehicle groups (cmdGroup.js): create / rename / delete a group; assign vehicles. */
   createGroup(name, opts) { return gcmd.createGroup(this.ctx, name, opts); }

@@ -12,6 +12,7 @@ import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } fro
 import { allocId, findTown, nearestTown } from './state.js';
 import { removeStationTile, removeDepot } from './cmdStation.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
+import { findStation } from './state.js';
 import { clearHouseAt } from './largeHouses.js';
 
 /**
@@ -131,4 +132,26 @@ export function demolishAirport(ctx, ox, oy) {
     t.building = null; t.owner = null;
   }
   for (const d of state.depots.filter((q) => q.kind === 'air' && q.x >= ox && q.x < ox + type.w && q.y >= oy && q.y < oy + type.h)) removeDepot(ctx, d.id);
+}
+
+/**
+ * Open or close an airport to incoming aircraft (OpenTTD CmdOpenCloseAirport, station_cmd.cpp:2834, which
+ * flips AirportBlock::AirportClosed). A closed airport refuses landings: arriving aircraft hold (circle) and
+ * land once reopened. Take-offs are not affected (OpenTTD checks the flag only on the landing branch).
+ * Lazy: st.airportClosed exists only while closed; absent = open. Owner-checked like the other commands.
+ * @param {object} ctx game context
+ * @param {number} stationId station id
+ * @param {boolean} closed true = close, false = open
+ * @param {{owner?:string|null,dryRun?:boolean}} [opts]
+ * @returns {{ok:boolean,error?:string,cost?:number,closed?:boolean}}
+ */
+export function setAirportClosed(ctx, stationId, closed, opts = {}) {
+  const st = findStation(ctx.state, stationId);
+  if (!st) return { ok: false, error: 'Unknown station' };
+  if (!(st.kinds && st.kinds.airport) && !(st.tiles || []).some((t) => t.kind === 'airport')) return { ok: false, error: 'Not an airport' };
+  if (ownerMismatch(st, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (opts.dryRun) return { ok: true, cost: 0, closed: !!closed };
+  if (closed) st.airportClosed = true;
+  else delete st.airportClosed;
+  return { ok: true, cost: 0, closed: !!closed };
 }

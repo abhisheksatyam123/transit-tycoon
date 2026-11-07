@@ -34,6 +34,11 @@ function ratingColor(r) {
   return r < 35 ? '#ef4444' : r < 60 ? '#f59e0b' : '#22c55e';
 }
 
+/** Airport station: has a tile of an airport footprint (kind 'airport'). */
+function isAirport(st) {
+  return !!(st.kinds && st.kinds.airport) || (st.tiles || []).some((t) => t.kind === 'airport');
+}
+
 /**
  * @param {import('../app.js').App} app
  * @param {number} id station id
@@ -64,13 +69,25 @@ export function openStation(app, id) {
           const st = app.findStation(id);
           if (st) app.centerOn(st.x, st.y);
         } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'station', id) })));
+      // airport stations: Close airport / Open airport (OpenTTD WID_SV_CLOSE_AIRPORT, station_gui.cpp:1469)
+      const closeBtn = el('button.btn', { type: 'button', text: 'Close airport', onclick: () => {
+        const st = app.findStation(id);
+        if (!st) return;
+        const r = app.game.setAirportClosed(id, !st.airportClosed);
+        if (!r || !r.ok) app.toast(r ? r.error : 'Failed', 'bad');
+        app.wm.updateAll();
+      } });
+      closeBtn.hidden = true;
+      body.append(el('div.btn-row', null, closeBtn));
       let accSig = '';
       return () => {
         const st = app.findStation(id);
         if (!st) { win.close(); return; }
-        win.setTitle(st.name);
+        win.setTitle(st.name + (st.airportClosed ? ' (closed)' : ''));
+        closeBtn.hidden = !isAirport(st);
+        if (!closeBtn.hidden) closeBtn.textContent = st.airportClosed ? 'Open airport' : 'Close airport';
         const k = st.kinds || {};
-        const airport = k.airport || (st.tiles || []).some((t) => { const tt = app.game.state.map.tiles[t.y * app.game.state.map.width + t.x]; return tt && tt.building && tt.building.kind === 'airport'; });
+        const airport = k.airport || isAirport(st);
         setText(kinds, airport ? `Airport · ${st.tiles.length} tile(s)` : ['rail', 'bus', 'truck'].filter((x) => k[x]).map((x) => (x === 'rail' ? 'Rail' : x === 'bus' ? 'Bus' : 'Truck')).join(' · ') + ` station · ${st.tiles.length} tile(s)`);
         // radius = what the catchment code uses (airports per type, docks their own radius)
         const radius = (st.tiles || []).reduce((m, t) => Math.max(m, catchRadius(app.game.state, t)), 0);

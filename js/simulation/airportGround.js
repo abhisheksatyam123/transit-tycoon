@@ -117,6 +117,7 @@ export function ftaClaimed(state, v, x, y) {
 
 /** True while a runway tile of st is taken by a ground aircraft (landing needs the runway clear). */
 export function ftaRunwayBusy(state, st, v) {
+  if (st && st.airportClosed) return true; // closed airport (OTTD AirportClosed): runway counts as busy, landings hold
   if (airportBlockedByDisaster(state, st)) return true; // crashed zeppelin on the runway (OTTD AirportBlock::RunwayIn)
   const R = new Set(ftaPartTiles(state, st, RUNWAY_PART).map((t) => `${t.x},${t.y}`));
   if (!R.size) return false;
@@ -225,6 +226,7 @@ export function heliDepartPath(state, st, v, b, goals, avoid = null) {
 
 /** True when helicopter v has a helipad of station st it can take now (not occupied, not promised). */
 export function heliAnyFree(state, v, st) {
+  if (st && st.airportClosed) return false; // closed airport: no landings (OTTD AirportClosed)
   return heliFreePad(state, v, st) !== null;
 }
 

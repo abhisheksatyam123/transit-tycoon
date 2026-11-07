@@ -56,6 +56,7 @@ export function airOccupancy(state, st, typeId, heli, except = null) {
  */
 export function airSlotFree(state, v, st, b) {
   const heli = isHelicopter(v);
+  if (st && st.airportClosed) return false; // closed airport refuses landings (OTTD AirportClosed, aircraft_cmd.cpp:1674)
   if (!heli && airportBlockedByDisaster(state, st)) return false; // zeppelin crashed on the runway (disasters setting)
   const typeId = airportTypeId(b);
   if (airOccupancy(state, st, typeId, heli, v) >= airCapacity(typeId, heli)) return false;
