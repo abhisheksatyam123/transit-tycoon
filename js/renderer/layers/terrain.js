@@ -125,7 +125,7 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     // Flat land next to water is plain land in OpenTTD; the OpenGFX shore sprites (4062..) are for
     // sloped coast tiles only, which our flat-water vertex model does not produce (pack/water.js unused).
-    if (drawOgfxGround(ctx, tile.terrain, hash, sx, sy, c)) return;
+    if (drawOgfxGround(ctx, tile.terrain, hash, sx, sy, c)) { drawCliffWalls(ctx, map, x, y, sx, sy, tile); return; }
   }
   if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
   if (k === 5) {
