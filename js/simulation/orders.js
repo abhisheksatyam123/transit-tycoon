@@ -424,11 +424,12 @@ export function transitDays(state, load) {
  * @returns {number} credit (integer money)
  */
 export function transferCredit(state, v, st, amount, feederOfAmount) {
+  const share = getSetting(state, 'feederPaymentShare');
   const load = v.load;
   const dist = paymentDistance(load.sourceX, load.sourceY, st.x, st.y);
   const days = transitDays(state, load);
   const income = calculateDeliveredCargoPayment(state, v.cargoId, amount, dist, days);
-  return Math.round(((income - feederOfAmount) * FEEDER_PAYMENT_SHARE) / 100);
+  return Math.round(((income - feederOfAmount) * share) / 100);
 }
 
 /** Pay for and deliver the vehicle's cargo to an accepting station (the original unload path). */

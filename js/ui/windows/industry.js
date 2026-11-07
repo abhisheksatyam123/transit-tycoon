@@ -50,11 +50,17 @@ export function openIndustry(app, id) {
           const i = app.findIndustry(id);
           if (i) app.centerOn(i.x + (i.w || 1) / 2, i.y + (i.h || 1) / 2);
         } })));
+      // scenario editor only (OpenLoco IndustryWindow: demolish button shown in editor/sandbox)
+      const edit = el('div.btn-row', null, el('button.btn.danger', { type: 'button', text: 'Demolish industry', onclick: () => {
+        if (app.exec(app.game.demolishIndustry(id), { quiet: true })) win.close();
+      } }));
+      body.appendChild(edit);
       let accDone = false;
       return () => {
         const ind = app.findIndustry(id);
         if (!ind) { win.close(); return; }
         win.setTitle(ind.name);
+        edit.hidden = !app.game.state.editor;
         const type = INDUSTRY_BY_ID[ind.typeId] || { produces: [], accepts: [] };
         const produces = type.produces.length ? type.produces : Object.keys(ind.production || {});
         listOrEmpty(prod, produces.map((c) => ({ c })), (r) => r.c,

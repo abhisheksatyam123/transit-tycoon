@@ -31,7 +31,8 @@ const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoa
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'copyOrders', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
-  'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameEngine', 'renamePresident', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay'];
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameEngine', 'renamePresident', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
+  'expandTown', 'deleteTown', 'demolishIndustry'];
 
 /**
  * Wrap the game's command methods on the instance (so UI and window.__game calls both count) to mark

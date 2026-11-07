@@ -1,4 +1,5 @@
 import { buildLandBridge, landBridgeCells } from './landBridges.js';
+import { getSetting } from './settings.js';
 /**
  * Track commands: buildRail, buildRoad (shared line builder) and demolish.
  */
@@ -38,7 +39,7 @@ import { aqueductCells } from './aqueduct.js';
  * representation the Moscow scenario bridges use, so rendering and traversal need no special case.
  * @returns {{ok:true,deck:Set<number>}|{ok:false,error:string}}
  */
-export function planBridges(map, pts) {
+export function planBridges(map, pts, maxLen = MAX_BRIDGE_LENGTH) {
   const tiles = pts.map((p) => map.tiles[p.y * map.width + p.x]);
   const water = tiles.map((t) => t.terrain === 'water');
   if (!water.some(Boolean)) return { ok: true, deck: new Set() };
@@ -53,7 +54,7 @@ export function planBridges(map, pts) {
     while (j < n && water[j]) j++;
     // both heads must be on the line and on land
     if (i === 0 || j >= n) return { ok: false, error: ERR.water };
-    if (j - i + 2 > MAX_BRIDGE_LENGTH) return { ok: false, error: `Bridge too long (max ${MAX_BRIDGE_LENGTH} tiles)` };
+    if (j - i + 2 > maxLen) return { ok: false, error: `Bridge too long (max ${maxLen} tiles)` };
     if (tiles[i - 1].height !== tiles[j].height) return { ok: false, error: 'Bridge heads must be at the same height' };
     for (let k = i; k < j; k++) deck.add(pts[k].y * map.width + pts[k].x);
     i = j;
@@ -68,13 +69,13 @@ export function planBridges(map, pts) {
  * their surface terrain.
  * @returns {{ok:true,inner:Set<number>,portals:Set<number>}|{ok:false,error:string}}
  */
-export function planTunnel(map, pts, layer = 'rail') {
+export function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH) {
   const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Tunnel needs at least one tile between the portals' };
   const straight = pts.every((p) => p.x === pts[0].x) || pts.every((p) => p.y === pts[0].y);
   if (!straight) return { ok: false, error: 'Tunnels must be straight' };
-  if (n > MAX_TUNNEL_LENGTH) return { ok: false, error: `Tunnel too long (max ${MAX_TUNNEL_LENGTH} tiles)` };
+  if (n > maxLen) return { ok: false, error: `Tunnel too long (max ${maxLen} tiles)` };
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
   const tiles = pts.map((p) => map.tiles[p.y * map.width + p.x]);
   const a = tiles[0], b = tiles[n - 1];
@@ -142,7 +143,7 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
   if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
   const layer = opts.layer === 'road' ? 'road' : 'rail';
   const pts = linePath(x0, y0, x1, y1);
-  const plan = planTunnel(map, pts, layer);
+  const plan = planTunnel(map, pts, layer, getSetting(state, 'maxTunnelLength'));
   if (!plan.ok) return plan;
   const n = pts.length;
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
@@ -289,7 +290,7 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     endOut = dirBetween(pts[n - 2].x, pts[n - 2].y, pts[n - 1].x, pts[n - 1].y);
   }
   // water on the line is only allowed as a bridge deck between two land heads
-  const plan = planBridges(map, pts);
+  const plan = planBridges(map, pts, getSetting(state, 'maxBridgeLength'));
   if (!plan.ok) return plan;
   // validate the line itself
   for (const p of pts) {

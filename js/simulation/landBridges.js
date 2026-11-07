@@ -8,6 +8,7 @@ import { MAX_BRIDGE_LENGTH, ERR, canAddBits, clearingCost, clearTerrain, coordsO
 import { DIRS, OPPOSITE, AXIS_BITS } from './constants.js';
 import { linePath, straightAxis, pruneOneWay } from './network.js';
 import { inBounds } from './map.js';
+import { getSetting } from './settings.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
 import { invalidateBlocks } from './signals.js';
@@ -25,13 +26,13 @@ import { invalidateBlocks } from './signals.js';
  * @param {{x:number,y:number}[]} pts
  * @returns {{ok:true, deck:Set<number>, height:number}|{ok:false, error:string}}
  */
-export function planLandBridge(map, pts, layer = 'rail') {
+export function planLandBridge(map, pts, layer = 'rail', maxLen = MAX_BRIDGE_LENGTH) {
   const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Bridge needs at least one tile between the heads' };
   const straight = pts.every((p) => p.x === pts[0].x) || pts.every((p) => p.y === pts[0].y);
   if (!straight) return { ok: false, error: 'Bridges must be straight' };
-  if (n > MAX_BRIDGE_LENGTH) return { ok: false, error: `Bridge too long (max ${MAX_BRIDGE_LENGTH} tiles)` };
+  if (n > maxLen) return { ok: false, error: `Bridge too long (max ${maxLen} tiles)` };
 
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
   const tiles = pts.map((p) => map.tiles[p.y * map.width + p.x]);
@@ -135,7 +136,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
 
   const pts = linePath(x0, y0, x1, y1);
   const layer = opts.layer === 'road' ? 'road' : 'rail';
-  const plan = planLandBridge(map, pts, layer);
+  const plan = planLandBridge(map, pts, layer, getSetting(state, 'maxBridgeLength'));
   if (!plan.ok) return plan;
 
   // Bridge type (config/bridges.js): absent = the standard bridge (no speed cap, base cost, always available).

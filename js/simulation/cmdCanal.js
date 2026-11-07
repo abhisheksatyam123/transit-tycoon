@@ -14,6 +14,7 @@ import { spend } from './economy.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectBlocks } from './trackRules.js';
 import { getTile } from './map.js';
 import { planAqueduct, buildAqueduct } from './aqueduct.js';
+import { getSetting } from './settings.js';
 
 export const CANAL_ERR = {
   notFlat: 'Canals must be built on flat land',
@@ -136,7 +137,7 @@ export function buildCanal(ctx, x0, y0, x1, y1, opts = {}) {
   const map = state.map;
   if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
   // sloped ends: the drag becomes an aqueduct over the valley (aqueduct.js)
-  const aq = planAqueduct(map, x0, y0, x1, y1);
+  const aq = planAqueduct(map, x0, y0, x1, y1, getSetting(state, 'maxBridgeLength'));
   if (aq) return aq.ok ? buildAqueduct(ctx, aq, opts) : aq;
   const build = [];
   let cost = 0;

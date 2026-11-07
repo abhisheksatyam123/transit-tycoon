@@ -28,6 +28,15 @@ export function openTown(app, id) {
         const t = app.findTown(id);
         if (t) app.centerOn(t.x, t.y);
       } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'town', id) })));
+      // scenario editor only (OpenLoco TownWindow: expand / delete buttons shown in editor/sandbox)
+      const edit = el('div.btn-row', null,
+        el('button.btn', { type: 'button', text: 'Expand town', onclick: () => {
+          app.exec(app.game.expandTown(id), { quiet: true });
+        } }),
+        el('button.btn.danger', { type: 'button', text: 'Delete town', onclick: () => {
+          if (app.exec(app.game.deleteTown(id), { quiet: true })) win.close();
+        } }));
+      body.appendChild(edit);
       const auth = el('div.town-auth');
       auth.appendChild(el('div.town-auth-title', { text: 'Authority actions' }));
       const rows = el('div.town-auth-list');
@@ -38,6 +47,7 @@ export function openTown(app, id) {
         const t = app.findTown(id);
         if (!t) { win.close(); return; }
         win.setTitle(t.name);
+        edit.hidden = !app.game.state.editor;
         set['Population'](num(t.population));
         set['Houses'](num(t.houses ? t.houses.length : 0));
         set['Passengers last month'](num(t.passengersLastMonth));

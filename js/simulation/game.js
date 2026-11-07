@@ -35,6 +35,7 @@ import { buildDock, buildShipDepot, buildBuoy } from './cmdShip.js';
 import { buildRailWaypoint, buildRoadWaypoint } from './cmdWaypoint.js';
 import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
+import { expandTown, deleteTown, demolishIndustry } from './cmdTownEdit.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany, renameDepot, renameEngine, renamePresident } from './cmdRename.js';
 import { setAirportClosed } from './cmdAirport.js';
@@ -343,6 +344,10 @@ export class Game {
   renameDepot(id, name, opts) { return renameDepot(this.ctx, id, name, opts); }
   /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
   townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }
+  /** Scenario editor (editor-only): OpenLoco town window 'Expand town' (8 growth steps), 'Delete town', industry 'Demolish'. See cmdTownEdit.js. */
+  expandTown(townId) { return expandTown(this, townId); }
+  deleteTown(townId) { return deleteTown(this, townId); }
+  demolishIndustry(industryId) { return demolishIndustry(this, industryId); }
   renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
   /** Engine (model) rename, lazy state.engineNames; blank = model's own name. */
   renameEngine(modelId, name, opts) { return renameEngine(this.ctx, modelId, name, opts); }

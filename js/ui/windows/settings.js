@@ -37,6 +37,7 @@ export function openSettings(app) {
       const noMatch = el('p.muted.small', { text: 'No settings match.' });
       noMatch.hidden = true;
 
+      /** Select settings whose stored value is a number (the option values are strings in the DOM). */
       /** Build one game-setting control. */
       const control = (m) => {
         if (m.type === 'check') {

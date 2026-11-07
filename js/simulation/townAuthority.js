@@ -18,6 +18,7 @@ import { checkMoney } from './trackRules.js';
 import { createRng } from './rng.js';
 import { notify } from './news.js';
 import { nearestTown, manhattan } from './state.js';
+import { getSetting } from './settings.js';
 import { ensureTown, adjustCompanyRating, MIN_COMPANY_RATING, MAX_COMPANY_RATING } from './loco/town.js';
 
 export const RATING_NEUTRAL = 500;
@@ -25,6 +26,19 @@ export const RATING_NEUTRAL = 500;
 export const LOCAL_AUTHORITY_DIST = 20;
 /** Below this rating the local authority refuses station building and house / town road demolition. */
 export const REFUSE_BELOW = 0;
+/**
+ * Town council tolerance (townCouncilTolerance setting, OpenTTD difficulty.town_council_tolerance). TT keeps one
+ * authority gate (REFUSE_BELOW) for station building and town house/road demolition; OpenTTD's station gate is also a
+ * single fixed rating for every level (town_cmd.cpp:3975 CheckIfAuthorityAllowsNewStation) and only the permissive
+ * level (3) switches it off (town_cmd.cpp:3978). OTTD's per-level table applies to removing town roads/bridges
+ * (town_cmd.cpp:4141), which TT does not model separately, so TT offers 0 = normal (current) and 3 = permissive.
+ */
+export const TOLERANCE_PERMISSIVE = 3;
+
+/** The rating a town must reach for the local authority to allow building / demolition. */
+export function refuseBelow(state) {
+  return getSetting(state, 'townCouncilTolerance') >= TOLERANCE_PERMISSIVE ? -Infinity : REFUSE_BELOW;
+}
 /** OpenTTD RATING_STATION_UP_STEP / DOWN_STEP (applied once per served / unserved station per month). */
 const STATION_UP = 12, STATION_DOWN = -15;
 /** A station counts as served if it picked up cargo within this many days. */
@@ -84,7 +98,7 @@ export function authorityTown(state, x, y) {
 /** Error text when the local authority refuses an action at (x,y), else null. */
 export function refusalAt(state, x, y) {
   const t = authorityTown(state, x, y);
-  if (!t || townRating(t) >= REFUSE_BELOW) return null;
+  if (!t || townRating(t) >= refuseBelow(state)) return null;
   return `${t.name} local authority refuses permission`;
 }
 

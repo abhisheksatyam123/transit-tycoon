@@ -117,6 +117,14 @@ export const DEFAULT_SETTINGS = {
   townGrowthRate: 'normal',
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
   roadSide: 'right',
+  /** OpenTTD construction.max_bridge_length: longest player bridge in tiles, heads included (default 12 = trackRules MAX_BRIDGE_LENGTH). */
+  maxBridgeLength: 12,
+  /** OpenTTD construction.max_tunnel_length: longest player tunnel in tiles, portals included (default 16 = MAX_TUNNEL_LENGTH). */
+  maxTunnelLength: 16,
+  /** OpenTTD difficulty.town_council_tolerance: 0 = normal (current TT authority rule), 3 = permissive (never refuses); townAuthority.js refuseBelow. */
+  townCouncilTolerance: 0,
+  /** OpenTTD economy.feeder_payment_share: percent of a transfer leg's income credited to the feeder (orders.js transferCredit). Default 75. */
+  feederPaymentShare: 75,
 };
 
 /** Read a setting (state.settings value or the default). */
