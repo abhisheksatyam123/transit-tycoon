@@ -317,6 +317,8 @@ export class Game {
   sellVehicle(id, opts) { return vcmd.sellVehicle(this.ctx, id, opts); }
   /** Turn a train around in place and re-plan (trains only). */
   reverseVehicle(id, opts) { return vcmd.reverseVehicle(this.ctx, id, opts); }
+  /** Turn a running road vehicle around and re-plan to its current order (road vehicles only). */
+  turnRoadVehicle(id, opts) { return vcmd.turnRoadVehicle(this.ctx, id, opts); }
   /** Start (true) or stop (false) many vehicles; ids = vehicle ids. Skips those that cannot change. */
   massStartStop(ids, start, opts) { return vcmd.massStartStop(this.ctx, ids, start, opts); }
   /** Rename commands (cmdRename.js): name is validated and stored in the entity's name field. */

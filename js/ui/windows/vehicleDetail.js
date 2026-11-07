@@ -67,6 +67,7 @@ export function openVehicleDetail(app, id) {
       const reverseBtn = el('button.btn', { type: 'button', text: 'Reverse', title: 'Turn the train around and re-plan to its current order (trains only)', onclick: () => {
         const v = app.findVehicle(id);
         if (v && v.kind === 'train') app.exec(g().reverseVehicle(id), { sound: 'click' });
+        else if (v && v.kind === 'road') app.exec(g().turnRoadVehicle(id), { sound: 'click' });
       } });
       // gap #25: a rival's vehicle is read-only (owner line, no action buttons)
       if (app.findVehicle(id) && app.findVehicle(id).ownerId != null) {
@@ -151,7 +152,9 @@ export function openVehicleDetail(app, id) {
         const nextDep = o && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
         set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : o && o.depotId != null ? `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}` : 'No orders');
         win.setTitle(v.name || 'Vehicle');
-        reverseBtn.hidden = v.kind !== 'train';
+        reverseBtn.hidden = v.kind !== 'train' && v.kind !== 'road';
+        setText(reverseBtn, v.kind === 'road' ? 'Turn around' : 'Reverse');
+        reverseBtn.title = v.kind === 'road' ? 'Turn around and re-plan to the current order (road vehicles; refused on one-way roads, in stops or depots)' : 'Turn the train around and re-plan to its current order (trains only)';
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');
         followBtn.classList.toggle('active', app.followId === id);
         set['Timetable'](!hasTimetableOrders(v) ? 'No timetable'

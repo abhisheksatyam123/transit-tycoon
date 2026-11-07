@@ -29,7 +29,7 @@ const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoa
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
   'buildCanal', 'buildLock', 'buyVehicle', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
-  'sellVehicle', 'reverseVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
+  'sellVehicle', 'reverseVehicle', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderTimetable',
   'setTimetableAutofill', 'resetLateness', 'renameStation', 'buildHQ', 'buildObject'];
 

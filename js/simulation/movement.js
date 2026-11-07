@@ -439,7 +439,7 @@ function tryFreeBay(ctx, v) {
 }
 
 /** Trains reverse end for end; road vehicles back up one tile along the way they came. Then they re-plan. */
-function turnAround(ctx, v) {
+export function turnAround(ctx, v) {
   clearBlock(v); // blockedTicks restarts from 0, so the next turnaround waits a full timeout too (cooldown)
   if (v.kind === 'train') {
     flipTrain(v);

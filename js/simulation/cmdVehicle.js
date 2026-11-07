@@ -18,7 +18,7 @@ import { RAIL_TYPES } from '../config/railTypes.js';
 function depotTrack(state, depot) {
   return state.map.tiles[depot.y * state.map.width + depot.x].trk | 0;
 }
-import { replan, enterDepot, serviceAtDepot } from './movement.js';
+import { replan, enterDepot, serviceAtDepot, turnAround } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
@@ -432,6 +432,35 @@ export function reverseVehicle(ctx, id, opts = {}) {
   v.pathIndex = 0;
   v.progress = 0;
   if (v.state === 'running' || v.state === 'lost') replan(ctx, v);
+  return { ok: true, cost: 0, state: v.state };
+}
+
+/**
+ * Turn a running road vehicle (bus, truck or tram) around (OpenTTD CmdTurnRoadVeh, "Turn around"). It backs
+ * onto the tile it came from and re-plans to its current order (movement.js turnAround, the same mechanics as a
+ * blocked vehicle turning). Refused like OpenTTD: stopped, broken down, loading, in a depot, on a one-way road,
+ * inside a road stop or depot, on a bridge or tunnel, or with no road behind it yet.
+ */
+export function turnRoadVehicle(ctx, id, opts = {}) {
+  const v = findVehicle(ctx.state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (v.kind !== 'road') return { ok: false, error: 'Only road vehicles can turn around' };
+  if (v.state === 'depot') return { ok: false, error: 'Vehicle is in a depot' };
+  if (v.state === 'stopped') return { ok: false, error: 'Vehicle is stopped' };
+  if (v.state === 'loading') return { ok: false, error: 'Wait until the vehicle has finished loading' };
+  if (v.state === 'broken') return { ok: false, error: 'Vehicle is broken down' };
+  if (v.state !== 'running') return { ok: false, error: 'Vehicle is lost' };
+  if (v.overtakeId !== undefined) return { ok: false, error: 'Vehicle is overtaking' };
+  const map = ctx.state.map;
+  const t = map.tiles[v.ty * map.width + v.tx];
+  if (!t) return { ok: false, error: 'Vehicle is off the map' };
+  if (t.oneWay) return { ok: false, error: 'Cannot turn around on a one-way road' };
+  if (t.building && (t.building.type === 'station' || t.building.type === 'depot')) return { ok: false, error: 'Cannot turn around in a road stop or depot' };
+  if (t.playerTunnel || t.playerBridge || t.tunnel || t.bridgeDeck !== undefined) return { ok: false, error: 'Cannot turn around on a bridge or in a tunnel' };
+  if (!v.history || !v.history[1]) return { ok: false, error: 'No road behind the vehicle to turn into' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  turnAround(ctx, v);
   return { ok: true, cost: 0, state: v.state };
 }
 
