@@ -17,9 +17,9 @@ const HULL = { ship_oiltanker: '#1f2937', ship_ferry: '#f8fafc', ship_cargo: '#7
  * @param {number} s +1 / -1
  * @param {string} modelId
  */
-export function drawShip(ctx, axis, s, modelId) {
+export function drawShip(ctx, axis, s, modelId, colour) {
   const L = 0.36, W = 0.11;
-  const hull = HULL[modelId] || '#7c2d12';
+  const hull = colour || HULL[modelId] || '#7c2d12'; // colour: player colour scheme / group colour (hull)
   const [a0, a1] = axis === 'u' ? [-L, L] : [-L, L];
   const u0 = axis === 'u' ? a0 : -W, u1 = axis === 'u' ? a1 : W;
   const v0 = axis === 'v' ? a0 : -W, v1 = axis === 'v' ? a1 : W;
@@ -59,11 +59,12 @@ export function shipDepotSprite() {
 }
 
 /** Ship vehicle segment sprite (56 px box, anchor at the centre like the other vehicle sprites). */
-export function shipSegmentSprite(modelId, dir) {
+export function shipSegmentSprite(modelId, dir, colour) {
   const d = dir === 1 || dir === 2 || dir === 4 || dir === 8 ? dir : 2;
-  return cache.get(`seg:${modelId}:${d}`, () => makeSprite(56, 56, 28, 37, (ctx) => {
+  const c = colour || '';
+  return cache.get(`seg:${modelId}:${d}:${c}`, () => makeSprite(56, 56, 28, 37, (ctx) => {
     const axis = d === 2 || d === 8 ? 'u' : 'v';
     const s = d === 2 || d === 4 ? 1 : -1;
-    drawShip(ctx, axis, s, modelId);
+    drawShip(ctx, axis, s, modelId, c || undefined);
   }));
 }

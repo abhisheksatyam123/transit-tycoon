@@ -14,6 +14,7 @@ import { airportObject } from '../sprites/airport.js';
 import { airportTypeId } from '../../simulation/airportTypes.js';
 import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
+import { playerVehicleColour } from '../palette.js';
 import { waypointSprite, roadWaypointSprite } from '../sprites/waypoint.js';
 import { shipDockSprite, buoySprite, shipDepotSprite, shipSegmentSprite } from '../sprites/ships.js';
 import { drawPackSegment } from '../pack/vehicles.js';
@@ -171,7 +172,9 @@ export function drawSegment(ctx, seg, sx, sy, selected) {
   }
   if (seg.part === 'ship') { // ships: OpenGFX ship sprites when the pack is active, else procedural hull
     if (packActive() && drawPackShipSegment(ctx, seg, sx, sy)) return;
-    const ms = shipSegmentSprite(seg._info ? seg._info.modelId : '', seg.dir);
+    // player ships: group/type colour (seg._gc) else the chosen company colour (palette.js); rivals keep the hull colours
+    const shipCol = seg._gc || (seg._info && seg._info.ownerId == null ? playerVehicleColour() || undefined : undefined);
+    const ms = shipSegmentSprite(seg._info ? seg._info.modelId : '', seg.dir, shipCol);
     blit(ctx, ms, sx, sy);
     return;
   }

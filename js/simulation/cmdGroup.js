@@ -127,3 +127,39 @@ export function setGroupColour(ctx, id, colour, opts = {}) {
   state.company.groupColourRev = (state.company.groupColourRev || 0) + 1;
   return { ok: true, cost: 0 };
 }
+
+/** Per-vehicle-type colour scheme keys (the renderer maps a vehicle to one of these: groupLivery.js typeOfVehicle). */
+export const TYPE_COLOUR_KEYS = ['rail', 'road', 'tram', 'air', 'ship'];
+
+/**
+ * Per-vehicle-type colour scheme (OpenLoco CompanyWindow colour scheme / OpenTTD livery, simplified): the
+ * vehicles of `type` are drawn in `colour` instead of the company colour (group colour still wins). `type` is one
+ * of TYPE_COLOUR_KEYS; `colour` is '#rrggbb' (any colour), or null/'' to reset to the company colour.
+ * Stored lazily in `company.typeColours` ({type: hex}); the key is deleted while empty. `company.typeColourRev`
+ * bumps on each change so the renderer's lookup cache (renderer/groupLivery.js) rebuilds.
+ * Player-only: a rival owner is refused.
+ * @returns {{ok:true,cost:0}|{ok:false,error:string}}
+ */
+export function setTypeColour(ctx, type, colour, opts = {}) {
+  const { state } = ctx;
+  if (((opts && opts.owner) ?? null) !== null) return { ok: false, error: 'Owned by a rival company' };
+  if (!TYPE_COLOUR_KEYS.includes(type)) return { ok: false, error: 'Unknown vehicle type' };
+  let hex = null;
+  if (colour != null && colour !== '') {
+    hex = String(colour).toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(hex)) return { ok: false, error: 'Colour must be #rrggbb' };
+  }
+  if (opts && opts.dryRun) return { ok: true, cost: 0 };
+  const co = state.company;
+  const cur = co.typeColours && co.typeColours[type];
+  if ((cur || null) === hex) return { ok: true, cost: 0 };
+  if (hex == null) {
+    delete co.typeColours[type];
+    if (Object.keys(co.typeColours).length === 0) delete co.typeColours;
+  } else {
+    co.typeColours = co.typeColours || {};
+    co.typeColours[type] = hex;
+  }
+  co.typeColourRev = (co.typeColourRev || 0) + 1;
+  return { ok: true, cost: 0 };
+}

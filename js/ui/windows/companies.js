@@ -75,6 +75,39 @@ function colourChooser(app) {
   return wrap;
 }
 
+/** Vehicle types of the colour scheme (cmdGroup.js TYPE_COLOUR_KEYS) with their labels. */
+const SCHEME_TYPES = [['rail', 'Trains & metro'], ['road', 'Buses & trucks'], ['tram', 'Trams'], ['air', 'Aircraft'], ['ship', 'Ships']];
+
+/**
+ * Colour scheme (OpenLoco CompanyWindow colour scheme tab / OpenTTD livery, simplified): one swatch row per vehicle
+ * type, same swatches as the group livery; 'Company colour' resets a type. Rebuilt only when the scheme changes.
+ * @param {import('../app.js').App} app
+ */
+function colourScheme(app) {
+  const wrap = el('div.colour-scheme');
+  let sig = null;
+  wrap.update = () => {
+    const tc = app.game.state.company.typeColours || {};
+    const s = JSON.stringify(tc) + (app.game.state.company.colour || '');
+    if (s === sig) return;
+    sig = s;
+    const rows = SCHEME_TYPES.map(([type, label]) => {
+      const cur = tc[type] || null;
+      const set = (hex) => { app.exec(app.game.setTypeColour(type, hex), { sound: 'click' }); app.wm.updateAll(); };
+      return el('div.colour-row', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center', margin: '2px 0' } },
+        el('span.small', { text: label, style: { width: '120px' } }),
+        ...COMPANY_COLOURS.map((c) => el('button.colour-swatch', { type: 'button',
+          title: c.name, 'aria-label': label + ' colour ' + c.name, 'aria-pressed': String(c.hex === cur),
+          style: { background: c.hex, width: '16px', height: '16px', margin: '1px', border: c.hex === cur ? '2px solid #fff' : '1px solid #0008', outline: c.hex === cur ? '2px solid #000' : 'none' },
+          onclick: () => set(c.hex) })),
+        el('button.btn.sm', { type: 'button', text: 'Company colour', title: 'Draw ' + label.toLowerCase() + ' in the company colour', disabled: !cur, onclick: () => set(null) }));
+    });
+    wrap.replaceChildren(el('p.small', { text: 'Colour scheme (per vehicle type; group colour overrides):' }), ...rows);
+  };
+  wrap.update();
+  return wrap;
+}
+
 /** @param {import('../app.js').App} app */
 export function openCompanies(app) {
   return app.wm.open('companies', {
@@ -83,11 +116,14 @@ export function openCompanies(app) {
     build(body) {
       const table = el('div.table-wrap');
       body.appendChild(table);
+      const scheme = colourScheme(app);
+      body.appendChild(scheme);
       let sig = '';
       return () => {
         const rows = companyRows(app.game.state);
         const withShares = !!getSetting(app.game.state, 'shares');
         const cheated = !!app.game.state.cheated; // OpenTTD marks a cheated company (lazy state.cheated, cheats.js)
+        scheme.update(); // cheap: rebuilds only when the scheme changed
         const s = JSON.stringify(rows) + withShares + cheated + presidentDisplayName(app.game.state);
         if (s === sig) return;
         sig = s;

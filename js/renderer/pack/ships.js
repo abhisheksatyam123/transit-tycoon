@@ -8,6 +8,7 @@ import { blitPack, DEFAULT_CC } from './draw.js';
 import { packState } from './state.js';
 import { HALF_W, HALF_H } from '../iso.js';
 import { dirFromAng, dirFromBit, vehicleColour } from './vehicles.js';
+import { playerVehicleColour } from '../palette.js';
 
 /** First sprite of each ship model (8 consecutive directions, OpenTTD 0 = N). */
 export const SHIP_BASE = { ship_cargo: 3677, ship_oiltanker: 3669, ship_ferry: 3685 };
@@ -50,7 +51,9 @@ export function drawPackShip(ctx, model, dir, sx, sy, colour) {
 export function drawPackShipSegment(ctx, seg, sx, sy) {
   const info = seg._info || {};
   const dir = seg.ang !== undefined ? dirFromAng(seg.ang) : dirFromBit(seg.dir);
-  return drawPackShip(ctx, info.modelId || '', dir, sx, sy, vehicleColour(info.livery, info.id | 0));
+  // same precedence as pack/vehicles.js: own livery > group/type colour (seg._gc) > player colour > palette
+  const colour = vehicleColour(info.livery || seg._gc || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
+  return drawPackShip(ctx, info.modelId || '', dir, sx, sy, colour);
 }
 
 /** Blit a list of sprite ids stacked at the tile top corner. */

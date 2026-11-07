@@ -337,6 +337,8 @@ export class Game {
   deleteGroup(id, opts) { return gcmd.deleteGroup(this.ctx, id, opts); }
   /** Group livery: colour hex from COMPANY_COLOURS, or null = company colour (cmdGroup.js setGroupColour). */
   setGroupColour(id, colour, opts) { return gcmd.setGroupColour(this.ctx, id, colour, opts); }
+  /** Per-vehicle-type colour scheme: type 'rail'|'road'|'tram'|'air'|'ship', colour '#rrggbb' or null (cmdGroup.js setTypeColour). */
+  setTypeColour(type, colour, opts) { return gcmd.setTypeColour(this.ctx, type, colour, opts); }
   addVehicleToGroup(vehicleId, groupId, opts) { return gcmd.addVehicleToGroup(this.ctx, vehicleId, groupId, opts); }
   addSharedVehiclesToGroup(vehicleId, groupId, opts) { return gcmd.addSharedVehiclesToGroup(this.ctx, vehicleId, groupId, opts); }
   renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }

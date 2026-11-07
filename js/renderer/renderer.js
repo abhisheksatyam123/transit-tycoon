@@ -1,4 +1,4 @@
-import { groupColourMap } from './groupLivery.js';
+import { groupColourMap, typeColourMap, vehicleColourOverride } from './groupLivery.js';
 import { shipPassable } from '../simulation/shipPath.js';
 import { drawLandBridgeDeck } from './sprites/landBridge.js';
 import { drawAqueductDeck } from './sprites/aqueduct.js';
@@ -262,6 +262,7 @@ export class Renderer {
     const game = this.game;
     const last = b.length - 1;
     const gmap = groupColourMap(game.state); // group livery (cmdGroup setGroupColour): null when no group has a colour
+    const tmap = typeColourMap(game.state); // per-type colour scheme (cmdGroup setTypeColour): null when no type has a colour
     const tiles = game.state.map.tiles, W = game.state.map.width;
     // visible tile range plus a margin (tail wagons trail their head tile)
     const vr = this.camera.visibleTileRange();
@@ -283,7 +284,8 @@ export class Renderer {
         s._vid = v.id;
         s._info = v;
         // group livery: only player vehicles in a coloured group; one Map lookup, and only for grouped vehicles
-        s._gc = gmap && v.groupId != null && v.ownerId == null ? gmap.get(v.groupId) : undefined;
+        // precedence: group colour > type colour > company colour (rivals always carry their own livery, not here)
+        s._gc = tmap || gmap ? vehicleColourOverride(v, gmap, tmap) : undefined;
         if (s.part === 'aircraft') {
           s._model = v.modelId;
           s._alt = s.alt !== undefined ? s.alt : (v.alt || 0);

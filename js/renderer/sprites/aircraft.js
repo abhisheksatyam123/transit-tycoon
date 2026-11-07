@@ -82,15 +82,17 @@ export function headingIndex(dx, dy) {
  * @param {number} livery index into LIVERIES
  * @param {boolean} [flat] ground shadow silhouette (no lift, no altitude shading)
  */
-export function aircraftSprite(modelId, heading, livery, flat) {
+export function aircraftSprite(modelId, heading, livery, flat, colour) {
   const h = ((heading | 0) % 8 + 8) % 8;
   const lv = ((livery | 0) % LIVERIES.length + LIVERIES.length) % LIVERIES.length;
-  const key = `ac:${modelId}:${h}:${lv}:${flat ? 1 : 0}`;
+  // colour: '#rrggbb' type/group colour (renderer s._gc) replaces the livery stripe and tail; else the numbered livery
+  const key = `ac:${modelId}:${h}:${lv}:${flat ? 1 : 0}:${colour || ''}`;
+  const L = colour ? { id: 'type', body: '#f8fafc', stripe: colour, tail: colour } : LIVERIES[lv];
   const g = aircraftGeom(modelId);
   return cache.get(key, () => makeSprite(AIRCRAFT_SIZE, AIRCRAFT_SIZE, AIRCRAFT_SIZE / 2, AIRCRAFT_SIZE / 2, (ctx) => {
     if (flat) drawShadow(ctx, g, h);
-    else if (g.kind === 'heli') drawHelicopter(ctx, g, h, LIVERIES[lv]);
-    else drawPlane(ctx, g, h, LIVERIES[lv]);
+    else if (g.kind === 'heli') drawHelicopter(ctx, g, h, L);
+    else drawPlane(ctx, g, h, L);
   }));
 }
 
