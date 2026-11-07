@@ -111,7 +111,20 @@ export const ELECTRIC_VEHICLE_MODELS = [
   { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
+/** TY5: OpenTTD toyland buses and locos (table/engines.h Y climate; Ploddyphut/Powernaut/MightyMover). optIn 'toyland'.
+ * Temperate buses and locos are hidden in toyland games once one of these is purchasable (vehicles.js modelAvailable). */
+export const TOYLAND_BUS_LOCO_MODELS = [
+  { id: 'bus_ploddy1', name: 'Ploddyphut MkI Bus', kind: 'bus', introYear: 1945, obsoleteYear: 1982, speed: 56, capacity: 30, cost: 4200, running: 900, reliability: 0.8, cargos: ['PASS'], optIn: 'toyland', news: false },
+  { id: 'bus_ploddy2', name: 'Ploddyphut MkII Bus', kind: 'bus', introYear: 1972, obsoleteYear: 2020, speed: 96, capacity: 35, cost: 4900, running: 1700, reliability: 0.84, cargos: ['PASS'], optIn: 'toyland', news: false },
+  { id: 'bus_ploddy3', name: 'Ploddyphut MkIII Bus', kind: 'bus', introYear: 2010, speed: 120, capacity: 38, cost: 5600, running: 2400, reliability: 0.88, cargos: ['PASS'], optIn: 'toyland', news: false },
+  { id: 'eng_ploddy_choo', name: 'Ploddyphut Choo-Choo', kind: 'engine', introYear: 1946, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.78, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_powernaut_choo', name: 'Powernaut Choo-Choo', kind: 'engine', introYear: 1952, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_mighty_choo', name: 'Mightymover Choo-Choo', kind: 'engine', introYear: 1966, speed: 48, capacity: 0, cost: 6200, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_powernaut_diesel', name: 'Powernaut Diesel', kind: 'engine', introYear: 1977, speed: 48, capacity: 0, cost: 9000, running: 2600, reliability: 0.86, power: 800, optIn: 'toyland', news: false },
+  { id: 'eng_ploddy_diesel', name: 'Ploddyphut Diesel', kind: 'engine', introYear: 1972, speed: 48, capacity: 0, cost: 8500, running: 2500, reliability: 0.84, power: 700, optIn: 'toyland', news: false },
+];
+
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...TOYLAND_BUS_LOCO_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

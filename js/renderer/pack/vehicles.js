@@ -10,6 +10,7 @@
 import { blitPack, DEFAULT_CC } from './draw.js';
 import { packState } from './state.js';
 import { HALF_H } from '../iso.js';
+import { TOYLAND_VEH_ART, TOYLAND_VEH_KEY, toylandVehicleSpriteId } from './toyland_vehicles.js';
 
 /** Engine sprite base per rail image index (table/train_sprites.h _engine_sprite_base). */
 export const RAIL_BASE = [
@@ -284,7 +285,9 @@ export function vehicleColour(livery, index) {
 export function drawPackVehicle(ctx, kind, model, dir, sx, sy, opt = {}) {
   const pack = packState.pack;
   if (!pack) return false;
-  const id = vehicleSpriteId(kind, model, dir, opt);
+  // TY5: toyland vehicle models draw their toyland art when the toyland view is active (its keys exist only there)
+  const tid = TOYLAND_VEH_ART[model] ? toylandVehicleSpriteId(model, ((dir | 0) % 8 + 8) % 8, !!opt.loaded) : undefined;
+  const id = tid !== undefined && pack.sprites[tid] ? tid : vehicleSpriteId(kind, model, dir, opt);
   if (id === undefined || !pack.sprites[id]) return false;
   const colour = opt.colour || DEFAULT_CC;
   if (kind === 'air') return blitPack(ctx, id, sx, sy - HALF_H, colour);

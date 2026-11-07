@@ -14,6 +14,7 @@ import { subtileOffset } from './subtile.js';
 import { tileHash } from '../sprites/canvas.js';
 import { TOYLAND_HOUSES, TOYLAND_TREE_ROWS, TOYLAND_INDUSTRY_LAYOUTS, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from './toyland_table.js';
 import { TOYLAND_OVERRIDE_BLOCKS } from './toyland_overrides.js';
+import { TOYLAND_VEH_KEY, toylandVehicleSprites } from './toyland_vehicles.js';
 import { packState } from './state.js';
 import { clearTints } from './draw.js';
 import { clearPackTops } from './ground.js';
@@ -68,6 +69,12 @@ export function buildToylandView(base, toy) {
     if (!s) continue;
     const [ai, x, y, w, h, xo, yo, cc] = s;
     sprites[String(id)] = [ai + off, x, y, w, h, xo, yo, cc];
+  }
+  // TY5 toyland vehicle art (keys TOYLAND_VEH_KEY + toyland id, see pack/toyland_vehicles.js): new keys only
+  for (const id of toylandVehicleSprites()) {
+    const k = String(TOYLAND_VEH_KEY + id);
+    const s = toy.sprites[k];
+    if (s) sprites[k] = [s[0] + off, s[1], s[2], s[3], s[4], s[5], s[6], s[7]];
   }
   const pack = {
     sprites,

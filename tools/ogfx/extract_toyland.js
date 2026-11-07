@@ -151,6 +151,15 @@ function place(w, h) {
   a.x += w + 1; a.rowH = Math.max(a.rowH, h + 1); a.h = Math.max(a.h, y + h);
   return { ai: atlases.length - 1, x, y };
 }
+// TY5 toyland vehicles (OpenTTD toyland engines): road, loco and wagon art ids from toyland-0601/0761/0841/0393 pnml,
+// packed under key TOYLAND_VEH_KEY + toyland id (pack/toyland_vehicles.js). Packed last (order 400000+): existing keys unchanged.
+const { toylandVehicleSprites, TOYLAND_VEH_KEY } = await import('../../js/renderer/pack/toyland_vehicles.js');
+for (const id of toylandVehicleSprites()) {
+  const d = tdefs.get(id);
+  if (!d) throw new Error(`toyland vehicle sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(TOYLAND_VEH_KEY + id), order: 400000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
 pieces.sort((a, b) => a.order - b.order);
 const manifest = { sprites: {}, atlases: [], license: 'OpenGFX base graphics, GPL-2.0 (https://github.com/OpenTTD/OpenGFX)' };
 const placed = [];

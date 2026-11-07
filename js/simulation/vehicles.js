@@ -1,7 +1,7 @@
 /**
  * Vehicle creation and visual segments (locomotive + trailing wagons).
  */
-import { MODEL_BY_ID } from '../config/vehicles.js';
+import { MODEL_BY_ID, ALL_VEHICLE_MODELS } from '../config/vehicles.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { getSetting } from './settings.js';
 import { isTropic, isToyland } from './climate.js';
@@ -19,17 +19,24 @@ export function purchasable(model, year) {
   return !!model && model.introYear <= year && !(model.obsoleteYear <= year);
 }
 
+/** TY5: temperate kinds with OpenTTD toyland equivalents (buses, steam/diesel locos); wagons keep their cargo coverage. */
+const TOYLAND_REPLACED_KINDS = new Set(['bus', 'engine']);
+
 /**
  * T29: opt-in models (config EXTRA_VEHICLE_MODELS, optIn) are offered only when a valuables source exists
  * (a bank on the map, or the extraIndustries setting). Default games never see them.
  */
 export function modelAvailable(state, model, ownerId = null) {
   if (previewBlocks(state, model, ownerId)) return false; // engine preview (enginePreview setting): exclusive to another company
+  // TY5: temperate buses and steam/diesel locos are hidden in toyland games once a toyland model of the same kind is
+  // purchasable (OpenTTD toyland engines); until then they stay the buyable fallback
+  if (model && !model.optIn && isToyland(state) && TOYLAND_REPLACED_KINDS.has(model.kind) && state.date
+    && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year))) return false;
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
   if (model.optIn === 'tropic') return isTropic(state); // TP sub-tropical water tankers
-  if (model.optIn === 'toyland') return isToyland(state); // TY2 toyland trucks
+  if (model.optIn === 'toyland') return isToyland(state); // TY2 toyland trucks, TY5 toyland buses/locos
   if (model.optIn === 'extraIndustries') return !!state && getSetting(state, 'extraIndustries') === true; // T-IN chain vehicles
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
