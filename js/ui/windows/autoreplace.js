@@ -8,6 +8,7 @@ import { listOrEmpty } from './common.js';
 import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { replacementCandidates } from '../../simulation/autoreplace.js';
+import { getSetting } from '../../simulation/settings.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -44,7 +45,7 @@ export function openAutoreplace(app) {
             setText(c[0], m.name);
             setText(c[1], `×${counts[m.id]}`);
             const sel = row._sel;
-            const cands = replacementCandidates(m.id, year);
+            const cands = replacementCandidates(m.id, year, getSetting(g.state, 'neverExpireVehicles'));
             sel.onchange = () => {
               if (sel.value) app.exec(g.setAutoreplace(m.id, sel.value), { sound: 'click' });
               refresh();

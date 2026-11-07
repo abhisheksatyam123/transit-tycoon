@@ -43,7 +43,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   };
   // road vehicles keep their cargo when the new model carries it; otherwise the model's default cargo
   if (v.kind === 'road' && MODEL_BY_ID[newModelId] && !MODEL_BY_ID[newModelId].cargos.includes(v.cargoId)) spec.cargoId = undefined;
-  const r = resolvePurchase(depot, spec, state.date.year);
+  const r = resolvePurchase(depot, spec, state.date.year, getSetting(state, 'neverExpireVehicles'));
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);

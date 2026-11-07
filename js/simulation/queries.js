@@ -9,6 +9,7 @@ import { findDepot, findIndustry, findStation, findTown } from './state.js';
 import { tileAcceptance, waitingAmount } from './stations.js';
 import { vehiclePrice, runningCost } from './prices.js';
 import { purchasable } from './vehicles.js';
+import { getSetting } from './settings.js';
 import { industryType } from './industries.js';
 import { RAIL_TYPES } from '../config/railTypes.js';
 import { styleById } from '../config/stationTypes.js';
@@ -31,7 +32,7 @@ const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], 
 export function listModels(state, kind, ownerId = null) {
   const kinds = KIND_ALIASES[kind] || [kind];
   // copies carrying the inflation-adjusted price / yearly running cost (what buying now would charge)
-  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year) && modelAvailable(state, m, ownerId))
+  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year, getSetting(state, 'neverExpireVehicles')) && modelAvailable(state, m, ownerId))
     .map((m) => ({ ...m, cost: vehiclePrice(state, m), running: runningCost(state, m.running) }));
 }
 

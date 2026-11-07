@@ -7,6 +7,7 @@ import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle, purchasable, modelAvailable, refundValue } from './vehicles.js';
+import { getSetting } from './settings.js';
 import { MAX_WAGONS } from './constants.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
@@ -58,7 +59,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };
   }
-  const r = resolvePurchase(depot, spec || {}, state.date.year);
+  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'));
   if (!r.ok) return r;
   const limit = vehicleLimitError(state, vehicleKindOfModel(r.template.model), opts.owner ?? null);
   if (limit) return { ok: false, error: limit };
@@ -624,11 +625,11 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
  * Wagon model a train's consist uses: its current wagon model, or (for a train with no wagons yet) the
  * wagon carrying its cargo, else the default coach. Null when none is available in `year`.
  */
-function consistWagonFor(v, year) {
+function consistWagonFor(v, year, neverExpire = false) {
   let wagon = v.wagonModelId ? MODEL_BY_ID[v.wagonModelId] : null;
   if (!wagon && v.cargoId) wagon = Object.values(MODEL_BY_ID).find((m) => m.kind === 'wagon' && m.cargos.includes(v.cargoId));
   if (!wagon) wagon = MODEL_BY_ID.wag_coach;
-  if (!wagon || wagon.kind !== 'wagon' || wagon.introYear > year || !purchasable(wagon, year)) return null;
+  if (!wagon || wagon.kind !== 'wagon' || wagon.introYear > year || !purchasable(wagon, year, neverExpire)) return null;
   return wagon;
 }
 
@@ -645,7 +646,7 @@ function consistCheck(ctx, id, n, opts = {}) {
   if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its wagons' };
   if (!Number.isInteger(n) || n < 1) return { ok: false, error: 'Wagon count must be a positive whole number' };
   if ((v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the train before changing its wagons' };
-  const wagon = consistWagonFor(v, state.date.year);
+  const wagon = consistWagonFor(v, state.date.year, getSetting(state, 'neverExpireVehicles'));
   if (!wagon) return { ok: false, error: 'No wagon model available' };
   return { ok: true, v, wagon, unit: vehiclePrice(state, wagon.cost) };
 }
@@ -760,7 +761,7 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
   const wagon = MODEL_BY_ID[modelId];
   if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
   if (wagon.introYear > state.date.year) return { ok: false, error: 'Wagon not yet available' };
-  if (!purchasable(wagon, state.date.year)) return { ok: false, error: 'Wagon is obsolete' };
+  if (!purchasable(wagon, state.date.year, getSetting(state, 'neverExpireVehicles'))) return { ok: false, error: 'Wagon is obsolete' };
   const cargoId = opts.cargoId || wagon.cargos[0];
   if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
   const list = wagonList(v);

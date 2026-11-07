@@ -4,7 +4,8 @@
  * state.subsidies = { nextId, offers:[{id,cargoId,src:{type,id},dst:{type,id},expiresMonths}],
  *   awarded:[{...offer, companyAwarded:true, multiplier, remainingMonths}] } is created lazily on the first offer.
  * Randomness never touches game.rng: each month derives a local PRNG from (seed, year*12+month).
- * Differences from OpenTTD: a single flat x2 multiplier (OpenTTD: x1.5..x4 by difficulty); offers and awards last 12 months.
+ * Multiplier and award duration are settings (subsidyMultiplier, subsidyMonths; OpenTTD difficulty.subsidy_multiplier /
+ * subsidy_duration), read when an award is made. Offers last OFFER_MONTHS.
  */
 import { makeRng } from './rng.js';
 import { getSetting } from './settings.js';
@@ -16,7 +17,10 @@ import { CARGO_BY_ID } from '../config/cargos.js';
 export const MAX_OFFERS = 4;
 export const OFFER_MONTHS = 12;
 export const AWARD_MONTHS = 12;
-export const SUBSIDY_MULTIPLIER = 2;
+/** Offered durations in months (Settings window). */
+export const SUBSIDY_MONTH_OPTIONS = [12, 24, 36, 60];
+/** Offered multipliers (Settings window). */
+export const SUBSIDY_MULTIPLIER_OPTIONS = [1.5, 2, 3, 4];
 const OFFER_CHANCE = 0.5;
 /** Cargos accepted by towns (besides industries accepting them). */
 const TOWN_CARGOS = ['PASS', 'MAIL', 'GOOD', 'FOOD'];
@@ -142,9 +146,11 @@ export function subsidyMultiplier(state, cargoId, fromX, fromY, toStation, ctx) 
   const i = sub.offers.findIndex(hit);
   if (i < 0) return 1;
   const [o] = sub.offers.splice(i, 1);
-  const award = { ...o, companyAwarded: true, multiplier: SUBSIDY_MULTIPLIER, remainingMonths: AWARD_MONTHS };
+  const multiplier = getSetting(state, 'subsidyMultiplier');
+  const months = getSetting(state, 'subsidyMonths');
+  const award = { ...o, companyAwarded: true, multiplier, remainingMonths: months };
   delete award.expiresMonths;
   sub.awarded.push(award);
-  if (ctx) notify(ctx, `Subsidy awarded to ${state.company.name}: ${describe(state, award)} (payments x${award.multiplier} for a year)`, 'good', 'subsidy');
+  if (ctx) notify(ctx, `Subsidy awarded to ${state.company.name}: ${describe(state, award)} (payments x${award.multiplier} for ${award.remainingMonths} months)`, 'good', 'subsidy');
   return award.multiplier;
 }

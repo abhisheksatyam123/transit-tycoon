@@ -5,13 +5,14 @@
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { purchasable } from './vehicles.js';
+import { getSetting } from './settings.js';
 
 /** Models that can replace `modelId`: same kind (engine/bus/truck/aircraft), purchasable in `year`, not itself. */
-export function replacementCandidates(modelId, year) {
+export function replacementCandidates(modelId, year, neverExpire = false) {
   const old = MODEL_BY_ID[modelId];
   if (!old || old.kind === 'wagon') return [];
   return Object.values(MODEL_BY_ID).filter((m) => m.kind === old.kind && m.id !== old.id
-    && m.introYear <= year && purchasable(m, year)
+    && m.introYear <= year && purchasable(m, year, neverExpire)
     && (old.kind !== 'bus' && old.kind !== 'truck' || m.cargos.some((c) => old.cargos.includes(c))));
 }
 
@@ -38,7 +39,7 @@ export function setAutoreplace(state, oldModelId, newModelId, opts = {}) {
   if (nw.kind !== old.kind) return { ok: false, error: 'Replacement must be the same kind of vehicle' };
   if (nw.id === old.id) return { ok: false, error: 'Replacement is the same model' };
   if (nw.introYear > year) return { ok: false, error: 'Replacement not yet available' };
-  if (!purchasable(nw, year)) return { ok: false, error: 'Replacement is obsolete' };
+  if (!purchasable(nw, year, getSetting(state, 'neverExpireVehicles'))) return { ok: false, error: 'Replacement is obsolete' };
   if ((old.kind === 'bus' || old.kind === 'truck') && !nw.cargos.some((c) => old.cargos.includes(c))) {
     return { ok: false, error: 'Replacement cannot carry the same cargo' };
   }

@@ -12,6 +12,7 @@
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { listModels } from './queries.js';
+import { getSetting } from './settings.js';
 import { replaceVehicle } from './autorenew.js';
 import { sendToDepot, startVehicle } from './cmdVehicle.js';
 import { purchasable } from './vehicles.js';
@@ -56,7 +57,7 @@ export function renewRivalFleet(ctx, r) {
     const cur = MODEL_BY_ID[v.modelId];
     if (!cur) continue;
     const old = v.age > v.maxAge;
-    if (!old && purchasable(cur, year)) continue;
+    if (!old && purchasable(cur, year, getSetting(state, 'neverExpireVehicles'))) continue;
     const target = renewalModel(state, v, r.id);
     if (!target) continue;
     const cost = vehiclePrice(state, target.cost);

@@ -18,8 +18,8 @@ import { isHelicopter } from './airportTypes.js';
  * Whether a model can be bought in `year` (OpenLoco era rule): introduced (introYear <= year) and not yet
  * obsolete (obsoleteYear > year, when the model declares one). Existing vehicles are never affected.
  */
-export function purchasable(model, year) {
-  return !!model && model.introYear <= year && !(model.obsoleteYear <= year);
+export function purchasable(model, year, neverExpire = false) {
+  return !!model && model.introYear <= year && (neverExpire || !(model.obsoleteYear <= year));
 }
 
 /** TY5: temperate kinds with OpenTTD toyland equivalents (buses, steam/diesel locos); wagons keep their cargo coverage. */
@@ -34,7 +34,7 @@ export function modelAvailable(state, model, ownerId = null) {
   // TY5: temperate buses and steam/diesel locos are hidden in toyland games once a toyland model of the same kind is
   // purchasable (OpenTTD toyland engines); until then they stay the buyable fallback
   if (model && !model.optIn && isToyland(state) && TOYLAND_REPLACED_KINDS.has(model.kind) && state.date
-    && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year))) return false;
+    && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year, getSetting(state, 'neverExpireVehicles')))) return false;
   if (!model || !model.optIn) return true;
   if (model.optIn === 'articulated') return !!state && getSetting(state, 'articulatedRV') === true; // articulated road vehicles
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
@@ -83,11 +83,11 @@ function classOf(model) {
  * @param {number} year current year
  * @returns {{ok:true,cost:number,template:object}|{ok:false,error:string}}
  */
-export function resolvePurchase(depot, spec, year) {
+export function resolvePurchase(depot, spec, year, neverExpire = false) {
   const model = MODEL_BY_ID[spec && spec.modelId];
   if (!model || model.kind === 'wagon') return { ok: false, error: 'Unknown vehicle model' };
   if (model.introYear > year) return { ok: false, error: 'Model not yet available' };
-  if (!purchasable(model, year)) return { ok: false, error: 'Model is obsolete' };
+  if (!purchasable(model, year, neverExpire)) return { ok: false, error: 'Model is obsolete' };
   const isTrain = model.kind === 'engine';
   const depotFor = isTrain ? 'rail' : model.kind === 'aircraft' ? 'air' : model.kind === 'ship' ? 'ship' : 'road';
   // trams are bought in road depots (depotFor 'road'); the depot must touch tram track (checked in cmdVehicle)
@@ -95,7 +95,7 @@ export function resolvePurchase(depot, spec, year) {
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
   if (isTrain) {
-    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running);
+    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running, neverExpire);
     wagons = spec.wagons === undefined ? 3 : Math.floor(spec.wagons);
     if (!(wagons >= 0 && wagons <= MAX_WAGONS)) return { ok: false, error: `Wagons must be 0..${MAX_WAGONS}` };
     if (wagons > 0) {
@@ -104,7 +104,7 @@ export function resolvePurchase(depot, spec, year) {
       if (!wagon && !spec.wagonModelId) wagon = MODEL_BY_ID.wag_coach;
       if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
       if (wagon.introYear > year) return { ok: false, error: 'Wagon not yet available' };
-      if (!purchasable(wagon, year)) return { ok: false, error: 'Wagon is obsolete' };
+      if (!purchasable(wagon, year, neverExpire)) return { ok: false, error: 'Wagon is obsolete' };
       cargoId = spec.cargoId || wagon.cargos[0];
       if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
       wagonModelId = wagon.id;
@@ -123,13 +123,13 @@ export function resolvePurchase(depot, spec, year) {
  * Mixed consist (spec.consist = [{modelId, cargoId?}] per wagon, engine excluded): every wagon is checked like a
  * single-model purchase; the template carries the list so createVehicle can set v.consist.
  */
-function resolveMixed(model, list, year, cost, running) {
+function resolveMixed(model, list, year, cost, running, neverExpire = false) {
   const consist = [];
   for (const w of list) {
     const wagon = MODEL_BY_ID[w && w.modelId];
     if (!wagon || wagon.kind !== 'wagon') return { ok: false, error: 'Unknown wagon model' };
     if (wagon.introYear > year) return { ok: false, error: 'Wagon not yet available' };
-    if (!purchasable(wagon, year)) return { ok: false, error: 'Wagon is obsolete' };
+    if (!purchasable(wagon, year, neverExpire)) return { ok: false, error: 'Wagon is obsolete' };
     const cargoId = (w.cargoId) || wagon.cargos[0];
     if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
     consist.push({ modelId: wagon.id, cargoId });
