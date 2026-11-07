@@ -11,7 +11,7 @@ import { platformWarning } from '../../simulation/platformLength.js';
 import { findStation } from '../../simulation/state.js';
 import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
-import { orderFlagText, hasTimetable } from '../../simulation/orders.js';
+import { orderFlagText, hasTimetable, isDepotOrder } from '../../simulation/orders.js';
 
 /** True when the vehicle has any timetable value or autofill running. */
 function hasTimetableOrders(v) {
@@ -174,9 +174,10 @@ export function openVehicleDetail(app, id) {
         }
         groupSel.value = v.groupId != null && groups.some((x) => x.id === v.groupId) ? String(v.groupId) : 'none';
         const o = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
-        const st = o && o.depotId == null && o.cond == null ? app.findStation(o.stationId) : null;
-        const nextDep = o && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
-        set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : o && o.depotId != null ? `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}` : 'No orders');
+        const depotOrd = isDepotOrder(o);
+        const st = o && !depotOrd && o.cond == null ? app.findStation(o.stationId) : null;
+        const nextDep = depotOrd && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
+        set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : depotOrd ? (o.depot === 'nearest' ? `Nearest depot${orderFlagText(o)}` : `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}`) : 'No orders');
         win.setTitle(v.name || 'Vehicle');
         reverseBtn.hidden = v.kind !== 'train' && v.kind !== 'road';
         setText(reverseBtn, v.kind === 'road' ? 'Turn around' : 'Reverse');

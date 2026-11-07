@@ -26,7 +26,7 @@ import { refitCore } from './refit.js';
 import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
-import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode } from './orders.js';
+import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode, isDepotOrder, isNearestDepotOrder } from './orders.js';
 import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
@@ -104,15 +104,16 @@ export function replan(ctx, v) {
   // conditional orders (condOrders.js): evaluated only here, when the vehicle advances to them
   if (noDepotTrip && v.orders.length && !resolveConditionals(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
   const order = noDepotTrip && v.orders.length ? currentOrder(v) : null;
-  const toDepotOrder = !!order && order.depotId != null;
+  const toDepotOrder = isDepotOrder(order);
   if (v.kind === 'aircraft' && noDepotTrip && v.orders.length && !toDepotOrder && ftaReplan(ctx, v)) return true;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) {
     goals = depotGoals(state, v, v.goingToDepot);
     if (!goals.length) { v.goingToDepot = null; return replan(ctx, v); }
   } else if (toDepotOrder) { // go-to-depot order: the order's depot; a removed depot order is skipped
-    goals = depotGoals(state, v, order.depotId);
+    // nearest: every depot of the vehicle's kind (planRoute takes the cheapest reachable one); else the fixed depot
+    goals = depotGoals(state, v, isNearestDepotOrder(order) ? undefined : order.depotId);
     if (!goals.length) { // the depot is gone: skip that order (all depot orders gone -> nothing to do)
-      if (v.orders.every((o) => o.depotId != null)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
+      if (v.orders.every((o) => isDepotOrder(o))) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
       advanceOrder(v);
       return replan(ctx, v);
     }
@@ -142,7 +143,7 @@ export function replan(ctx, v) {
 
 /** A service-only go-to-depot order whose vehicle is not due for service is skipped (advance past it). */
 function depotOrderNotDue(state, v, o) {
-  return o.depotId != null && o.serviceOnly && !serviceDueNow(state, v);
+  return isDepotOrder(o) && o.serviceOnly && !serviceDueNow(state, v);
 }
 
 /**
@@ -482,9 +483,10 @@ function onPathEnd(ctx, v) {
     return;
   }
   const order = currentOrder(v);
-  if (order && order.depotId != null) { // go-to-depot order: visit the depot (service / refit) and go on
+  if (isDepotOrder(order)) { // go-to-depot order: visit the depot (service / refit) and go on
     const hangarHere = b && b.type === 'station' && (b.part === 'hangar' || b.part === 'helipad');
-    if (b && ((b.type === 'depot' || hangarHere) && b.depotId === order.depotId)) depotOrderVisit(ctx, v, order);
+    const want = isNearestDepotOrder(order) ? b && b.depotId : order.depotId; // nearest: whichever depot the path ended at
+    if (b && ((b.type === 'depot' || hangarHere) && b.depotId === want)) depotOrderVisit(ctx, v, order);
     else replan(ctx, v);
     return;
   }
@@ -557,7 +559,9 @@ export function enterDepot(ctx, v, depotId) {
 function depotOrderVisit(ctx, v, order) {
   const { state } = ctx;
   if (depotOrderNotDue(state, v, order)) { advanceOrder(v); replan(ctx, v); return; }
-  v.goingToDepot = order.depotId; // autorenew (keepRoute) finds the depot by goingToDepot
+  const at = state.map.tiles[v.ty * state.map.width + v.tx].building;
+  const depotId = at && at.depotId != null ? at.depotId : order.depotId; // the depot reached (nearest: resolved here)
+  v.goingToDepot = depotId; // autorenew (keepRoute) finds the depot by goingToDepot
   const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
   const cur = nv || v;
   cur.goingToDepot = null;
@@ -572,7 +576,23 @@ function depotOrderVisit(ctx, v, order) {
   cur.atStationId = null;
   delete cur.intermediate;
   advanceOrder(cur);
-  replan(ctx, cur);
+  if (order.halt) haltInDepot(state, cur, depotId); // stop in the depot; the next start continues with the next order
+  else replan(ctx, cur);
+}
+
+/** Park a vehicle in a depot without a route (OpenTTD stop in depot); it leaves when started. */
+function haltInDepot(state, v, depotId) {
+  const depot = findDepot(state, depotId);
+  v.state = 'depot';
+  v.speed = 0;
+  v.goingToDepot = null;
+  v.depotId = depotId;
+  if (depot) { v.tx = depot.x; v.ty = depot.y; }
+  v.path = [];
+  v.pathIndex = 0;
+  v.progress = 0;
+  v.history = [{ x: v.tx, y: v.ty }];
+  v.flipped = false;
 }
 
 /**

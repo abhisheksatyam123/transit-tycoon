@@ -54,6 +54,7 @@ export function restoreVehicleOrders(state, depot, v, allocIdFn = (s) => allocId
   } else {
     // copy the orders; drop the ones whose station or depot is gone (OpenTTD: removed stations are dropped)
     const orders = b.orders.filter((o) => {
+      if (o.depot === 'nearest' && o.cond == null) return true; // resolved when current: no fixed depot to lose
       if (o.depotId != null && o.cond == null) return !!findDepot(state, o.depotId);
       if (o.cond != null) return true;
       return !!findStation(state, o.stationId);

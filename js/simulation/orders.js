@@ -68,6 +68,20 @@ export function effectiveOrder(v) {
   return v.intermediate ? INTERMEDIATE_ORDER : currentOrder(v);
 }
 
+/**
+ * Go-to-depot order (OpenTTD OT_GOTO_DEPOT): { depotId } (a specific depot) or { depot: 'nearest' } (the closest
+ * reachable depot of the vehicle's kind, resolved when the order becomes current). Flags: serviceOnly (service if
+ * needed, else skipped), halt (stop in the depot; a later start continues with the next order), refit.
+ */
+export function isDepotOrder(o) {
+  return !!o && (o.depotId != null || o.depot === 'nearest');
+}
+
+/** A go-to-depot order that targets the nearest depot (not a fixed one). */
+export function isNearestDepotOrder(o) {
+  return !!o && o.depot === 'nearest';
+}
+
 /** Effective unload mode of an order ('normal' when absent). */
 export function unloadMode(order) {
   return (order && order.unload) || 'normal';
@@ -77,8 +91,9 @@ export function unloadMode(order) {
 export function orderFlagText(o) {
   if (!o) return '';
   const parts = [];
-  if (o.depotId != null) { // go-to-depot order (see movement.js depotOrderVisit)
+  if (isDepotOrder(o)) { // go-to-depot order (see movement.js depotOrderVisit)
     if (o.serviceOnly) parts.push('service if needed');
+    if (o.halt) parts.push('stop in depot');
     if (o.refit) parts.push(`refit to ${cargoName(o.refit)}`);
     return parts.length ? ` (${parts.join(', ')})` : '';
   }
@@ -127,7 +142,7 @@ export function setOrderField(state, v, idx, patch) {
  * single-station route cannot wait for cargo that only it could deliver), so with fewer the vehicle departs.
  */
 export function distinctOrderStations(v) {
-  return new Set(v.orders.filter((o) => o.depotId == null && !o.cond).map((o) => o.stationId)).size;
+  return new Set(v.orders.filter((o) => !isDepotOrder(o) && !o.cond).map((o) => o.stationId)).size;
 }
 
 /** Current order of a vehicle or null. */
@@ -650,7 +665,7 @@ export function normaliseOrders(state, v, orders, kindOf) {
       out.push(r.entry);
       continue;
     }
-    if (o && o.depotId != null) { // go-to-depot order: no station; optional service-if-needed and refit
+    if (isDepotOrder(o)) { // go-to-depot order: no station; optional service-if-needed, halt and refit
       const r = normaliseDepotOrder(state, v, o);
       if (!r.ok) return r;
       out.push(r.entry);
@@ -702,12 +717,19 @@ export function normaliseOrders(state, v, orders, kindOf) {
 
 /** Validate a go-to-depot order: an existing depot of the vehicle's kind, own company, optional refit cargo. */
 function normaliseDepotOrder(state, v, o) {
-  const d = findDepot(state, o.depotId);
-  if (!d) return { ok: false, error: 'Unknown depot in orders' };
-  if (ownerMismatch(d, { owner: v.ownerId ?? null })) return { ok: false, error: RIVAL_OWNED };
-  if (!depotGoals(state, v, d.id).length) return { ok: false, error: 'That depot cannot take this vehicle' };
-  const entry = { depotId: d.id };
+  let entry;
+  if (isNearestDepotOrder(o)) { // nearest: any depot of the vehicle's kind (resolved when the order is current)
+    if (!depotGoals(state, v).length) return { ok: false, error: 'No depot this vehicle can use' };
+    entry = { depot: 'nearest' };
+  } else {
+    const d = findDepot(state, o.depotId);
+    if (!d) return { ok: false, error: 'Unknown depot in orders' };
+    if (ownerMismatch(d, { owner: v.ownerId ?? null })) return { ok: false, error: RIVAL_OWNED };
+    if (!depotGoals(state, v, d.id).length) return { ok: false, error: 'That depot cannot take this vehicle' };
+    entry = { depotId: d.id };
+  }
   if (o.serviceOnly) entry.serviceOnly = true;
+  if (o.halt) entry.halt = true;
   if (o.refit != null) {
     if (!(refitCargos(v) || []).includes(o.refit)) return { ok: false, error: `Cannot refit this vehicle to ${o.refit}` };
     entry.refit = o.refit;

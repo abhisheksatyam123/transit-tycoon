@@ -10,7 +10,7 @@ const speedFactor = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).f
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
-import { unloadMode, stopMode, hasTimetable, orderFlagText } from '../../simulation/orders.js';
+import { unloadMode, stopMode, hasTimetable, orderFlagText, isDepotOrder, isNearestDepotOrder } from '../../simulation/orders.js';
 import { refitCargos } from '../../simulation/refit.js';
 import { COND_VARS, COND_CMPS, condText, deleteOrderAt, moveOrderTo, isCond } from '../../simulation/condOrders.js';
 
@@ -86,6 +86,12 @@ export function openOrders(app, id) {
         else appendOrder(app, id, Number(val));
       } });
       const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn);
+      // OpenTTD "Go to nearest depot": appends a depot order resolved to the closest reachable depot when current
+      const nearestBtn = el('button.btn.sm', { type: 'button', text: '+ Nearest depot', title: 'Append a go-to-nearest-depot order: the closest reachable depot when this order is current (tick service only if needed / stop in depot in its row)', onclick: () => {
+        const v = app.findVehicle(id);
+        if (!v || !depotsFor(v).length) return;
+        appendDepotOrder(app, id, 'nearest');
+      } });
       // Conditional order (OpenTTD OT_CONDITIONAL): appended with the default condition "load % < 50" to the first order.
       const condBtn = el('button.btn.sm', { type: 'button', text: '+ Add conditional', title: 'Append a conditional order: jump to an order if a condition holds, else continue', onclick: () => {
         const v = app.findVehicle(id);
@@ -121,7 +127,7 @@ export function openOrders(app, id) {
       const totalLabel = el('div.muted.small.tt-total', { text: '' });
       const lateLine = el('div.small.tt-late', { text: '' });
       const ttRow = el('div.btn-row', null, el('span.small', { text: 'Start date: ' }), startIn, el('span.small', { text: ' days from now ' }), startLabel, spreadBtn);
-      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn, nearestBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
 
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
@@ -138,6 +144,7 @@ export function openOrders(app, id) {
       /** Per-row depot controls (service-only checkbox + refit select); one fresh set per row. */
       const depotRowCtl = () => el('span.depot-ctl', null,
         el('label.small', { text: ' service only if needed ' }, el('input', { type: 'checkbox', title: 'Service only if needed: skip this depot when the vehicle is not due for service', 'aria-label': 'Service only if needed' })),
+        el('label.small', { text: ' stop in depot ' }, el('input', { type: 'checkbox', title: 'Stop in depot: the vehicle waits in the depot; starting it again continues with the next order', 'aria-label': 'Stop in depot' })),
         el('label.small', { text: ' refit ' }, el('select.input', { title: 'Refit to', 'aria-label': 'Refit to', onchange: (e) => edit((os) => {
           const i = Number(e.target.dataset.i);
           if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
@@ -288,9 +295,10 @@ export function openOrders(app, id) {
             if (isCond(it.o)) { updateCondRow(row, it, v); return; }
             const st = app.findStation(it.o.stationId);
             setText(row.children[0], String(it.i + 1));
-            const isDepot = it.o.depotId != null;
-            const dep = isDepot ? app.game.state.depots.find((d) => d.id === it.o.depotId) : null;
-            const depotName = dep ? (dep.name || `Depot at ${dep.x},${dep.y}`) : `depot #${it.o.depotId} (removed)`;
+            const isDepot = isDepotOrder(it.o);
+            const nearest = isNearestDepotOrder(it.o);
+            const dep = isDepot && !nearest ? app.game.state.depots.find((d) => d.id === it.o.depotId) : null;
+            const depotName = nearest ? 'nearest depot' : dep ? (dep.name || `Depot at ${dep.x},${dep.y}`) : `depot #${it.o.depotId} (removed)`;
             const depotText = `Go to ${depotName}${orderFlagText(it.o)}`;
             setText(row.children[1], isDepot ? depotText
               : `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);
@@ -301,6 +309,11 @@ export function openOrders(app, id) {
               if (isDepot) {
                 svc.checked = !!it.o.serviceOnly;
                 svc.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].serviceOnly = true; else delete os[it.i].serviceOnly; });
+                const halt = ctl.querySelectorAll('input')[1];
+                if (halt) {
+                  halt.checked = !!it.o.halt;
+                  halt.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].halt = true; else delete os[it.i].halt; });
+                }
                 const opts = refitCargos(v) || [];
                 const sig = opts.join(',');
                 if (rsel.dataset.sig !== sig) {

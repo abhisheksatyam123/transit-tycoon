@@ -23,7 +23,7 @@ export function appendDepotOrder(app, vehicleId, depotId) {
   const v = app.findVehicle(vehicleId);
   if (!v) return false;
   const orders = v.orders.map((o) => ({ ...o }));
-  orders.push({ depotId });
+  orders.push(depotId === 'nearest' ? { depot: 'nearest' } : { depotId });
   return !!app.exec(app.game.setOrders(vehicleId, orders), { sound: 'click', quiet: true });
 }
 
