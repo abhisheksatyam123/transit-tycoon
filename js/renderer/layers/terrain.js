@@ -4,8 +4,8 @@
  * Called per tile in painter's order by the renderer.
  */
 import { terrainTop, waterTop, TERRAIN_VARIANTS, WATER_FRAMES } from '../sprites/terrain.js';
-import { tileHash } from '../sprites/canvas.js';
-import { HALF_W, HALF_H, HEIGHT_STEP as S } from '../iso.js';
+import { tileHash, makeSprite } from '../sprites/canvas.js';
+import { HALF_W, HALF_H, TILE_W, TILE_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
 import { packActive, packState } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
@@ -110,6 +110,15 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   }
   if (packActive() && k === 5 && !flowing) { // water: OpenGFX flat water tile 4061 (water_land.h SPR_FLAT_WATER_TILE)
     if (drawOgfxGround(ctx, 'water', hash, sx, sy, c)) return;
+  } else if (packActive() && k === 5 && tile.river && !tile.canal && !flat(c) && drawRiverSlopeFallback(ctx, sx, sy, c)) {
+    // WB: sloped river tile with no rapids sprite: flat diamond in the averaged 4061 colour, so it matches the OGFX water
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
+  } else if (packActive() && k === 5 && tile.river && !tile.canal && flat(c) && riverFlatUnderlay(ctx, sx, sy, c) && drawOgfxGround(ctx, 'water', hash, sx, sy, c)) {
+    // flat river (WB): OpenGFX flat water 4061 under the bank pieces, which are drawn on top so the sprite edge is covered
+    if (!(RIVER_BANKS && extraActive() && riverHasLand(map, x, y) && drawRiverBanks(ctx, map, x, y, sx, sy, c))) drawShore(ctx, map, x, y, sx, sy, c);
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
   } else if (packActive() && !flowing) { // OpenGFX slope sprite (OpenTTD clear_land.h + landscape.cpp)
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     // Flat land next to water is plain land in OpenTTD; the OpenGFX shore sprites (4062..) are for
@@ -141,6 +150,59 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   } else {
     drawSloped(ctx, top(k, hash % TERRAIN_VARIANTS), sx, sy, c);
   }
+}
+
+/** Flat river tile: mean-colour diamond under 4061 so its transparent jagged edge shows water, not the dark canvas (WB3). */
+function riverFlatUnderlay(ctx, sx, sy, c) {
+  const pack = packState.pack;
+  if (!pack || !pack.sprites[4061]) return false;
+  const col = waterMeanColour(pack.sprites[4061], pack);
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - HALF_H - S * c[0]); ctx.lineTo(sx + HALF_W, sy - S * c[1]);
+  ctx.lineTo(sx, sy + HALF_H - S * c[2]); ctx.lineTo(sx - HALF_W, sy - S * c[3]); ctx.closePath();
+  ctx.fillStyle = col; ctx.fill();
+  return true;
+}
+/** Sprite made from the OpenGFX flat water 4061 pixels (WB3), built once: a tile-sized diamond at the anchor. */
+let waterSpr = null;
+/**
+ * Sloped river tile without a rapids sprite: the 4061 texture drawn through drawSloped (same plane clip as the
+ * procedural water), so it matches the flat 4061 tiles beside it.
+ * @returns {boolean} false when the pack's water sprite is missing (caller keeps the procedural water)
+ */
+function drawRiverSlopeFallback(ctx, sx, sy, c) {
+  const pack = packState.pack;
+  const sp = pack && pack.sprites[4061];
+  if (!sp) return false;
+  if (!waterSpr) {
+    const [ai, x0, y0, w0, h0] = sp;
+    waterSpr = makeSprite(TILE_W, TILE_H, HALF_W, HALF_H, (g) => {
+      g.imageSmoothingEnabled = false;
+      g.drawImage(pack.atlases[ai], x0, y0, w0, h0, -HALF_W, -HALF_H, TILE_W, h0);
+    });
+  }
+  // underlay: the same planes filled with the 4061 mean colour, so anti-aliased clip seams show water, not canvas
+  const N = [sx, sy - HALF_H - S * c[0]], E = [sx + HALF_W, sy - S * c[1]];
+  const Sp = [sx, sy + HALF_H - S * c[2]], Wp = [sx - HALF_W, sy - S * c[3]];
+  ctx.beginPath(); ctx.moveTo(N[0], N[1]); ctx.lineTo(E[0], E[1]); ctx.lineTo(Sp[0], Sp[1]); ctx.lineTo(Wp[0], Wp[1]); ctx.closePath();
+  ctx.fillStyle = waterMeanColour(sp, pack);
+  ctx.fill();
+  drawSloped(ctx, waterSpr, sx, sy, c);
+  return true;
+}
+let waterMean = null;
+/** Mean RGB of 4061 as a css colour, computed once (WB3 underlay). */
+function waterMeanColour(sp, pack) {
+  if (waterMean) return waterMean;
+  const [ai, x0, y0, w0, h0] = sp;
+  const cv = document.createElement('canvas'); cv.width = w0; cv.height = h0;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(pack.atlases[ai], x0, y0, w0, h0, 0, 0, w0, h0);
+  const d = cx.getImageData(0, 0, w0, h0).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 127) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  waterMean = n ? `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})` : '#284c78';
+  return waterMean;
 }
 
 /**
