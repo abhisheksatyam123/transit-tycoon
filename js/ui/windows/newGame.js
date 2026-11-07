@@ -6,6 +6,7 @@ import { loadSlotData, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
 import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
+import { greyscaleFromPixels, heightsForMap } from '../../simulation/heightmap.js';
 import { loadNewGameSettings } from '../newGamePrefs.js';
 
 /**
@@ -114,6 +115,35 @@ export function openNewGame(app) {
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgClimate = sel([['temperate', 'Temperate (default)'], ['arctic', 'Sub-arctic (snow above the snow line)'], ['tropic', 'Sub-tropical (desert and rainforest)'], ['toyland', 'Toyland (candy ground and toy houses)']]);
       const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High']]);
+      // Heightmap import (OpenTTD heightmap.cpp rules, see simulation/heightmap.js): decoded once on pick
+      /** @type {{grey:Uint8Array,w:number,h:number,name:string}|null} */
+      let hm = null;
+      const hmFile = /** @type {HTMLInputElement} */ (el('input', { type: 'file', accept: 'image/png,image/jpeg', 'aria-label': 'Heightmap image' }));
+      const hmInfo = el('span.muted', { text: 'none' });
+      const hmClear = el('button.btn.sm', { type: 'button', text: 'Clear', onclick: () => { hm = null; hmFile.value = ''; hmInfo.textContent = 'none'; } });
+      hmFile.addEventListener('change', async () => {
+        const f = hmFile.files && hmFile.files[0];
+        if (!f) return;
+        hmInfo.textContent = 'reading…';
+        try {
+          const bmp = await createImageBitmap(f);
+          const w = bmp.width, h = bmp.height;
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          const cx = cv.getContext('2d', { willReadFrequently: true });
+          cx.drawImage(bmp, 0, 0);
+          const px = cx.getImageData(0, 0, w, h).data;
+          bmp.close && bmp.close();
+          hm = { grey: greyscaleFromPixels(px, w, h, 4), w, h, name: f.name };
+          hmInfo.textContent = `${f.name} (${w}×${h})`;
+        } catch (err) {
+          console.warn('Heightmap unreadable', err);
+          hm = null;
+          hmInfo.textContent = 'could not read this image';
+        }
+      });
+      const hmField = el('div.field', null, el('span.field-label', { text: 'Heightmap' }),
+        el('span.inline', null, hmFile, hmClear), hmInfo);
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
@@ -127,6 +157,7 @@ export function openNewGame(app) {
         desc,
         field('Seed', el('span.inline', null, seed, dice)),
         field('Map size', size),
+        hmField,
         field('Towns', towns),
         field('Start year', year),
         adv);
@@ -167,6 +198,8 @@ export function openNewGame(app) {
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
         const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, townDensity: mgTowns.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) });
         if (Object.keys(mg).length) opts.mapgen = mg;
+        // heightmap: sized to the chosen map (only when an image was picked, so default games are unchanged)
+        if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, s);
         win.close();
         app.newGame(opts);
       });

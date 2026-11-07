@@ -144,6 +144,39 @@ export function generateTerrain(map, rng, opts = {}) {
     if (mountainous) n = Math.pow(n, 0.6); // more peaks, full range
     t.height = Math.min(7, Math.floor((n * scale * (cliffsOn ? CLIFF_RELIEF : 1)) * 8));
   }
+  finishTerrain(map, rng, opts, forest, dry);
+}
+
+/**
+ * Generate terrain from an imported heightmap (heightmap.js): `heights` holds one level per tile
+ * (0 = sea/water, 1..7 = land; length width*height). Slopes are limited the same way as the generated
+ * map, and the cover (forest, desert, rock, snow), rivers, lakes and mountain style are applied as usual.
+ * Options as generateTerrain (waterRatio/seaLevel/terrain are ignored: the heights are the terrain).
+ * @param {object} map
+ * @param {object} rng
+ * @param {Uint8Array} heights
+ * @param {{smoothness?:string,rivers?:string,cliffs?:string,lakes?:string,mountainStyle?:string}} [opts]
+ */
+export function generateTerrainFromHeights(map, rng, heights, opts = {}) {
+  const { width, height, tiles } = map;
+  if (heights.length !== width * height) throw new Error('heightmap size does not match the map');
+  const forest = fbm(rng, width, height, 12, 3);
+  const dry = fbm(rng, width, height, 20, 2);
+  for (let i = 0; i < tiles.length; i++) {
+    const t = tiles[i];
+    const h = heights[i];
+    t.height = Math.min(7, h);
+    t.terrain = h === 0 ? 'water' : 'grass';
+  }
+  finishTerrain(map, rng, opts, forest, dry);
+}
+
+/**
+ * Shared tail of the terrain generators: slope limit, rivers, lakes, cover (forest/desert/rock/snow),
+ * cliffs and mountain style. Heights and water are already set on the tiles.
+ */
+function finishTerrain(map, rng, opts, forest, dry) {
+  const { width, height, tiles } = map;
   const cliffs = opts.cliffs === 'on';
   const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
   limitSlopes(map, cap);
@@ -462,7 +495,7 @@ function traceFlowing(map, start) {
 }
 
 /** Lower tiles so that 4-neighbours differ by at most `cap` height levels (1 unless cliffs are on). */
-function limitSlopes(map, cap = 1) {
+export function limitSlopes(map, cap = 1) {
   const { width, height, tiles } = map;
   // historic default: 8 sweeps (kept so the pinned maps stay identical); cliffs: sweep until settled, so the cap really holds
   const passes = cap === 1 ? 8 : 256;

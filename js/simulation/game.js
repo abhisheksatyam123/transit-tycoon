@@ -6,7 +6,7 @@ import { isTropic } from './climate.js';
 import { MAP_DEFAULTS, SAVE_VERSION } from './constants.js';
 import { Emitter } from './events.js';
 import { createRng, hashSeed } from './rng.js';
-import { createMap, generateTerrain, getTile, inBounds, DENSITY } from './map.js';
+import { createMap, generateTerrain, generateTerrainFromHeights, getTile, inBounds, DENSITY } from './map.js';
 import { generateTowns } from './towns.js';
 import { generateIndustries, placeExtraIndustries, placeTropicIndustries, placeTropicChains } from './industries.js';
 import { isToyland } from './climate.js';
@@ -159,7 +159,9 @@ export class Game {
     // T34 map generator options: stored only when non-default so default saves are unchanged
     const mg = mapgenOptions(o.mapgen);
     if (Object.keys(mg).length) state.mapgen = mg;
-    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
+    // heightmap import (newGame window): the heights are the terrain; never stored in state (tiles hold them)
+    if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, mg);
+    else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
     // density options scale the requested counts (normal = 1x, so default games are unchanged)
     const townMul = DENSITY[mg.townDensity ?? 'normal'] ?? 1, indMul = DENSITY[mg.industryDensity ?? 'normal'] ?? 1;
     generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
