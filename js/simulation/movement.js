@@ -335,6 +335,9 @@ function move(ctx, v) {
     v.progress -= 1;
     v.pathIndex++;
     const p = v.path[v.pathIndex];
+    if (v.forceProceed) { // forceTrainProceed: lapses on leaving the signal tile or after FORCE_PROCEED_TILES tiles
+      if (v.forceProceed.k === v.ty * state.map.width + v.tx || --v.forceProceed.left <= 0) delete v.forceProceed;
+    }
     v.tx = p.x; v.ty = p.y;
     v.history.unshift({ x: p.x, y: p.y });
     if (v.history.length > keep) v.history.length = keep;
@@ -363,7 +366,17 @@ function nextBlocker(ctx, v) {
   const same = blockerOn(ctx, v, layer, b.x, b.y, dir);
   if (layer === 'road' && same && overtakeEnabled(ctx.state) && tryOvertake(ctx, v, same)) return overtakeBlocker(ctx, v, b.x, b.y, dir);
   if (same || layer !== 'rail') return same;
-  return signalBlocker(ctx, v, a, b) || typedGate(ctx, v, a, b);
+  // OpenTTD TFP_SIGNAL/TFP_STUCK (forceTrainProceed): the signal rules are skipped for the step onto/off the
+  // forced signal tile only; the same-tile occupancy check above still applies (never enters an occupied tile).
+  const force = v.forceProceed && forceCovers(ctx, v, a, b) ? v.forceProceed : null;
+  return signalBlocker(ctx, v, a, b, force) || typedGate(ctx, v, a, b, force);
+}
+
+/** True when a forced train's step a->b touches its forced signal tile (forceProceed.k). */
+function forceCovers(ctx, v, a, b) {
+  const W = ctx.state.map.width;
+  const k = v.forceProceed.k;
+  return a.y * W + a.x === k || b.y * W + b.x === k;
 }
 
 /**
@@ -371,11 +384,12 @@ function nextBlocker(ctx, v) {
  * body cell in that block. A train already inside the block, or stepping between tiles of one block, is
  * never held by the rule. Blocks without a signal are not guarded (returns null).
  */
-function signalBlocker(ctx, v, a, b) {
+function signalBlocker(ctx, v, a, b, force) {
   const { state } = ctx;
   const W = state.map.width;
   const toB = guardedBlock(state, b.y * W + b.x);
   if (toB < 0 || guardedBlock(state, a.y * W + a.x) === toB) return null;
+  if (force) return null; // forced past this signal (forceTrainProceed)
   return trainInBlock(ctx, v, toB);
 }
 

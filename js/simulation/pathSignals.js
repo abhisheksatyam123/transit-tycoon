@@ -42,7 +42,7 @@ export function isTypedSignal(sig) {
  * and a path signal whose route ahead cannot be reserved. Path signals reserve on approach.
  * @returns {object|null} SIGNAL_HOLD when refused, null when the train may enter the tile
  */
-export function typedGate(ctx, v, a, b) {
+export function typedGate(ctx, v, a, b, force) {
   const { state } = ctx;
   const W = state.map.width;
   const bk = b.y * W + b.x;
@@ -51,7 +51,7 @@ export function typedGate(ctx, v, a, b) {
     if (owner !== undefined && owner !== v.id && isLive(state, owner)) return SIGNAL_HOLD;
   }
   const sig = state.map.tiles[bk].signal;
-  if (!isTypedSignal(sig)) return null;
+  if (!isTypedSignal(sig) || force) return null; // force: forceTrainProceed passes this signal
   if (dirBetween(a.x, a.y, b.x, b.y) !== sig.dir) return SIGNAL_HOLD; // wrong side of a one-way signal
   if (sig.type === 'entry' || sig.type === 'combo') return preGreen(ctx, v, b, sig) ? null : SIGNAL_HOLD;
   if (sig.type === 'exit') return regionFree(ctx, v, regionBeyond(state, b.x, b.y, sig.dir).keys) ? null : SIGNAL_HOLD;

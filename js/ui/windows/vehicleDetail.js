@@ -77,6 +77,10 @@ export function openVehicleDetail(app, id) {
         if (v && v.kind === 'train') app.exec(g().reverseVehicle(id), { sound: 'click' });
         else if (v && v.kind === 'road') app.exec(g().turnRoadVehicle(id), { sound: 'click' });
       } });
+      const ignoreSigBtn = el('button.btn', { type: 'button', text: 'Ignore signal', title: 'Pass the next signal without waiting for it to clear (trains only; the train still waits for a free tile)', onclick: () => {
+        const v = app.findVehicle(id);
+        if (v && v.kind === 'train') app.exec(g().forceTrainProceed(id), { sound: 'click' });
+      } });
       // gap #25: a rival's vehicle is read-only (owner line, no action buttons)
       if (app.findVehicle(id) && app.findVehicle(id).ownerId != null) {
         const rv = app.findVehicle(id);
@@ -90,6 +94,7 @@ export function openVehicleDetail(app, id) {
         el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'vehicle', id) }),
         el('button.btn', { type: 'button', text: 'Autoreplace…', title: 'Model replacement rules (applied when stopped in a depot)', onclick: () => app.open('autoreplace') }),
         reverseBtn,
+        ignoreSigBtn,
         el('button.btn', { type: 'button', text: 'Send to depot', onclick: () => app.exec(g().sendToDepot(id), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Center', onclick: () => { const v = app.findVehicle(id); if (v) app.centerOn(v.tx, v.ty); } }),
         followBtn,
@@ -179,6 +184,7 @@ export function openVehicleDetail(app, id) {
         const nextDep = depotOrd && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
         set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : depotOrd ? (o.depot === 'nearest' ? `Nearest depot${orderFlagText(o)}` : `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}`) : 'No orders');
         win.setTitle(v.name || 'Vehicle');
+        ignoreSigBtn.hidden = v.kind !== 'train';
         reverseBtn.hidden = v.kind !== 'train' && v.kind !== 'road';
         setText(reverseBtn, v.kind === 'road' ? 'Turn around' : 'Reverse');
         reverseBtn.title = v.kind === 'road' ? 'Turn around and re-plan to the current order (road vehicles; refused on one-way roads, in stops or depots)' : 'Turn the train around and re-plan to its current order (trains only)';

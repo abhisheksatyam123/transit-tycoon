@@ -318,6 +318,8 @@ export class Game {
   sellVehicle(id, opts) { return vcmd.sellVehicle(this.ctx, id, opts); }
   /** Turn a train around in place and re-plan (trains only). */
   reverseVehicle(id, opts) { return vcmd.reverseVehicle(this.ctx, id, opts); }
+  /** Force a train to pass the next signal without waiting (OpenTTD Ignore signal; trains only). */
+  forceTrainProceed(id, opts) { return vcmd.forceTrainProceed(this.ctx, id, opts); }
   /** Turn a running road vehicle around and re-plan to its current order (road vehicles only). */
   turnRoadVehicle(id, opts) { return vcmd.turnRoadVehicle(this.ctx, id, opts); }
   /** Start (true) or stop (false) many vehicles; ids = vehicle ids. Skips those that cannot change. */

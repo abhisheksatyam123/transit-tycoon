@@ -472,6 +472,48 @@ export function reverseVehicle(ctx, id, opts = {}) {
   return { ok: true, cost: 0, state: v.state };
 }
 
+/** Tiles a forced train may move before the force lapses if it has not reached the signal (OpenTTD TFP timeout). */
+const FORCE_PROCEED_TILES = 64;
+/** Path tiles searched ahead for the signal to pass (OpenTTD forces the next signal only). */
+const FORCE_SEARCH_TILES = 64;
+
+/**
+ * Force a train to pass the next signal without waiting for it to clear (OpenTTD CmdForceTrainProceed,
+ * "Ignore signal"). The train ignores exactly the next signal (block or path signal) on its planned route; the
+ * flag (v.forceProceed, lazy) is removed once the train has left that tile or after a timeout. The same-tile
+ * occupancy rule still applies: the train never enters a tile another vehicle occupies. Refused for
+ * non-trains, stopped, loading, broken or depot vehicles, and when no signal lies ahead on the route.
+ */
+export function forceTrainProceed(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (v.kind !== 'train') return { ok: false, error: 'Only trains can ignore a signal' };
+  if (v.state === 'depot') return { ok: false, error: 'Vehicle is in a depot' };
+  if (v.state === 'stopped') return { ok: false, error: 'Vehicle is stopped' };
+  if (v.state === 'loading') return { ok: false, error: 'Wait until the train has finished loading' };
+  if (v.state !== 'running' && v.state !== 'signal') return { ok: false, error: 'Vehicle cannot proceed' };
+  const k = nextSignalKey(state, v);
+  if (k < 0) return { ok: false, error: 'No signal ahead on the route' };
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  v.forceProceed = { k, left: FORCE_PROCEED_TILES };
+  return { ok: true, cost: 0, state: v.state, tile: k };
+}
+
+/** Tile key of the first signal on v's planned route from its current tile on (a train held on a signal counts), or -1. */
+function nextSignalKey(state, v) {
+  const W = state.map.width;
+  const p = v.path || [];
+  const end = Math.min(p.length, v.pathIndex + FORCE_SEARCH_TILES);
+  for (let i = v.pathIndex; i < end; i++) {
+    const k = p[i].y * W + p[i].x;
+    const t = state.map.tiles[k];
+    if (t && t.signal) return k;
+  }
+  return -1;
+}
+
 /**
  * Turn a running road vehicle (bus, truck or tram) around (OpenTTD CmdTurnRoadVeh, "Turn around"). It backs
  * onto the tile it came from and re-plans to its current order (movement.js turnAround, the same mechanics as a
