@@ -10,6 +10,8 @@ import { packState } from '../pack/state.js';
 import { roadSprite } from '../pack/road.js';
 import { getNet } from './index.js';
 
+let bxBuf = new Float32Array(64);
+const BBOX_M = 0.55; // > sqrt(0.27): span bbox margin for paint()
 const RAIL_X = 1012; // OpenGFX straight rail along our y (N|S)
 const pixCache = new Map();
 let tmp = null, tmpCtx = null, img = null;
@@ -110,6 +112,21 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
   const bits = kind === 'rail' ? (t.tunnel ? 0 : t.rail | 0) : (t.road | 0);
   if (bits && !net.covered[i]) return false; // node tile: keeps its own sprite
   let any = false;
+  // per-span bounding boxes (tile units): a span whose box is > BBOX_M away from the pixel has every
+  // centreline point farther than the 0.27 (squared, ~0.52) cut-off, so skipping it cannot change the result
+  const nb = list.length;
+  if (bxBuf.length < nb * 4) bxBuf = new Float32Array(nb * 8);
+  const bx = bxBuf;
+  for (let q = 0; q < nb; q++) {
+    const sp = list[q], P = net.edges[sp.e].pts;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (let k = sp.i0; k <= sp.i1; k++) {
+      const px = P[2 * k], py = P[2 * k + 1];
+      if (px < x0) x0 = px; if (px > x1) x1 = px;
+      if (py < y0) y0 = py; if (py > y1) y1 = py;
+    }
+    bx[4 * q] = x0 - BBOX_M; bx[4 * q + 1] = x1 + BBOX_M; bx[4 * q + 2] = y0 - BBOX_M; bx[4 * q + 3] = y1 + BBOX_M;
+  }
   for (let py = 0; py < H; py++) {
     const b = (py + 0.5 - H / 2) / (H / 2);
     for (let px = 0; px < W; px++) {
@@ -118,7 +135,9 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
       const u = x + (a + b) / 2, v = y + (b - a) / 2;
       // nearest centreline point over the spans
       let best = 1e9, bd = 0, bt = 0, be = null;
-      for (const sp of list) {
+      for (let q = 0; q < nb; q++) {
+        if (u < bx[4 * q] || u > bx[4 * q + 1] || v < bx[4 * q + 2] || v > bx[4 * q + 3]) continue;
+        const sp = list[q];
         const e = net.edges[sp.e], P = e.pts, L = e.len;
         for (let k = sp.i0; k < sp.i1; k++) {
           const x0 = P[2 * k], y0 = P[2 * k + 1], dx = P[2 * k + 2] - x0, dy = P[2 * k + 3] - y0;
