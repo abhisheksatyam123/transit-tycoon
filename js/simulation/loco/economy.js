@@ -70,7 +70,7 @@ export function inflateCost(state, costIndex, amount) {
 }
 
 /** Factor normalised so that it equals 1024 at game start (what cargo payment factors are calibrated for). */
-function normalisedFactor(state, costIndex) {
+export function normalisedFactor(state, costIndex) {
   return Math.floor(costScale(state, costIndex) * START_FACTOR);
 }
 

@@ -7,8 +7,8 @@
  *    st.rating200[cargoId] and publish the 0..100 % value in st.rating[cargoId] (what UI/cargo.js read).
  *  - StationCargoStats.age -> st.cargoAge[cargoId] (days since the last pickup; reset to the vehicle-type
  *    value on pickup, detected through st.lastPickup[cargoId] which orders.js/markPickup updates).
- *  - vehicleSpeed -> st.lastSpeed (km/h, converted to mph); vehicleAge -> avg age of vehicles that load the cargo
- *    here, in 256-day units (OpenLoco: (today - creationDay) / 256).
+ *  - vehicleSpeed / vehicleAge -> st.carrier[cargoId] (km/h, 256-day units): the last carrier's max speed and age,
+ *    averaged (old+new)>>1 over pickups (VehicleHead.cpp:3466-3478, see stations.js recordCarrier).
  *  - quantity -> sum of packet amounts (waitingAmount); decay removes cargo via takeWaiting.
  *  - Not ported (no TT counterpart): company/town rating bonus, noTilesTimeout (TT deletes empty stations
  *    at once), cargo density/ viewport, station flags 7/8 (player always owns stations), statue/HQ bonus
@@ -22,7 +22,7 @@ export const INITIAL_CARGO_RATING = 150;
 const MAX_SPEED_MPH = 250;
 const KMH_TO_MPH = 0.621371;
 /** VehicleHead.cpp typeAgeMap {train 0, bus 5, truck 3, tram 2, aircraft 0, ship 0}. */
-const TYPE_AGE = { rail: 0, bus: 5, truck: 3 };
+const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2 };
 
 /**
  * Station::calculateCargoRating. `c` = { age, quantity, vehicleSpeed(mph), vehicleAge, npc? }.
@@ -90,26 +90,27 @@ export function stationCargoRatingDetail(state, st, cargoId) {
   const quantity = waitingAmount(st, cargoId);
   const bd = cargoRatingBreakdown({
     age, quantity,
-    vehicleSpeed: (st.lastSpeed || 0) * KMH_TO_MPH,
-    vehicleAge: vehicleAgeFactor(state, st, cargoId),
+    vehicleSpeed: carrierStats(st, cargoId).speed * KMH_TO_MPH,
+    vehicleAge: carrierStats(st, cargoId).age,
     npc: st.ownerId !== undefined && st.ownerId !== null,
   });
   const cur200 = st.rating200 && st.rating200[cargoId] !== undefined ? st.rating200[cargoId] : null;
   return { ...bd, age, quantity, current: st.rating ? st.rating[cargoId] : undefined, current200: cur200 };
 }
 
-/** Average age (256-day units) of vehicles whose orders visit st and that carry cargoId. */
-function vehicleAgeFactor(state, st, cargoId) {
-  let sum = 0, n = 0;
-  for (const v of state.vehicles) {
-    if (v.cargoId !== cargoId || !v.orders || !v.orders.some((o) => o.stationId === st.id)) continue;
-    sum += Math.min(255, Math.floor((v.age || 0) / 256)); n++;
-  }
-  return n ? Math.floor(sum / n) : 0;
+/**
+ * Carrier stats of the last vehicle that picked up cargoId here (OpenLoco StationCargoStats vehicleSpeed/vehicleAge,
+ * averaged over pickups by stations.js recordCarrier). Returns {speed (km/h), age (256-day units)}.
+ * Old saves (no st.carrier record yet): speed falls back to the last pickup speed, age to 0 (new vehicle).
+ */
+function carrierStats(st, cargoId) {
+  const c = st.carrier && st.carrier[cargoId];
+  if (c) return c;
+  return { speed: st.lastSpeed || 0, age: 0 };
 }
 
 function typeAge(state, st) {
-  return st.kinds.rail ? TYPE_AGE.rail : st.kinds.truck ? TYPE_AGE.truck : st.kinds.bus ? TYPE_AGE.bus : 0;
+  return st.kinds.rail ? TYPE_AGE.rail : st.kinds.truck ? TYPE_AGE.truck : st.kinds.tram ? TYPE_AGE.tram : st.kinds.bus ? TYPE_AGE.bus : 0;
 }
 
 /**
@@ -137,8 +138,8 @@ export function updateCargo(game, st) {
     let quantity = waitingAmount(st, cargoId);
     const target = calculateCargoRating({
       age: st.cargoAge[cargoId], quantity,
-      vehicleSpeed: (st.lastSpeed || 0) * KMH_TO_MPH,
-      vehicleAge: vehicleAgeFactor(state, st, cargoId),
+      vehicleSpeed: carrierStats(st, cargoId).speed * KMH_TO_MPH,
+      vehicleAge: carrierStats(st, cargoId).age,
       npc: st.ownerId !== undefined && st.ownerId !== null,
     });
     const delta = Math.max(-2, Math.min(2, target - st.rating200[cargoId]));

@@ -16,6 +16,17 @@
  */
 import { INDUSTRY_BY_ID, CONVERSION_RATIO } from '../../config/industries.js';
 import { addWaiting } from '../stations.js';
+
+/**
+ * Station cargo rating on OpenLoco's 0..200 scale (StationCargoStats.rating, used raw by
+ * StationManager::deliverCargoToStations and the industry stats ranking). Legacy saves only have the 0..100 %
+ * value (st.rating = rating200 / 2); a station with no rating yet uses the initial 150.
+ */
+function stationRating200(st, cargo) {
+  if (st.rating200 && st.rating200[cargo] !== undefined) return st.rating200[cargo];
+  if (st.rating[cargo] !== undefined) return st.rating[cargo] * 2;
+  return 150;
+}
 import { findStation } from '../state.js';
 import { MAX_WAITING } from '../constants.js';
 import { getSetting } from '../settings.js';
@@ -103,7 +114,7 @@ export function updateProducedCargoStats(state, ind) {
     if (cargo) {
       for (const st of inRange) {
         if (st.lastPickup[cargo] === undefined) continue; // acceptedFromProducer: a vehicle has loaded this cargo here
-        const rating = Math.floor(((st.rating[cargo] ?? 69) * 255) / 100);
+        const rating = stationRating200(st, cargo);
         for (let index = 0; index < MAX_STATIONS; index++) {
           if (stations[index] === null || ratings[index] <= rating) { // insertion sort, dropping the last entry
             stations.splice(index, 0, st.id); stations.pop();
@@ -131,7 +142,7 @@ export function deliverCargoToStations(state, stationIds, cargoId, qty, sx, sy) 
   const found = [];
   for (const id of stationIds) {
     const st = findStation(state, id);
-    if (st) found.push([st, Math.floor(((st.rating[cargoId] ?? 69) * 255) / 100)]);
+    if (st) found.push([st, stationRating200(st, cargoId)]);
   }
   const ratingTotal = found.reduce((a, [, r]) => a + r * r, 0);
   if (ratingTotal === 0) return 0;

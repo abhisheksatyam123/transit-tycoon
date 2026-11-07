@@ -16,7 +16,7 @@ import { spend } from '../economy.js';
 import { vehicleModel } from '../vehicles.js';
 import { notify } from '../news.js';
 import { getSetting } from '../settings.js';
-import { runningCost } from '../prices.js';
+import { COST_INDEX, normalisedFactor } from './economy.js';
 import { dayNumber } from '../date.js';
 import { autorenewVehicle } from '../autorenew.js';
 
@@ -106,8 +106,12 @@ export function vehicleBreakdownTick(v) {
 
 /** VehicleHead::calculateRunningCost: monthly running cost of one vehicle. */
 export function monthlyRunningCost(v, state) {
-  const base = Math.round(v.runningCost / 12);
-  return state ? runningCost(state, base) : base;
+  // OL VehicleHead::calculateRunningCost (VehicleHead.cpp:7119-7130): per car
+  // getInflationAdjustedCost(runCostFactor, runCostIndex, 10) = trunc(factor * normalisedMultiplier / 2^10), summed.
+  // TT keeps one yearly figure per consist, so the monthly share is the yearly amount / 12, inflated and truncated
+  // once (integer math, no separate rounding step before inflation).
+  if (!state) return Math.trunc(v.runningCost / 12);
+  return Math.trunc((v.runningCost * normalisedFactor(state, COST_INDEX.running)) / (12 * 1024));
 }
 
 /** VehicleHead::updateMonthly. @returns {number} running cost charged */

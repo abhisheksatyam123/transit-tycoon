@@ -12,7 +12,7 @@ import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, findDepot, findIndustry, nearestTown } from './state.js';
 import { refitCargos } from './refit.js';
 import { normaliseCond } from './condOrders.js';
-import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting } from './stations.js';
+import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting, recordCarrier } from './stations.js';
 import { deliverToIndustry } from './industries.js';
 import { recordTownDelivery } from './townGrowth.js';
 import { vehicleModel } from './vehicles.js';
@@ -475,6 +475,7 @@ function loadSlice(ctx, v, st) {
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
   const got = takeWaiting(st, v.cargoId, room, pred);
   if (got.amount <= 0) return 0;
+  recordCarrier(st, v.cargoId, model ? model.speed : 0, v.age || 0);
   const l = v.load;
   if (cd || l.dests) {
     l.dests = l.dests || {};

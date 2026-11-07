@@ -274,6 +274,25 @@ export function markPickup(state, st, cargoId, speedKmh) {
   if (speedKmh) st.lastSpeed = speedKmh;
 }
 
+/**
+ * OpenLoco VehicleHead.cpp:3466-3478: after a real pickup of cargo at the station, the per-cargo carrier stats
+ * (StationCargoStats.vehicleSpeed / vehicleAge) become the average of the previous carrier and this one:
+ * first pickup sets them, later pickups use (old + new) >> 1. Speed is km/h (vehicle model max speed),
+ * age in 256-day units ((day - creationDay) / 256, clamped to 255). Lazy field: st.carrier[cargoId].
+ */
+export function recordCarrier(st, cargoId, speedKmh, ageDays) {
+  const newSpeed = speedKmh | 0;
+  const newAge = Math.min(255, Math.floor((ageDays || 0) / 256));
+  st.carrier = st.carrier || {};
+  const c = st.carrier[cargoId];
+  if (c) {
+    c.speed = Math.floor((c.speed + newSpeed) / 2);
+    c.age = Math.floor((c.age + newAge) / 2);
+  } else {
+    st.carrier[cargoId] = { speed: newSpeed, age: newAge };
+  }
+}
+
 /** Tiles of the station of the given kind. */
 export function stationTilesOfKind(st, kind) {
   return st.tiles.filter((t) => t.kind === kind);
