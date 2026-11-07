@@ -4,6 +4,7 @@
 import { el, setText, bar, setBar } from '../dom.js';
 import { money, num, speed } from '../format.js';
 import { condText } from '../../simulation/condOrders.js';
+import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
 import { cargoSlices, currentOrder } from '../../simulation/orders.js';
@@ -182,7 +183,7 @@ export function openVehicleDetail(app, id) {
         const depotOrd = isDepotOrder(o);
         const st = o && !depotOrd && o.cond == null ? app.findStation(o.stationId) : null;
         const nextDep = depotOrd && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
-        set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : depotOrd ? (o.depot === 'nearest' ? `Nearest depot${orderFlagText(o)}` : `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}`) : 'No orders');
+        set['Next order'](o && o.cond != null ? condText(o.cond) : st ? `${st.name}${orderFlagText(o)}` : depotOrd ? (o.depot === 'nearest' ? `Nearest depot${orderFlagText(o)}` : `${nextDep ? depotDisplayName(nextDep) : 'Depot at (removed)'}${orderFlagText(o)}`) : 'No orders');
         win.setTitle(v.name || 'Vehicle');
         ignoreSigBtn.hidden = v.kind !== 'train';
         reverseBtn.hidden = v.kind !== 'train' && v.kind !== 'road';

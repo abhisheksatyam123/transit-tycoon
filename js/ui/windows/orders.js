@@ -27,6 +27,7 @@ import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
+import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['fullAny', 'Full load any'], ['none', 'No loading']];
@@ -329,7 +330,7 @@ export function openOrders(app, id) {
             const isDepot = isDepotOrder(it.o);
             const nearest = isNearestDepotOrder(it.o);
             const dep = isDepot && !nearest ? app.game.state.depots.find((d) => d.id === it.o.depotId) : null;
-            const depotName = nearest ? 'nearest depot' : dep ? (dep.name || `Depot at ${dep.x},${dep.y}`) : `depot #${it.o.depotId} (removed)`;
+            const depotName = nearest ? 'nearest depot' : dep ? depotDisplayName(dep) : `depot #${it.o.depotId} (removed)`;
             const depotText = `Go to ${depotName}${orderFlagText(it.o)}`;
             setText(row.children[1], isDepot ? depotText
               : `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);

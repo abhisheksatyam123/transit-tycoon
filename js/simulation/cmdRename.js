@@ -1,14 +1,15 @@
 /**
  * Rename commands (OpenTTD CMD_RENAME_STATION / _VEHICLE / _TOWN / _COMPANY).
  * Only the existing `name` field changes; ids are never derived from names, so orders, lists and
- * saves keep referring to the entity by id. Depots have no name field in this game (not renamed).
+ * saves keep referring to the entity by id. Depots get a lazy `name` (renameDepot; blank = default).
  *
  * Rules (validateName): trimmed, 1..32 characters (code points), no control characters.
  * Stations, towns and vehicles must be unique among their own kind (case-insensitive, like
  * OpenTTD IsUniqueStationName); the entity being renamed is excluded from the check.
  * The company name only has the length/character rules (there is one company).
  */
-import { findStation, findTown, findVehicle } from './state.js';
+import { findStation, findTown, findVehicle, findDepot } from './state.js';
+import { ownerMismatch, RIVAL_OWNED } from './owner.js';
 
 export const MAX_NAME_LENGTH = 32;
 
@@ -70,4 +71,32 @@ export function renameTown(ctx, id, name, opts = {}) {
 export function renameCompany(ctx, name, opts = {}) {
   const { state } = ctx;
   return renameWith(state.company, name, null, '', opts);
+}
+
+/** Default label of a depot (no name set): "Depot at x,y" (the pre-rename wording used by orders/vehicle views). */
+export function depotDefaultName(d) {
+  return `Depot at ${d.x},${d.y}`;
+}
+
+/** Display name of a depot: the player's name if set, else the default label. */
+export function depotDisplayName(d) {
+  return (d && d.name) || depotDefaultName(d);
+}
+
+/**
+ * Rename a depot (OpenTTD CmdRenameDepot). Owner-checked (rival depots refused). Depots have no name
+ * until renamed: the `name` field is lazy. An empty (blank) name resets to the default label by
+ * deleting the field. Otherwise the same rules as stations apply (length / characters, unique
+ * among depots, case-insensitive, the depot itself excluded).
+ */
+export function renameDepot(ctx, id, name, opts = {}) {
+  const { state } = ctx;
+  const d = findDepot(state, id);
+  if (!d) return { ok: false, error: 'Unknown depot' };
+  if (ownerMismatch(d, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (typeof name === 'string' && !name.trim()) {
+    if (!opts.dryRun) delete d.name;
+    return { ok: true, cost: 0, name: depotDefaultName(d) };
+  }
+  return renameWith(d, name, state.depots, 'A depot with this name already exists', opts);
 }

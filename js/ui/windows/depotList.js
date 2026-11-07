@@ -5,6 +5,7 @@
  */
 import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
+import { depotDisplayName } from '../../simulation/cmdRename.js';
 
 /** Display labels per depot kind. */
 export const DEPOT_KIND_LABELS = { rail: 'Rail', road: 'Road', air: 'Airport hangar', water: 'Ship', ship: 'Ship' };
@@ -38,6 +39,7 @@ export function depotRows(state) {
       x: d.x,
       y: d.y,
       town,
+      name: depotDisplayName(d),
       inside: inside.get(d.id) || 0,
       total: total.get(d.id) || 0,
     };
@@ -55,7 +57,7 @@ export function openDepotList(app) {
       const summary = el('div.muted');
       const cols = '0.9fr 1.3fr 0.6fr 0.6fr auto';
       const head = el('div.table-head', { style: { gridTemplateColumns: cols } },
-        el('span', { text: 'Kind' }), el('span', { text: 'Nearest town' }),
+        el('span', { text: 'Depot' }), el('span', { text: 'Nearest town' }),
         el('span', { text: 'Inside' }), el('span', { text: 'Total' }), el('span', { text: '' }));
       const list = el('div.list.scroll.table');
       body.append(summary, head, list);
@@ -72,7 +74,7 @@ export function openDepotList(app) {
             onclick: (e) => { e.stopPropagation(); app.open('depot', r.id); } })),
           (row, r) => {
             const c = row.children;
-            setText(c[0], r.kindLabel);
+            setText(c[0], `${r.name} · ${r.kindLabel}`);
             setText(c[1], r.town || '—');
             setText(c[2], String(r.inside));
             setText(c[3], String(r.total));

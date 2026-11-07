@@ -4,18 +4,20 @@
  * update tick (wm.updateAll), and the dialog calls it right away.
  */
 import { openPrompt } from './prompt.js';
+import { depotDisplayName } from '../simulation/cmdRename.js';
 
 /** @type {Record<string,{title:string,current:(app:any,id:any)=>string|undefined,cmd:(g:any,id:any,name:string)=>any}>} */
 const KINDS = {
   station: { title: 'Rename station', current: (app, id) => (app.findStation(id) || {}).name, cmd: (g, id, n) => g.renameStation(id, n) },
   vehicle: { title: 'Rename vehicle', current: (app, id) => (app.findVehicle(id) || {}).name, cmd: (g, id, n) => g.renameVehicle(id, n) },
+  depot: { title: 'Rename depot', current: (app, id) => { const d = app.findDepot(id); return d ? depotDisplayName(d) : undefined; }, cmd: (g, id, n) => g.renameDepot(id, n) },
   town: { title: 'Rename town', current: (app, id) => (app.findTown(id) || {}).name, cmd: (g, id, n) => g.renameTown(id, n) },
   company: { title: 'Rename company', current: (app) => app.game.state.company.name, cmd: (g, _id, n) => g.renameCompany(n) },
 };
 
 /**
  * @param {import('./app.js').App} app
- * @param {'station'|'vehicle'|'town'|'company'} kind
+ * @param {'station'|'vehicle'|'town'|'company'|'depot'} kind
  * @param {number|null} [id] entity id (null for the company)
  */
 export function openRename(app, kind, id = null) {

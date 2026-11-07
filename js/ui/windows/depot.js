@@ -7,6 +7,8 @@ import { cargoName, cargoColor } from '../cargo.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
 import { listOrEmpty } from './common.js';
+import { openRename } from '../rename.js';
+import { depotDisplayName } from '../../simulation/cmdRename.js';
 
 /**
  * Consist editor strip (T19): one block per engine/wagon and +/- wagon buttons. Only for trains in a depot.
@@ -110,6 +112,7 @@ export function openDepot(app, id) {
       const info = el('div.muted');
       const list = el('div.list.scroll');
       const buy = el('button.btn.primary', { type: 'button', text: 'Buy vehicle…', onclick: () => app.open('buyVehicle', id) });
+      const rename = el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'depot', id) });
       const center = el('button.btn', { type: 'button', text: 'Center view', onclick: () => { const d = app.findDepot(id); if (d) app.centerOn(d.x, d.y); } });
       const startAll = el('button.btn', { type: 'button', text: 'Start all', title: 'Start every vehicle inside this depot', onclick: () => {
         const ids = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot').map((v) => v.id);
@@ -127,13 +130,13 @@ export function openDepot(app, id) {
           app.toast(`Sold ${res.sold} vehicle(s) for ${money(res.refund)}${res.failed ? ` · ${res.failed} could not be sold` : ''}`, res.failed ? 'error' : 'good');
         });
       } });
-      body.append(info, list, el('div.btn-row', null, buy, center, startAll, stopAll, sellAll));
+      body.append(info, list, el('div.btn-row', null, buy, rename, center, startAll, stopAll, sellAll));
       return () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }
-        win.setTitle(d.kind === 'rail' ? 'Train Depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship Depot' : 'Road Vehicle Depot');
+        win.setTitle(d.name || (d.kind === 'rail' ? 'Train Depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship Depot' : 'Road Vehicle Depot'));
         const inside = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot');
-        setText(info, `${inside.length} vehicle(s) inside · (${d.x}, ${d.y})`);
+        setText(info, `${inside.length} vehicle(s) inside · ${d.name ? (d.kind === 'rail' ? 'Train depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship depot' : 'Road vehicle depot') : depotDisplayName(d)} · (${d.x}, ${d.y})`);
         sellAll.disabled = !inside.length;
         sellAll.title = inside.length ? 'Sell every vehicle stopped inside this depot (refund = current value)' : 'No vehicles inside this depot';
         listOrEmpty(list, inside, (v) => v.id,
