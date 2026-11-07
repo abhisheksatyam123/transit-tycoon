@@ -113,8 +113,8 @@ function createEditorGame(game, o) {
   return game;
 }
 
-/** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness, densities; climate + snowLine for sub-arctic). */
-const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5 };
+/** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness/variety, densities; climate + snowLine for sub-arctic). */
+const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5 };
 export function mapgenOptions(src) {
   const out = {};
   if (!src || typeof src !== 'object') return out;
@@ -309,6 +309,10 @@ export class Game {
   startVehicle(id, opts) { return vcmd.startVehicle(this.ctx, id, opts); }
   stopVehicle(id, opts) { return vcmd.stopVehicle(this.ctx, id, opts); }
   sendToDepot(id, opts) { return vcmd.sendToDepot(this.ctx, id, opts); }
+  /** Send one vehicle for servicing: depot visit without stopping, orders continue (OpenTTD DEPOT_SERVICE). */
+  sendForService(id, opts) { return vcmd.sendForService(this.ctx, id, opts); }
+  /** Mass send to depot (service=false: stop in it) or for servicing (service=true); ids = vehicle ids. */
+  massSendToDepot(ids, service, opts) { return vcmd.massSendToDepot(this.ctx, ids, service, opts); }
   sellVehicle(id, opts) { return vcmd.sellVehicle(this.ctx, id, opts); }
   /** Turn a train around in place and re-plan (trains only). */
   reverseVehicle(id, opts) { return vcmd.reverseVehicle(this.ctx, id, opts); }

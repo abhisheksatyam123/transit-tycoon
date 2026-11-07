@@ -574,7 +574,7 @@ function depotOrderVisit(ctx, v, order) {
  * Service at a depot without stopping (OpenTTD service-at-depot): reliability restored, the interval
  * restarts and the vehicle leaves again on its orders. Called when a service trip reaches the depot.
  */
-function serviceAtDepot(ctx, v) {
+export function serviceAtDepot(ctx, v) {
   // autoreplace / autorenew apply on a service visit too (the replacement continues the route)
   const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
   const cur = nv || v;

@@ -114,6 +114,7 @@ export function openNewGame(app) {
       const mgCliffs = sel([['off', 'Off (default)'], ['on', 'On (steep cliffs with rock)']]);
       const mgLakes = sel([['off', 'Off (default)'], ['few', 'Few'], ['many', 'Many']]);
       const mgMountain = sel([['off', 'Off (default)'], ['on', 'On (rock around peaks)']]);
+      const mgVariety = sel([['0', 'None (default)'], ['1', 'Very low'], ['2', 'Low'], ['3', 'Medium'], ['4', 'High'], ['5', 'Very high']]);
       const mgSmooth = sel([['normal', 'Normal (default)'], ['smooth', 'Smooth'], ['rough', 'Rough']]);
       const mgTowns = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
@@ -153,7 +154,7 @@ export function openNewGame(app) {
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
         field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai), field('Company colour', colourSel),
         el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
-        field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth),
+        field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth), field('Variety distribution', mgVariety),
         field('Town density', mgTowns), field('Industry density', mgInd),
         field('Climate', mgClimate), field('Snow line', mgSnow));
       body.append(
@@ -201,7 +202,7 @@ export function openNewGame(app) {
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
-        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, townDensity: mgTowns.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) });
+        const mg = mapgenOptions({ terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, variety: Number(mgVariety.value), townDensity: mgTowns.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) });
         if (Object.keys(mg).length) opts.mapgen = mg;
         // heightmap: sized to the chosen map (only when an image was picked, so default games are unchanged)
         if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, s);

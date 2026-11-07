@@ -18,7 +18,7 @@ import { RAIL_TYPES } from '../config/railTypes.js';
 function depotTrack(state, depot) {
   return state.map.tiles[depot.y * state.map.width + depot.x].trk | 0;
 }
-import { replan, enterDepot } from './movement.js';
+import { replan, enterDepot, serviceAtDepot } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
@@ -212,6 +212,53 @@ export function sendToDepot(ctx, id, opts = {}) {
   v.state = 'running';
   replan(ctx, v);
   return { ok: true, cost: 0, depotId: depot.id };
+}
+
+/**
+ * Send a vehicle for servicing (OpenTTD DEPOT_SERVICE): the nearest reachable depot of its kind, where it is
+ * serviced and leaves again on its orders without stopping (a service trip, as with service intervals).
+ * Vehicles already heading to a depot are refused (OpenTTD ignores them in the mass action).
+ */
+export function sendForService(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (v.state === 'depot') return { ok: false, error: 'Vehicle is already in a depot' };
+  if (v.state === 'stopped') return { ok: false, error: 'Vehicle is stopped' }; // servicing must not start it
+  if (v.goingToDepot != null) return { ok: false, error: 'Vehicle is already heading to a depot' };
+  const goals = depotGoals(state, v);
+  const path = goals.length ? findVehiclePath(state, v, goals) : null;
+  if (!path) return { ok: false, error: 'No reachable depot' };
+  const end = path[path.length - 1];
+  const depot = state.depots.find((d) => d.x === end.x && d.y === end.y);
+  if (opts.dryRun) return { ok: true, cost: 0, depotId: depot.id };
+  v.goingToDepot = depot.id;
+  v.serviceTrip = true;
+  v.atStationId = null; delete v.intermediate;
+  if (path.length === 1) { v.state = 'running'; serviceAtDepot(ctx, v); return { ok: true, cost: 0, depotId: depot.id }; }
+  v.state = 'running';
+  replan(ctx, v);
+  return { ok: true, cost: 0, depotId: depot.id };
+}
+
+/**
+ * Mass send (OpenTTD CmdMassSendVehicleToDepot): every listed vehicle that can be sent is sent to a depot,
+ * either to stop in it (service=false) or for servicing (service=true). Vehicles already heading to a depot,
+ * in a depot, or without a reachable depot are skipped.
+ */
+export function massSendToDepot(ctx, ids, service, opts = {}) {
+  const list = Array.isArray(ids) ? ids : [];
+  const fn = service ? sendForService : sendToDepot;
+  let count = 0;
+  for (const id of list) {
+    const r = fn(ctx, id, { dryRun: true, owner: opts.owner });
+    if (!r.ok) continue;
+    count++;
+    if (!opts.dryRun) fn(ctx, id, { owner: opts.owner });
+  }
+  if (!count) return { ok: false, error: 'No vehicles can be sent to a depot' };
+  return { ok: true, cost: 0, count };
 }
 
 /**

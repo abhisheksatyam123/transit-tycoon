@@ -140,9 +140,17 @@ export function openVehicleList(app) {
         if (app.exec(r, { sound: start ? 'horn' : 'click' }) && r.count) app.toast(`${start ? 'Started' : 'Stopped'} ${r.count} vehicle${r.count === 1 ? '' : 's'}`, 'good');
         refresh();
       } });
+      // OpenTTD ADI_SERVICE / ADI_DEPOT: mass send of the shown vehicles (already-heading ones are skipped)
+      const massDepotBtn = (label, service) => el('button.btn.sm', { type: 'button', text: label, title: service ? 'Send the vehicles shown by the filter to a depot for servicing, then they continue their orders' : 'Send the vehicles shown by the filter to the nearest depot and stop them there', onclick: () => {
+        const ids = sortVehicles(app.game.state.vehicles.filter((v) => v.ownerId == null), state).map((v) => v.id);
+        const r = app.game.massSendToDepot(ids, service);
+        if (app.exec(r, { sound: 'click' }) && r.count) app.toast(`${service ? 'Sent for servicing' : 'Sent to depot'}: ${r.count} vehicle${r.count === 1 ? '' : 's'}`, 'good');
+        refresh();
+      } });
       const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
         el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel,
         massBtn('Start all', true), massBtn('Stop all', false),
+        massDepotBtn('Send for servicing', true), massDepotBtn('Send to depot', false),
         el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
       const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span', { text: 'Late' }), el('span'));
       const list = el('div.list.scroll.table');

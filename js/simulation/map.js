@@ -103,6 +103,63 @@ export const FLOW_RIVER_COUNT = 4;
 export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
 
 /**
+ * OpenTTD tgp.cpp HeightMapCurves (lines 570-684): "Variety distribution" (genworld_gui.cpp:395).
+ * Four curve maps (tgp.cpp:601-604, control points as fractions of the height range) reshape a
+ * normalised height; a randomised grid of 2^level cells (sx/sy, tgp.cpp:612-617) picks a curve per
+ * cell, and each tile blends the four corner curve results bilinearly with OTTD's sine easing
+ * (tgp.cpp:626-633). Ported onto TT's 0..1 normalised elevation instead of OTTD height_t levels.
+ */
+const VARIETY_CURVES = [
+  [[0, 0], [0.8, 0.13], [1, 0.4]],
+  [[0, 0], [0.53, 0.13], [0.8, 0.27], [1, 0.6]],
+  [[0, 0], [0.53, 0.27], [0.8, 0.57], [1, 0.8]],
+  [[0, 0], [0.4, 0.3], [0.7, 0.8], [0.92, 0.99], [1, 0.99]],
+];
+/** Piecewise-linear evaluation of one OTTD control-point curve (tgp.cpp:657-668). */
+function curveEval(cm, v) {
+  for (let i = 0; i < cm.length - 1; i++) {
+    const p1 = cm[i], p2 = cm[i + 1];
+    if (v >= p1[0] && v < p2[0]) return p1[1] + (v - p1[0]) * (p2[1] - p1[1]) / (p2[0] - p1[0]);
+  }
+  return cm[cm.length - 1][1];
+}
+/**
+ * Apply variety curves in place to `values` (normalised 0..1 per tile, width*height).
+ * Draws the cell grid from rng only (variety > 0 callers only).
+ */
+function applyVarietyCurves(width, height, values, rng, level) {
+  const factor = Math.sqrt(width / height);
+  const sx = Math.min(128, Math.max(1, Math.floor((2 ** level) * factor + 0.5)));
+  const sy = Math.min(128, Math.max(1, Math.floor((2 ** level) / factor + 0.5)));
+  const grid = new Uint8Array(sx * sy);
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.floor(rng.next() * 4);
+  const ease = (f) => { // OTTD xr/yr: sin(sin((2f-1)*pi/2)*pi/2) remapped to 0..1 (tgp.cpp:628-633)
+    const v = Math.sin(Math.sin((2 * f - 1) * Math.PI / 2) * Math.PI / 2);
+    return 0.5 * (v + 1);
+  };
+  const ht = new Float64Array(4);
+  // per-column / per-row grid cell and easing weight (computed once, not per tile)
+  const colCell = new Uint16Array(width), colR = new Float64Array(width);
+  for (let x = 0; x < width; x++) {
+    const gx = (sx * x) / width, x1 = Math.min(sx - 1, Math.floor(gx));
+    colCell[x] = x1 * 65536 + Math.min(sx - 1, x1 + 1); colR[x] = ease(gx - x1);
+  }
+  for (let y = 0; y < height; y++) {
+    const gy = (sy * y) / height;
+    const y1 = Math.min(sy - 1, Math.floor(gy)), y2 = Math.min(sy - 1, y1 + 1);
+    const yr = ease(gy - y1);
+    for (let x = 0; x < width; x++) {
+      const xc = colCell[x], x1 = xc >>> 16, x2 = xc & 0xffff, xr = colR[x];
+      const i = y * width + x;
+      const h = values[i];
+      for (let t = 0; t < 4; t++) ht[t] = curveEval(VARIETY_CURVES[t], h);
+      const ca = grid[y1 * sx + x1], cb = grid[y2 * sx + x1], cc = grid[y1 * sx + x2], cd = grid[y2 * sx + x2];
+      values[i] = (ht[ca] * (1 - yr) + ht[cb] * yr) * (1 - xr) + (ht[cc] * (1 - yr) + ht[cd] * yr) * xr;
+    }
+  }
+}
+
+/**
  * Generate terrain in place: heights 0..7, water (sea/lakes/rivers), forests, desert, rock, snow.
  * Options (all default to today's map; default draws are identical to the historic generator):
  * - waterRatio: explicit sea fraction (overrides seaLevel)
@@ -111,6 +168,7 @@ export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
  * - smoothness: 'smooth' | 'normal' | 'rough'
  * - cliffs: 'off' (default) | 'on' (steep steps up to CLIFF_SLOPE_CAP levels, marked around cliffs as rock; no RNG draws)
  * - lakes: 'off' (default) | 'few' | 'many' (enclosed land basins flooded to water at height 0; RNG draws only when not off)
+ * - variety: 0 (default, none) | 1..5 (very low..very high): OTTD curve-map height variety (see applyVarietyCurves)
  * - mountainStyle: 'off' (default) | 'on' (land within 12 tiles of a peak becomes rock, OpenLoco generateTerrainOnMountains; no RNG draws)
  * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
  *   (rivers on slopes at their height; the heights are not changed)
@@ -131,6 +189,9 @@ export function generateTerrain(map, rng, opts = {}) {
     for (let x = 0; x < width; x++) values[y * width + x] = elev(x, y);
   }
   const cliffsOn = opts.cliffs === 'on';
+  // OTTD variety (tgp.cpp HeightMapCurves): variety 0 leaves the heights and the RNG sequence untouched
+  const variety = Math.max(0, Math.min(5, Math.floor(Number(opts.variety) || 0)));
+  if (variety > 0) applyVarietyCurves(width, height, values, rng, variety);
   const sorted = Array.from(values).sort((a, b) => a - b);
   const noSea = waterRatio <= 0;
   const sea = noSea ? sorted[0] : sorted[Math.floor(sorted.length * waterRatio)]; // no sea: heights span from the lowest point
