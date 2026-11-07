@@ -64,6 +64,8 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   const style = opts.style && opts.style !== DEFAULT_STYLE ? opts.style : null;
   if (style && !styleAvailable('rail', style, state.date.year)) return { ok: false, error: 'Station style not available' };
   const factor = style ? styleById('rail', style).costFactor : 1;
+  // track type of the platforms (config/railTypes.js): plain by default; monorail/maglev stations carry tile.trk
+  const trk = opts.trk | 0;
   const tiles = [];
   for (let p = 0; p < platforms; p++) {
     for (let i = 0; i < length; i++) {
@@ -85,6 +87,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
       const have = straightAxis(t.rail);
       if (have === null) return { ok: false, error: ERR.railCurve };
       if (have !== axis) return { ok: false, error: ERR.railAxis };
+      if ((t.trk | 0) !== trk) return { ok: false, error: 'Track type differs here' }; // a station keeps the track type of the line it sits on
     }
     cost += COSTS.railStation + clearingCost(t);
   }
@@ -107,6 +110,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
     clearTerrain(t);
     const idx = i % length;
     t.rail = (t.rail | stationTileBits(axis, idx, length)) & 0xf;
+    if (trk) t.trk = trk; // monorail / maglev platform (lazy field; absent = plain rail)
     delete t.signal; // a signal cannot stay on a station tile
     t.building = { type: 'station', stationId: st.id, kind: 'rail', axis };
     if (style) t.building.style = style;
@@ -229,6 +233,7 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
   const d = DIRS.find((q) => q.bit === dir);
   if (inBounds(map, x + d.dx, y + d.dy)) {
     const nt = map.tiles[(y + d.dy) * map.width + x + d.dx];
+    if (kind === 'rail' && nt.trk) t.trk = nt.trk; // monorail / maglev depot: carries the track type of its exit (config/railTypes.js)
     if (nt[kind] && !canAddBits(nt, kind, OPPOSITE[dir])) nt[kind] |= OPPOSITE[dir];
     if (kind === 'road' && nt.tram) {
       t.tram = dir; // a road depot on tram track: trams enter/leave through its exit

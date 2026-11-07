@@ -3,6 +3,10 @@
  * (green/red + estimated cost) while dragging; commits on release.
  */
 import { money } from '../format.js';
+import { RAIL_SELECTOR, selectorTrack, trackTypeAvailable } from '../../config/railTypes.js';
+
+/** Labels of the rail track selector (config/railTypes.js RAIL_SELECTOR). */
+const RAIL_SEL_LABEL = { rail: 'Rail', electric: 'Electric', mono: 'Monorail', maglev: 'Maglev' };
 import { SHAPES, SHAPE_LABEL, routeFor } from '../../simulation/shapes.js';
 import { lTiles } from './geometry.js';
 
@@ -30,6 +34,9 @@ export function createLineTool(app, o) {
   let shape = 'L';
   let highway = false;
   let railMode = 'normal'; // rail and road: U cycles normal -> tunnel -> bridge -> normal
+  // rail track selector (config/railTypes.js RAIL_SELECTOR): ';' cycles Rail / Electric / Monorail / Maglev. Shared
+  // with the station and depot tools through app.railSelector so one choice applies to every rail build.
+  const railSelOf = () => app.railSelector || 'rail';
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
@@ -40,17 +47,19 @@ export function createLineTool(app, o) {
   const build = (g, x0, y0, x1, y1, opts) => {
     const tunnel = railMode === 'tunnel';
     const bridge = railMode === 'bridge';
+    const railSel = railSelOf();
+    const rsel = o.layer === 'rail' ? { trk: selectorTrack(railSel), electric: railSel === 'electric' } : {};
     const r = shape === 'L' ? null : routeFor(shape, x0, y0, x1, y1);
-    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge });
+    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge, ...rsel });
     if (tunnel) return { ok: false, error: 'Tunnels must be straight' };
     if (bridge) return { ok: false, error: 'Bridges must be straight' };
     const fn = o.layer === 'rail' ? g.buildRailPath : g.buildRoadPath;
-    return fn.call(g, r.path, { ...opts, highway, loop: r.loop });
+    return fn.call(g, r.path, { ...opts, highway, loop: r.loop, ...rsel });
   };
 
   const preview = (end) => {
     if (!start || !end) return;
-    const key = `${shape},${highway},${railMode},${start.x},${start.y},${end.x},${end.y}`;
+    const key = `${shape},${highway},${railMode},${railSelOf()},${start.x},${start.y},${end.x},${end.y}`;
     if (key !== lastKey) {
       lastKey = key;
       const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel: railMode === 'tunnel', bridge: railMode === 'bridge' });
@@ -72,6 +81,7 @@ export function createLineTool(app, o) {
       if (o.layer === 'rail' || o.layer === 'road') {
         keys.push(`U mode: ${railMode === 'tunnel' ? 'Tunnel' : railMode === 'bridge' ? 'Bridge' : 'Surface'}`);
       }
+      if (o.layer === 'rail') keys.push(`; track: ${RAIL_SEL_LABEL[railSelOf()]} (Rail / Electric / Monorail / Maglev)`);
       if (o.layer === 'road') keys.push(`H class: ${highway ? 'Highway' : 'Local'}`);
       return { main, keys: keys.join(' · ') };
     },
@@ -84,6 +94,20 @@ export function createLineTool(app, o) {
         app.ui?.updateHint?.();
         const desc = railMode === 'tunnel' ? 'tunnel (underground)' : railMode === 'bridge' ? 'bridge (over valley)' : 'surface';
         app.toast?.(`${o.layer === 'road' ? 'Road' : 'Rail'}: ${desc}`, 'info');
+        return true;
+      }
+      if (o.layer === 'rail' && e.key === ';') {
+        // OpenTTD: a track type is offered only after its intro year; skip the ones not yet introduced
+        let railSel = railSelOf();
+        for (let k = 0; k < RAIL_SELECTOR.length; k++) {
+          railSel = RAIL_SELECTOR[(RAIL_SELECTOR.indexOf(railSel) + 1) % RAIL_SELECTOR.length];
+          if (trackTypeAvailable(selectorTrack(railSel), app.game.state.date.year)) break;
+        }
+        app.railSelector = railSel;
+        lastKey = '';
+        if (start) preview(start);
+        app.ui?.updateHint?.();
+        app.toast?.(`Rail track: ${RAIL_SEL_LABEL[railSel]}`, 'info');
         return true;
       }
       if (o.layer === 'road' && (e.key === 'h' || e.key === 'H')) {

@@ -136,9 +136,16 @@ export function needsElectric(v) {
   return !!m && m.traction === 'electric';
 }
 
+/** Track type (config/railTypes.js) a train's locomotive runs on: 0 plain rail (default), 2 monorail, 3 maglev. */
+export function trainTrack(v) {
+  if (v.kind !== 'train') return 0;
+  const m = MODEL_BY_ID[v.modelId];
+  return (m && m.railType) || 0;
+}
+
 export function findVehiclePath(state, v, goals) {
   if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals);
-  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
+  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
   if (!goals.length) return null;
   let best = goals[0];
   for (const g of goals) if (manhattan(v.tx, v.ty, g.x, g.y) < manhattan(v.tx, v.ty, best.x, best.y)) best = g;
@@ -160,7 +167,7 @@ export function planRoute(state, v, goals) {
     // the route leads back the way we came: reverse the consist and plan from the rear
     const saved = { history: v.history, flipped: v.flipped, tx: v.tx, ty: v.ty };
     const head = flipTrain(v);
-    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
+    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
     if (alt) path = alt;
     else Object.assign(v, saved);
   }

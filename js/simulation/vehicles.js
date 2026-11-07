@@ -36,6 +36,7 @@ export function modelAvailable(state, model, ownerId = null) {
     && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year))) return false;
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
+  if (model.optIn === 'mono' || model.optIn === 'maglev') return !!state && hasTrackType(state, model.railType); // monorail / maglev trains
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
   if (model.optIn === 'tropic') return isTropic(state); // TP sub-tropical water tankers
   if (model.optIn === 'toyland') return isToyland(state); // TY2 toyland trucks, TY5 toyland buses/locos
@@ -57,6 +58,14 @@ export function hasElectrifiedTrack(state) {
   const tiles = state.map && state.map.tiles;
   if (!tiles) return false;
   for (let i = 0; i < tiles.length; i++) if (tiles[i].elec) return true;
+  return false;
+}
+
+/** True when at least one tile carries the given track type (tile.trk, config/railTypes.js). Lazy scan. */
+export function hasTrackType(state, trk) {
+  const tiles = state.map && state.map.tiles;
+  if (!tiles || !trk) return false;
+  for (let i = 0; i < tiles.length; i++) if (tiles[i].trk === trk) return true;
   return false;
 }
 

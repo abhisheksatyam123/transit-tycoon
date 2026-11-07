@@ -124,7 +124,29 @@ export const TOYLAND_BUS_LOCO_MODELS = [
   { id: 'eng_ploddy_diesel', name: 'Ploddyphut Diesel', kind: 'engine', introYear: 1972, speed: 48, capacity: 0, cost: 8500, running: 2500, reliability: 0.84, power: 700, optIn: 'toyland', news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...TOYLAND_BUS_LOCO_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
+/**
+ * Monorail and maglev trains (OpenTTD engines.h): engine rows 54-56 (monorail, RAILTYPE_MONO) and 84-88 (maglev,
+ * RAILTYPE_MAGLEV), wagons rows 57 / 89 (passenger) and 63 / 95 (goods). Intro = OpenTTD intro day offset from 1920 (engines.h, e.g. X2001
+ * 28490 -> 1998, Lev1 36525 -> 2020). Stats are derived, not copied: speed = OTTD max_speed / 2 (km/h),
+ * cost ~ cost_factor * 250 (rounded), power ~ OTTD power / 3, capacity = OTTD capacity. Approximations, not a copy.
+ * railType: the track type the train needs (rail_type.h). Engines and wagons of one type only run on that track.
+ * optIn 'mono' / 'maglev': offered only when that track type exists on the map (modelAvailable, vehicles.js).
+ */
+export const RAIL_TYPE_VEHICLE_MODELS = [
+  { id: 'eng_mono_x2001', name: "X2001 Monorail", kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1998, speed: 152, capacity: 0, cost: 13000, running: 4500, reliability: 0.9, power: 3000, news: false },
+  { id: 'eng_mono_z99', name: 'Wizzowow Z99 Monorail', kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1999, speed: 160, capacity: 0, cost: 13250, running: 4300, reliability: 0.88, power: 1667, news: false },
+  { id: 'eng_mono_z1', name: 'Millennium Z1 Monorail', kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 2005, speed: 168, capacity: 0, cost: 15000, running: 5200, reliability: 0.92, power: 3300, news: false },
+  { id: 'eng_maglev_lev1', name: 'Lev1 Leviathan Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2020, speed: 200, capacity: 0, cost: 17500, running: 6000, reliability: 0.92, power: 3300, news: false },
+  { id: 'eng_maglev_lev2', name: 'Lev2 Cyclops Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2028, speed: 224, capacity: 0, cost: 18500, running: 6500, reliability: 0.93, power: 4000, news: false },
+  { id: 'eng_maglev_lev3', name: 'Lev3 Pegasus Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2035, speed: 240, capacity: 0, cost: 20500, running: 7000, reliability: 0.94, power: 5000, news: false },
+  { id: 'wag_mono_pass', name: 'Monorail Passenger Carriage', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 45, cost: 1400, running: 150, reliability: 1, cargos: ['PASS'], news: false },
+  { id: 'wag_mono_goods', name: 'Monorail Goods Van', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 37, cost: 1300, running: 150, reliability: 1, cargos: ['GOOD'], news: false },
+  { id: 'wag_mono_coal', name: 'Monorail Coal Hopper', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 30, cost: 1300, running: 150, reliability: 1, cargos: ['COAL'], news: false },
+  { id: 'wag_maglev_pass', name: 'Maglev Passenger Carriage', kind: 'wagon', railType: 3, optIn: 'maglev', introYear: 2020, speed: 0, capacity: 45, cost: 1600, running: 150, reliability: 1, cargos: ['PASS'], news: false },
+  { id: 'wag_maglev_goods', name: 'Maglev Goods Van', kind: 'wagon', railType: 3, optIn: 'maglev', introYear: 2020, speed: 0, capacity: 37, cost: 1500, running: 150, reliability: 1, cargos: ['GOOD'], news: false },
+];
+
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...TOYLAND_BUS_LOCO_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS, ...RAIL_TYPE_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

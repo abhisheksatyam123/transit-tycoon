@@ -104,6 +104,8 @@ export function findPath(map, start, goals, layer, opts = {}) {
   const maxNodes = opts.maxNodes ?? n;
   const avoid = opts.avoidFirst ? opts.avoidFirst.y * width + opts.avoidFirst.x : -1;
   const electric = !!opts.electric && layer === 'rail';
+  // monorail / maglev trains (config/railTypes.js): only track of their own type (tile.trk, absent = 0)
+  const trkReq = layer === 'rail' && opts.trk !== undefined ? opts.trk : -1;
   const pathCostsActive = !!opts.pathCosts && layer === 'rail';
   const simState = opts.state || null;
   // occupancy index: the tick index when called from the vehicle tick, else built once for this search
@@ -133,6 +135,7 @@ export function findPath(map, start, goals, layer, opts = {}) {
       const nt = tiles[ni];
       if (!(nt[layer] & OPPOSITE[d.bit])) continue;
       if (electric && !nt.elec) continue; // electric locomotives: non-electrified track is impassable
+      if (trkReq >= 0 && (nt.trk | 0) !== trkReq) continue; // wrong track type for this train
       // one-way roads (T42): both the tile left and the tile entered must allow this travel direction
       if (layer === 'road' && (tile.oneWay || nt.oneWay) && !(oneWayAllows(tile, d.dx, d.dy) && oneWayAllows(nt, d.dx, d.dy))) continue;
       const prev = came[cur];

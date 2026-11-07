@@ -6,6 +6,7 @@ import { DIRS, OPPOSITE, AXIS_BITS, dirBetween } from './constants.js';
 import { isStationPort } from './stationLinks.js';
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
+import { RAIL_TYPES, railBuildCost, railConvertCost, trackTypeAvailable } from '../config/railTypes.js';
 import { linePath, pruneOneWay } from './network.js';
 import { pathOk } from './shapes.js';
 import { getTile, inBounds } from './map.js';
@@ -255,6 +256,11 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   } else if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
   const pts = custom || linePath(x0, y0, x1, y1);
   const n = pts.length;
+  // track type (OpenTTD RailType, config/railTypes.js): 0 = plain rail (default, untouched). Monorail / maglev lines
+  // carry tile.trk; existing track of another type on the line is converted (OpenTTD CmdConvertRail).
+  const trk = layer === 'rail' ? (opts.trk | 0) : 0;
+  if (trk && !RAIL_TYPES[trk]) return { ok: false, error: 'Unknown track type' };
+  if (trk && !trackTypeAvailable(trk, state.date.year)) return { ok: false, error: `${RAIL_TYPES[trk].name} track not yet available` };
   const want = new Map(); // tile index -> bits to add
   const add = (x, y, bits) => {
     const i = y * map.width + x;
@@ -315,14 +321,19 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   const base = layer === 'rail' ? COSTS.rail : layer === 'tram' ? COSTS.tram : COSTS.road;
   const onLine = new Set(pts.map((p) => p.y * map.width + p.x));
   const isHwy = layer === 'road' && opts.highway === true;
+  const trkBase = trk ? railBuildCost(trk) : base;
   for (const [i, bits] of want) {
     const t = map.tiles[i];
     const fresh = (t[layer] | bits) !== t[layer];
     const upgrade = isHwy && t[layer] !== 0 && t.highway !== 1;
-    if (!fresh && !upgrade) continue;
+    // track of another type on this line: converted in place (OpenTTD CmdConvertRail, rail.h RailConvertCost)
+    const conv = layer === 'rail' && onLine.has(i) && !!t.rail && (t.trk | 0) !== trk && !plan.deck.has(i);
+    if (!fresh && !upgrade && !conv) continue;
     changed++;
     if (plan.deck.has(i)) { if (fresh) cost += layer === 'rail' ? COSTS.bridgeRail : COSTS.bridgeRoad; continue; }
-    if (onLine.has(i)) cost += (fresh ? base : 0) + (isHwy ? base * Math.max(0, 2 - (fresh ? 1 : 0)) : 0) + clearingCost(t);
+    if (conv) { cost += railConvertCost(trk); continue; }
+    if (onLine.has(i)) cost += (fresh ? trkBase : 0) + (isHwy ? base * Math.max(0, 2 - (fresh ? 1 : 0)) : 0) + clearingCost(t);
+    if (onLine.has(i) && opts.electric && layer === 'rail' && !t.elec) cost += COSTS.electrify; // rail selector "electric": catenary too
   }
   if (changed === 0) return { ok: false, error: ERR.built };
   cost = constructionTotal(state, cost);
@@ -336,6 +347,10 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
     if (onLine.has(i) && !plan.deck.has(i)) clearTerrain(t);
     if (layer === 'rail' && (t.rail | bits) !== t.rail) delete t.signal; // new rail bits: signal no longer on straight track
     t[layer] |= bits;
+    if (layer === 'rail' && onLine.has(i) && !plan.deck.has(i)) {
+      if (trk) t.trk = trk; else if (t.trk) delete t.trk; // lazy track type (absent = plain rail)
+      if (opts.electric) t.elec = 1;
+    }
     if (isHwy) t.highway = 1;
     if (!t.owner) {
       t.owner = opts.owner != null ? 'rival' : 'company'; // rival roads: no player upkeep (economy.js)
@@ -506,7 +521,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       const layer = t.building.kind;
       removeDepot(ctx, t.building.depotId);
       t[layer] = 0;
-      delete t.elec;
+      delete t.elec; delete t.trk;
       t.building = null; t.owner = null;
     } else if (j.kind === 'station') {
       const kind = t.building.kind;
@@ -514,7 +529,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       removeStationTile(ctx, j.x, j.y);
       if (hangarDepot != null) removeDepot(ctx, hangarDepot);
       t.building = null;
-      if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; delete t.elec; }
+      if (kind === 'rail') { stripLayer(map, j.x, j.y, 'rail'); t.owner = null; delete t.elec; delete t.trk; }
     } else if (j.kind === 'industry') { // magic bulldozer: the whole footprint and the industry record go (industryManager removeIndustry)
       const ind = state.industries.find((i) => i.id === j.industryId);
       if (!ind) continue; // already removed by an earlier tile of this footprint
@@ -541,12 +556,12 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
         // OpenTTD-style: the deck above ground track goes, the ground track of the other layer stays
         const ol = t.overBridge;
         delete t.overBridge; delete t.bridgeDeck; delete t.playerBridge;
-        if (ol === 'rail') { delete t.signal; delete t.elec; }
+        if (ol === 'rail') { delete t.signal; delete t.elec; delete t.trk; }
         stripLayer(map, j.x, j.y, ol);
         continue;
       }
       delete t.signal;
-      delete t.elec;
+      delete t.elec; delete t.trk;
       if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }
       if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; }
       stripLayer(map, j.x, j.y, 'rail');

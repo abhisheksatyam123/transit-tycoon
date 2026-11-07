@@ -7,6 +7,10 @@
 import { AXIS_BITS } from '../../simulation/constants.js';
 import { createPlacementTool } from './placement.js';
 import { stationFootprint } from './geometry.js';
+import { selectorTrack } from '../../config/railTypes.js';
+
+/** Track type (config/railTypes.js) chosen with the rail tool's ';' selector (app.railSelector); 0 = plain. */
+const selectorTrackOf = (app) => selectorTrack(app.railSelector || 'rail');
 import { availableStyles, styleById, DEFAULT_STYLE } from '../../config/stationTypes.js';
 
 const RADIUS = 4;
@@ -62,7 +66,7 @@ export function createStationTool(app) {
     },
     command: (g, x, y, opts) => {
       const p = (opts && opts.plan) || plan(x, y);
-      return g.buildRailStation(p.x, p.y, p.axis || axis, p.length, { ...(opts || {}), plan: undefined, platforms: p.platforms, style, player: true });
+      return g.buildRailStation(p.x, p.y, p.axis || axis, p.length, { ...(opts || {}), plan: undefined, platforms: p.platforms, style, player: true, trk: selectorTrackOf(app) });
     },
     footprint: (x, y) => {
       const p = plan(x, y);

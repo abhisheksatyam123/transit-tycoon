@@ -55,6 +55,7 @@ export const HOTKEY_ACTIONS = [
 /** Fixed keys: shown in the list, not rebindable (the tool or the camera owns them). */
 export const READ_ONLY_HOTKEYS = [
   { label: 'Pan camera', group: 'Camera', keys: 'Right/middle drag, W A S D, arrow keys' },
+  { label: 'Rail track type: Rail / Electric / Monorail / Maglev', group: 'Build tools', keys: '; (Rail, Station or Rail Depot tool; the hint shows the choice)' },
   { label: 'Zoom in / out', group: 'Camera', keys: '+ / -, mouse wheel' },
   { label: 'Cancel tool / close window', group: 'Camera', keys: 'Esc' },
   { label: 'Smooth roads and rails on/off', group: 'View', keys: 'R (when no tool uses R)' },

@@ -47,14 +47,14 @@ function centre(ind) {
 
 /** Fastest non-electric train engine (lowest cost, then id, on a speed tie). */
 export function railEngineModel(state, ownerId = null) {
-  const models = listModels(state, 'train', ownerId).filter((m) => m.kind === 'engine' && m.traction !== 'electric');
+  const models = listModels(state, 'train', ownerId).filter((m) => m.kind === 'engine' && m.traction !== 'electric' && !m.railType);
   models.sort((a, b) => b.speed - a.speed || a.cost - b.cost || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
 
 /** Highest-capacity wagon for a cargo (then lowest id). */
 export function railWagonFor(state, cargoId, ownerId = null) {
-  const models = listModels(state, 'wagon', ownerId).filter((m) => m.cargos.includes(cargoId));
+  const models = listModels(state, 'wagon', ownerId).filter((m) => m.cargos.includes(cargoId) && !m.railType);
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }

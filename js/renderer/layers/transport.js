@@ -86,6 +86,35 @@ export function drawTramOverlay(ctx, tile, sx, sy, c) {
   }
 }
 
+/**
+ * Monorail / maglev track (tile.trk, config/railTypes.js): OpenGFX has no monorail or maglev track sprite in the
+ * pack, so this is the procedural variant: a plain sleeper-less beam (monorail: one grey girder on posts) or a
+ * dark magnetic guideway with blue rails (maglev), drawn on top of the ground. Only tiles with tile.trk reach here.
+ */
+const TRK_STYLE = {
+  2: { beam: '#8a94a0', post: '#4b5563', w: 2.6 },   // monorail: one raised beam on posts
+  3: { beam: '#1e3a8a', post: '#60a5fa', w: 3.2 },   // maglev: dark guideway with a blue glowing edge
+};
+function drawTrackTypeRails(ctx, tile, sx, sy, c) {
+  const st = TRK_STYLE[tile.trk] || TRK_STYLE[2];
+  const hc = (c[0] + c[1] + c[2] + c[3]) / 4 * HEIGHT_STEP;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const [bit, dx, dy] of [[1, 0, -1], [2, 1, 0], [4, 0, 1], [8, -1, 0]]) {
+    if (!(tile.rail & bit)) continue;
+    const [a, b] = TRAM_EDGE[bit];
+    const he = (c[a] + c[b]) / 2 * HEIGHT_STEP;
+    const ex = (dx - dy) * HALF_W / 2, ey = (dx + dy) * HALF_H / 2;
+    // support post at the tile centre, then the beam from centre to edge
+    ctx.strokeStyle = st.post; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(sx, sy - hc); ctx.lineTo(sx, sy - hc + 6); ctx.stroke();
+    ctx.strokeStyle = st.beam; ctx.lineWidth = st.w;
+    ctx.beginPath(); ctx.moveTo(sx, sy - hc + 6); ctx.lineTo(sx + ex, sy + ey - he + 6); ctx.stroke();
+    if (tile.trk === 3) { ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(sx, sy - hc + 5); ctx.lineTo(sx + ex, sy + ey - he + 5); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
 /** Edge (corner pair) per direction bit for the corner heights [hN,hE,hS,hW]. */
 const TRAM_EDGE = { 1: [0, 1], 2: [1, 2], 4: [2, 3], 8: [3, 0] };
 
@@ -138,7 +167,8 @@ function drawTransportBase(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
     if (tile.road | 0) drawTransportRoad(ctx, tile, sx, sy, c, map, x, y);
     return;
   }
-  if (drawPackTransport(ctx, tile, sx, sy, c, diag)) return;
+  // monorail / maglev track (tile.trk) has no OpenGFX sprite: skip the pack rail art, draw the procedural track
+  if (!tile.trk && drawPackTransport(ctx, tile, sx, sy, c, diag)) return;
   drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag);
 }
 
@@ -216,6 +246,7 @@ function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
   } else if (rail) {
     const rv = map && CORNER[rail] !== undefined && isRailStaircase(map, x, y, rail) ? 1 : 0;
     const i = rail * 2 + rv;
+    if (tile.trk) { drawTrackTypeRails(ctx, tile, sx, sy, c); return; } // monorail / maglev (config/railTypes.js)
     drawSloped(ctx, rails[i] || (rails[i] = railSprite(rail, rv === 1)), sx, sy, c);
   }
 }

@@ -11,7 +11,13 @@ import { MAX_WAGONS } from './constants.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField } from './orders.js';
-import { stopKindFor, depotGoals, findVehiclePath, flipTrain } from './routing.js';
+import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack } from './routing.js';
+import { RAIL_TYPES } from '../config/railTypes.js';
+
+/** Track type of a rail depot: its own tile's trk (set when built onto monorail/maglev track). */
+function depotTrack(state, depot) {
+  return state.map.tiles[depot.y * state.map.width + depot.x].trk | 0;
+}
 import { replan, enterDepot } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
@@ -36,6 +42,16 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (!companyById(state, opts.owner ?? null)) return { ok: false, error: 'Unknown company' };
   if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId], opts.owner ?? null)) return { ok: false, error: 'Model not yet available' };
   if (spec && MODEL_BY_ID[spec.modelId] && MODEL_BY_ID[spec.modelId].kind === 'tram' && !depotOnTram(state, depot)) return { ok: false, error: 'Trams need a road depot next to tram track' };
+  if (spec && depot.kind === 'rail') {
+    // monorail / maglev trains only on their own track type (OpenTTD rail type compatibility, config/railTypes.js)
+    const need = [spec.modelId, spec.wagonModelId].map((id) => (id && MODEL_BY_ID[id] ? trainTrack({ kind: 'train', modelId: id }) : 0));
+    const want = need.find((t) => t !== 0) || 0;
+    if (need.some((t) => t !== 0 && t !== want)) return { ok: false, error: 'Engine and wagons need different track types' };
+    // a depot on monorail/maglev track only takes trains of that type, and a monorail/maglev train only leaves from one
+    const dtrk = depotTrack(state, depot);
+    if (want && dtrk !== want) return { ok: false, error: `${RAIL_TYPES[want].name} trains need a ${RAIL_TYPES[want].name.toLowerCase()} depot` };
+    if (!want && dtrk) return { ok: false, error: `Plain trains cannot leave a ${RAIL_TYPES[dtrk].name.toLowerCase()} depot` };
+  }
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };
   }
