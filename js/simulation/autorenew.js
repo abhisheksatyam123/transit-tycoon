@@ -14,7 +14,7 @@ import { resolvePurchase, createVehicle } from './vehicles.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
-import { companyOf } from './owner.js';
+import { companyOf, companyById, stampOwner } from './owner.js';
 import { notify } from './news.js';
 import { dayNumber } from './date.js';
 
@@ -60,6 +60,12 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   const nv = createVehicle(state, depot, r.template, price);
   state.vehicles.pop(); // createVehicle appends; put the new one in the old slot (keeps the caller's loop stable)
   state.vehicles[idx] = nv;
+  // a rival's replacement stays the rival's (owner stamp and its vehicle list); the player's stays untagged
+  if (v.ownerId != null) {
+    stampOwner(state, nv, v.ownerId);
+    const rv = companyById(state, v.ownerId);
+    if (rv) rv.vehicles = rv.vehicles.map((id) => (id === v.id ? nv.id : id));
+  }
   nv.name = v.name;
   nv.unitNumber = v.unitNumber;
   nv.orders = v.orders.map((o) => ({ ...o }));

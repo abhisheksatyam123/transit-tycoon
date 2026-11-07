@@ -1,0 +1,61 @@
+/**
+ * AI rival fleet renewal (OpenTTD AI behaviour: an AI renews vehicles past their max age and replaces models
+ * that are no longer offered). Called monthly for each rival (aiCompanies.updateMonthly).
+ *
+ * A rival vehicle is renewed when it is past its max age, or its model is obsolete (no longer purchasable).
+ * The replacement is the best model of the same kind that is available now (same cargo for road vehicles;
+ * for aircraft, a plane the depot's airport type accepts and the same helicopter/plane class). Stopped in a
+ * depot it is replaced at once (replaceVehicle keeps name, orders and route; the new vehicle stays the rival's).
+ * Running, it is sent to the nearest depot (sendToDepot, owner-checked) and replaced there on the next monthly
+ * pass. Trains are not renewed here (their consists need the engine/wagon pairing).
+ * Nothing draws from the rng (determinism): candidates are chosen by capacity, then id.
+ */
+import { MODEL_BY_ID } from '../config/vehicles.js';
+import { listModels } from './queries.js';
+import { replaceVehicle } from './autorenew.js';
+import { sendToDepot, startVehicle } from './cmdVehicle.js';
+import { purchasable } from './vehicles.js';
+import { vehiclePrice } from './prices.js';
+import { airportTypeId, vehicleFitsAirport } from './airportTypes.js';
+import { findDepot } from './state.js';
+
+/** The best model a rival may renew this vehicle with now (null when none). */
+export function renewalModel(state, v) {
+  const cur = MODEL_BY_ID[v.modelId];
+  if (!cur) return null;
+  const kind = v.kind === 'road' ? cur.kind : v.kind === 'aircraft' ? 'aircraft' : null;
+  if (!kind || kind === 'engine' || kind === 'wagon') return null; // trains: not renewed here
+  let models = listModels(state, kind);
+  if (v.kind === 'aircraft') {
+    const depot = findDepot(state, v.depotId);
+    const typeId = depot ? airportTypeId(depot) : 'small';
+    models = models.filter((m) => !!m.helicopter === !!cur.helicopter && vehicleFitsAirport(m, typeId));
+  } else if (v.cargoId) {
+    models = models.filter((m) => m.cargos && m.cargos.includes(v.cargoId));
+  }
+  models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
+  return models[0] || null;
+}
+
+/** Renew this rival's old or obsolete vehicles (see file comment). */
+export function renewRivalFleet(ctx, r) {
+  const { state } = ctx;
+  const year = state.date.year;
+  for (const v of state.vehicles.filter((x) => x.ownerId === r.id)) {
+    const cur = MODEL_BY_ID[v.modelId];
+    if (!cur) continue;
+    const old = v.age > v.maxAge;
+    if (!old && purchasable(cur, year)) continue;
+    const target = renewalModel(state, v);
+    if (!target) continue;
+    const cost = vehiclePrice(state, target.cost);
+    if (r.money < cost) continue; // cannot pay the price difference yet: try again next month
+    if (v.state === 'depot') {
+      const res = replaceVehicle(ctx, v, target.id, 'autorenew', {});
+      if (res.ok) continue;
+      startVehicle(ctx, v.id, { owner: r.id }); // could not replace: back on its orders (no idle parked plane)
+    } else if (v.goingToDepot == null) {
+      sendToDepot(ctx, v.id, { owner: r.id });
+    }
+  }
+}
