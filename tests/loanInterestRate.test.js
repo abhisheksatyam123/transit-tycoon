@@ -4,7 +4,7 @@ import { getSetting, setSetting, DEFAULT_SETTINGS } from '../js/simulation/setti
 import { monthlyLoanInterest } from '../js/simulation/economy.js';
 import { updateMonthly1 as companyMonthly } from '../js/simulation/loco/companyManager.js';
 import { calculateCargoRating } from '../js/simulation/loco/station.js';
-import { updateMonthly as objMonthly, createObjective } from '../js/simulation/objective.js';
+import { updateMonthly as objMonthly, updateDaily as objDaily, createObjective } from '../js/simulation/objective.js';
 import { SETTING_META, groupOfSetting } from '../js/ui/settingsGroups.js';
 
 const small = { seed: 3, width: 64, height: 64, townCount: 3, industryCount: 4 };
@@ -63,7 +63,9 @@ describe('objective time limit before progress (Company.cpp:1075)', () => {
   test('target reached after the deadline is a loss', () => {
     const g = Game.create({ ...small, objective: { type: 'companyValue', target: 1000, timeLimitYears: 1 } });
     g.state.company.companyValue = 5000; // target reached
-    g.state.date.year += 2; // past the limit
+    g.state.date.year += 2; // past the limit (RX2b: the deadline is enforced daily, OpenLoco calendar rule, not on the 1st)
+    g.state.date.day = 2;
+    objDaily(g);
     objMonthly(g);
     expect(g.state.objective.status).toBe('lost');
   });

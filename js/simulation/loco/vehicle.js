@@ -112,16 +112,15 @@ export function monthlyRunningCost(v, state) {
 
 /** VehicleHead::updateMonthly. @returns {number} running cost charged */
 export function vehicleMonthly(ctx, v) {
-  let cost = 0;
-  if (v.state !== 'depot') {
-    cost = monthlyRunningCost(v, ctx && ctx.state);
-    // veh2->curMonthRevenue = profit earned since the last month roll-over (orders.js adds deliveries to profitThisYear)
-    const revenue = v.profitThisYear - (v.profitMonthMark || 0);
-    v.profitThisYear -= cost;
-    const hist = v.profit || (v.profit = new Array(PROFIT_HISTORY).fill(0));
-    hist.unshift(revenue - cost);
-    hist.length = PROFIT_HISTORY;
-  }
+  // OL VehicleHead::updateMonthly (VehicleHead.cpp:238-249) charges every head with a valid tile, and a vehicle
+  // parked in a depot keeps its tile (only liftUpVehicle / creation / pickup set tileX = -1), so depot vehicles pay too.
+  const cost = monthlyRunningCost(v, ctx && ctx.state);
+  // veh2->curMonthRevenue = profit earned since the last month roll-over (orders.js adds deliveries to profitThisYear)
+  const revenue = v.profitThisYear - (v.profitMonthMark || 0);
+  v.profitThisYear -= cost;
+  const hist = v.profit || (v.profit = new Array(PROFIT_HISTORY).fill(0));
+  hist.unshift(revenue - cost);
+  hist.length = PROFIT_HISTORY;
   v.profitMonthMark = v.profitThisYear;
   // refundCost -= refundCost / 128 each month (value = sell-back value)
   v.value -= Math.trunc(v.value / 128);

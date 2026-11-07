@@ -51,6 +51,7 @@ export function tickDate(game) {
   EnginePreview.updateDaily(game); // opt-in enginePreview setting; returns at once when off
   IndustryManager.updateDaily(game);
   MessageManager.updateDaily(game);
+  Objective.updateDaily(game); // RX2b: objective time limit (OpenLoco daily challenge check, before the date advances)
   if (getSetting(s, 'disasters')) dailyDisasters(game); // OTTD _economy_disaster_daily; off = nothing runs
 
   const { newMonth, newYear } = advanceDay(s.date);

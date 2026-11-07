@@ -70,19 +70,34 @@ export function describeObjective(obj) {
   return obj.timeLimitYears ? `${lead} within ${obj.timeLimitYears} year${obj.timeLimitYears === 1 ? '' : 's'}.` : `${lead}.`;
 }
 
-/** Monthly update (progress, win/lose). Runs after the company manager updated value / performance. */
+/** Fail the objective when its time limit has run out. */
+function failObjective(game, obj) {
+  obj.status = 'lost';
+  notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
+  game.events.emit('objective', { status: 'lost', objective: obj });
+}
+
+/**
+ * Daily time-limit check (RX2b, OpenLoco Company::getNewChallengeProgress Company.cpp:1075 with
+ * Scenario.cpp:363 timeLimitUntilYear = timeLimitYears - 1 + startYear): the objective fails once the year is past
+ * that deadline year, except on the 1st of a month (OpenLoco's currentDayOfMonth != 0). Runs before the date
+ * advances, like OpenLoco's daily company update.
+ */
+export function updateDaily(game) {
+  const obj = game.state.objective;
+  if (!obj || obj.status !== 'active' || !obj.timeLimitYears) return;
+  const deadlineYear = obj.startYear + obj.timeLimitYears - 1;
+  if (game.state.date.year > deadlineYear && game.state.date.day !== 1) failObjective(game, obj);
+}
+
+/** Monthly update (progress, win). Runs after the company manager updated value / performance. */
 export function updateMonthly(game) {
   const state = game.state;
   const obj = state.objective;
   if (!obj || obj.status !== 'active') return;
   obj.progress = objectiveValue(state, obj);
-  // Company::getNewChallengeProgress (Company.cpp:1075): the time limit is checked BEFORE the target, so a
-  // target reached after the deadline is a loss, not a win.
-  if (obj.timeLimitYears && monthsElapsed(state, obj) >= obj.timeLimitYears * 12) {
-    obj.status = 'lost';
-    notify(game.ctx, `Objective failed: time ran out. ${describeObjective(obj)}`, 'bad', undefined, undefined, 'general');
-    game.events.emit('objective', { status: 'lost', objective: obj });
-  } else if (obj.progress >= obj.target) {
+  // The time limit is enforced daily (updateDaily). A target reached after the deadline is already lost by then.
+  if (obj.status === 'active' && obj.progress >= obj.target) {
     obj.status = 'won';
     notify(game.ctx, `Objective achieved! ${describeObjective(obj)}`, 'good', undefined, undefined, 'general');
     game.events.emit('objective', { status: 'won', objective: obj });

@@ -143,6 +143,31 @@ function resolveMixed(model, list, year, cost, running) {
 }
 
 /**
+ * OpenLoco GameCommands/Vehicles/CreateVehicle.cpp:163-165: a purchase's sell-back value (refundCost) is
+ * cost - cost/8 (7/8 of the price, integer division). Used for new vehicles and wagons added to a train.
+ */
+export function refundValue(cost) {
+  return cost - Math.floor(cost / 8);
+}
+
+/**
+ * OpenLoco CreateVehicle.cpp:149-158 (first bogie): a model designed within the last two years starts with
+ * reduced reliability. OL: reliability = objReliability*256; if designed+2 > currentYear, reduce by 1/8
+ * twice (the original bug applies both reductions in every case); then +255 when nonzero. Our models have
+ * no separate design year, so introYear stands in for `designed`. Computed in OL's 16-bit units (percent*256),
+ * then mapped back to the 0..1 fraction. Only the purchase copy is reduced; baseReliability is unchanged.
+ */
+export function newVehicleReliability(model, year) {
+  let r16 = Math.round((model.reliability || 0) * 25600);
+  if (model.introYear != null && model.introYear + 2 > year) {
+    r16 -= Math.floor(r16 / 8);
+    r16 -= Math.floor(r16 / 8);
+  }
+  if (r16 !== 0) r16 += 255;
+  return r16 / 25600;
+}
+
+/**
  * Create a vehicle in a depot from a resolved template and add it to state.
  * @returns {object} vehicle
  */
@@ -164,8 +189,8 @@ export function createVehicle(state, depot, template, cost) {
     history: [{ x: depot.x, y: depot.y }], flipped: false,
     orders: [], orderIndex: 0, depotId: depot.id, goingToDepot: null,
     age: 0, maxAge: (model.kind === 'engine' ? 25 : 15) * 365,
-    reliability: model.reliability, baseReliability: model.reliability, breakdownTicks: 0,
-    profitThisYear: 0, profitLastYear: 0, value: cost, loadingTicks: 0,
+    reliability: newVehicleReliability(model, state.date.year), baseReliability: model.reliability, breakdownTicks: 0,
+    profitThisYear: 0, profitLastYear: 0, value: refundValue(cost), loadingTicks: 0,
     runningCost: template.running, lostSince: null, retryTick: 0,
     ...(model.kind === 'aircraft' ? { alt: 0 } : {}),
     ...defaultServiceFields(state), // service interval (setting default; absent when off)

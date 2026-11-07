@@ -1,6 +1,7 @@
 /** Clone vehicle (copy / shared orders), shared order edits, unshare, sell leaves the share, save round-trip. */
 import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
+import { refundValue } from '../js/simulation/vehicles.js';
 import { Game } from '../js/simulation/game.js';
 import { serializeState, parseState } from '../js/simulation/save.js';
 import { sharers } from '../js/simulation/sharedOrders.js';
@@ -34,7 +35,7 @@ describe('clone vehicle', () => {
     expect(c.orders).toEqual(v.orders);
     expect(c.orders).not.toBe(v.orders);
     expect(c.orderGroup).toBeUndefined();
-    expect(r.cost).toBe(c.value);
+    expect(c.value).toBe(refundValue(r.cost)); // recorded value = sell-back 7/8 of the price (OL CreateVehicle.cpp:163-165)
     expect(g.state.company.money).toBe(money - r.cost);
   });
 

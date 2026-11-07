@@ -3,6 +3,7 @@ import { flatGame, coalLine } from './helpers.js';
 import { addWagonModel, sellWagon, moveWagon, cloneVehicle } from '../js/simulation/cmdVehicle.js';
 import { addWaiting, waitingAmount } from '../js/simulation/stations.js';
 import { vehiclePrice } from '../js/simulation/prices.js';
+import { refundValue } from '../js/simulation/vehicles.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
 import { Game } from '../js/simulation/game.js';
 import { loadCargo, isFull, unload } from '../js/simulation/orders.js';
@@ -109,7 +110,7 @@ describe('mixed consists', () => {
     const { g, v } = setup(1);
     const before = v.value;
     addWagonModel(g.ctx, v.id, 'wag_coach');
-    expect(v.value).toBe(before + vehiclePrice(g.state, MODEL_BY_ID.wag_coach.cost));
+    expect(v.value).toBe(before + refundValue(vehiclePrice(g.state, MODEL_BY_ID.wag_coach.cost))); // OL CreateVehicle.cpp:163-165: 7/8 of the price
   });
 
   test('clone copies the consist', () => {

@@ -3,6 +3,7 @@ import { flatGame, coalLine } from './helpers.js';
 import { COSTS } from '../js/config/costs.js';
 import { updateMonthly } from '../js/simulation/loco/economy.js';
 import { buildCost, vehiclePrice, runningCost } from '../js/simulation/prices.js';
+import { refundValue } from '../js/simulation/vehicles.js';
 import { setSetting } from '../js/simulation/settings.js';
 import { vehicleDaily } from '../js/simulation/loco/vehicle.js';
 import { VEHICLE_MODELS } from '../js/config/vehicles.js';
@@ -45,7 +46,7 @@ describe('inflation-adjusted prices', () => {
     const r = g.buyVehicle(depotId, { modelId: eng.id, wagonModelId: wag.id, wagons: 2, cargoId: 'COAL' });
     expect(r.cost).toBe(dry.cost);
     expect(m0 - g.state.company.money).toBe(r.cost);
-    expect(r.vehicle.value).toBe(r.cost);
+    expect(r.vehicle.value).toBe(refundValue(r.cost)); // sell-back = cost - cost/8 (OL CreateVehicle.cpp:163-165)
     expect(r.cost).toBeGreaterThan(VEHICLE_MODELS.find((x) => x.id === eng.id).cost);
   });
 

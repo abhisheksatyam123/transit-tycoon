@@ -1,6 +1,7 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
 import { addWagons, removeWagons } from '../js/simulation/cmdVehicle.js';
+import { refundValue } from '../js/simulation/vehicles.js';
 import { vehiclePrice } from '../js/simulation/prices.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
 import { MAX_WAGONS } from '../js/simulation/constants.js';
@@ -29,7 +30,7 @@ describe('consist editor (T19)', () => {
     expect(r.ok).toBe(true);
     expect(v.wagons).toBe(3);
     expect(v.capacity).toBe(w.capacity * 3);
-    expect(v.value).toBe(valueBefore + unit);
+    expect(v.value).toBe(valueBefore + refundValue(unit)); // OL CreateVehicle.cpp:163-165: added wagon's value is 7/8
     expect(g.state.company.money).toBe(before - unit);
   });
 
@@ -40,21 +41,25 @@ describe('consist editor (T19)', () => {
     const before = g.state.company.money, valueBefore = v.value;
     const r = g.removeWagons(v.id, 2);
     expect(r.ok).toBe(true);
-    expect(r.cost).toBe(unit * 2);
+    // refund = removed wagons' share of the train's current value (cmdVehicle.removeWagons), value = full purchase value 7/8-based
+    const full = vehiclePrice(g.state, MODEL_BY_ID[v.modelId].cost) + unit * 3;
+    expect(r.cost).toBe(Math.min(valueBefore, Math.round((valueBefore * unit * 2) / full)));
     expect(v.wagons).toBe(1);
     expect(v.capacity).toBe(w.capacity);
-    expect(v.value).toBe(valueBefore - unit * 2);
-    expect(g.state.company.money).toBe(before + unit * 2);
+    expect(v.value).toBe(valueBefore - r.cost); // value drops by the refund paid
+    expect(g.state.company.money).toBe(before + r.cost); // refund paid = 7/8-based share (see refundValue)
   });
 
   test('remove wagon from a depreciated train refunds its share of the current value', () => {
     const { g, v } = train(3);
     v.value = Math.round(v.value / 2);
+    const valueBefore2 = v.value; // the depreciated value the refund is computed from
     const unit = vehiclePrice(g.state, MODEL_BY_ID.wag_hopper.cost);
     const r = g.removeWagons(v.id, 1);
     expect(r.ok).toBe(true);
     expect(r.cost).toBeLessThan(unit);
-    expect(Math.abs(r.cost - unit / 2)).toBeLessThanOrEqual(1);
+    const full = vehiclePrice(g.state, MODEL_BY_ID[v.modelId].cost) + unit * 3;
+    expect(Math.abs(r.cost - (valueBefore2 * unit) / full)).toBeLessThanOrEqual(1); // refund = share of the current (halved) value
   });
 
   test('a train can go down to 0 wagons (engine alone) and not below', () => {

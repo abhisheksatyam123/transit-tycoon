@@ -9,7 +9,7 @@ import { recordDelivery } from './loco/company.js';
 import { companyOf, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
-import { findStation, findDepot, manhattan, findIndustry, nearestTown } from './state.js';
+import { findStation, findDepot, findIndustry, nearestTown } from './state.js';
 import { refitCargos } from './refit.js';
 import { normaliseCond } from './condOrders.js';
 import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting } from './stations.js';
@@ -371,6 +371,16 @@ function deliverPart(ctx, v, st, n, keys) {
 export const CARGO_AGE_PERIOD_DAYS = 185 / 74;
 
 /**
+ * Payment distance in whole tiles (RX2b, OpenLoco VehicleHead.cpp:3118 `Math::Vector::distance2D(stationLoc, sourceLoc) / 32`):
+ * Euclidean between source and delivery station, truncated. OpenLoco's distance2D is a fastSquareRoot table
+ * approximation; the exact floor(sqrt) is used. Computed only on delivery / transfer, never per tick.
+ */
+export function paymentDistance(ax, ay, bx, by) {
+  const dx = ax - bx, dy = ay - by;
+  return Math.floor(Math.sqrt(dx * dx + dy * dy));
+}
+
+/**
  * Days the packet has been in transit for payment (OpenTTD CargoList::AgeCargo + GetTransportedGoodsIncome).
  * Default: continuous days since pickup. With setting cargoAgeInVehicle (OpenTTD cargo aging): the age advances
  * only in whole 2.5-day periods, so the payment uses floor(days / 2.5) * 2.5. Computed from the pickup tick,
@@ -390,7 +400,7 @@ export function transitDays(state, load) {
  */
 export function transferCredit(state, v, st, amount, feederOfAmount) {
   const load = v.load;
-  const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
+  const dist = paymentDistance(load.sourceX, load.sourceY, st.x, st.y);
   const days = transitDays(state, load);
   const income = calculateDeliveredCargoPayment(state, v.cargoId, amount, dist, days);
   return Math.round(((income - feederOfAmount) * FEEDER_PAYMENT_SHARE) / 100);
@@ -400,7 +410,7 @@ export function transferCredit(state, v, st, amount, feederOfAmount) {
 function deliverLoad(ctx, v, st) {
   const { state } = ctx;
   const load = v.load;
-  const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
+  const dist = paymentDistance(load.sourceX, load.sourceY, st.x, st.y);
   const days = transitDays(state, load);
   let pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
   const mult = subsidyMultiplier(state, v.cargoId, load.sourceX, load.sourceY, st, ctx);

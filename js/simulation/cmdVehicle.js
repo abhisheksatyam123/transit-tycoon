@@ -6,7 +6,7 @@ import { vehiclePrice } from './prices.js';
 import { findDepot, findVehicle } from './state.js';
 import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
-import { resolvePurchase, createVehicle, purchasable, modelAvailable } from './vehicles.js';
+import { resolvePurchase, createVehicle, purchasable, modelAvailable, refundValue } from './vehicles.js';
 import { MAX_WAGONS } from './constants.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
@@ -460,7 +460,7 @@ function applyWagonDelta(state, v, wagon, delta, unit) {
     if (delta > 0) for (let i = 0; i < k; i++) list.push({ modelId: wagon.id, cargoId: wagon.cargos[0] });
     else list.splice(list.length - k, k);
     setWagonList(state, v, list);
-    if (delta > 0) v.value = (v.value || 0) + unit * k;
+    if (delta > 0) v.value = (v.value || 0) + refundValue(unit) * k; // OL CreateVehicle.cpp:163-165 per car (7/8)
     return k;
   }
   v.wagonModelId = wagon.id;
@@ -468,7 +468,7 @@ function applyWagonDelta(state, v, wagon, delta, unit) {
   v.wagons += delta;
   v.capacity = wagon.capacity * v.wagons;
   v.runningCost = (v.runningCost || 0) + delta * wagon.running;
-  if (delta > 0) v.value = (v.value || 0) + unit * k;
+  if (delta > 0) v.value = (v.value || 0) + refundValue(unit) * k; // OL CreateVehicle.cpp:163-165 per car (7/8)
   return k;
 }
 
@@ -570,7 +570,7 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
   if (opts.dryRun) return { ok: true, cost, wagons: list.length, capacity: listCapacity(list) };
   spend(companyOf(state, v), 'vehicles', cost);
   setWagonList(state, v, list);
-  v.value = (v.value || 0) + cost;
+  v.value = (v.value || 0) + refundValue(cost); // OL CreateVehicle.cpp:163-165 (7/8 of the price)
   return { ok: true, cost, wagons: v.wagons, capacity: v.capacity };
 }
 
