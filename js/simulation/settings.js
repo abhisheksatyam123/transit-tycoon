@@ -86,6 +86,8 @@ export const DEFAULT_SETTINGS = {
   planeSpeedFactor: 1,
   /** town growth rate (OpenTTD economy.town_growth_rate): 'none' | 'slow' | 'normal' | 'fast' | 'veryfast'. 'normal' = current growth. */
   townGrowthRate: 'normal',
+  /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
+  roadSide: 'right',
 };
 
 /** Read a setting (state.settings value or the default). */
@@ -104,4 +106,12 @@ export function setSetting(state, key, value) {
 /** All settings merged with defaults (for UI). */
 export function allSettings(state) {
   return { ...DEFAULT_SETTINGS, ...(state && state.settings) };
+}
+
+/** OpenTTD road_side rule: the driving side can only change before any road vehicle exists. */
+export function roadSideLocked(state) {
+  const vs = state && state.vehicles;
+  if (!vs) return false;
+  for (const v of vs) if (v.kind === 'road') return true;
+  return false;
 }

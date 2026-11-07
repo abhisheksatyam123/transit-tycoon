@@ -20,6 +20,8 @@ import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
 import { OVERLAY } from './palette.js';
+import { roadSideSign } from '../config/traffic.js';
+import { getSetting } from '../simulation/settings.js';
 import { Smoke } from './particles.js';
 import { drawBubbles } from './bubbles.js';
 import { VehicleFx } from './vehicleFx.js';
@@ -319,6 +321,7 @@ export class Renderer {
     const state = this.game.state;
     const map = state.map;
     setPoseMap(map);
+    roadSideSign.value = getSetting(state, 'roadSide') === 'left' ? -1 : 1; // once per frame (road driving side)
     setOverlayHeights(this.heights); // module-level: another renderer may have set its own
     const W = map.width;
     const tiles = map.tiles;

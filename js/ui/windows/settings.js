@@ -4,7 +4,7 @@
  * Search filters rows by label/help text; a dot marks values that differ from the default.
  */
 import { el } from '../dom.js';
-import { allSettings, setSetting, DEFAULT_SETTINGS } from '../../simulation/settings.js';
+import { allSettings, setSetting, getSetting, roadSideLocked, DEFAULT_SETTINGS } from '../../simulation/settings.js';
 import { SETTING_GROUPS, SETTING_META, PREF_META, isChanged, matchesQuery } from '../settingsGroups.js';
 import { isMuted, setMuted } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
@@ -44,8 +44,11 @@ export function openSettings(app) {
         }
         if (m.type === 'select') {
           const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...m.options.map(([v, t]) => el('option', { value: v, text: t }))));
-          sel.addEventListener('change', () => { const v = m.key === 'aiCompanies' || m.key === 'planeSpeedFactor' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v); });
-          return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); } };
+          sel.addEventListener('change', () => {
+            if (m.key === 'roadSide' && roadSideLocked(state())) { sel.value = String(getSetting(state(), m.key)); return; }
+            const v = m.key === 'aiCompanies' || m.key === 'planeSpeedFactor' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v);
+          });
+          return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); if (m.key === 'roadSide') sel.disabled = roadSideLocked(state()); } };
         }
         const n = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: String(m.min), max: String(m.max), step: '1' }));
         n.addEventListener('change', () => {

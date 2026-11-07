@@ -4,6 +4,7 @@
  * State lives in state.traffic (see scratchpad/traffic-contract.md). Pure & deterministic.
  */
 import { PLANS_PER_TICK } from '../config/traffic.js';
+import { getSetting } from './settings.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { hashSeed, createRng } from './rng.js';
 import { roadConnected } from './network.js';
@@ -401,11 +402,11 @@ export function trafficDaily(ctx) {
  * to the right of the travel direction.
  * @returns {{x:number,y:number,ang:number}} tile-space point and heading angle (rad)
  */
-export function lanePose(W, path, i, t, map = null) {
+export function lanePose(W, path, i, t, map = null, side = 1) {
   const tile = path[i];
   const cx = tile % W, cy = (tile - cx) / W;
   const onHwy = map && map.tiles && map.tiles[tile] && map.tiles[tile].highway === 1 && map.tiles[tile].road;
-  const L = onHwy ? HWY_LANE_OFFSET : LANE_OFFSET;
+  const L = (onHwy ? HWY_LANE_OFFSET : LANE_OFFSET) * side; // side -1: left-hand traffic (mirror)
   const pIdx = i > 0 ? path[i - 1] : -1, nIdx = i + 1 < path.length ? path[i + 1] : -1;
   const ent = pIdx >= 0 ? [(pIdx % W) - cx, Math.floor(pIdx / W) - cy] : null;
   const ext = nIdx >= 0 ? [(nIdx % W) - cx, Math.floor(nIdx / W) - cy] : null;
@@ -447,9 +448,10 @@ export function trafficCars(state) {
   const tr = state.traffic;
   if (!tr) return [];
   const W = state.map.width;
+  const side = getSetting(state, 'roadSide') === 'left' ? -1 : 1; // read once per call, not per car
   const out = [];
   for (const c of tr.cars) {
-    const p = lanePose(W, c.path, c.i, c.t, state.map);
+    const p = lanePose(W, c.path, c.i, c.t, state.map, side);
     // dir bit from the heading (nearest of N/E/S/W), kept for existing 4-dir sprites
     const ax = Math.cos(p.ang), ay = Math.sin(p.ang);
     const dir = Math.abs(ax) >= Math.abs(ay) ? (ax >= 0 ? 2 : 8) : (ay >= 0 ? 4 : 1);

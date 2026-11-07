@@ -19,6 +19,11 @@ export const CAR_SPEED = 50 / 800;
 export const LANE_CAPACITY = 2;
 /** Lane offset from the road centre line (tile units), right-hand traffic. */
 export const LANE_OFFSET = 0.2;
+/**
+ * Road driving side (settings roadSide): +1 = right-hand traffic (default), -1 = left-hand. Render-only:
+ * the sim lane keys and occupancy are side-agnostic. Set once per frame by the renderer from the setting.
+ */
+export const roadSideSign = { value: 1 };
 /** Highway (4-lane) lane offset (tile units), right-hand traffic. */
 export const HWY_LANE_OFFSET = 0.23;
 /** Highway occupancy multiplier: each highway lane key holds this many more cars. */
