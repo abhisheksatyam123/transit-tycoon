@@ -10,6 +10,14 @@ import { tileAcceptance, waitingAmount } from './stations.js';
 import { vehiclePrice, runningCost } from './prices.js';
 import { purchasable } from './vehicles.js';
 import { industryType } from './industries.js';
+import { RAIL_TYPES } from '../config/railTypes.js';
+import { styleById } from '../config/stationTypes.js';
+import { airportType, airportTypeId } from './airportTypes.js';
+import { clearingCost } from './trackRules.js';
+import { authorityTown, ratingTitle, townRating } from './townAuthority.js';
+import { companyById } from './owner.js';
+import { formatMoney } from './currency.js';
+import { nearestTown } from './state.js';
 
 const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck', 'tram'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'], ship: ['ship'] };
 
@@ -45,11 +53,31 @@ const landmarkTitle = (id) => LANDMARK_NAMES[id] || id;
 const AVENUE_NAME = { 1: 'motorway', 2: 'primary', 3: 'secondary' };
 const cargoName = (id) => (CARGO_BY_ID[id] ? CARGO_BY_ID[id].name : id);
 
+/** Display name of an owner value (OTTD GetTileOwner name): 'company' = player, 'rival' = rivalId, 'town' = local authority. */
+function ownerName(state, owner, rivalId, x, y) {
+  if (owner === 'company') return state.company.name;
+  if (owner === 'rival') { const r = companyById(state, rivalId); return r ? r.name : 'Rival company'; }
+  if (owner === 'town') {
+    const t = authorityTown(state, x, y) || nearestTown(state, x, y);
+    return t ? `Town ${t.name}` : 'Town';
+  }
+  return 'None';
+}
+
+/** Track-type name of a tile's rail (config/railTypes.js; absent trk = plain rail). */
+function trackName(tile) {
+  const rt = RAIL_TYPES[tile.trk || 0];
+  return rt ? rt.name : 'Rail';
+}
+
 /**
- * Describe a tile for the Query tool.
+ * Describe a tile for the Query tool (UI only, read-only; cheap: runs on click).
+ * Rows follow OpenTTD's Land Area Information (misc_gui.cpp LandInfoWindow) and the
+ * per-tile GetTileDesc_* functions: owner, road/rail owner, track type, tram, station
+ * class, airport/dock, clear cost, local authority, height and acceptance.
  * @returns {{tile:object, town?:object, industry?:object, station?:object, depot?:object, lines:string[]}}
  */
-export function tileInfo(state, x, y) {
+export function tileInfo(state, x, y, clear = null) {
   const tile = state.map.tiles[y * state.map.width + x];
   const out = { tile, lines: [] };
   const L = out.lines;
@@ -70,7 +98,9 @@ export function tileInfo(state, x, y) {
   } else if (b && b.type === 'station') {
     out.station = findStation(state, b.stationId);
     if (out.station) {
-      L.push(`${out.station.name} (${b.kind === 'rail' ? 'rail platform' : b.kind + ' stop'})`);
+      L.push(`${out.station.name} (${stationClass(b)})`);
+      const so = out.station.ownerId != null ? ownerName(state, 'rival', out.station.ownerId, x, y) : state.company.name;
+      L.push(`Station owner: ${so}`);
       for (const c of Object.keys(out.station.cargo || {})) {
         const n = waitingAmount(out.station, c);
         if (n > 0) L.push(`Waiting: ${n} ${cargoName(c)} (rating ${out.station.rating[c] ?? '-'}%)`);
@@ -83,10 +113,39 @@ export function tileInfo(state, x, y) {
     L.push(`${b.kind === 'rail' ? 'Rail' : 'Road'} depot`);
   }
   if (tile.avenue && tile.road) L.push(`Avenue (${AVENUE_NAME[tile.avenue] || 'road'})`);
-  if (tile.rail) L.push(`Rail: ${describeBits(tile.rail)}`);
-  if (tile.road) L.push(`Road: ${describeBits(tile.road)}${tile.owner === 'town' ? ' (town)' : ''}`);
+  // owners: one tile.owner serves road and rail; OTTD prints them separately only when they differ
+  const own = tile.owner ?? null;
+  const oname = own ? ownerName(state, own, tile.rivalId, x, y) : null;
+  if (tile.rail) {
+    L.push(`Rail: ${describeBits(tile.rail)} — ${trackName(tile)}${tile.elec ? ', electrified' : ''}`);
+    L.push(`Rail owner: ${oname || 'None'}`);
+  }
+  if (tile.road) {
+    L.push(`Road: ${describeBits(tile.road)}${own === 'town' ? ' (town)' : ''}`);
+    L.push(`Road owner: ${oname || 'None'}`);
+  }
+  if (tile.tram) L.push(`Tram track: ${describeBits(tile.tram)}`);
+  if (oname && !tile.rail && !tile.road) L.push(`Owner: ${oname}`);
+  if (clear && (tile.building || tile.rail || tile.road || tile.tram)) {
+    // structures: the bulldozer's own dry-run cost (OTTD LandInfoWindow "Cost to clear", N/A when it cannot)
+    L.push(!clear.ok ? 'Clear cost: N/A' : clear.cost > 0 ? `Clear cost: ${formatMoney(clear.cost)}` : 'Clear cost: free');
+  } else {
+    const cc = clearingCost(tile);
+    L.push(cc > 0 ? `Clear cost: ${formatMoney(cc)} (${tile.terrain})` : `Clear cost: free (${tile.terrain})`);
+  }
+  const auth = authorityTown(state, x, y);
+  if (auth) L.push(`Local authority: ${auth.name} (rating ${ratingTitle(townRating(auth))})`);
+  else { const nt = nearestTown(state, x, y); if (nt) L.push(`Nearest town: ${nt.name}`); }
   const acc = Object.entries(tileAcceptance(state, x, y)).filter(([, v]) => v > 0);
   if (acc.length) L.push(`Acceptance: ${acc.map(([c, v]) => `${cargoName(c)} ${v}/8`).join(', ')}`);
-  if (tile.owner) L.push(`Owner: ${tile.owner}`);
   return out;
+}
+
+/** Station class line (OTTD station GetTileDesc): rail platform style, bus/truck stop style, airport type, dock. */
+function stationClass(b) {
+  if (b.kind === 'airport') return `${airportType(airportTypeId(b)).name}`;
+  if (b.kind === 'dock') return 'Dock';
+  if (b.kind === 'rail') return `${styleById('rail', b.style).name}`;
+  if (b.kind === 'bus' || b.kind === 'truck') return `${styleById(b.kind, b.style).name}`;
+  return `${b.kind} stop`;
 }
