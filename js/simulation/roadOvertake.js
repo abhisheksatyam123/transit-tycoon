@@ -100,3 +100,19 @@ export function overtakeTick(ctx, v) {
   v.overtakeCtr = (v.overtakeCtr || 0) + 1;
   if (v.overtakeCtr >= OVERTAKE_TIMEOUT_TICKS && t && t.road && straightAxis(t.road) !== null) clearOvertake(v);
 }
+
+/** OpenTTD RoadVehicle::UpdateSpeed: overtaking acceleration 512 vs 256 (roadveh_cmd.cpp:751). */
+export const OVERTAKE_ACCEL_MULT = 2;
+
+/**
+ * Speed of v after a land speed step while overtaking: the acceleration delta is doubled (OTTD 512 vs 256),
+ * capped at the target speed. Only called/affected when v.overtakeId is set; otherwise `next` is returned.
+ * @param {object} v road vehicle (overtakeId lazy)
+ * @param {number} prev speed before the step (tiles/tick)
+ * @param {number} next speed after the normal step (tiles/tick)
+ * @param {number} targetTiles max speed (tiles/tick)
+ */
+export function overtakeSpeed(v, prev, next, targetTiles) {
+  if (v.overtakeId === undefined || next <= prev) return next;
+  return Math.min(targetTiles, prev + OVERTAKE_ACCEL_MULT * (next - prev));
+}

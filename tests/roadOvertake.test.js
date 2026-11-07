@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test';
-import { tryOvertake, overtakeTick, overtakeEnabled, OVERTAKE_TIMEOUT_TICKS } from '../js/simulation/roadOvertake.js';
+import { tryOvertake, overtakeTick, overtakeEnabled, overtakeSpeed, OVERTAKE_TIMEOUT_TICKS } from '../js/simulation/roadOvertake.js';
 import { setSetting, DEFAULT_SETTINGS } from '../js/simulation/settings.js';
 import { flatGame } from './helpers.js';
 
@@ -147,5 +147,23 @@ describe('roadOvertake in a game', () => {
   test('setting off: the bus never overtakes (unchanged behaviour)', () => {
     const r = run(false);
     expect(r.overtook).toBe(false);
+  });
+});
+
+describe('roadOvertake speed boost (OTTD roadveh_cmd.cpp UpdateSpeed 512 vs 256)', () => {
+  test('boost applied only while overtaking, capped at target', () => {
+    const idle = veh(1, 2, [2, 3], 0.2, 1.2);
+    expect(overtakeSpeed(idle, 0.2, 0.3, 1.2)).toBe(0.3); // no overtakeId: unchanged
+    const ov = veh(2, 2, [2, 3], 0.2, 1.2, { overtakeId: 9, overtakeCtr: 0 });
+    expect(overtakeSpeed(ov, 0.2, 0.3, 1.2)).toBeCloseTo(0.4, 10); // delta doubled
+    expect(overtakeSpeed(ov, 1.1, 1.15, 1.2)).toBeCloseTo(1.2, 10); // capped at target
+    expect(overtakeSpeed(ov, 0.5, 0.4, 1.2)).toBe(0.4); // braking untouched
+  });
+
+  test('same step: overtaking vehicle gains more speed than an identical non-overtaking one', () => {
+    const v = veh(1, 2, [2, 3, 4, 5, 6], 0.3, 1.2);
+    const plain = overtakeSpeed(v, 0.3, 0.35, 1.2);
+    v.overtakeId = 2;
+    expect(overtakeSpeed(v, 0.3, 0.35, 1.2)).toBeGreaterThan(plain);
   });
 });

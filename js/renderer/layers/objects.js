@@ -20,6 +20,10 @@ import { drawPackSegment } from '../pack/vehicles.js';
 import { drawPackShipSegment, drawPackDock, drawPackShipDepot, drawPackBuoy } from '../pack/ships.js';
 import { getPoseMap, smoothPose, angleFromBit, poseCovered } from '../net/pose.js';
 import { HALF_W, HALF_H } from '../iso.js';
+import { LANE_OFFSET } from '../../config/traffic.js';
+
+/** Ticks to ease the overtaking lane shift in (render only). */
+const OVERTAKE_EASE_TICKS = 4;
 import { blit, tileHash } from '../sprites/canvas.js';
 import { packActive } from '../pack/state.js';
 import { drawOgfxBuilding } from '../pack/objects.js';
@@ -170,6 +174,14 @@ export function drawSegment(ctx, seg, sx, sy, selected) {
     const ms = shipSegmentSprite(seg._info ? seg._info.modelId : '', seg.dir);
     blit(ctx, ms, sx, sy);
     return;
+  }
+  if (seg._info && seg._info.overtakeId !== undefined && (seg.part === 'bus' || seg.part === 'truck')) {
+    // overtaking (roadOvertake.js): draw in the opposite lane, i.e. LANE_OFFSET left of the centre line
+    // (sim vehicles sit on the centre line; traffic cars use +LANE_OFFSET on the right). Eases in over a few ticks.
+    const ang = seg.ang !== undefined ? seg.ang : angleFromBit(seg.dir);
+    const k = -LANE_OFFSET * Math.min(1, (seg._info.overtakeCtr || 0) / OVERTAKE_EASE_TICKS);
+    const dx = -Math.sin(ang) * k, dy = Math.cos(ang) * k;
+    sx += (dx - dy) * HALF_W; sy += (dx + dy) * HALF_H;
   }
   const s = vehicleSprite(seg.part, seg.dir, seg.cargoId, fill, seg._info);
   if (selected) {

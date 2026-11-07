@@ -31,7 +31,7 @@ import { dirBetween } from './constants.js';
 import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
 import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
-import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick } from './roadOvertake.js';
+import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick, overtakeSpeed } from './roadOvertake.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -303,7 +303,9 @@ function move(ctx, v) {
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;
   } else {
+    const prevSpeed = v.speed;
     v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed, getSetting(state, 'gradients') ? gradeMph(state, v) : 0);
+    if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, v.maxSpeed); // OTTD 512 vs 256
     if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
     v.progress += v.speed;
   }
