@@ -65,6 +65,8 @@ export const DEFAULT_SETTINGS = {
   farmFields: false,
   /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */
   aiCompanies: 0,
+  /** OpenTTD difficulty.competitor_speed (0 very slow .. 4 very fast, default 2 medium): how often AI rivals take build/think actions (aiCompanies.js thinkPasses). 2 = once a month, as before. */
+  competitorSpeed: 2,
   /** OpenTTD max_trains / max_roadveh / max_aircraft / max_ships: vehicles per company (vehicleLimit.js). Default 500 as OpenTTD. */
   maxTrains: 500,
   maxRoadVeh: 500,

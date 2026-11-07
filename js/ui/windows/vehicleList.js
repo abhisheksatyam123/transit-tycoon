@@ -13,6 +13,7 @@ import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
 import { cargoName } from '../cargo.js';
+import { bucketVehicles, sortBuckets, GROUP_BY, BUCKET_SORTS } from '../vehicleGroupRows.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -144,7 +145,8 @@ export function sortVehicles(vehicles, opts = {}) {
  */
 export function openVehicleList(app) {
   /** Window-instance state. */
-  const state = { sort: 'name', dir: 1, filter: 'all', group: 'all', cargo: 'all' };
+  // by: group-by mode (none / shared / group); bsort: bucket sort key while grouped; open: expanded bucket keys
+  const state = { sort: 'name', dir: 1, filter: 'all', group: 'all', cargo: 'all', by: 'none', bsort: 'total', open: new Set() };
   return app.wm.open('vehicles', {
     title: 'Vehicles',
     width: 440,
@@ -208,9 +210,20 @@ export function openVehicleList(app) {
           style: { background: c.hex, width: '20px', height: '20px', margin: '2px', border: c.hex === g.colour ? '2px solid #fff' : '1px solid #0008', outline: c.hex === g.colour ? '2px solid #000' : 'none' },
           onclick: () => setCol(c.hex) })), reset);
       };
+      const bySel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Group by', title: 'Group the list into rows' },
+        GROUP_BY.map(([k, l]) => el('option', { value: k, text: l })));
+      bySel.onchange = () => { state.by = bySel.value; state.open.clear(); state.dir = 1; refresh(); };
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn);
-      sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
+        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn);
+      // group-by dropdown (OpenTTD vehicle_gui.cpp GB_NONE / GB_SHARED_ORDERS / GB_GROUP). Grouped: the sort box sorts buckets.
+      const sortKeyed = { sig: null };
+      const sortOptions = (grouped) => {
+        const sig = grouped ? 'b' : 's';
+        if (sortKeyed.sig === sig) return;
+        sortKeyed.sig = sig;
+        sortSel.replaceChildren(...(grouped ? BUCKET_SORTS : VEHICLE_SORTS).map(([k, l]) => el('option', { value: k, text: l })));
+      };
+      sortSel.onchange = () => { if (state.by === 'none') state.sort = sortSel.value; else state.bsort = sortSel.value; state.dir = 1; refresh(); };
       filterSel.onchange = () => { state.filter = filterSel.value; refresh(); };
       cargoFilterSel.onchange = () => { state.cargo = cargoFilterSel.value; refresh(); };
       dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
@@ -233,11 +246,61 @@ export function openVehicleList(app) {
         massBtn('Start all', true), massBtn('Stop all', false),
         massDepotBtn('Send for servicing', true), massDepotBtn('Send to depot', false),
         el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
-      const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span', { text: 'Late' }), el('span'));
+      const headSpans = [0, 1, 2, 3, 4, 5].map(() => el('span'));
+      const head = el('div.table-head', null, ...headSpans);
+      const HEAD_VEH = ['Vehicle', 'State', 'This year', 'Last year', 'Late', ''];
+      const HEAD_BUCKET = ['Group', '', 'Total this year', 'Average this year', '', ''];
+      const headKey = { mode: null };
+      const setHead = (mode) => {
+        if (headKey.mode === mode) return;
+        headKey.mode = mode;
+        const labels = mode === 'bucket' ? HEAD_BUCKET : HEAD_VEH;
+        headSpans.forEach((sp, i) => setText(sp, labels[i]));
+      };
+      // grouped list rows: a bucket row (toggles its members) or a member vehicle row. Keys are prefixed so a row never changes kind.
+      const createRow = (item) => {
+        if (item.kind === 'bucket') {
+          return el('div.table-row.group-row', { style: { cursor: 'pointer' }, onclick: () => {
+            if (state.open.has(item.b.key)) state.open.delete(item.b.key); else state.open.add(item.b.key);
+            refresh();
+          } }, el('span.bucket-label'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num'), el('span'), el('span'));
+        }
+        return el('div.table-row.group-member', { style: { paddingLeft: '18px' } },
+          el('button.link', { type: 'button', onclick: () => app.open('vehicle', item.v.id) }),
+          el('span.state'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num.late'),
+          el('button.btn.sm', { type: 'button', text: 'Follow', title: 'Follow with camera', onclick: () => { app.follow(item.v.id); } }));
+      };
+      const updateRow = (row, item) => {
+        const c = row.children;
+        if (item.kind === 'bucket') {
+          const b = item.b;
+          row.classList.toggle('open', state.open.has(b.key));
+          setText(c[0], (state.open.has(b.key) ? '▾ ' : '▸ ') + b.label);
+          setText(c[1], `${b.count} vehicle${b.count === 1 ? '' : 's'}`);
+          setText(c[2], money(b.total));
+          c[2].classList.toggle('neg', b.total < 0);
+          setText(c[3], money(b.avg));
+          c[3].classList.toggle('neg', b.avg < 0);
+          return;
+        }
+        const v = item.v;
+        setText(c[0], v.name);
+        setText(c[1], STATE_LABEL[v.state] || v.state);
+        c[1].className = 'state st-' + v.state;
+        setText(c[2], money(v.profitThisYear));
+        c[2].classList.toggle('neg', v.profitThisYear < 0);
+        setText(c[3], money(v.profitLastYear));
+        c[3].classList.toggle('neg', v.profitLastYear < 0);
+        setText(c[4], lateLabel(v));
+        c[4].classList.toggle('neg', hasVehicleTimetable(v) && (Number(v.lateDays) || 0) > 0);
+      };
       const list = el('div.list.scroll.table');
       body.append(summary, groupControls, livery, controls, head, list);
       const refresh = () => {
-        sortSel.value = state.sort;
+        const grouped = state.by !== 'none';
+        sortOptions(grouped);
+        sortSel.value = grouped ? state.bsort : state.sort;
+        bySel.value = state.by;
         filterSel.value = state.filter;
         cargoOptions(app.game.state.vehicles.filter((v) => v.ownerId == null));
         if (state.cargo !== 'all' && !Array.from(cargoFilterSel.options).some((o) => o.value === state.cargo)) state.cargo = 'all';
@@ -269,25 +332,25 @@ export function openVehicleList(app) {
         const selG = hasGroup ? groupList(app.game.state).find((x) => x.id === state.group) : null;
         livery.style.display = selG ? 'flex' : 'none';
         if (selG) liveryRow(selG);
-        const vs = sortVehicles(all, state);
-        setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
-        listOrEmpty(list, vs, (v) => v.id,
-          (v) => el('div.table-row', null,
-            el('button.link', { type: 'button', onclick: () => app.open('vehicle', v.id) }),
-            el('span.state'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num.late'),
-            el('button.btn.sm', { type: 'button', text: 'Follow', title: 'Follow with camera', onclick: () => { app.follow(v.id); } })),
-          (row, v) => {
-            const c = row.children;
-            setText(c[0], v.name);
-            setText(c[1], STATE_LABEL[v.state] || v.state);
-            c[1].className = 'state st-' + v.state;
-            setText(c[2], money(v.profitThisYear));
-            c[2].classList.toggle('neg', v.profitThisYear < 0);
-            setText(c[3], money(v.profitLastYear));
-            c[3].classList.toggle('neg', v.profitLastYear < 0);
-            setText(c[4], lateLabel(v));
-            c[4].classList.toggle('neg', hasVehicleTimetable(v) && (Number(v.lateDays) || 0) > 0);
-          }, 'No vehicles yet — build a depot and buy one');
+        if (!grouped) {
+          setHead('veh');
+          const vs = sortVehicles(all, state);
+          setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
+          listOrEmpty(list, vs, (v) => 'v:' + v.id, (v) => createRow({ kind: 'veh', v }), (row, v) => updateRow(row, { kind: 'veh', v }),
+            'No vehicles yet — build a depot and buy one');
+        } else {
+          // one pass over the filtered vehicles (name order, so the first member labels a shared-orders bucket), then buckets
+          const vs = sortVehicles(all, { ...state, sort: 'name', dir: 1 });
+          const buckets = sortBuckets(bucketVehicles(vs, { by: state.by, groups }), { sort: state.bsort, dir: state.dir });
+          const items = [];
+          for (const b of buckets) {
+            items.push({ kind: 'bucket', key: 'b:' + b.key, b });
+            if (state.open.has(b.key)) for (const v of b.vehicles) items.push({ kind: 'veh', key: 'v:' + v.id, v });
+          }
+          setHead('bucket');
+          setText(summary, `${buckets.length} group(s) of ${vs.length} vehicle(s) · profit this year ${money(p)}`);
+          listOrEmpty(list, items, (it) => it.key, createRow, updateRow, 'No vehicles yet — build a depot and buy one');
+        }
       };
       refresh();
       return refresh;

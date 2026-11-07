@@ -98,6 +98,43 @@ export function updateMonthly(game) {
     chargeInterest(state, r);
     manageLoan(r);
     sellUnprofitable(ctx, r);
+    const passes = thinkPasses(state, monthIndex(state));
+    for (let k = 0; k < passes; k++) thinkRival(ctx, state, r);
+    refreshStats(state, r);
+    updateTakeover(ctx, r);
+    if (r.negValueMonths >= BANKRUPT_MONTHS) windUp(ctx, r);
+  }
+}
+
+/** Competitor speed (setting competitorSpeed, 0 very slow .. 4 very fast; default 2 = medium). */
+export const COMPETITOR_SPEED_DEFAULT = 2;
+export function competitorSpeed(state) {
+  const v = getSetting(state, 'competitorSpeed');
+  return Number.isInteger(v) && v >= 0 && v <= 4 ? v : COMPETITOR_SPEED_DEFAULT;
+}
+
+/** Whole months since year 0 (integer, deterministic). */
+function monthIndex(state) {
+  return state.date.year * 12 + state.date.month;
+}
+
+/**
+ * Number of rival think passes this month. Medium (2) = exactly one, as before the setting existed.
+ * Slow levels skip months (very slow acts every 4th month, slow every 2nd); fast levels act 2x / 3x.
+ * Pure integer arithmetic: no rng, no stored state.
+ */
+export function thinkPasses(state, mIdx) {
+  switch (competitorSpeed(state)) {
+    case 0: return mIdx % 4 === 0 ? 1 : 0;
+    case 1: return mIdx % 2 === 0 ? 1 : 0;
+    case 3: return 2;
+    case 4: return 3;
+    default: return 1;
+  }
+}
+
+/** One rival think pass: route building, renewal, vehicle additions, HQ (the actions the speed setting scales). */
+function thinkRival(ctx, state, r) {
     if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
     if (r.routes.some((q) => !q.air) && airRoutesOf(r).length < MAX_AIR_ROUTES && r.money >= airRouteBudget(state, airportType('small').cost, 'small', r.id) && r.negValueMonths === 0) buildAirRoute(ctx, r);
     upgradeRivalAirports(ctx, r); // a route's airport grows in place when its towns pass the next bar (aiAirUpgrade.js)
@@ -110,10 +147,6 @@ export function updateMonthly(game) {
     if (shipRoutesOf(r).length < MAX_SHIP_ROUTES && r.negValueMonths === 0) buildShipRoute(ctx, r); // budget checked inside
     addShips(ctx, r);
     buildRivalHQ(ctx, r);
-    refreshStats(state, r);
-    updateTakeover(ctx, r);
-    if (r.negValueMonths >= BANKRUPT_MONTHS) windUp(ctx, r);
-  }
 }
 
 /** Monthly ledger for a rival (the player's is closed by the company manager). */
