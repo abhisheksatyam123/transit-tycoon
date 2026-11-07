@@ -23,6 +23,15 @@ export const SPEED_UNITS = {
   mph: { id: 'mph', name: 'mph', factor: 0.621371 },
 };
 
+/** "1234567" -> "1,234,567" for a non-negative integer (same as toLocaleString('en-US')). */
+export function groupDigits(a) {
+  const d = String(a);
+  if (d.length <= 3) return d;
+  let out = d.slice(0, d.length % 3 || 3);
+  for (let i = out.length; i < d.length; i += 3) out += ',' + d.slice(i, i + 3);
+  return out;
+}
+
 /**
  * Format an internal money value for display.
  * @param {number} n internal value
@@ -32,7 +41,9 @@ export const SPEED_UNITS = {
 export function formatMoney(n, code = 'DEFAULT') {
   const c = CURRENCIES[code] || CURRENCIES.DEFAULT;
   const v = Math.round((Number(n) || 0) * c.rate);
-  const s = Math.abs(v).toLocaleString('en-US');
+  const a = Math.abs(v);
+  // en-US digit grouping without toLocaleString (which builds a formatter per call: W7 startup profile hotspot)
+  const s = a < 1e21 ? groupDigits(a) : a.toLocaleString('en-US');
   const sign = v < 0 ? '-' : '';
   return c.suffix ? `${sign}${c.prefix}${s}${c.suffix}` : `${sign}${c.prefix}${s}`;
 }

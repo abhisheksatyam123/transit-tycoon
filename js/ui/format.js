@@ -2,7 +2,7 @@
  * Formatting helpers (money, numbers, dates, speeds).
  */
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from '../simulation/loco/vehicleMotion.js';
-import { formatMoney, formatSpeed } from '../simulation/currency.js';
+import { formatMoney, formatSpeed, groupDigits } from '../simulation/currency.js';
 import { currentCurrency, currentSpeedUnit } from './units.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -31,7 +31,9 @@ export function signedMoney(n) {
  * @returns {string}
  */
 export function num(n) {
-  return Math.round(n || 0).toLocaleString('en-US');
+  const v = Math.round(n || 0), a = Math.abs(v);
+  if (!(a < 1e21)) return v.toLocaleString('en-US');
+  return v < 0 ? '-' + groupDigits(a) : groupDigits(a);
 }
 
 /**
