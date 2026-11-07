@@ -109,11 +109,12 @@ export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
  * - seaLevel: 'none' | 'low' | 'medium' | 'high'
  * - terrain: 'flat' | 'normal' | 'hilly' | 'mountainous'
  * - smoothness: 'smooth' | 'normal' | 'rough'
+ * - cliffs: 'off' (default) | 'on' (steep steps up to CLIFF_SLOPE_CAP levels, marked around cliffs as rock; no RNG draws)
  * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
  *   (rivers on slopes at their height; the heights are not changed)
  * @param {object} map
  * @param {object} rng
- * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string}} [opts]
+ * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string,cliffs?:string}} [opts]
  */
 export function generateTerrain(map, rng, opts = {}) {
   const { width, height, tiles } = map;
@@ -140,12 +141,14 @@ export function generateTerrain(map, rng, opts = {}) {
     if (mountainous) n = Math.pow(n, 0.6); // more peaks, full range
     t.height = Math.min(7, Math.floor((n * scale) * 8));
   }
-  limitSlopes(map);
+  const cliffs = opts.cliffs === 'on';
+  const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
+  limitSlopes(map, cap);
   if (opts.rivers === 'flowing') carveFlowingRivers(map, rng, FLOW_RIVER_COUNT);
   const riverTarget = RIVER_COUNTS[opts.rivers ?? 'none'] ?? 0;
   if (riverTarget > 0) {
     carveRivers(map, rng, riverTarget);
-    limitSlopes(map); // river banks drop to within one level of the water
+    limitSlopes(map, cap); // river banks drop to within one level of the water (cliffs on: within the cap)
   }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -157,6 +160,35 @@ export function generateTerrain(map, rng, opts = {}) {
       else if (t.height <= 2 && dry(x, y) > 0.72) t.terrain = 'desert';
       else t.terrain = 'grass';
     }
+  }
+  if (cliffs) markCliffs(map);
+}
+
+/** Cliffs option: steepest neighbour step allowed (levels); off = 1 (historic). */
+export const CLIFF_SLOPE_CAP = 4;
+/** A neighbour step of at least this many levels is a cliff (OpenLoco kCliffTerrainHeightDiff = 4, rescaled to 8-px levels). */
+export const CLIFF_STEP = 3;
+
+/**
+ * OpenLoco generateTerrainAroundCliffs (MapGenerator.cpp:468): every tile whose south or east step is a cliff
+ * marks the square of radius 6 around it; marked land becomes rock. Deterministic, no RNG draws.
+ */
+function markCliffs(map) {
+  const { width, height, tiles } = map;
+  const marked = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const h = tiles[y * width + x].height;
+      const south = y + 1 < height ? tiles[(y + 1) * width + x].height : h;
+      const east = x + 1 < width ? tiles[y * width + x + 1].height : h;
+      if (Math.abs(south - h) < CLIFF_STEP && Math.abs(east - h) < CLIFF_STEP) continue;
+      for (let yy = Math.max(0, y - 6); yy <= Math.min(height - 1, y + 6); yy++) {
+        for (let xx = Math.max(0, x - 6); xx <= Math.min(width - 1, x + 6); xx++) marked[yy * width + xx] = 1;
+      }
+    }
+  }
+  for (let i = 0; i < tiles.length; i++) {
+    if (marked[i] && tiles[i].terrain !== 'water') tiles[i].terrain = 'rock';
   }
 }
 
@@ -299,16 +331,18 @@ function traceFlowing(map, start) {
   return null;
 }
 
-/** Lower tiles so that 4-neighbours differ by at most 1 height level. */
-function limitSlopes(map) {
+/** Lower tiles so that 4-neighbours differ by at most `cap` height levels (1 unless cliffs are on). */
+function limitSlopes(map, cap = 1) {
   const { width, height, tiles } = map;
-  for (let pass = 0; pass < 8; pass++) {
+  // historic default: 8 sweeps (kept so the pinned maps stay identical); cliffs: sweep until settled, so the cap really holds
+  const passes = cap === 1 ? 8 : 256;
+  for (let pass = 0; pass < passes; pass++) {
     let changed = false;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const t = tiles[y * width + x];
         for (const n of neighbours(map, x, y)) {
-          if (t.height > n.tile.height + 1) { t.height = n.tile.height + 1; changed = true; }
+          if (t.height > n.tile.height + cap) { t.height = n.tile.height + cap; changed = true; }
         }
       }
     }

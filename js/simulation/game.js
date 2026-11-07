@@ -112,7 +112,7 @@ function createEditorGame(game, o) {
 }
 
 /** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness, densities; climate + snowLine for sub-arctic). */
-const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', smoothness: 'normal', townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5 };
+const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', smoothness: 'normal', townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5 };
 export function mapgenOptions(src) {
   const out = {};
   if (!src || typeof src !== 'object') return out;
