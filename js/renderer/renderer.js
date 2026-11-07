@@ -1,5 +1,6 @@
 import { shipPassable } from '../simulation/shipPath.js';
 import { drawLandBridgeDeck } from './sprites/landBridge.js';
+import { drawAqueductDeck } from './sprites/aqueduct.js';
 import { drawDeckBack, drawDeckFront } from './pack/bridgeDeck.js';
 import { packActive } from './pack/state.js';
 /**
@@ -435,6 +436,7 @@ export class Renderer {
           if (packActive()) drawDeckFront(ctx, tile, sx, (x + y) * HALF_H);
           else drawLandBridgeDeck(ctx, tile, sx, sy, this.heights, map, x, y);
         }
+        if (tile.aqueduct && tile.aqueduct.role === 'deck' && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawAqueductDeck(ctx, tile, sx, sy, this.heights, x, y);
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
         if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy);
         if (tile.tram && !tile.rail && (!tile.building || (tile.building.type === 'station' && tile.building.kind === 'tram')) && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawTramWires(ctx, tile, sx, sy, this.heights.tileCorners(x, y));

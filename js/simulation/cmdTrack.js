@@ -27,6 +27,7 @@ import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile r
 import { invalidateBlocks } from './signals.js';
 import { clearHouseAt } from './largeHouses.js';
 import { lockParts } from './cmdCanal.js';
+import { aqueductCells } from './aqueduct.js';
 
 /**
  * Plan player bridges for a line. A bridge is a straight run of water tiles (its deck) between two
@@ -421,6 +422,13 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
     }
   }
+  // an aqueduct (both heads and the deck between them) is removed as a whole
+  for (const c of [...cells]) {
+    if (!map.tiles[c.y * map.width + c.x].aqueduct) continue;
+    for (const q of aqueductCells(map, c.x, c.y)) {
+      if (!cells.some((z) => z.x === q.x && z.y === q.y)) cells.push(q);
+    }
+  }
   // a canal lock (its three water tiles) is removed as a whole
   for (const c of [...cells]) {
     const lp = map.tiles[c.y * map.width + c.x].lock ? lockParts(map, c.x, c.y) : null;
@@ -433,6 +441,10 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     const x = c.x, y = c.y;
     const t = map.tiles[y * map.width + x];
     const b = t.building;
+    if (t.aqueduct) {
+      if (vehicleOnTile(state, x, y)) return { ok: false, error: ERR.vehicle };
+      jobs.push({ x, y, kind: 'aqueduct' }); cost += COSTS.demolishCanal; continue;
+    }
     if (b && b.type === 'station' && b.kind === 'airport') {
       if (b.part === airportDepotPart(b) && state.vehicles.some((v) => v.state === 'depot' && v.tx === x && v.ty === y)) {
         return { ok: false, error: 'Depot contains vehicles' };
@@ -527,6 +539,10 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       stripLayer(map, j.x, j.y, 'road');
       stripLayer(map, j.x, j.y, 'tram');
       t.owner = null;
+    } else if (j.kind === 'aqueduct') {
+      // aqueduct tile: the deck is removed; a head (canal water) goes back to land at its own height
+      delete t.aqueduct;
+      if (t.canal) { delete t.canal; delete t.lock; t.terrain = 'grass'; }
     } else if (j.kind === 'canal') {
       // canal or lock tile: back to land at its own height (no sea link is left behind)
       delete t.canal; delete t.lock; t.terrain = 'grass';

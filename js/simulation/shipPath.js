@@ -7,10 +7,12 @@
 import { DIRS } from './constants.js';
 import { SHIP_ACCEL_TICKS } from '../config/ships.js';
 import { lockParts } from './cmdCanal.js';
+import { aqueductStepOk } from './aqueduct.js';
 
 /** Buoy and depot tiles and bridge decks are water; other buildings and land are not passable. */
 export function shipPassable(map, idx) {
   const t = map.tiles[idx];
+  if (t && t.aqueduct) return t.aqueduct.role === 'deck' || (t.terrain === 'water' && !t.building);
   if (!t || t.terrain !== 'water') return false;
   const b = t.building;
   return !b || b.type === 'depot' || (b.type === 'station' && b.kind === 'buoy');
@@ -23,6 +25,7 @@ export function shipPassable(map, idx) {
  */
 export function shipStepOk(map, a, b) {
   const ta = map.tiles[a], tb = map.tiles[b];
+  if (ta.aqueduct || tb.aqueduct) return aqueductStepOk(ta, tb);
   if (!ta.canal && !tb.canal) return true;
   if (ta.height === tb.height) return true;
   if (!ta.lock || !tb.lock) return false;

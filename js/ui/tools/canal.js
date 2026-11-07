@@ -7,7 +7,7 @@ import { createPlacementTool } from './placement.js';
 export function createCanalTool(app) {
   return createLineTool(app, {
     id: 'canal', label: 'Canal', sound: 'build',
-    hint: 'Canal: drag a line over flat dry land to dig water. Ships sail canals; demolish turns them back to land.',
+    hint: 'Canal: drag a line over flat dry land to dig water. Drag between two ramps (one step up, facing the valley) to build an aqueduct over lower ground. Ships sail canals; demolish turns them back to land.',
     command: (g, x0, y0, x1, y1, opts) => g.buildCanal(x0, y0, x1, y1, opts),
     tiles: (x0, y0, x1, y1) => {
       const out = [];

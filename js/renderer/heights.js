@@ -133,6 +133,7 @@ export class Heights {
     const y = clamp(Math.floor(fy + 0.5), 0, this.H - 1);
     const t = this.map.tiles[y * this.W + x];
     if (t && t.bridgeDeck !== undefined) return t.bridgeDeck; // deck height for vehicles on it (also over track)
+    if (t && t.aqueduct && t.aqueduct.role === 'deck') return t.aqueduct.level;
     const u = clamp(fx - x, -0.5, 0.5);
     const v = clamp(fy - y, -0.5, 0.5);
     const hN = this.cornerH(x, y), hE = this.cornerH(x + 1, y);

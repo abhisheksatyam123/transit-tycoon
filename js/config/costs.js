@@ -26,6 +26,8 @@ export const COSTS = {
   demolishTrack: 40,
   /** canal (OpenTTD CMD_BUILD_CANAL): per water tile dug on flat land; lock (DoBuildLock): per lock tile */
   canal: 250,
+  /** aqueduct (OpenTTD Price::BuildAqueduct): per deck tile over the valley; heads cost as canal tiles */
+  aqueduct: 300,
   lock: 400,
   demolishCanal: 40,
   /** block signal (OpenTTD CMD_BUILD_SIGNALS): per two-way signal on a straight rail tile; removal refund */
