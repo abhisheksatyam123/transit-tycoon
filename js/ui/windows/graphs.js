@@ -199,8 +199,13 @@ export function drawChart(canvas, o) {
   const n = o.labels.length;
   const xOf = (i) => (n <= 1 ? padL + pw / 2 : padL + (i / (n - 1)) * pw);
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const every = Math.max(1, Math.ceil(n / 8));
-  o.labels.forEach((lab, i) => { if (i % every === 0 || i === n - 1) ctx.fillText(lab, xOf(i), h - padB + 6); });
+  const every = o.labelEvery || Math.max(1, Math.ceil(n / 8)); // labelEvery: caller override (dense histories)
+  // last label: right-aligned (not clipped at the edge), skipped when it would crowd the previous one
+  const lastGap = (n - 1) % every;
+  o.labels.forEach((lab, i) => {
+    if (i % every === 0 && !(i === n - 1 && n > 1)) ctx.fillText(lab, xOf(i), h - padB + 6);
+    else if (i === n - 1 && n > 1 && (lastGap === 0 || xOf(i) - xOf(i - lastGap) >= ctx.measureText(o.labels[i - lastGap]).width / 2 + ctx.measureText(lab).width + 4)) { ctx.textAlign = 'right'; ctx.fillText(lab, xOf(i), h - padB + 6); ctx.textAlign = 'center'; }
+  });
   if (sc.min < 0 && sc.max > 0) { ctx.strokeStyle = 'rgba(148,163,184,0.4)'; const y0 = Math.round(yOf(0)) + 0.5; ctx.beginPath(); ctx.moveTo(padL, y0); ctx.lineTo(w - padR, y0); ctx.stroke(); }
   for (const s of o.series) {
     if (!s.values.length) continue;

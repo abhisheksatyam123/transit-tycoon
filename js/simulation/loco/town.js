@@ -85,6 +85,20 @@ export function tickTown(game, town) {
   return grew;
 }
 
+/** Months of population history kept per town (OpenLoco TownWindow population graph: 20 years). */
+export const TOWN_HISTORY_MONTHS = 240;
+
+/**
+ * Append this month's population to town.hist (lazy: created at the first month end; saved with the game;
+ * old saves: absent = no graph). Oldest first, capped at TOWN_HISTORY_MONTHS. Called from TownManager.updateMonthly.
+ */
+export function pushTownHistory(town, date) {
+  if (!date) return;
+  if (!Array.isArray(town.hist)) town.hist = []; // lazy
+  town.hist.push(Math.max(0, Math.round(Number(town.population) || 0)));
+  if (town.hist.length > TOWN_HISTORY_MONTHS) town.hist.splice(0, town.hist.length - TOWN_HISTORY_MONTHS);
+}
+
 /**
  * Town::updateMonthly part 1: scroll the population history and compute the new build speed.
  * (The TT statistics roll lives in townGrowth.rollTownStats and runs right after, in TownManager.updateMonthly.)

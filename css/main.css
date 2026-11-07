@@ -1,3 +1,6 @@
+/* the hidden attribute always hides (class rules like .btn-row { display: flex } would otherwise override it) */
+[hidden] { display: none !important; }
+
 /* Transit Tycoon JS — layout + dark-glass HUD theme (toolbar, status bar, minimap, toasts). */
 :root {
   --bg: #06090f;

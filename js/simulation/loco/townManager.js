@@ -9,7 +9,7 @@ import { repairTownRoads } from './townGrow.js';
 import { labelComponents, labelComponentsAll } from '../diagIssue.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
-import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown } from './town.js';
+import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown, pushTownHistory } from './town.js';
 import { updateAuthorityMonthly, FUND_BUILD_SPEED } from '../townAuthority.js';
 
 /** TownManager::tick: every 8th scenario tick one town (slot (ticks/8) % 0x7F) updates. */
@@ -30,6 +30,7 @@ export function updateMonthly(game) {
     updateMonthlyTown(town);
     if (town.fundMonths > 0) town.buildSpeed = FUND_BUILD_SPEED; // fund new buildings (townAuthority.js)
     rollTownStats(s, town);
+    pushTownHistory(town, s.date); // month-end population sample (after the monthly roll)
   }
   updateAuthorityMonthly(s);
   recomputeAllAcceptance(s);

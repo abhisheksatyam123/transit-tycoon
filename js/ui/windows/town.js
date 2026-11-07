@@ -4,10 +4,27 @@
  */
 import { el } from '../dom.js';
 import { num, money } from '../format.js';
-import { kvGrid } from './common.js';
+import { kvGrid, heading } from './common.js';
+import { drawChart } from './graphs.js';
+import { monthName } from '../format.js';
 import { openRename } from '../rename.js';
 import { actionList, ratingTitle, townRating } from '../../simulation/townAuthority.js';
 import { isArctic, snowLineOf, isTropic, tropicZoneAt } from '../../simulation/climate.js';
+
+/**
+ * Population-history series for the town graph (pure). `hist` is town.hist (monthly population, oldest first);
+ * the last sample is the current month-end, so the labels count back from `date` ({year, month}).
+ * @returns {{labels:string[], series:Array<{name:string,color:string,values:number[]}>}}
+ */
+export function townHistorySeries(hist, date, max = 240) {
+  const rows = Array.isArray(hist) ? hist.slice(-max) : [];
+  const end = date ? date.year * 12 + date.month : 0;
+  const labels = rows.map((_, i) => {
+    const m = end - (rows.length - 1 - i);
+    return `${monthName(((m % 12) + 12) % 12).slice(0, 3)} ${String(Math.floor(m / 12)).slice(2)}`;
+  });
+  return { labels, series: [{ name: 'Population', color: '#60a5fa', values: rows.map((v) => Number(v) || 0) }] };
+}
 
 /**
  * @param {import('../app.js').App} app
@@ -42,6 +59,13 @@ export function openTown(app, id) {
       const rows = el('div.town-auth-list');
       auth.appendChild(rows);
       body.appendChild(auth);
+      // population graph (OpenLoco TownWindow population tab): redrawn only when a month end adds a sample
+      const graphCanvas = el('canvas', { style: { maxWidth: '100%', margin: '4px 0' }, 'aria-label': 'Population history' });
+      const graphNote = el('div.muted.small', { text: 'Population history (monthly, last 20 years).' });
+      body.insertBefore(graphCanvas, auth);
+      body.insertBefore(graphNote, graphCanvas);
+      body.insertBefore(heading('History'), graphNote);
+      let graphSig = '';
       let lastKey = '';
       return () => {
         const t = app.findTown(id);
@@ -49,6 +73,13 @@ export function openTown(app, id) {
         win.setTitle(t.name);
         edit.hidden = !app.game.state.editor;
         set['Population'](num(t.population));
+        const hist = t.hist || [];
+        const sig = `${hist.length}:${hist.length ? hist[hist.length - 1] : ''}`;
+        if (sig !== graphSig) {
+          graphSig = sig;
+          const g = townHistorySeries(hist, app.game.state.date, 240);
+          drawChart(graphCanvas, { w: 260, h: 130, labels: g.labels, labelEvery: Math.max(1, Math.ceil(g.labels.length / 4)), fmt: (v) => num(v), plain: true, series: g.series });
+        }
         set['Houses'](num(t.houses ? t.houses.length : 0));
         set['Passengers last month'](num(t.passengersLastMonth));
         set['Passengers transported'](num(t.passengersTransported));
