@@ -411,7 +411,9 @@ export function pruneStubs(map, maxLen = tl(12), keepNearStation = true) {
       if (next.length !== 1) break;
       prev = cur; cur = next[0];
     }
-    if (junction < 0 || chain.length > maxLen) return;
+    // a short surface spur that ends on a tunnel portal (no junction) is a stub too
+    const tunnelEnd = junction < 0 && cur !== i && !isSurface(map.tiles[cur]) && chain.length <= tl(3);
+    if ((junction < 0 && !tunnelEnd) || chain.length > maxLen) return;
     const saved = chain.map((c) => [c, map.tiles[c].rail]);
     const nbr = chain.flatMap((c) => links(map, c).map((l) => [l.j, map.tiles[l.j].rail]));
     for (const c of chain) disconnect(map, c);
@@ -620,6 +622,8 @@ export function cleanRail(state, bakedRail = null) {
   const restored = restoreFromBake(map, bakedRail);
   // restore can re-link a short spur that the first prune removed: prune again (terminal-safe)
   const prunedAfterRestore = pruneStubs(map, tl(25), false);
+  // short (<=3 tile) dead-end stubs (station/depot approaches and terminals are kept by pruneStubs)
+  const prunedShort = pruneStubs(map, tl(3), false);
   clearDangling(map);
-  return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles: prunedTiles + prunedAfterRestore, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
+  return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles: prunedTiles + prunedAfterRestore + prunedShort, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
 }
