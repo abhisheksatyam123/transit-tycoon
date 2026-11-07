@@ -35,8 +35,8 @@ const SPOTS_PER_END = 6;
 const PAIR_TRIES = 6;
 
 /** Ship model that carries a cargo: highest capacity, then lowest id. */
-export function shipModelFor(state, cargoId) {
-  const models = listModels(state, 'ship').filter((m) => m.cargos.includes(cargoId));
+export function shipModelFor(state, cargoId, ownerId = null) {
+  const models = listModels(state, 'ship', ownerId).filter((m) => m.cargos.includes(cargoId));
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
@@ -167,7 +167,7 @@ export function buildShipRoute(ctx, r) {
   for (const pair of tries) {
     if (tried >= PAIR_TRIES) break;
     const { src, dst, cargo } = pair;
-    const ship = shipModelFor(state, cargo);
+    const ship = shipModelFor(state, cargo, r.id);
     if (!ship) continue;
     if (r.money < shipRouteBudget(ship)) return false;
     tried++;
@@ -250,7 +250,7 @@ export function addShips(ctx, r) {
     const waiting = (st.cargo[route.cargo] || []).reduce((n, p) => n + p.amount, 0);
     if (waiting < WAITING_FOR_SHIP) continue;
     if (onRoute.some((v) => v.state === 'lost')) continue;
-    const ship = shipModelFor(state, route.cargo);
+    const ship = shipModelFor(state, route.cargo, r.id);
     if (!ship || r.money < ship.cost * 2) continue;
     addShip(ctx, r, route, ship);
     return;

@@ -49,7 +49,7 @@ export function upgradeRivalAirports(ctx, r) {
       if (id === curId || area(id) <= area(curId) || pop < minPop) continue;
       const type = airportType(id);
       if (type.introYear && state.date.year < type.introYear) continue;
-      if (!airPlaneModel(state, id)) continue;
+      if (!airPlaneModel(state, id, r.id)) continue;
       // all or nothing: the first end is upgraded only when the second can be too (checked by a dry pass)
       if (!upgradeAirportPair(ctx, r, ends, route, origins, curId, id)) continue;
       return true;

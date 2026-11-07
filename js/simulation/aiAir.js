@@ -38,8 +38,8 @@ const AIR_TOWN_POOL = 12;
 const SPOT_RADIUS = 8;
 
 /** Biggest plane (not helicopter) that the airport type takes; small airports take planes up to SMALL_MAX_CAPACITY seats. */
-export function airPlaneModel(state, typeId = 'small') {
-  const models = listModels(state, 'aircraft').filter((m) => !m.helicopter && vehicleFitsAirport(m, typeId));
+export function airPlaneModel(state, typeId = 'small', ownerId = null) {
+  const models = listModels(state, 'aircraft', ownerId).filter((m) => !m.helicopter && vehicleFitsAirport(m, typeId));
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
@@ -49,8 +49,8 @@ export function airPlaneModel(state, typeId = 'small') {
  * airport and the rest of the planes are paid from the route's income).
  * @returns {number} money threshold (Infinity when no plane can be bought)
  */
-export function airRouteBudget(state, airportCost, typeId = 'small') {
-  const plane = airPlaneModel(state, typeId);
+export function airRouteBudget(state, airportCost, typeId = 'small', ownerId = null) {
+  const plane = airPlaneModel(state, typeId, ownerId);
   if (!plane) return Infinity;
   return 2 * (airportCost + plane.cost);
 }
@@ -111,8 +111,8 @@ export function airRouteChoice(ctx, r) {
   for (const { id, minPop } of AIR_TYPE_ORDER) {
     const type = airportType(id);
     if (type.introYear && state.date.year < type.introYear) continue;
-    const plane = airPlaneModel(state, id);
-    if (!plane || r.money < airRouteBudget(state, type.cost, id)) continue;
+    const plane = airPlaneModel(state, id, r.id);
+    if (!plane || r.money < airRouteBudget(state, type.cost, id, r.id)) continue;
     const pick = pickAirTowns(ctx, r, id, minPop);
     if (pick) return { typeId: id, plane, pick };
   }
@@ -180,7 +180,7 @@ export function addAirPlanes(ctx, r) {
     if (onRoute.length >= AIR_MAX_PLANES) continue;
     if (waitingAtAir(state, route.a) + waitingAtAir(state, route.b) < 30) continue;
     if (onRoute.some((v) => v.state === 'lost')) continue;
-    const plane = airPlaneModel(state, route.apType || 'small');
+    const plane = airPlaneModel(state, route.apType || 'small', r.id);
     if (!plane || r.money < plane.cost * 2) continue;
     addAirPlane(ctx, r, route, plane);
     return;

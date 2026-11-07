@@ -92,7 +92,7 @@ export function updateMonthly(game) {
     manageLoan(r);
     sellUnprofitable(ctx, r);
     if (r.money >= ROUTE_BUDGET && r.routes.length < MAX_ROUTES) buildNewRoute(ctx, r);
-    if (r.routes.some((q) => !q.air) && airRoutesOf(r).length < MAX_AIR_ROUTES && r.money >= airRouteBudget(state, airportType('small').cost) && r.negValueMonths === 0) buildAirRoute(ctx, r);
+    if (r.routes.some((q) => !q.air) && airRoutesOf(r).length < MAX_AIR_ROUTES && r.money >= airRouteBudget(state, airportType('small').cost, 'small', r.id) && r.negValueMonths === 0) buildAirRoute(ctx, r);
     upgradeRivalAirports(ctx, r); // a route's airport grows in place when its towns pass the next bar (aiAirUpgrade.js)
     renewRivalFleet(ctx, r); // old or obsolete vehicles renewed (aiRenew.js)
     addBuses(ctx, r);

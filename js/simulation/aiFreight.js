@@ -32,8 +32,8 @@ function centre(ind) {
 }
 
 /** Bulk-truck model for a cargo (highest capacity, then lowest id). */
-export function truckModelFor(state, cargoId) {
-  const models = listModels(state, 'truck').filter((m) => m.cargos.includes(cargoId));
+export function truckModelFor(state, cargoId, ownerId = null) {
+  const models = listModels(state, 'truck', ownerId).filter((m) => m.cargos.includes(cargoId));
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
@@ -114,7 +114,7 @@ export function buildFreightRoute(ctx, r) {
   const pair = pickFreightPair(state, used);
   if (!pair) return false;
   const { src, dst, cargo } = pair;
-  const model = truckModelFor(state, cargo);
+  const model = truckModelFor(state, cargo, r.id);
   if (!model) return false;
   const owner = r.id;
   const a = stopSpot(state, src, centre(dst));
@@ -189,7 +189,7 @@ export function addFreightTrucks(ctx, r) {
     const waiting = (st.cargo[route.cargo] || []).reduce((n, p) => n + p.amount, 0);
     if (waiting < 40) continue;
     if (onRoute.some((v) => v.state === 'lost')) continue;
-    const model = truckModelFor(state, route.cargo);
+    const model = truckModelFor(state, route.cargo, r.id);
     if (model) addFreightTruck(ctx, r, route, model);
     return;
   }

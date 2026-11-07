@@ -46,15 +46,15 @@ function centre(ind) {
 }
 
 /** Fastest non-electric train engine (lowest cost, then id, on a speed tie). */
-export function railEngineModel(state) {
-  const models = listModels(state, 'train').filter((m) => m.kind === 'engine' && m.traction !== 'electric');
+export function railEngineModel(state, ownerId = null) {
+  const models = listModels(state, 'train', ownerId).filter((m) => m.kind === 'engine' && m.traction !== 'electric');
   models.sort((a, b) => b.speed - a.speed || a.cost - b.cost || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
 
 /** Highest-capacity wagon for a cargo (then lowest id). */
-export function railWagonFor(state, cargoId) {
-  const models = listModels(state, 'wagon').filter((m) => m.cargos.includes(cargoId));
+export function railWagonFor(state, cargoId, ownerId = null) {
+  const models = listModels(state, 'wagon', ownerId).filter((m) => m.cargos.includes(cargoId));
   models.sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   return models[0] || null;
 }
@@ -310,8 +310,8 @@ export function buildRailRoute(ctx, r) {
   const pair = pickRailPair(state, used);
   if (!pair) return false;
   const { src, dst, cargo, dist } = pair;
-  const engine = railEngineModel(state);
-  const wagon = railWagonFor(state, cargo);
+  const engine = railEngineModel(state, r.id);
+  const wagon = railWagonFor(state, cargo, r.id);
   if (!engine || !wagon) return false;
   if (r.money < railRouteBudget(dist, engine, wagon)) return false;
   const owner = r.id;
@@ -369,7 +369,7 @@ export function addRailTrains(ctx, r) {
     const waiting = (st.cargo[route.cargo] || []).reduce((n, p) => n + p.amount, 0);
     if (waiting < WAITING_FOR_TRAIN) continue;
     if (onRoute.some((v) => v.state === 'lost')) continue;
-    const engine = railEngineModel(state), wagon = railWagonFor(state, route.cargo);
+    const engine = railEngineModel(state, r.id), wagon = railWagonFor(state, route.cargo, r.id);
     if (engine && wagon) addRailTrain(ctx, r, route, engine, wagon);
     return;
   }

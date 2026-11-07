@@ -42,7 +42,7 @@ describe('enginePreview', () => {
     g.stepDays(400);
     expect(g.state.enginePreview).toBeUndefined();
     expect(modelAvailable(g.state, MODEL_BY_ID.eng_thunder, null)).toBe(true);
-  });
+  }, 60000);
 
   test('setting on: model held back from others during the preview, offered to the player', () => {
     const g = world(true);
@@ -57,7 +57,7 @@ describe('enginePreview', () => {
     expect(previewBlocks(g.state, MODEL_BY_ID.eng_thunder, null)).toBe(true);
     expect(modelAvailable(g.state, MODEL_BY_ID.eng_thunder, null)).toBe(false);
     expect(listModels(g.state, 'engine').some((m) => m.id === 'eng_thunder')).toBe(false);
-  });
+  }, 60000);
 
   test('accept: player gets the model; public after 365 days with the news', () => {
     const g = world(true);

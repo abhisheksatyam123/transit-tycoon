@@ -21,13 +21,13 @@ import { findDepot } from './state.js';
 import { railEngineModel } from './aiRail.js';
 
 /** The best model a rival may renew this vehicle with now (null when none). */
-export function renewalModel(state, v) {
+export function renewalModel(state, v, ownerId = null) {
   const cur = MODEL_BY_ID[v.modelId];
   if (!cur) return null;
-  if (v.kind === 'train') return trainRenewalModel(state, cur);
+  if (v.kind === 'train') return trainRenewalModel(state, cur, ownerId);
   const kind = v.kind === 'road' ? cur.kind : v.kind === 'aircraft' ? 'aircraft' : null;
   if (!kind || kind === 'engine' || kind === 'wagon') return null;
-  let models = listModels(state, kind);
+  let models = listModels(state, kind, ownerId);
   if (v.kind === 'aircraft') {
     const depot = findDepot(state, v.depotId);
     const typeId = depot ? airportTypeId(depot) : 'small';
@@ -43,9 +43,9 @@ export function renewalModel(state, v) {
  * Train renewal: the fastest non-electric engine on sale (railEngineModel, the rival's own choice). The wagons
  * are kept by replaceVehicle (same consist). Returns the engine or null.
  */
-function trainRenewalModel(state, cur) {
+function trainRenewalModel(state, cur, ownerId = null) {
   if (cur.kind !== 'engine') return null;
-  return railEngineModel(state);
+  return railEngineModel(state, ownerId);
 }
 
 /** Renew this rival's old or obsolete vehicles (see file comment). */
@@ -57,7 +57,7 @@ export function renewRivalFleet(ctx, r) {
     if (!cur) continue;
     const old = v.age > v.maxAge;
     if (!old && purchasable(cur, year)) continue;
-    const target = renewalModel(state, v);
+    const target = renewalModel(state, v, r.id);
     if (!target) continue;
     const cost = vehiclePrice(state, target.cost);
     if (r.money < cost) continue; // cannot pay the price difference yet: try again next month
