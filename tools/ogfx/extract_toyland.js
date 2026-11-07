@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng } from './png.js';
 import { readSpriteDefs } from './pnml.js';
 import { TOYLAND_HOUSES, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from '../../js/renderer/pack/toyland_table.js';
-import { TOYLAND_OVERRIDE_BLOCKS } from '../../js/renderer/pack/toyland_overrides.js';
+import { TOYLAND_OVERRIDE_BLOCKS, TOYLAND_PACK_ONLY_BLOCKS, TOYLAND_LATE_BLOCKS } from '../../js/renderer/pack/toyland_overrides.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -117,9 +117,10 @@ for (const id of [...indIds].sort((a, b) => a - b)) {
 // toyland.js, verified by sprite size/anchor); the composite view in toyland.js redirects base ids to these keys.
 // Packed last (order 300000+) so every existing pack entry keeps its atlas position and pixels (TY3 lesson).
 const tdefs = readSpriteDefs(SRC, 'toyland');
-for (const [a, b] of TOYLAND_OVERRIDE_BLOCKS) {
+const lateIds = new Set(TOYLAND_LATE_BLOCKS.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i)));
+for (const [a, b] of [...TOYLAND_OVERRIDE_BLOCKS, ...TOYLAND_PACK_ONLY_BLOCKS]) {
   for (let id = a; id <= b; id++) {
-    if (pieces.some((p) => p.key === String(id))) continue;
+    if (pieces.some((p) => p.key === String(id)) || lateIds.has(id)) continue;
     const d = tdefs.get(id);
     if (!d) throw new Error(`toyland infra sprite ${id} has no OpenGFX definition`);
     pieces.push({ key: String(id), order: 300000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
@@ -158,6 +159,16 @@ for (const id of toylandVehicleSprites()) {
   const d = tdefs.get(id);
   if (!d) throw new Error(`toyland vehicle sprite ${id} has no OpenGFX definition`);
   pieces.push({ key: String(TOYLAND_VEH_KEY + id), order: 400000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
+// TY6 late infra blocks (order 450000+): packed after the vehicles so the atlas positions of every earlier key are unchanged.
+for (const [a, b] of TOYLAND_LATE_BLOCKS) {
+  for (let id = a; id <= b; id++) {
+    if (pieces.some((p) => p.key === String(id))) continue;
+    const d = tdefs.get(id);
+    if (!d) throw new Error(`toyland late infra sprite ${id} has no OpenGFX definition`);
+    pieces.push({ key: String(id), order: 450000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+  }
 }
 
 pieces.sort((a, b) => a.order - b.order);

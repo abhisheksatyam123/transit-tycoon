@@ -112,12 +112,19 @@ import { TOYLAND_OVERRIDE_BLOCKS } from '../js/renderer/pack/toyland_overrides.j
 describe('toyland infrastructure overrides (TY4)', () => {
   test('override map covers the road, rail, water, station, depot, bridge and tunnel ids', () => {
     const m = TOYLAND_OVERRIDE_MAP;
-    // roads (city 1313, grass 1332), rail (1005), crossings (1370, 1382), depots (1063, 1408), stations (1069)
-    for (const id of [1313, 1331, 1332, 1350, 1005, 1036, 1370, 1382, 1063, 1068, 1069, 1086, 1408, 1413]) expect(m.has(id)).toBe(true);
+    // roads (city 1313, grass 1332), rail (1005), crossings (1370, 1382), depots (1063, 1408), stations (1069, 1073 brick building, 1074)
+    for (const id of [1313, 1331, 1332, 1350, 1005, 1036, 1370, 1382, 1063, 1068, 1069, 1073, 1074, 1408, 1413]) expect(m.has(id)).toBe(true);
     // water (4061 flat, 4062.. shore), foundations (990..1003), bus/truck stops (2692.., 2708..), docks (2727..)
     for (const id of [4061, 4062, 4069, 990, 1003, 2692, 2707, 2708, 2723, 2727, 2732]) expect(m.has(id)).toBe(true);
     // bridges (2437..) and tunnels (2365.., 2389..)
     for (const id of [2437, 2592, 2365, 2388, 2389, 2396]) expect(m.has(id)).toBe(true);
+  });
+
+  test('TY6: station ids that differ in size from base 1079-1086 are not mapped; base 1073/1074 map to toyland 581/582', () => {
+    expect(TOYLAND_OVERRIDE_MAP.get(1073)).toBe(581);
+    expect(TOYLAND_OVERRIDE_MAP.get(1074)).toBe(582);
+    for (const id of [1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086]) expect(TOYLAND_OVERRIDE_MAP.has(id)).toBe(false);
+    expect(has(561) && has(574)).toBe(true); // packed (kept) but not mapped
   });
 
   test('toffee quarry ground 3981 maps to toyland grass 57 (not the temperate grass)', () => {
