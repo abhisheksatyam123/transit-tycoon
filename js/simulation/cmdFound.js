@@ -121,7 +121,7 @@ function commitTown(ctx, x, y, opts) {
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost };
   const rng = ctx.rng || createRng(state);
-  const town = createTown(state, rng, x, y);
+  const town = createTown(state, rng, x, y, undefined, undefined, opts.layout);
   spend(state.company, 'construction', state.editor ? 0 : cost);
   recomputeAllAcceptance(state);
   return { ok: true, cost, town: { id: town.id, name: town.name, x, y } };

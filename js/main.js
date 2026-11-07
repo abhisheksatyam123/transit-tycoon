@@ -2,6 +2,7 @@
  * Entry point: creates/loads the Game, wires renderer, minimap, UI and the game loop.
  * The only global is `window.__game` (debug handle to the current Game instance).
  */
+import { TOWN_LAYOUT_MODES } from './simulation/towns.js';
 import { HOTKEY_ACTIONS, shortcutTable, effectiveKeys, currentOverrides, onHotkeysChanged } from './ui/hotkeys.js';
 import { Game } from './simulation/game.js';
 import { Renderer } from './renderer/renderer.js';
@@ -64,7 +65,10 @@ async function initialGame() {
     }
   }
   // ?climate=arctic|tropic|toyland: a random map of that climate (opt-in; default games keep the temperate climate)
-  const mapgen = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? { climate: clim } : undefined;
+  const mapgenOpt = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? { climate: clim } : undefined;
+  // ?townLayout=original|better|2x2|3x3|random: debug/e2e opt-in for the town road layout (default 'mixed' is not stored)
+  const tl = new URLSearchParams(location.search).get('townLayout');
+  const mapgen = tl && TOWN_LAYOUT_MODES.includes(tl) && tl !== 'mixed' ? { ...mapgenOpt, townLayout: tl } : mapgenOpt;
   return { game: Game.create({ seed: Math.floor(Math.random() * 1e9), mapgen }), restored: false, scenario: false };
 }
 
@@ -230,6 +234,7 @@ async function main() {
     sound: () => toolbar.toggleSound(),
     screenshot: () => screenshotCanvas(renderer).then((name) => app.toast(`Saved ${name}`, 'good'), (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error')),
     'alt:query': () => app.setTool('query'),
+    lastNews: () => app.showLastNews(),
   };
   for (const a of HOTKEY_ACTIONS) {
     if (a.id.startsWith('win:')) { const name = a.id.slice(4); hotkeyHandlers[a.id] = () => app.open(name); }

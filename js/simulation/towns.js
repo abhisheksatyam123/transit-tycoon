@@ -17,6 +17,22 @@ function townLayoutFor(x, y) {
   return LAYOUTS[1];
 }
 
+/** Map generator 'Road layout for new towns' values (mapgen townLayout); 'mixed' = the default per-site mix. */
+export const TOWN_LAYOUT_MODES = ['mixed', 'original', 'better', '2x2', '3x3', 'random'];
+
+/**
+ * Layout of a new town. A fixed layout name is used as is; 'random' picks one per town from a pure hash of
+ * the map seed and the site (no RNG draw, so other generation is unchanged); anything else = 'mixed'.
+ */
+export function townLayoutForMode(mode, seed, x, y) {
+  if (LAYOUTS.includes(mode)) return mode;
+  if (mode !== 'random') return townLayoutFor(x, y);
+  let h = 0x811c9dc5;
+  for (const c of `${seed}:${x},${y}`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d) >>> 0; h = (h ^ (h >>> 12)) >>> 0;
+  return LAYOUTS[h % LAYOUTS.length];
+}
+
 /** Population contributed by a house of each level (index = level). */
 export const HOUSE_POP = [0, 18, 40, 75, 130];
 
@@ -171,12 +187,14 @@ export function generateTowns(state, rng, count) {
  * @param {number} y
  * @param {Set<string>} [used] town names already taken
  * @param {number} [size] layout size 1..3 (small..large); omitted = random draw as before
+ * @param {string} [layout] road layout ('original'|'better'|'2x2'|'3x3'|'random'|'mixed'); omitted = state.mapgen.townLayout
  * @returns {object} town record
  */
-export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) => t.name)), size = undefined) {
+export function createTown(state, rng, x, y, used = new Set(state.towns.map((t) => t.name)), size = undefined, layout = undefined) {
+  const mode = layout ?? (state.mapgen && state.mapgen.townLayout) ?? 'mixed';
   const town = {
     id: allocId(state), name: townName(rng, used), x, y, population: 0, houses: [],
-    layout: townLayoutFor(x, y),
+    layout: townLayoutForMode(mode, state.seed, x, y),
     passengersLastMonth: 0, passengersTransported: 0, goodsDelivered: 0, growthCounter: 0,
     mailLastMonth: 0, passengersThisMonth: 0, transportedThisMonth: 0, mailThisMonth: 0,
     goodsThisMonth: 0, deliveredPassThisMonth: 0,

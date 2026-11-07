@@ -17,6 +17,7 @@ import { checkBankruptcy } from './bankruptcy.js';
 import { openEnginePreviewDialog, closeEnginePreviewDialog, showPendingEnginePreview } from './enginePreviewDialog.js';
 import { touchIssues } from './diagCache.js';
 import { localizeMoneyText } from './newsMoney.js';
+import { nextLastNews } from './lastNews.js';
 import { currentCurrency } from './units.js';
 import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js';
 import { loadGamePrefs } from './gamePrefs.js';
@@ -100,7 +101,8 @@ export class App {
       const d = newsDisplay(newsLevel(loadNewsPrefs(), newsCategoryOf(n)));
       if (d.sound) play('news');
       if (d.flash) this.ui.onNews(n);
-      if (d.toast) this.toast(localizeMoneyText(n.text, currentCurrency()), n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
+      this.lastNewsItem = null; // a new item restarts the 'last message' cycle at the newest
+      if (d.toast) this.showNewsPopup(n, false);
     });
     on('disaster', (e) => { // disasters.js: smoke burst at the crash / collision point
       if (!e || typeof e.x !== 'number' || !this.renderer || !this.renderer.smoke) return;
@@ -304,6 +306,26 @@ export class App {
    */
   toast(text, kind = 'info', nearCursor = false, ms) {
     return this.toasts.show(text, kind, { nearCursor, ms });
+  }
+
+  /**
+   * Show a news item as the news popup (toast, as on arrival) and centre the view on its location.
+   * Used by arrival news, the status-bar ticker and the 'last message' hotkey.
+   * @param {any} n news item
+   * @param {boolean} [centre] centre on the item's location when it has one
+   */
+  showNewsPopup(n, centre = true) {
+    this.toast(localizeMoneyText(n.text, currentCurrency()), n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
+    if (centre && typeof n.x === 'number') this.centerOn(n.x, n.y);
+  }
+
+  /** 'Last message' hotkey: show the newest visible item, then each older one on repeat (wraps to the newest). */
+  showLastNews() {
+    const prefs = loadNewsPrefs();
+    const n = nextLastNews(this.game.state.news, this.lastNewsItem || null, (it) => newsLevel(prefs, newsCategoryOf(it)) !== 'off');
+    if (!n) { this.toast('No news yet', 'info'); return; }
+    this.lastNewsItem = n;
+    this.showNewsPopup(n);
   }
 
   /** @param {number} id */

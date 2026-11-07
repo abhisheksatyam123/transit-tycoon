@@ -5,8 +5,8 @@
  * Mapping to the transit-tycoon station record (js/simulation/stations.js):
  *  - OpenLoco keeps the rating on a 0..200 scale (UI shows rating/2 %). We keep that scale internally in
  *    st.rating200[cargoId] and publish the 0..100 % value in st.rating[cargoId] (what UI/cargo.js read).
- *  - StationCargoStats.age -> st.cargoAge[cargoId] (days since the last pickup; reset to the vehicle-type
- *    value on pickup, detected through st.lastPickup[cargoId] which orders.js/markPickup updates).
+ *  - StationCargoStats.age -> st.cargoAge[cargoId] (days since the last pickup; clamped to the loading
+ *    vehicle's type value at pickup by clampCargoAgeOnPickup, called from orders.js loadSlice).
  *  - vehicleSpeed / vehicleAge -> st.carrier[cargoId] (km/h, 256-day units): the last carrier's max speed and age,
  *    averaged (old+new)>>1 over pickups (VehicleHead.cpp:3466-3478, see stations.js recordCarrier).
  *  - quantity -> sum of packet amounts (waitingAmount); decay removes cargo via takeWaiting.
@@ -25,7 +25,7 @@ export const INITIAL_CARGO_RATING = 150;
 const MAX_SPEED_MPH = 250;
 const KMH_TO_MPH = 0.621371;
 /** VehicleHead.cpp typeAgeMap {train 0, bus 5, truck 3, tram 2, aircraft 0, ship 0}. */
-const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2 };
+export const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2, aircraft: 0, ship: 0 };
 
 /**
  * Station::calculateCargoRating. `c` = { age, quantity, vehicleSpeed(mph), vehicleAge, npc? }.
@@ -112,8 +112,16 @@ function carrierStats(st, cargoId) {
   return { speed: st.lastSpeed || 0, age: 0 };
 }
 
-function typeAge(state, st) {
-  return st.kinds.rail ? TYPE_AGE.rail : st.kinds.truck ? TYPE_AGE.truck : st.kinds.tram ? TYPE_AGE.tram : st.kinds.bus ? TYPE_AGE.bus : 0;
+/**
+ * VehicleHead.cpp:3460-3461: when a vehicle loads cargo, stationCargo.age = min(age, typeAgeMap[vehicleType]).
+ * Called by orders.js loadSlice at pickup time (after the room check, before the transfer), with the
+ * loading vehicle's type (TYPE_AGE key). Lazy: no-op when the cargo has no age record yet (it starts at 0).
+ */
+export function clampCargoAgeOnPickup(st, cargoId, type) {
+  const ages = st.cargoAge;
+  if (!ages || ages[cargoId] === undefined) return;
+  const cap = TYPE_AGE[type] || 0;
+  if (ages[cargoId] > cap) ages[cargoId] = cap;
 }
 
 /**
@@ -126,18 +134,12 @@ export function updateCargo(game, st) {
   const stationRatingCheat = stationRatingFixed(state) && !(st.ownerId !== undefined && st.ownerId !== null); // cheats.js: player stations only
   st.rating200 = st.rating200 || {};
   st.cargoAge = st.cargoAge || {};
-  st.pickupSeen = st.pickupSeen || {};
   for (const cargoId of Object.keys(st.lastPickup)) {
     if (st.rating200[cargoId] === undefined) {
       // legacy saves store only the % rating
       st.rating200[cargoId] = st.rating[cargoId] !== undefined ? st.rating[cargoId] * 2 : INITIAL_CARGO_RATING;
     }
     if (st.cargoAge[cargoId] === undefined) st.cargoAge[cargoId] = 0;
-    // pickup since last day -> age reset (VehicleHead: age = min(age, typeAgeMap[type]))
-    if (st.pickupSeen[cargoId] !== st.lastPickup[cargoId]) {
-      st.pickupSeen[cargoId] = st.lastPickup[cargoId];
-      st.cargoAge[cargoId] = Math.min(st.cargoAge[cargoId], typeAge(state, st));
-    }
     st.cargoAge[cargoId] = Math.min(st.cargoAge[cargoId] + 1, 255);
     let quantity = waitingAmount(st, cargoId);
     const target = calculateCargoRating({

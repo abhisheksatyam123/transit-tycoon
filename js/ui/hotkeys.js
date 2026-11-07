@@ -32,6 +32,7 @@ export const HOTKEY_ACTIONS = [
   { id: 'win:goals', label: 'Goals', group: 'Windows', key: 'o' },
   { id: 'win:load', label: 'Load game', group: 'Windows', key: 'l' },
   { id: 'win:help', label: 'Help', group: 'Windows', key: 'h' },
+  { id: 'lastNews', label: 'Last news message (repeat: older)', group: 'Windows', key: '\\' },
   { id: 'win:hotkeys', label: 'Keyboard shortcuts', group: 'Windows', key: '?' },
   { id: 'metroOverlay', label: 'Metro overlay on/off', group: 'View', key: 'j' },
   { id: 'linkOverlay', label: 'Link graph overlay on/off', group: 'View', key: ',' },

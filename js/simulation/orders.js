@@ -14,6 +14,7 @@ import { refitCargos } from './refit.js';
 import { normaliseCond } from './condOrders.js';
 import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting, recordCarrier } from './stations.js';
 import { deliverToIndustry } from './industries.js';
+import { clampCargoAgeOnPickup } from './loco/station.js';
 import { recordTownDelivery } from './townGrowth.js';
 import { vehicleModel } from './vehicles.js';
 import { notify } from './news.js';
@@ -490,13 +491,23 @@ export function loadCargo(ctx, v, st) {
   return got;
 }
 
+/** typeAgeMap key of a vehicle: rail (engine), bus, tram, truck (other road), aircraft, ship. */
+function pickupAgeType(v) {
+  if (v.kind === 'train') return 'rail';
+  if (v.kind === 'aircraft') return 'aircraft';
+  if (v.kind === 'ship') return 'ship';
+  return v.roadType === 'bus' ? 'bus' : v.roadType === 'tram' ? 'tram' : 'truck';
+}
+
 function loadSlice(ctx, v, st) {
   const { state } = ctx;
   if (!v.cargoId || v.capacity <= 0) return 0;
   const model = vehicleModel(v);
   markPickup(state, st, v.cargoId, model ? model.speed : 0);
   const room = v.capacity - v.load.amount;
-  if (room <= 0 || waitingAmount(st, v.cargoId) <= 0) return 0;
+  if (room <= 0) return 0;
+  clampCargoAgeOnPickup(st, v.cargoId, pickupAgeType(v));
+  if (waitingAmount(st, v.cargoId) <= 0) return 0;
   // cargodist: only parcels whose next hop is the vehicle's next stop (or with no route known)
   const cd = cdApplies(state, v.cargoId);
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;

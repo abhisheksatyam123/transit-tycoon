@@ -53,7 +53,8 @@ export function createStatusbar(root, app) {
   let shownNews = null;
   let newsSeen = false; // the first ticker value at startup is not announced
   newsEl.addEventListener('click', () => {
-    if (shownNews && typeof shownNews.x === 'number') app.centerOn(shownNews.x, shownNews.y);
+    // reopen the ticker item as the news popup (and start the 'last message' cycle from it)
+    if (shownNews) { app.lastNewsItem = shownNews; app.showNewsPopup(shownNews); }
     else app.open('news');
   });
 

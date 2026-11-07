@@ -1,7 +1,7 @@
 /** OpenLoco VehicleHead.cpp:3466-3478 + Station.cpp:795-809: station rating uses the last carrier's speed/age, averaged. */
 import { describe, test, expect } from 'bun:test';
 import { recordCarrier } from '../js/simulation/stations.js';
-import { calculateCargoRating, stationCargoRatingDetail } from '../js/simulation/loco/station.js';
+import { calculateCargoRating, stationCargoRatingDetail, clampCargoAgeOnPickup } from '../js/simulation/loco/station.js';
 
 describe('recordCarrier (OL pickup averaging)', () => {
   test('first pickup sets speed and age', () => {
@@ -78,10 +78,36 @@ describe('industry delivery uses the 0..200 station rating (OL StationManager::d
 });
 
 describe('vehicle age reset table (VehicleHead.cpp typeAgeMap)', () => {
-  test('tram stops reset cargo age to 2', () => {
+  test('tram pickup clamps cargo age to 2 at pickup, then the daily +1 applies', () => {
+    const st = { id: 9, kinds: { tram: true }, rating: {}, rating200: {}, cargoAge: { PASS: 40 }, lastPickup: { PASS: 5 }, pickupSeen: {}, cargo: {}, tiles: [], lastSpeed: 0 };
+    const game = { state: { stations: [st], tick: 0, vehicles: [] }, rng: { int: () => 0 } };
+    clampCargoAgeOnPickup(st, 'PASS', 'tram'); // loadSlice, before the daily update
+    expect(st.cargoAge.PASS).toBe(2);
+    updateCargo(game, st);
+    expect(st.cargoAge.PASS).toBe(3); // reset to 2, then +1 for the day
+  });
+  test('daily update alone does not clamp age to the station kinds', () => {
     const st = { id: 9, kinds: { tram: true }, rating: {}, rating200: {}, cargoAge: { PASS: 40 }, lastPickup: { PASS: 5 }, pickupSeen: {}, cargo: {}, tiles: [], lastSpeed: 0 };
     const game = { state: { stations: [st], tick: 0, vehicles: [] }, rng: { int: () => 0 } };
     updateCargo(game, st);
-    expect(st.cargoAge.PASS).toBe(3); // reset to 2, then +1 for the day
+    expect(st.cargoAge.PASS).toBe(41);
+  });
+});
+
+describe('cargo age clamp on pickup (VehicleHead.cpp:3460-3461)', () => {
+  test('bus pickup at a mixed bus+rail station clamps age to 5, train pickup to 0', () => {
+    const st = { kinds: { bus: true, rail: true }, cargoAge: { PASS: 40 } };
+    clampCargoAgeOnPickup(st, 'PASS', 'bus');
+    expect(st.cargoAge.PASS).toBe(5);
+    clampCargoAgeOnPickup(st, 'PASS', 'rail');
+    expect(st.cargoAge.PASS).toBe(0);
+  });
+  test('clamp never raises age and is a no-op without an age record', () => {
+    const st = { cargoAge: { PASS: 2 } };
+    clampCargoAgeOnPickup(st, 'PASS', 'bus');
+    expect(st.cargoAge.PASS).toBe(2);
+    const none = {};
+    clampCargoAgeOnPickup(none, 'PASS', 'rail');
+    expect(none.cargoAge).toBeUndefined();
   });
 });

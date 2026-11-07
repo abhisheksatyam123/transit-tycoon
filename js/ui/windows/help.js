@@ -22,7 +22,7 @@ const KEYS = [
   ['Esc', 'Cancel tool / close window'], ['V F T B I N O H L', 'Vehicles, Finances, Towns, Stations, Industries, News, Goals, Help, Load'],
   ['P E', 'Map (terrain, industries, routes, vehicles, towns), Company graphs and league'],
   ['Z (C cycles) Y', 'Terraform raise / lower / level, Plant trees'],
-  ['K', 'Toggle graphics: OpenGFX / Procedural'],   ['M', 'Mute sound'], ['Click map', 'Inspect tile, station, depot, vehicle'],
+  ['K', 'Toggle graphics: OpenGFX / Procedural'], ['\\', 'Last news message (press again for older ones; also click the news ticker)'],   ['M', 'Mute sound'], ['Click map', 'Inspect tile, station, depot, vehicle'],
 ];
 
 const MOSCOW_GOALS = 'In Moscow, staged goals pay bonuses: a first route, busy months, serving six districts and the landmarks, a Kremlin–VDNKh link, and a company value of $8M. Each one unlocks the next.';
