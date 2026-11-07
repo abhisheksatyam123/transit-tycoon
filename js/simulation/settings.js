@@ -51,6 +51,22 @@ export const DEFAULT_SETTINGS = {
   freightDistribution: 'manual',
   /** capacity-constrained routing (OpenTTD MCF, simplified) for the cargodist link graphs. Off by default. */
   cargodistMcf: false,
+  /** link graph schedule in months (OpenTTD linkgraph.recalc_interval; OTTD default 8 days). 1 = rebuild monthly (current). */
+  linkgraphRecalcInterval: 1,
+  /** months a link graph job runs before its routing is applied (OpenTTD linkgraph.recalc_time). 0 = applied at once (current). */
+  linkgraphRecalcTime: 0,
+  /** pax distribution: 'follow' (= cargodist setting) | 'manual' | 'asymmetric' | 'symmetric' (OpenTTD distribution_pax). */
+  linkgraphDistributionPax: 'follow',
+  /** mail distribution (OpenTTD distribution_mail). */
+  linkgraphDistributionMail: 'follow',
+  /** accuracy of the MCF: augmenting paths per demand pair = accuracy / 2 (OpenTTD linkgraph.accuracy, default 16 = 8 paths). */
+  linkgraphAccuracy: 16,
+  /** distance effect on demand, percent (OpenTTD linkgraph.demand_distance). 0 = distance ignored (current); OTTD default 100. */
+  linkgraphDemandDistance: 0,
+  /** effect of supply on symmetric demand, percent (OpenTTD linkgraph.demand_size). 100 = current; 0 = all destinations equal. */
+  linkgraphDemandSize: 100,
+  /** percent of capacity the first MCF pass saturates (OpenTTD short_path_saturation). 100 = current; OTTD default 80. */
+  linkgraphShortPathSaturation: 100,
 };
 
 /** Read a setting (state.settings value or the default). */
