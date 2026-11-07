@@ -8,6 +8,7 @@ import { openTown } from './town.js';
 import { openIndustry } from './industry.js';
 import { openTownList } from './townList.js';
 import { openIndustryList } from './industryList.js';
+import { openSignList } from './signList.js';
 import { openStationList } from './stationList.js';
 import { openDepot } from './depot.js';
 import { openDepotList } from './depotList.js';
@@ -28,6 +29,7 @@ import { openMetro } from './metro.js';
 import { openGoals } from './goals.js';
 import { openSettings } from './settings.js';
 import { openCheats } from './cheats.js';
+import { openHallOfFame } from './hallOfFame.js';
 import { openSubsidies } from './subsidies.js';
 import { openObjective } from './objective.js';
 import { openGraphs, openCargoRates } from './graphs.js';
@@ -47,6 +49,7 @@ const REGISTRY = {
   industry: openIndustry,
   towns: openTownList,
   industries: openIndustryList,
+  signs: openSignList,
   stations: openStationList,
   depot: openDepot,
   depots: openDepotList,
@@ -64,6 +67,7 @@ const REGISTRY = {
   help: openHelp,
   save: openSave,
   load: openLoad,
+  hallOfFame: openHallOfFame,
   metro: openMetro,
   goals: openGoals,
   settings: openSettings,

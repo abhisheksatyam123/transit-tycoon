@@ -204,7 +204,7 @@ export function drawChart(canvas, o) {
   if (sc.min < 0 && sc.max > 0) { ctx.strokeStyle = 'rgba(148,163,184,0.4)'; const y0 = Math.round(yOf(0)) + 0.5; ctx.beginPath(); ctx.moveTo(padL, y0); ctx.lineTo(w - padR, y0); ctx.stroke(); }
   for (const s of o.series) {
     if (!s.values.length) continue;
-    if (o.plain) { ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath(); s.values.forEach((v, i) => { const x = xOf(i), y = yOf(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); continue; }
+    if (o.plain) { ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash(s.dashed ? [4, 3] : []); ctx.beginPath(); s.values.forEach((v, i) => { const x = xOf(i), y = yOf(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]); continue; }
     ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath();
     s.values.forEach((v, i) => { const x = xOf(i), y = yOf(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
     ctx.stroke();

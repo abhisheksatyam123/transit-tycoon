@@ -11,6 +11,7 @@ import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
 import { loadGamePrefs, setPauseOnNewGame } from '../gamePrefs.js';
+import { loadAutosavePrefs, setAutosaveInterval } from '../autosavePrefs.js';
 import { loadTransparency, setTransparency } from '../../renderer/transparency.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
@@ -74,6 +75,16 @@ export function openSettings(app) {
             rows.push({ item, row, pref: true, sync: () => { if (document.activeElement !== sel) sel.value = loadUnits()[key]; } });
             inner.push(row);
           };
+          {
+            // Autosave interval (OpenTTD gui.autosave_interval, NotInSave): browser pref 'tt.autosave'.
+            const opts = [[0, 'Off'], [1, 'Every month'], [3, 'Every 3 months'], [6, 'Every 6 months'], [12, 'Every 12 months']];
+            const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...opts.map(([v, t]) => el('option', { value: String(v), text: t }))));
+            sel.addEventListener('change', () => { setAutosaveInterval(Number(sel.value)); });
+            const help = 'Saves the game into Autosave 1-3 (oldest replaced) every N game months, while playing. Stored in this browser.';
+            const row = el('div.set-row', null, el('label.set-line', { title: help }, sel, el('span.set-label', { text: 'Autosave' })), el('span.set-help.muted', { text: help }));
+            rows.push({ item: { label: 'Autosave', help, group: g.id }, row, pref: true, sync: () => { if (document.activeElement !== sel) sel.value = String(loadAutosavePrefs().interval); } });
+            inner.push(row);
+          }
           unitSel('currency', 'Currency', 'Money display only: $, £, €, ¥ or roubles. Simulation values are unchanged.',
             Object.values(CURRENCIES).map((c) => [c.id, c.name]), 'currency');
           unitSel('speed', 'Speed units', 'Vehicle speeds in km/h or mph. Display only.',

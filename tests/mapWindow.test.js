@@ -47,7 +47,7 @@ describe('map window helpers', () => {
   });
 
   test('modes, vehicle colours and cache TTL are defined', () => {
-    expect(MAP_MODES.map(([k]) => k)).toEqual(['terrain', 'industries', 'routes', 'vehicles', 'towns']);
+    expect(MAP_MODES.map(([k]) => k)).toEqual(['terrain', 'industries', 'routes', 'vehicles', 'towns', 'owners', 'vegetation']);
     expect(VEHICLE_COLORS.train).toBeTruthy();
     expect(MINIMAP.viewport).toBeTruthy();
     expect(BASE_TTL_MS).toBeGreaterThan(0);

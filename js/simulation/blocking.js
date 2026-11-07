@@ -17,6 +17,7 @@
  */
 import { TICKS_PER_DAY, dirBetween } from './constants.js';
 import { blockIndex, guardedBlock } from './signals.js';
+import { articSpan } from './articulated.js';
 
 /** A vehicle blocked this long by a moving (not loading) vehicle turns around / re-plans (3 days). */
 export const BLOCK_TIMEOUT_TICKS = 3 * TICKS_PER_DAY;
@@ -52,7 +53,8 @@ function bodyKeys(state, v, reuse) {
   if (!layer || v.state === 'depot') return null;
   const w = state.map.width;
   const h = v.history && v.history.length ? v.history : [{ x: v.tx, y: v.ty }];
-  const n = layer === 'road' ? Math.min(2, h.length) : h.length;
+  // articulated road vehicles cover every tile their parts span (articulated.js); plain ones the head and the tile behind
+  const n = layer === 'road' ? Math.min(articSpan(v) ? Math.ceil(articSpan(v)) + 2 : 2, h.length) : h.length;
   const keys = reuse && reuse.length === n ? reuse : new Array(n);
   for (let i = 0; i < n; i++) keys[i] = h[i].y * w + h[i].x;
   return keys;

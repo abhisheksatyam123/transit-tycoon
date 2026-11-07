@@ -35,6 +35,8 @@ export const DEFAULT_SETTINGS = {
   pathCosts: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */
   treeGrowth: false,
+  /** autoslope (OpenTTD construction.autoslope): terraform under rail/road is allowed when every affected track stays on a valid slope (cmdTerraform.js). Off by default. */
+  autoslope: false,
   /** gradients: uphill slopes slow ground vehicles (weight * steepness), downhill gives a small bonus (vehicleMotion.gradeMph). Off by default: changes deterministic results. */
   gradients: false,
   /** trainAcceleration: 'original' (current TT model, default) | 'realistic' (OTTD curve speed limits + tractive effort / drag / slope acceleration, loco/trainRealistic.js). Changes results; off by default. */
@@ -56,6 +58,8 @@ export const DEFAULT_SETTINGS = {
   maxRoadVeh: 500,
   maxAircraft: 500,
   maxShips: 500,
+  /** articulatedRV: articulated buses / lorries / trams (config ARTIC_VEHICLE_MODELS, articulated.js). Off = not offered. */
+  articulatedRV: false,
   /** economy recessions (OpenTTD fluct): cargo and passengers halved for ~a year, every 1-3 years. Off by default. */
   economyRecessions: false,
   /** disasters (OpenTTD difficulty.disasters): a zeppelin crashes on an airport runway and blocks landings for a while; a small UFO destroys a road vehicle. Off by default. */

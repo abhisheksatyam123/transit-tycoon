@@ -15,14 +15,15 @@ import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
 import { updateCostReadout } from './ui/costReadout.js';
-import { saveToSlotAsync, saveToSlot, loadSlotData } from './ui/storage.js';
+import { saveToSlotAsync, saveToSlot, loadSlotData, slotMeta } from './ui/storage.js';
+import { AUTOSAVE_SLOTS, advanceAutosaveCounter, loadAutosavePrefs, pickAutosaveSlot } from './ui/autosavePrefs.js';
 import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
 import { TOOL_BUTTONS } from './ui/toolbar.js';
 import { runWithLoading, buildingLabel } from './ui/loading.js';
 import { createGameFast } from './ui/scenarioSnapshot.js';
 import { initPack, togglePack } from './renderer/pack/index.js';
-import { openTitleMenu } from './ui/titleMenu.js';
+import { openTitleMenu, titleMenuOpen } from './ui/titleMenu.js';
 import { screenshotCanvas } from './ui/screenshot.js';
 import { renderExtras } from './ui/extraViewport.js';
 
@@ -70,24 +71,27 @@ async function initialGame() {
 /** Autosave; warns once per session when the browser storage quota is exceeded. */
 let autosaveWarned = false;
 let autosaveBusy = false;
-/** game.serialize() cost of the last autosave (ms): big games (Moscow ~150 ms) save less often. */
+/** game.serialize() cost of the last autosave (ms). */
 let lastSerializeMs = 0;
+const SLOW_SAVE_MS = 50;
+const SLOW_SAVE_INTERVAL = 12;
+/** Game months since the last timed autosave (Settings > autosave interval; 0 = off). */
 let monthsSinceSave = 0;
-/** Months between timed autosaves when a save is expensive (> SLOW_SAVE_MS, e.g. Moscow ~150 ms): a fallback only,
- *  since pausing, hiding the tab and closing the page also save. Cheap saves stay monthly. */
-const SLOW_SAVE_MONTHS = 12;
-const SLOW_SAVE_MS = 40;
+/** A month ended since the Continue slot was written (pause / hidden tab save it). */
+let dirty = false;
 
 /**
- * Save now (compression runs in a worker; skipped while a save is in flight).
+ * Timed autosave into the rotating ring (auto-1..3, oldest overwritten). Compression runs in a worker;
+ * skipped while a save is in flight. Never in the scenario editor or while a modal is open.
  * @param {any} app
  */
 function autosave(app) {
-  if (autosaveBusy) return;
+  if (autosaveBusy || !app.game || app.game.state.editor || modalOpen()) return;
   autosaveBusy = true;
-  monthsSinceSave = 0;
+  const metas = AUTOSAVE_SLOTS.map((slot) => { const m = slotMeta(slot); return m ? { slot, savedAt: m.savedAt } : null; });
+  const slot = pickAutosaveSlot(metas);
   const t0 = performance.now();
-  const pending = saveToSlotAsync('autosave', app.game); // serialize runs synchronously inside
+  const pending = saveToSlotAsync(slot, app.game); // serialize runs synchronously inside
   lastSerializeMs = performance.now() - t0;
   pending.then((r) => {
     if (!r.ok && r.quota && !autosaveWarned) {
@@ -97,6 +101,18 @@ function autosave(app) {
   }).finally(() => { autosaveBusy = false; });
 }
 
+/** Continue slot ('autosave'): written on pause / hidden tab; not periodic. Skipped in the editor. */
+function saveContinue(app) {
+  if (autosaveBusy || !app.game || app.game.state.editor || !dirty) return;
+  dirty = false;
+  saveToSlotAsync('autosave', app.game);
+}
+
+/** A dialog or the title menu is open: no timed save now. */
+function modalOpen() {
+  return titleMenuOpen() || !!document.querySelector('.tm-overlay, section.prompt');
+}
+
 /** Run fn in browser idle time (its own task, not in the frame that ran the monthly game logic). */
 function whenIdle(fn) {
   if (typeof requestIdleCallback === 'function') requestIdleCallback(() => fn(), { timeout: 3000 });
@@ -104,14 +120,18 @@ function whenIdle(fn) {
 }
 
 /**
- * Month ended: autosave in idle time. Expensive saves (large maps) only every SLOW_SAVE_MONTHS months
- * while the game runs (yearly); hiding the tab, pausing and closing the page also save (see main()).
+ * Month ended: count it against the Settings interval (off = never); a due save runs in idle time.
  * @param {any} app
  */
 function onMonthAutosave(app) {
-  monthsSinceSave++;
-  if (lastSerializeMs > SLOW_SAVE_MS && monthsSinceSave < SLOW_SAVE_MONTHS) return;
-  whenIdle(() => autosave(app));
+  dirty = true;
+  // Expensive serialisation (Moscow ~850 ms on the main thread) is clamped to yearly timed saves; pause,
+  // hidden-tab and close saves still run. Cheap saves keep the player's chosen interval.
+  const want = loadAutosavePrefs().interval;
+  const interval = want && lastSerializeMs > SLOW_SAVE_MS ? Math.max(want, SLOW_SAVE_INTERVAL) : want;
+  const r = advanceAutosaveCounter(interval, monthsSinceSave);
+  monthsSinceSave = r.months;
+  if (r.due) whenIdle(() => autosave(app));
 }
 
 /**
@@ -192,8 +212,8 @@ async function main() {
   app.onMonth = () => onMonthAutosave(app);
   // save when the player leaves the tab or pauses (no gameplay to interrupt), if anything happened since
   const setSpeed = app.setSpeed.bind(app);
-  app.setSpeed = (v) => { setSpeed(v); if (v === 0 && monthsSinceSave > 0) whenIdle(() => autosave(app)); };
-  document.addEventListener('visibilitychange', () => { if (document.hidden && monthsSinceSave > 0) autosave(app); });
+  app.setSpeed = (v) => { setSpeed(v); if (v === 0 && dirty) whenIdle(() => saveContinue(app)); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) saveContinue(app); });
 
   // Global shortcuts come from the hotkey table (js/ui/hotkeys.js); overrides from 'tt.hotkeys'.
   /** @type {Record<string,()=>void>} */

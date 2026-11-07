@@ -7,6 +7,7 @@
 import { el } from './dom.js';
 import { kvGrid } from './windows/common.js';
 import { money } from './format.js';
+import { recordGameEnd } from './highscore.js';
 import { LOAN_STEP } from '../simulation/constants.js';
 
 /** Remembers the last stage shown per company record (a new game/load makes a new record). */
@@ -43,7 +44,7 @@ export function checkBankruptcy(app) {
   const stage = bankruptcyStage(c);
   if (!stage || shown.get(c) === stage) return null;
   shown.set(c, stage);
-  if (stage === 'bankrupt') openGameOver(app);
+  if (stage === 'bankrupt') { recordGameEnd(app.game.state, 'bankrupt'); openGameOver(app); }
   else openTrouble(app, stage);
   return stage;
 }

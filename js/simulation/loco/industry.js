@@ -257,5 +257,25 @@ export function updateMonthly(game, ind, notify) {
   prod.forEach((c, i) => { ind.producedLastMonth[c] = ind.producedPrev[i]; ind.transportedLastMonth[c] = Math.min(ind.producedPrev[i], ind.deliveredPrev[i]); });
   req.forEach((c, i) => { ind.deliveredLastMonth[c] = ind.receivedPrev[i]; });
   ind.producedThisMonth = {}; ind.transportedThisMonth = {}; ind.deliveredThisMonth = {};
+  pushIndustryHistory(ind, prod, state.date);
   return null;
+}
+
+/** Months of production history kept per industry (OpenTTD industry window graph shows up to 2 years). */
+export const INDUSTRY_HISTORY_MONTHS = 24;
+
+/**
+ * Append this month's produced / transported amounts to ind.hist, capped at INDUSTRY_HISTORY_MONTHS.
+ * Lazy and compact: the field appears at the first month end of an industry that produces and is saved with
+ * the game (small int tuples, max 24 months), and each
+ * entry is a tuple [monthIndex, produced0, transported0, produced1, transported1] (cargo ids come from
+ * the industry type, so no keys are stored). monthIndex = year*12 + month (game date, month 0-based).
+ */
+export function pushIndustryHistory(ind, prod, date) {
+  if (!prod.length || !date) return;
+  const row = [date.year * 12 + date.month];
+  for (let i = 0; i < prod.length; i++) row.push(ind.producedPrev[i] || 0, Math.min(ind.producedPrev[i] || 0, ind.deliveredPrev[i] || 0));
+  if (!Array.isArray(ind.hist)) ind.hist = []; // lazy; saved with the game (old saves: absent = no history)
+  ind.hist.push(row);
+  if (ind.hist.length > INDUSTRY_HISTORY_MONTHS) ind.hist.splice(0, ind.hist.length - INDUSTRY_HISTORY_MONTHS);
 }

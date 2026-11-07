@@ -16,6 +16,8 @@ import { COSTS } from '../config/costs.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
 import { ERR, checkMoney, coordsOk, objectError } from './trackRules.js';
+import { cornerSlopeOk } from './map.js';
+import { getSetting } from './settings.js';
 
 export const MIN_HEIGHT = 0;
 export const MAX_HEIGHT = 7;
@@ -32,24 +34,57 @@ export const TERRA_ERR = {
   min: 'Minimum height reached',
   nothing: 'Nothing to change here',
   steep: 'Too much terrain would change',
+  slope: 'Track or road would not fit the new slope',
+  trackBridge: 'Bridge above: track under it cannot change',
   tunnel: 'Tunnel below: its ground cannot change',
 };
 
-/** Why a tile may not change height ('' when it may). */
-function blockReason(map, x, y) {
+/**
+ * Why a tile may not change height ('' when it may). With autoslope on, rail/road tiles are not blocked
+ * here: they are validated afterwards against the slope rule (see trackSlopeOk).
+ */
+function blockReason(map, x, y, autoslope) {
   const t = map.tiles[y * map.width + x];
   if (t.terrain === 'water') return TERRA_ERR.water;
   if (objectError(t)) return objectError(t);
   if (t.building) return TERRA_ERR.structure;
   if (t.tunnel || t.tunnelPortal) return TERRA_ERR.tunnel;
   if (t.bridgeDeck !== undefined || t.playerBridge) return 'Bridge above: its ground cannot change';
-  if (t.rail || t.road) return ERR.track;
+  if (t.rail || t.road) {
+    if (!autoslope || t.owner === 'rival' || t.overBridge) return t.overBridge ? TERRA_ERR.trackBridge : ERR.track;
+  }
   for (const [dx, dy] of NB8) {
     const nx = x + dx, ny = y + dy;
     if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
     if (map.tiles[ny * map.width + nx].terrain === 'water') return TERRA_ERR.edge;
   }
   return '';
+}
+
+/**
+ * Autoslope check: every rail/road tile whose corner block contains a changed vertex must sit on a valid
+ * slope after the change (same rule as rivers: flat or a straight single-step incline, cornerSlopeOk).
+ * Corners outside the map clamp to the edge tile, as the renderer draws them.
+ * @param {Map<number,number>} cur changed tiles (idx -> planned height)
+ * @param {(i:number)=>number} get planned height of any tile
+ */
+function trackSlopesOk(map, cur, get) {
+  const W = map.width, H = map.height, tiles = map.tiles;
+  const hAt = (x, y) => get(Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x)));
+  const seen = new Set();
+  for (const i of cur.keys()) {
+    const a = i % W, b = Math.floor(i / W);
+    for (const [x, y] of [[a, b], [a - 1, b], [a, b - 1], [a - 1, b - 1]]) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const j = y * W + x;
+      if (seen.has(j)) continue;
+      seen.add(j);
+      const t = tiles[j];
+      if (!t.rail && !t.road) continue;
+      if (!cornerSlopeOk([hAt(x, y), hAt(x + 1, y), hAt(x + 1, y + 1), hAt(x, y + 1)])) return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -86,9 +121,10 @@ function evaluate(state, op, rect) {
   for (const [i, v] of pinned) if (v !== tiles[i].height) cur.set(i, v);
   if (!cur.size) return { ok: false, error: TERRA_ERR.nothing };
   const get = (i) => (cur.has(i) ? cur.get(i) : tiles[i].height);
+  const autoslope = !!getSetting(state, 'autoslope');
   const blocked = new Map(); // idx -> block reason ('' = modifiable), cached
   const reasonOf = (i) => {
-    if (!blocked.has(i)) blocked.set(i, blockReason(map, i % W, Math.floor(i / W)));
+    if (!blocked.has(i)) blocked.set(i, blockReason(map, i % W, Math.floor(i / W), autoslope));
     return blocked.get(i);
   };
   for (const i of cur.keys()) { const e = reasonOf(i); if (e) return { ok: false, error: e }; }
@@ -138,6 +174,7 @@ function evaluate(state, op, rect) {
       if (Math.abs(get(ny * W + nx) - v) > 1) return { ok: false, error: TERRA_ERR.steep };
     }
   }
+  if (autoslope && !trackSlopesOk(map, cur, get)) return { ok: false, error: TERRA_ERR.slope };
   const changes = [];
   let raw = 0;
   for (const [i, v] of cur) {

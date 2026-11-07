@@ -18,7 +18,7 @@ const SIZE = 56;
 /** Truck body per model id. */
 const TRUCK_BODY = { trk_tanker: 'tank', trk_bulk: 'bulk', trk_log: 'logs', trk_goods: 'box', trk_mail: 'box', trk_steel: 'flat', trk_cattle: 'cattle', trk_heavy: 'flat', trk_armoured: 'box' };
 const CAB_COLORS = ['#1e6fd9', '#f2c230', '#b91c1c', '#e5e7eb', '#166534'];
-const BUS_VARIANT = { bus_city: 0, bus_express: 1, bus_modern: 2 };
+const BUS_VARIANT = { bus_city: 0, bus_express: 1, bus_modern: 2, bus_artic: 2 };
 
 /**
  * Stable small int from a string and a number.
@@ -64,7 +64,7 @@ function drawPart(ctx, part, dir, cargo, fill, info) {
     if (metro) drawMetroCar(ctx, axis, s, liv, false);
     else drawWagon(ctx, axis, s, cargo, fill);
   } else if (part === 'bus') {
-    if (info && info.roadType === 'tram') drawTram(ctx, axis, s, mid === 'tram_electric', liv);
+    if (info && info.roadType === 'tram') drawTram(ctx, axis, s, mid === 'tram_electric' || mid === 'tram_artic', liv);
     else if (info && info.livery === 'trolley') drawTrolley(ctx, axis, s, hv % 4);
     else drawBus(ctx, axis, s, BUS_VARIANT[mid] !== undefined ? BUS_VARIANT[mid] : 0, hv % 4, liv);
   } else {

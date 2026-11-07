@@ -13,6 +13,7 @@ import { isMuted, setMuted, play, unlockAudio } from '../audio/sfx.js';
 import { AIRPORT_TOOL_TYPE } from './tools/airport.js';
 import { AIRPORT_TYPES } from '../simulation/airportTypes.js';
 import { EDITOR_TOOLS } from '../simulation/scenarioEditor.js';
+import { recordGameEnd } from './highscore.js';
 import { syncEditorBanner } from './windows/scenarioEditor.js';
 
 /** "Available from <year>" when an airport tool's type is not introduced in `year`, else null. */
@@ -76,6 +77,7 @@ export const WINDOW_BUTTONS = [
   ['graphs', 'Graphs', 'graphs', 'E'],
   ['cargoRates', 'Payment rates', 'graphs', ''],
   ['industries', 'Industries', 'industries', 'I'],
+  ['signs', 'Signs', 'sign', '/'],
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],
   ['goals', 'Goals', 'goals', 'O'],
@@ -105,7 +107,7 @@ export const TOOL_GROUPS = [
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
-  ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
+  ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:signs', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
   ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];
@@ -221,7 +223,7 @@ export function createToolbar(root, app) {
     const o = app.game && app.game.state.objective;
     if (!o) return;
     if (!seen.has(o)) { seen.set(o, o.status); return; }
-    if (seen.get(o) === 'active' && o.status !== 'active') { seen.set(o, o.status); app.open('objective'); }
+    if (seen.get(o) === 'active' && o.status !== 'active') { seen.set(o, o.status); recordGameEnd(app.game.state, o.status); app.open('objective'); }
   }, 1000);
   setTimeout(updateBadge, 500);
   const toggleSound = () => {

@@ -176,11 +176,13 @@ describe('save/load and world hash', () => {
     expect(airportTypeId(b)).toBe('city');
   });
 
-  test('a random world without airports hashes exactly as before (seed 1, 60 days)', () => {
+  test('a random world without airports hashes as pinned (see MP note) (seed 1, 60 days)', () => {
     const g = Game.create({ seed: 1 });
     g.stepDays(60);
     const h = createHash('sha256').update(serializeState(g.state)).digest('hex').slice(0, 16);
-    expect(h).toBe('211ce1138012979d');
+    // MP: ind.hist (monthly industry production history, saved) changed the serialized state; the
+    // simulation itself is unchanged (the hash with hist stripped is still 211ce1138012979d).
+    expect(h).toBe('672fa39c60e86214');
   });
 });
 

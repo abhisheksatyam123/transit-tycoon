@@ -126,6 +126,8 @@ export const ROAD_IMG = {
   bus_city: 17,
   bus_express: 34,
   bus_modern: 51,
+  bus_artic: 51,
+  trk_artic: 18,
   trk_mail: 2,
   trk_bulk: 18,
   trk_tanker: 3,

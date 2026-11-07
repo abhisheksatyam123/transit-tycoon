@@ -4,6 +4,7 @@
 import { el, setText } from '../dom.js';
 import { saveToSlot, loadSlotData, slotMeta, exportToFile, importFromFile } from '../storage.js';
 import { date, money } from '../format.js';
+import { AUTOSAVE_SLOTS, autosaveLabel } from '../autosavePrefs.js';
 
 const SLOTS = ['1', '2', '3'];
 
@@ -73,9 +74,10 @@ export function openLoad(app) {
     onClose: p.onClose,
     build(body, win) {
       p.pause();
-      for (const slot of ['autosave', ...SLOTS]) {
+      for (const slot of ['autosave', ...AUTOSAVE_SLOTS, ...SLOTS]) {
         const meta = slotMeta(slot);
-        const b = el('button.btn', { type: 'button', text: slot === 'autosave' ? 'Autosave' : `Slot ${slot}`, disabled: !meta, onclick: async () => {
+        const text = slot === 'autosave' ? 'Autosave' : AUTOSAVE_SLOTS.includes(slot) ? autosaveLabel(slot) : `Slot ${slot}`;
+        const b = el('button.btn', { type: 'button', text, disabled: !meta, onclick: async () => {
           const d = loadSlotData(slot);
           if (d && await app.loadFromString(d)) win.close();
         } });

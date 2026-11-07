@@ -28,6 +28,7 @@ export const HOTKEY_ACTIONS = [
   { id: 'win:traffic', label: 'Traffic', group: 'Windows', key: 'x' },
   { id: 'win:issues', label: 'Issues', group: 'Windows', key: 'g' },
   { id: 'win:metro', label: 'Metro', group: 'Windows', key: 'u' },
+  { id: 'win:signs', label: 'Signs', group: 'Windows', key: '/' },
   { id: 'win:goals', label: 'Goals', group: 'Windows', key: 'o' },
   { id: 'win:load', label: 'Load game', group: 'Windows', key: 'l' },
   { id: 'win:help', label: 'Help', group: 'Windows', key: 'h' },

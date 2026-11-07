@@ -74,6 +74,7 @@ export function openTitleMenu(app, opts = {}) {
     app.announceScenario(game);
   })));
   rows.push(btn('Load game', 'Load a saved game', then(() => app.open('load'))));
+  rows.push(btn('Hall of fame', 'Top 10 finished games per scenario (this browser)', then(() => app.open('hallOfFame'))));
   rows.push(btn('Settings', 'Game options and interface', then(() => app.open('settings'))));
   rows.push(btn('Keyboard shortcuts', 'View and change the keys', then(() => app.open('hotkeys'))));
   rows.push(btn('How to play', 'Controls and a short tutorial', then(() => app.open('help'))));

@@ -48,6 +48,17 @@ export const TRAM_VEHICLE_MODELS = [
   { id: 'tram_electric', name: 'Electric Tram', kind: 'tram', optIn: 'tram', introYear: 1925, speed: 60, capacity: 40, cost: 6000, running: 900, reliability: 0.88, cargos: ['PASS'], news: false },
 ];
 
+/**
+ * Articulated road vehicles (OpenTTD articulated_vehicles.cpp). Part lengths equal the drawn body length (buses 0.5 tile = busBody L 0.25 x2, trams 0.72 = drawTram 2 x 0.36; OpenTTD VEHICLE_LENGTH 8/16). `parts` (head first, length in tiles) makes one vehicle
+ * with several segments; `capacity` is the sum of the parts. optIn 'articulated': offered only when the
+ * articulatedRV setting is on (default off, so default games and hashes are unchanged).
+ */
+export const ARTIC_VEHICLE_MODELS = [
+  { id: 'bus_artic', name: 'Articulated City Bus', kind: 'bus', optIn: 'articulated', introYear: 1968, speed: 64, capacity: 60, cost: 9800, running: 1400, reliability: 0.85, cargos: ['PASS'], news: false, parts: [{ capacity: 30, length: 0.5 }, { capacity: 30, length: 0.5 }] },
+  { id: 'trk_artic', name: 'Articulated Bulk Lorry', kind: 'truck', optIn: 'articulated', introYear: 1958, speed: 72, capacity: 40, cost: 8600, running: 1600, reliability: 0.84, cargos: ['COAL', 'IORE', 'GRAI'], news: false, parts: [{ capacity: 20, length: 0.5 }, { capacity: 20, length: 0.5 }] },
+  { id: 'tram_artic', name: 'Articulated Tram', kind: 'tram', optIn: 'articulated', introYear: 1935, speed: 60, capacity: 80, cost: 12000, running: 1200, reliability: 0.86, cargos: ['PASS'], news: false, parts: [{ capacity: 40, length: 0.72 }, { capacity: 40, length: 0.72 }] },
+];
+
 /** Road/rail models plus aircraft (lookup and purchase only; VEHICLE_MODELS keeps its news list). */
 /**
  * T29 optional models (OpenTTD temperate armoured truck, Uhl). Kept out of VEHICLE_MODELS so obsoleteYear() and the
@@ -146,7 +157,7 @@ export const RAIL_TYPE_VEHICLE_MODELS = [
   { id: 'wag_maglev_goods', name: 'Maglev Goods Van', kind: 'wagon', railType: 3, optIn: 'maglev', introYear: 2020, speed: 0, capacity: 37, cost: 1500, running: 150, reliability: 1, cargos: ['GOOD'], news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...TOYLAND_BUS_LOCO_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS, ...RAIL_TYPE_VEHICLE_MODELS];
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...TOYLAND_BUS_LOCO_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS, ...RAIL_TYPE_VEHICLE_MODELS, ...ARTIC_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

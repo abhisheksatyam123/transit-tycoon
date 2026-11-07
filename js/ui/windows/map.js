@@ -10,6 +10,7 @@ import { toggleLinkOverlay } from '../linkLegend.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { HALF_W, screenToTileFloat } from '../../renderer/iso.js';
 import { MINIMAP } from '../../renderer/palette.js';
+import { playerColourOf } from '../../simulation/companyColour.js';
 
 export const MAP_MODES = [
   ['terrain', 'Terrain'],
@@ -17,7 +18,18 @@ export const MAP_MODES = [
   ['routes', 'Routes'],
   ['vehicles', 'Vehicles'],
   ['towns', 'Towns'],
+  ['owners', 'Owners'],
+  ['vegetation', 'Vegetation'],
 ];
+
+/** OTTD smallmap owner colours for non-company owners (towns; unowned land is the terrain tint). */
+export const TOWN_OWNER_COLOR = '#f0abfc';
+
+/** OTTD _vegetation_clear_bits, one colour per clear type (rough = rock, trees = forest, fields = farm fields). */
+export const VEGETATION_COLORS = {
+  grass: '#4f8a33', rough: '#8c7a55', trees: '#2f5e22', fields: '#c9c25a',
+  desert: '#cdb46b', snow: '#e5ecf2', water: '#2a5f93', buildings: '#c0392b',
+};
 
 /** Vehicle dot colours by kind. */
 export const VEHICLE_COLORS = { train: '#f8fafc', road: '#facc15', aircraft: '#a78bfa' };
@@ -67,9 +79,11 @@ export function contourFactor(height) {
  * @param {string} mode terrain|industries|routes|vehicles|towns
  * @param {Map<number,string>} [industryColors]
  */
-export function tileRgb(t, mode, industryColors) {
+export function tileRgb(t, mode, industryColors, ext) {
   const b = t.building;
   const base = MINIMAP[t.terrain] || MINIMAP.grass;
+  if (mode === 'owners') return ownerRgb(t, ext);
+  if (mode === 'vegetation') return vegetationRgb(t);
   if (mode === 'terrain') {
     let rgb;
     if (b && b.type === 'landmark') rgb = hexToRgb(MINIMAP.landmark);
@@ -100,6 +114,43 @@ export function tileRgb(t, mode, industryColors) {
   }
   // vehicles: faded terrain, vehicles are drawn live
   return shade(hexToRgb(base), 0.35);
+}
+
+/**
+ * Vegetation colour of one tile (OTTD vegetation layer). Pure. Buildings and fields win over the
+ * ground type; roads and rails show as buildings (OTTD draws them over the clear type).
+ */
+export function vegetationRgb(t) {
+  const b = t.building;
+  if ((b && b.type) || t.rail || t.road) return hexToRgb(VEGETATION_COLORS.buildings);
+  if (t.field !== undefined) return hexToRgb(VEGETATION_COLORS.fields);
+  switch (t.terrain) {
+    case 'forest': return hexToRgb(VEGETATION_COLORS.trees);
+    case 'rock': return hexToRgb(VEGETATION_COLORS.rough);
+    case 'desert': return hexToRgb(VEGETATION_COLORS.desert);
+    case 'snow': return hexToRgb(VEGETATION_COLORS.snow);
+    case 'water': return hexToRgb(VEGETATION_COLORS.water);
+    default: return hexToRgb(VEGETATION_COLORS.grass);
+  }
+}
+
+/**
+ * Owner colour of one tile (OTTD owner layer). Pure. `ext` = {playerHex, rivals: Map<id,hex>,
+ * stationOwner: Map<stationId, ownerId|null>}. Player (company) tiles use the player colour, AI tiles
+ * their rival colour, towns TOWN_OWNER_COLOR, and unowned land the dimmed terrain tint.
+ */
+export function ownerRgb(t, ext) {
+  const e = ext || {};
+  const rivalHex = (id) => (e.rivals && e.rivals.get(id)) || '#888888';
+  const b = t.building;
+  if (b && b.type === 'station' && e.stationOwner && e.stationOwner.has(b.stationId)) {
+    const o = e.stationOwner.get(b.stationId);
+    return hexToRgb(o == null ? (e.playerHex || '#f5b300') : rivalHex(o));
+  }
+  if (t.owner === 'rival') return hexToRgb(t.rivalId != null ? rivalHex(t.rivalId) : '#888888');
+  if (t.owner === 'company') return hexToRgb(e.playerHex || '#f5b300');
+  if (t.owner === 'town' || (b && b.type === 'house')) return hexToRgb(TOWN_OWNER_COLOR);
+  return shade(hexToRgb(MINIMAP[t.terrain] || MINIMAP.grass), 0.4);
 }
 
 /**
@@ -139,7 +190,15 @@ function buildBase(state, mode) {
       if (t) ind.set(i.id, t.color || '#888');
     }
   }
-  for (let i = 0; i < m.tiles.length; i++) px[i] = pack(tileRgb(m.tiles[i], mode, ind));
+  let ext = null;
+  if (mode === 'owners') {
+    const rivals = new Map();
+    for (const r of state.rivals || []) rivals.set(r.id, r.colour || '#888888');
+    const stationOwner = new Map();
+    for (const st of state.stations || []) stationOwner.set(st.id, st.ownerId ?? null);
+    ext = { playerHex: playerColourOf(state), rivals, stationOwner };
+  }
+  for (let i = 0; i < m.tiles.length; i++) px[i] = pack(tileRgb(m.tiles[i], mode, ind, ext));
   bctx.putImageData(img, 0, 0);
   return { cv, built: performance.now(), game: state.map };
 }
@@ -265,7 +324,8 @@ export function openMap(app) {
           }
         }
         // legend + info
-        const sig = st.mode === 'industries' ? industryLegend(state.industries).map((l) => l.id).join(',') : st.mode;
+        const sig = st.mode === 'industries' ? industryLegend(state.industries).map((l) => l.id).join(',')
+          : st.mode === 'owners' ? `owners:${playerColourOf(state)}:${(state.rivals || []).map((r) => r.id + r.colour).join(',')}` : st.mode;
         if (sig !== legendSig) {
           legendSig = sig;
           legend.replaceChildren();
@@ -278,6 +338,17 @@ export function openMap(app) {
             for (const [k, label] of [['train', 'Train'], ['road', 'Road'], ['aircraft', 'Aircraft']]) {
               legend.appendChild(el('span', { style: { display: 'inline-flex', gap: '4px', alignItems: 'center' } },
                 el('i', { style: { width: '8px', height: '8px', borderRadius: '50%', background: VEHICLE_COLORS[k], display: 'inline-block' } }), el('span.muted', { text: label })));
+            }
+          } else if (st.mode === 'owners') {
+            const rows = [[playerColourOf(state), 'You'], ...(state.rivals || []).map((r) => [r.colour || '#888', r.name || 'AI']), [TOWN_OWNER_COLOR, 'Town']];
+            for (const [c, label] of rows) {
+              legend.appendChild(el('span', { style: { display: 'inline-flex', gap: '4px', alignItems: 'center' } },
+                el('i', { style: { width: '10px', height: '10px', borderRadius: '2px', background: c, display: 'inline-block' } }), el('span.muted', { text: label })));
+            }
+          } else if (st.mode === 'vegetation') {
+            for (const [c, label] of [[VEGETATION_COLORS.grass, 'Grass'], [VEGETATION_COLORS.rough, 'Rough'], [VEGETATION_COLORS.trees, 'Trees'], [VEGETATION_COLORS.fields, 'Fields'], [VEGETATION_COLORS.desert, 'Desert'], [VEGETATION_COLORS.snow, 'Snow'], [VEGETATION_COLORS.water, 'Water'], [VEGETATION_COLORS.buildings, 'Buildings']]) {
+              legend.appendChild(el('span', { style: { display: 'inline-flex', gap: '4px', alignItems: 'center' } },
+                el('i', { style: { width: '10px', height: '10px', borderRadius: '2px', background: c, display: 'inline-block' } }), el('span.muted', { text: label })));
             }
           } else if (st.mode === 'routes') {
             for (const [c, label] of [[MINIMAP.rail, 'Rail'], [MINIMAP.road, 'Road'], [MINIMAP.station, 'Station'], [MINIMAP.depot, 'Depot']]) {

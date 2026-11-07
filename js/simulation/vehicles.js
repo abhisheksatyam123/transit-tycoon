@@ -10,6 +10,7 @@ import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
 import { defaultServiceFields } from './service.js';
 import { previewBlocks } from './enginePreview.js';
+import { articParts, partOffsets, partFills, articSpan } from './articulated.js';
 import { holdDrawPos } from './airportHold.js';
 import { isHelicopter } from './airportTypes.js';
 
@@ -35,6 +36,7 @@ export function modelAvailable(state, model, ownerId = null) {
   if (model && !model.optIn && isToyland(state) && TOYLAND_REPLACED_KINDS.has(model.kind) && state.date
     && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year))) return false;
   if (!model || !model.optIn) return true;
+  if (model.optIn === 'articulated') return !!state && getSetting(state, 'articulatedRV') === true; // articulated road vehicles
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (model.optIn === 'mono' || model.optIn === 'maglev') return !!state && hasTrackType(state, model.railType); // monorail / maglev trains
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
@@ -227,7 +229,9 @@ function holdDrawPosFor(v) {
 
 /** Number of tiles of history a vehicle needs for its trailing segments. */
 export function historyNeeded(v) {
-  return v.kind === 'train' ? Math.ceil(v.wagons * SEGMENT_SPACING) + 3 : 3;
+  if (v.kind === 'train') return Math.ceil(v.wagons * SEGMENT_SPACING) + 3;
+  const span = articSpan(v); // articulated road vehicle: followers need the path behind the head
+  return span ? Math.ceil(span) + 3 : 3;
 }
 
 /**
@@ -237,6 +241,7 @@ export function historyNeeded(v) {
  */
 export function getVehicleSegments(v) {
   if (v.state === 'depot') return [];
+  const ap = articParts(v);
   const pts = [];
   const cur = v.path[v.pathIndex] || v.history[0] || { x: v.tx, y: v.ty };
   const next = v.path[v.pathIndex + 1];
@@ -250,6 +255,7 @@ export function getVehicleSegments(v) {
     headDir = h1 ? dirBetween(h1.x, h1.y, cur.x, cur.y) : 0;
   }
   for (let i = next ? 0 : 1; i < v.history.length; i++) pts.push(v.history[i]);
+  if (ap) return articSegments(v, ap, pts, headDir);
   const parts = [];
   if (v.kind === 'train') {
     parts.push('loco');
@@ -277,6 +283,20 @@ export function getVehicleSegments(v) {
   if (v.kind === 'aircraft' && v.hold && out.length) { // holding plane: drawn on the OTTD holding ring (display only)
     const hp = holdDrawPosFor(v);
     if (hp) { out[0].x = hp.x; out[0].y = hp.y; }
+  }
+  return out;
+}
+
+/** Segments of an articulated road vehicle: one per part, head first, each at its offset along the path. */
+function articSegments(v, ap, pts, headDir) {
+  const off = partOffsets(ap);
+  const fills = partFills(ap, v.load.amount);
+  const kind = v.roadType === 'bus' || v.roadType === 'tram' ? 'bus' : 'truck';
+  const out = [];
+  for (let k = 0; k < ap.length; k++) {
+    const pos = pointAlong(pts, off[k]);
+    const dir = pos.dir || headDir || 2;
+    out.push({ x: pos.x, y: pos.y, dir, part: kind, cargoId: v.cargoId, loaded: fills[k] > 0, fill: fills[k] });
   }
   return out;
 }

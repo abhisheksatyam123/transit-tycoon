@@ -425,13 +425,22 @@ function heightAt(map, x, y) {
 export function riverSlopeOk(map, x, y) {
   const c = [heightAt(map, x, y), heightAt(map, x + 1, y), heightAt(map, x + 1, y + 1), heightAt(map, x, y + 1)];
   if (c.some((v) => v < 0)) return false;
+  return cornerSlopeOk(c);
+}
+
+/**
+ * Shared slope rule for a tile's corner heights c = [N,E,S,W] (levels): flat, or a straight single-step
+ * incline (two adjacent corners one level above the other two). Used by rivers and by autoslope track checks.
+ * @param {number[]} c
+ */
+export function cornerSlopeOk(c) {
   const mn = Math.min(...c), mx = Math.max(...c);
   if (mx === mn) return true;
   if (mx - mn !== 1) return false;
   const hi = c.map((v) => v === mx);
   if (hi.filter(Boolean).length !== 2) return false;
   const i = hi.indexOf(true);
-  return hi[(i + 1) % 4]; // the two high corners share an edge
+  return hi[(i + 1) % 4] || hi[(i + 3) % 4]; // the two high corners share an edge (either side of i)
 }
 
 /**

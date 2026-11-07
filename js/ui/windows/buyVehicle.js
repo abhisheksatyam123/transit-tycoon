@@ -60,6 +60,7 @@ function stats(m) {
   const parts = [];
   if (m.speed) parts.push(kmhText(m.speed));
   if (m.capacity) parts.push(`cap ${num(m.capacity)}`);
+  if (m.parts) parts.push(`${m.parts.length} parts`);
   if (m.power) parts.push(`${num(m.power)} hp`);
   parts.push(`run ${money(m.running)}/yr`);
   if (m.reliability) parts.push(`rel ${Math.round(m.reliability * 100)}%`);
