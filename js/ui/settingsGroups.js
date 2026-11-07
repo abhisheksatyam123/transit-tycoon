@@ -53,6 +53,8 @@ export const SETTING_META = [
   { key: 'aiCompanies', group: 'companies', label: 'AI competitors', type: 'select', newGame: true,
     options: [['0', 'None'], ['1', '1 rival'], ['2', '2 rivals'], ['3', '3 rivals']],
     help: 'AI rival companies that build bus routes between nearby towns (opt-in; they use the same rules and costs as you). Set at game start.' },
+  { key: 'shares', group: 'companies', label: 'Company shares', type: 'check',
+    help: 'Buy and sell 25% shares of rival companies from the Companies window (OpenTTD). Buying all four takes the company over. Needs AI competitors; a company can be bought only after 6 months.' },
   { key: 'autorenew', group: 'companies', label: 'Autorenew', type: 'check',
     help: 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running.' },
   { key: 'treeGrowth', group: 'environment', label: 'Tree growth', type: 'check',

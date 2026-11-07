@@ -72,7 +72,7 @@ export function calculatePerformanceIndex(c, vehicles, eco) {
 
 /** Company value: cash - loan + 8x recent vehicle profit + vehicle sell values; vehicleProfit = sum(profit >> 2). */
 export function calculateCompanyValue(c, vehicles) {
-  if (c.bankrupt) return { vehicleProfit: 0, companyValue: 0 };
+  if (c.bankrupt) return { vehicleProfit: 0, companyValue: 0, rawValue: 0 };
   let value = c.money - c.loan;
   let vehicleProfit = 0;
   for (const v of vehicles) {
@@ -81,7 +81,7 @@ export function calculateCompanyValue(c, vehicles) {
     value += p * 8;
     value += v.value || 0;
   }
-  return { vehicleProfit, companyValue: Math.max(0, value) };
+  return { vehicleProfit, companyValue: Math.max(0, value), rawValue: value };
 }
 
 /** performanceToRating. */

@@ -35,6 +35,7 @@ import { buildShipRoute, addShips, shipRoutesOf, MAX_SHIP_ROUTES } from './aiShi
 import { buildHQ, hqPrice, hqSiteError, removeHQ } from './cmdHQ.js';
 import { airportType } from './airportTypes.js';
 
+
 export const AI_NAMES = ['Northern Lines', 'Velox Transit', 'Iron Coach Co.'];
 export const AI_COLOURS = ['#d9482b', '#2b7fd9', '#3aa35a'];
 /** Town pair distance window (manhattan tiles). */
@@ -66,7 +67,7 @@ export function ensureRivals(state, n) {
       ...createCompany(AI_NAMES[i % AI_NAMES.length]),
       id: allocId(state), colour: AI_COLOURS[i % AI_COLOURS.length],
       vehicles: [], stations: [], depots: [], routes: [], stats: { profit: 0, vehicles: 0 }, valueHistory: [],
-      negValueMonths: 0,
+      negValueMonths: 0, foundedAt: state.date.year * 12 + state.date.month,
     });
   }
   return state.rivals;
@@ -213,6 +214,17 @@ export function acceptTakeover(ctx, rivalId) {
   const price = r.takeoverOffer.price;
   if (price > state.company.money) return { ok: false, error: 'Not enough money for the takeover' };
   spend(state.company, 'property', price);
+  transferRival(ctx, r);
+  pushNews(state, `You took over ${r.name} for ${price}.`, 'good', undefined, undefined, 'company');
+  return { ok: true, price };
+}
+
+/**
+ * Move everything a rival owns to the player (vehicles, roads, stations, depots, HQ, cash, loan) and close
+ * the rival. The price is paid by the caller (takeover offer or the 4th share, see shares.js).
+ */
+export function transferRival(ctx, r) {
+  const { state } = ctx;
   for (const v of state.vehicles) if (v.ownerId === r.id) delete v.ownerId;
   // the rival's own roads and rail become the player's (their upkeep follows the tile owner)
   for (const t of state.map.tiles) if (t.owner === 'rival' && t.rivalId === r.id) { t.owner = 'company'; delete t.rivalId; }
@@ -229,8 +241,7 @@ export function acceptTakeover(ctx, rivalId) {
   r.money = 0; r.loan = 0;
   r.bankrupt = true; r.taken = true; r.vehicles = []; r.stations = []; r.depots = []; r.routes = [];
   delete r.takeoverOffer;
-  pushNews(state, `You took over ${r.name} for ${price}.`, 'good', undefined, undefined, 'company');
-  return { ok: true, price };
+  delete r.playerShares;
 }
 
 /**

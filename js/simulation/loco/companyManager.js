@@ -15,6 +15,7 @@ import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
 import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend } from '../economy.js';
 import { INTEREST_RATE } from '../constants.js';
+import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
 import { stopVehicle } from '../cmdVehicle.js';
 import * as VehicleManager from './vehicleManager.js';
@@ -76,8 +77,8 @@ export function updateMonthly1(game) {
 
   // company value
   const value = calculateCompanyValue(c, vehicles);
-  pushHistory(c.companyValueHistory, value.companyValue);
-  c.companyValue = value.companyValue;
+  c.companyValue = Math.max(0, (value.rawValue ?? 0) + sharesValue(s));
+  pushHistory(c.companyValueHistory, c.companyValue);
   c.vehicleProfit = value.vehicleProfit;
   c.historySize = Math.min(120, c.historySize + 1);
 

@@ -14,6 +14,7 @@ import { createCompany, borrow, repay } from './economy.js';
 import { isEditor, playScenario } from './scenarioEditor.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
 import { acceptTakeover } from './aiCompanies.js';
+import { tradeShare } from './shares.js';
 import { buildObject, estimateObject } from './cmdObject.js';
 import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
@@ -247,6 +248,8 @@ export class Game {
   estimateHQ(x, y) { return estimateHQ(this.state, x, y); }
   /** Buy a rival that has a takeover offer (aiCompanies.js). */
   acceptTakeover(rivalId) { return acceptTakeover(this.ctx, rivalId); }
+  /** Buy or sell one 25% share of a rival (shares.js; setting 'shares'). */
+  tradeShare(rivalId, action) { return tradeShare(this.ctx, rivalId, action); }
   /** Placeable object on tile (x,y): type 'transmitter' | 'lighthouse' | 'owned' (cmdObject.js). */
   buildObject(type, x, y, opts) { return buildObject(this.ctx, type, x, y, opts); }
   estimateObject(type, x, y) { return estimateObject(this.state, type, x, y); }

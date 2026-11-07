@@ -3,6 +3,7 @@
  * (click jumps to its location), and the current tool hint.
  */
 import { newsLevel, loadNewsPrefs } from './newsPrefs.js';
+import { sharesValue } from '../simulation/shares.js';
 import { announce } from './liveRegion.js';
 import { newsCategoryOf } from '../simulation/news.js';
 import { localizeMoneyText } from './newsMoney.js';
@@ -21,7 +22,9 @@ import { calculateCompanyValue } from '../simulation/loco/company.js';
 export function companyValue(state) {
   const c = state.company;
   if (!c || typeof c.money !== 'number') return (c && c.companyValue) || 0;
-  return calculateCompanyValue(c, state.vehicles.filter((v) => v.ownerId == null)).companyValue;
+  const cv = calculateCompanyValue(c, state.vehicles.filter((v) => v.ownerId == null));
+  // shares are added before the >= 0 clamp, so a negative company with shares shows its true total
+  return Math.max(0, (cv.rawValue ?? 0) + sharesValue(state));
 }
 
 /**
