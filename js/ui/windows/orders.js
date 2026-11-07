@@ -11,6 +11,7 @@ import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
 import { unloadMode, stopMode, hasTimetable, orderFlagText, isDepotOrder, isNearestDepotOrder } from '../../simulation/orders.js';
+import { unbunchBlockReason } from '../../simulation/unbunch.js';
 import { refitCargos } from '../../simulation/refit.js';
 import { COND_VARS, COND_CMPS, condText, deleteOrderAt, moveOrderTo, isCond } from '../../simulation/condOrders.js';
 
@@ -174,6 +175,7 @@ export function openOrders(app, id) {
       const depotRowCtl = () => el('span.depot-ctl', null,
         el('label.small', { text: ' service only if needed ' }, el('input', { type: 'checkbox', title: 'Service only if needed: skip this depot when the vehicle is not due for service', 'aria-label': 'Service only if needed' })),
         el('label.small', { text: ' stop in depot ' }, el('input', { type: 'checkbox', title: 'Stop in depot: the vehicle waits in the depot; starting it again continues with the next order', 'aria-label': 'Stop in depot' })),
+        el('label.small', { text: ' unbunch ' }, el('input', { type: 'checkbox', title: 'Unbunch: the vehicle waits in the depot so its departures spread evenly over the round trip of the shared vehicles (needs shared orders; one per list; not with full load, conditional, service-if-needed or stop-in-depot)', 'aria-label': 'Unbunch' })),
         el('label.small', { text: ' refit ' }, el('select.input', { title: 'Refit to', 'aria-label': 'Refit to', onchange: (e) => edit((os) => {
           const i = Number(e.target.dataset.i);
           if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
@@ -342,6 +344,15 @@ export function openOrders(app, id) {
                 if (halt) {
                   halt.checked = !!it.o.halt;
                   halt.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].halt = true; else delete os[it.i].halt; });
+                }
+                const ub = ctl.querySelectorAll('input')[2];
+                if (ub) {
+                  ub.checked = !!it.o.unbunch;
+                  const why = unbunchBlockReason(v.orders, it.i);
+                  ub.disabled = !!why && !it.o.unbunch;
+                  ub.dataset.base ??= ub.title;
+                  ub.title = why && !it.o.unbunch ? `Unbunch refused: ${why}` : ub.dataset.base;
+                  ub.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].unbunch = true; else delete os[it.i].unbunch; });
                 }
                 const opts = refitCargos(v) || [];
                 const sig = opts.join(',');

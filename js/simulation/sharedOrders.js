@@ -5,6 +5,7 @@
  * Selling a member leaves the group; a group reduced to one vehicle is dissolved.
  */
 import { replan } from './movement.js';
+import { resetUnbunch } from './unbunch.js';
 
 /** Other vehicles that share v's order list. */
 export function sharers(state, v) {
@@ -20,6 +21,7 @@ export function syncSharers(ctx, v) {
   for (const w of sharers(ctx.state, v)) {
     w.orders = v.orders.map((o) => ({ ...o }));
     w.orderIndex = w.orders.length ? w.orderIndex % w.orders.length : 0;
+    resetUnbunch(w);
     if ((w.state === 'running' || w.state === 'lost') && w.goingToDepot == null) replan(ctx, w);
   }
 }

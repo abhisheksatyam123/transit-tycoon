@@ -24,6 +24,7 @@ import { MAX_WAITING } from './constants.js';
 import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
 import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
+import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { updatePlatFit } from './platformLength.js';
 
@@ -94,6 +95,7 @@ export function orderFlagText(o) {
   if (isDepotOrder(o)) { // go-to-depot order (see movement.js depotOrderVisit)
     if (o.serviceOnly) parts.push('service if needed');
     if (o.halt) parts.push('stop in depot');
+    if (o.unbunch) parts.push('unbunch');
     if (o.refit) parts.push(`refit to ${cargoName(o.refit)}`);
     return parts.length ? ` (${parts.join(', ')})` : '';
   }
@@ -714,6 +716,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
   for (const o of out) {
     if (o.cond && (o.cond.to < 0 || o.cond.to >= out.length)) return { ok: false, error: 'Conditional order jumps to an order that does not exist' };
   }
+  const ue = unbunchListError(orders); // one unbunch order; not with full load or conditional orders
+  if (ue) return { ok: false, error: ue };
   return { ok: true, orders: out };
 }
 
@@ -732,6 +736,11 @@ function normaliseDepotOrder(state, v, o) {
   }
   if (o.serviceOnly) entry.serviceOnly = true;
   if (o.halt) entry.halt = true;
+  if (o.unbunch) {
+    const ue = unbunchOrderError(o);
+    if (ue) return { ok: false, error: ue };
+    entry.unbunch = true;
+  }
   if (o.refit != null) {
     if (!(refitCargos(v) || []).includes(o.refit)) return { ok: false, error: `Cannot refit this vehicle to ${o.refit}` };
     entry.refit = o.refit;

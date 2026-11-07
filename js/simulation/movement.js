@@ -28,6 +28,7 @@ import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode, isDepotOrder, isNearestDepotOrder } from './orders.js';
+import { unbunchArrive, unbunchWaits, unbunchDepart } from './unbunch.js';
 import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
@@ -51,6 +52,8 @@ export function vehicleTick(ctx, v) {
   if (v.resv) releaseReservations(ctx.state, v); // path signal reservations (pathSignals.js); only when held
   switch (v.state) {
     case 'depot':
+      if (v.ubHold) unbunchRelease(ctx, v); // waiting to unbunch: leaves when its spread departure is due
+      return;
     case 'stopped':
       return;
     case 'broken':
@@ -592,8 +595,27 @@ function depotOrderVisit(ctx, v, order) {
   cur.atStationId = null;
   delete cur.intermediate;
   advanceOrder(cur);
+  if (order.unbunch) { // OpenTTD unbunch: measure the round trip, then wait in the depot for the spread departure
+    unbunchArrive(state, cur);
+    cur.ubHold = true;
+    haltInDepot(state, cur, depotId);
+    unbunchRelease(ctx, cur);
+    return;
+  }
   if (order.halt) haltInDepot(state, cur, depotId); // stop in the depot; the next start continues with the next order
   else replan(ctx, cur);
+}
+
+/** Leave the unbunch hold once the shared group's next departure is due (vehicle.cpp LeaveUnbunchingDepot). */
+function unbunchRelease(ctx, v) {
+  if (unbunchWaits(ctx.state, v)) return;
+  delete v.ubHold;
+  unbunchDepart(ctx.state, v);
+  v.history = [{ x: v.tx, y: v.ty }];
+  v.path = [];
+  v.pathIndex = 0;
+  v.progress = 0;
+  replan(ctx, v);
 }
 
 /** Park a vehicle in a depot without a route (OpenTTD stop in depot); it leaves when started. */

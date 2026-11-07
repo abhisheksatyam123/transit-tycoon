@@ -20,6 +20,7 @@ function depotTrack(state, depot) {
 }
 import { replan, enterDepot, serviceAtDepot, turnAround } from './movement.js';
 import { syncSharers, joinSharedOrders, leaveOrderGroup } from './sharedOrders.js';
+import { resetUnbunch, unbunchDepart } from './unbunch.js';
 import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
@@ -90,6 +91,7 @@ export function setOrders(ctx, id, orders, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   v.orders = r.orders;
   v.orderIndex = 0;
+  resetUnbunch(v);
   syncSharers(ctx, v);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
   return { ok: true, cost: 0 };
@@ -125,6 +127,7 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   // unlike setOrders, keep the current order index
   v.orders = r.orders;
+  resetUnbunch(v);
   syncSharers(ctx, v);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
   return { ok: true, cost: 0 };
@@ -175,6 +178,7 @@ export function startVehicle(ctx, id, opts = {}) {
     v.history = [{ x: v.tx, y: v.ty }];
     v.path = [];
   }
+  if (v.ubHold) { delete v.ubHold; unbunchDepart(ctx.state, v); } // started by hand: leave now (the hold is dropped)
   if (v.path.length && v.pathIndex < v.path.length - 1) v.state = 'running';
   else replan(ctx, v);
   return { ok: true, cost: 0, state: v.state };
@@ -334,6 +338,7 @@ export function copyOrders(ctx, targetId, sourceId, opts = {}) {
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
   leaveOrderGroup(state, v);
+  resetUnbunch(v);
   if (opts.share) {
     joinSharedOrders(state, v, src, (s) => allocId(s));
     v.orders = src.orders.map((o) => ({ ...o }));

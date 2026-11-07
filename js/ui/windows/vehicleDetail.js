@@ -132,7 +132,7 @@ export function openVehicleDetail(app, id) {
         const v = app.findVehicle(id);
         if (!v) { win.close(); return; }
         win.setTitle(v.name);
-        set['State'](STATE_LABEL[v.state] || v.state);
+        set['State'](v.ubHold ? 'Waiting to unbunch' : (STATE_LABEL[v.state] || v.state));
         set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
         const co = currentOrder(v);
         const platWarn = platformWarning(g().state, v, co ? findStation(g().state, co.stationId) : null);
