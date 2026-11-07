@@ -265,8 +265,8 @@ export class Game {
   convertSignal(x, y, type, opts) { return convertSignal(this.ctx, x, y, type, opts); }
   /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */
   terraform(op, rect, opts) { return terraform(this.ctx, op, rect, opts); }
-  estimateTerraform(op, rect) { return estimateTerraform(this.state, op, rect); }
-  planTerraform(op, rect) { return planTerraform(this.state, op, rect); }
+  estimateTerraform(op, rect, opts) { return estimateTerraform(this.state, op, rect, opts); }
+  planTerraform(op, rect, opts) { return planTerraform(this.state, op, rect, opts); }
   /** Found a town at tile (x,y) (OpenTTD CMD_FOUND_TOWN). Charges COSTS.foundTown; opts.dryRun = check only. */
   foundTown(x, y, opts) { return foundTown(this.ctx, x, y, opts); }
   /** Fund a new industry of typeId with top-left tile (x,y) (OpenTTD CMD_BUILD_INDUSTRY). */

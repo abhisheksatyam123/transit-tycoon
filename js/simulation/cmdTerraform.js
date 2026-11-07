@@ -11,7 +11,7 @@
  *
  * estimateTerraform is pure (no mutation) and shared by the command and the UI preview.
  */
-import { tropicZonesReset } from './climate.js';
+import { tropicZonesReset, isArctic, isToyland, isTropic } from './climate.js';
 import { COSTS } from '../config/costs.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
@@ -22,6 +22,55 @@ import { getSetting } from './settings.js';
 export const MIN_HEIGHT = 0;
 export const MAX_HEIGHT = 7;
 export const TERRAFORM_OPS = ['raise', 'lower', 'level', 'plant'];
+
+/** Tree-planting modes (OpenTTD tree_gui.cpp PM_NORMAL / PM_FOREST_SM / PM_FOREST_LG). */
+export const PLANT_MODES = ['normal', 'forestSmall', 'forestLarge'];
+/** OpenTTD DoPlantForest: radius and tree count per forest group. */
+export const FOREST_GROUP = { forestSmall: { radius: 5, count: 5 }, forestLarge: { radius: 12, count: 12 } };
+
+/**
+ * Tree species the renderer can draw in the game's climate (pack/trees.js rows): temperate and toyland 9,
+ * sub-arctic 8, sub-tropical 4 (rainforest and cactus rows are picked by zone and ignore the index).
+ * @param {object} state
+ */
+export function treeSpeciesCount(state) {
+  if (isArctic(state)) return 8;
+  if (isToyland(state)) return 9;
+  if (isTropic(state)) return 4;
+  return 9;
+}
+
+/** Deterministic 0..2^32 mix of tile coordinates and a group number (no RNG: estimate == commit). */
+function scatterHash(x, y, k) {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(k, 2246822519)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * Forest group around (cx,cy): OTTD PlaceTreeGroupAroundTile in spirit. `count` attempts, each picking a
+ * tile inside `radius` (circle) and planting it plus its free 4-neighbours.
+ * @returns {{x:number,y:number}[]} candidate tiles (may repeat; the caller dedupes and checks terrain)
+ */
+function forestCandidates(map, cx, cy, mode) {
+  const { radius, count } = FOREST_GROUP[mode];
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    const h = scatterHash(cx, cy, k);
+    const dx = (h % (2 * radius + 1)) - radius;
+    const dy = (Math.floor(h / (2 * radius + 1)) % (2 * radius + 1)) - radius;
+    if (dx * dx + dy * dy > radius * radius) continue;
+    const x = cx + dx, y = cy + dy;
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+    out.push({ x, y });
+    for (const [ex, ey] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if ((h >>> 8) % 3 === 0) continue; // about two thirds of the attempts also seed their 4 neighbours
+      const nx = x + ex, ny = y + ey;
+      if (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height) out.push({ x: nx, y: ny });
+    }
+  }
+  return out;
+}
 
 const NB8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
@@ -91,7 +140,7 @@ function trackSlopesOk(map, cur, get) {
  * Plan a terraform operation without mutating state.
  * @returns {{ok:true, changes:object[], raw:number, area:object}|{ok:false,error:string}}
  */
-function evaluate(state, op, rect) {
+function evaluate(state, op, rect, opts = {}) {
   const map = state.map, W = map.width, tiles = map.tiles;
   if (!TERRAFORM_OPS.includes(op)) return { ok: false, error: 'Unknown operation' };
   if (!rect || !coordsOk(map, rect.x0, rect.y0, rect.x1, rect.y1)) return { ok: false, error: ERR.bounds };
@@ -99,10 +148,36 @@ function evaluate(state, op, rect) {
   const ya = Math.min(rect.y0, rect.y1), yb = Math.max(rect.y0, rect.y1);
   const area = { x0: xa, y0: ya, x1: xb, y1: yb };
   if (op === 'plant') {
-    const changes = [];
-    for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+    const tree = opts.tree;
+    if (tree !== undefined && !(Number.isInteger(tree) && tree >= 0 && tree < treeSpeciesCount(state))) {
+      return { ok: false, error: 'Unknown tree type' };
+    }
+    const mode = opts.mode || 'normal';
+    if (mode !== 'normal' && !FOREST_GROUP[mode]) return { ok: false, error: 'Unknown planting mode' };
+    const plantable = (x, y) => {
       const t = tiles[y * W + x];
-      if (t.terrain === 'grass' && !t.building && !t.rail && !t.road) changes.push({ i: y * W + x, x, y, terrain: 'forest' });
+      return t.terrain === 'grass' && !t.building && !t.rail && !t.road;
+    };
+    const changes = [];
+    const seen = new Set();
+    const add = (x, y) => {
+      const i = y * W + x;
+      if (seen.has(i) || !plantable(x, y)) return;
+      seen.add(i);
+      const c = { i, x, y, terrain: 'forest' };
+      if (tree !== undefined) c.tree = tree;
+      changes.push(c);
+    };
+    if (mode === 'normal') {
+      for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) add(x, y);
+      area.x0 = xa; area.y0 = ya; area.x1 = xb; area.y1 = yb;
+    } else {
+      // forest modes plant around the clicked (start) tile only; the drag rectangle is not used
+      const cx = rect.x0, cy = rect.y0;
+      for (const c of forestCandidates(map, cx, cy, mode)) add(c.x, c.y);
+      if (!changes.length) return { ok: false, error: TERRA_ERR.nothing };
+      area.x0 = Math.min(...changes.map((c) => c.x)); area.x1 = Math.max(...changes.map((c) => c.x));
+      area.y0 = Math.min(...changes.map((c) => c.y)); area.y1 = Math.max(...changes.map((c) => c.y));
     }
     if (!changes.length) return { ok: false, error: TERRA_ERR.nothing };
     return { ok: true, changes, raw: changes.length * COSTS.plantTree, area };
@@ -191,8 +266,8 @@ function evaluate(state, op, rect) {
 }
 
 /** Planned changes for a terraform op (pure): {ok, changes:[{x,y,...}], raw, area} or {ok:false,error}. */
-export function planTerraform(state, op, rect) {
-  return evaluate(state, op, rect);
+export function planTerraform(state, op, rect, opts) {
+  return evaluate(state, op, rect, opts);
 }
 
 /**
@@ -202,8 +277,8 @@ export function planTerraform(state, op, rect) {
  * @param {{x0:number,y0:number,x1:number,y1:number}} rect start tile (x0,y0) and end tile (x1,y1)
  * @returns {{ok:boolean, cost:number, tiles:number, error:string|null}}
  */
-export function estimateTerraform(state, op, rect) {
-  const p = evaluate(state, op, rect);
+export function estimateTerraform(state, op, rect, opts) {
+  const p = evaluate(state, op, rect, opts);
   if (!p.ok) return { ok: false, cost: 0, tiles: 0, error: p.error };
   const cost = constructionTotal(state, p.raw);
   const money = checkMoney(state, cost);
@@ -218,7 +293,7 @@ export function estimateTerraform(state, op, rect) {
  */
 export function terraform(ctx, op, rect, opts = {}) {
   const { state } = ctx;
-  const p = evaluate(state, op, rect);
+  const p = evaluate(state, op, rect, opts);
   if (!p.ok) return { ok: false, error: p.error };
   const cost = constructionTotal(state, p.raw);
   const money = checkMoney(state, cost);
@@ -229,6 +304,7 @@ export function terraform(ctx, op, rect, opts = {}) {
     const t = map.tiles[c.i];
     if (c.terrain) t.terrain = c.terrain;
     else t.height = c.to;
+    if (c.tree !== undefined) t.tree = c.tree; // lazy: only tiles planted with a chosen type carry the field
   }
   tropicZonesReset(map); // sub-tropical zones depend on heights and water (climate.js)
   spend(state.company, 'construction', state.editor ? 0 : cost);

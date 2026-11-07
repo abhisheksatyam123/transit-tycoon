@@ -83,7 +83,8 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt, field
       return null;
     }
     if (tile.terrain === 'forest' && !tile.rail && !tile.road) {
-      if (packActive() && drawOgfxTrees(ctx, x, y, tileHash(x, y), sx, sy)) return null;
+      // tile.tree (lazy, planted with a chosen type) replaces only the species pick; absent = the original hash pick
+      if (packActive() && drawOgfxTrees(ctx, x, y, tileHash(x, y), sx, sy, tile.tree)) return null;
       const i = (tileHash(x, y) % 6) * 2 + (tile.height >= 6 ? 1 : 0);
       blit(ctx, trees[i] || (trees[i] = treeCluster(i >> 1, (i & 1) === 1)), sx, sy);
     }

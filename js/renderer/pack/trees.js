@@ -152,9 +152,10 @@ function countBits(v) {
  * @param {number} hash tile hash (deterministic)
  * @param {number} sx screen x of the flat tile centre
  * @param {number} sy screen y of the tile centre at its MEAN height
+ * @param {number} [species] chosen tree species (tile.tree, lazy); replaces the hash pick of the species only
  * @returns {boolean} false when the pack is missing
  */
-export function drawOgfxTrees(ctx, x, y, hash, sx, sy) {
+export function drawOgfxTrees(ctx, x, y, hash, sx, sy, species) {
   if (!packState.pack) return false;
   // tile top corner at the MIN corner height (OpenTTD TileHeight = min)
   // Corner heights differ by <= 1 level, so floor(mean corner height) is the min corner exactly.
@@ -167,7 +168,8 @@ export function drawOgfxTrees(ctx, x, y, hash, sx, sy) {
   // arctic games (opt-in, pack/arctic.js): sub-arctic tree types; snowy rows at snow density >= 2 (tree_cmd.cpp DrawTile_Trees)
   const arctic = arcticState.on && arcticState.pack;
   const density = arctic ? snowDensity(min, arcticState.line) : -1;
-  const treeType = arctic ? h % TREE_COUNT_SUB_ARCTIC : h % TREE_COUNT_TEMPERATE;
+  const sp = species !== undefined ? species : h;
+  const treeType = arctic ? sp % TREE_COUNT_SUB_ARCTIC : sp % TREE_COUNT_TEMPERATE;
   let index = (tmp & 3) + (treeType << 2);
   let sprites;
   if (!arctic) sprites = TREE_LAYOUT[index];
@@ -177,11 +179,11 @@ export function drawOgfxTrees(ctx, x, y, hash, sx, sy) {
     const zone = tropicZoneAt(tropicState.map, x, y);
     const rows = zone === 2 ? TREE_LAYOUT_RAINFOREST : zone === 1 ? TREE_LAYOUT_CACTUS : TREE_LAYOUT_SUB_TROPICAL;
     const types = rows.length >> 2;
-    index = (tmp & 3) + ((h % types) << 2);
+    index = (tmp & 3) + ((sp % types) << 2);
     sprites = rows[index];
   }
   // toyland games (opt-in, pack/toyland.js): TREE_TOYLAND rows (OpenTTD tree_land.h rows 128..163, 9 tree types)
-  if (toylandState.on && !arctic && !tropicState.on) sprites = toylandTreeRow(tmp, h);
+  if (toylandState.on && !arctic && !tropicState.on) sprites = toylandTreeRow(tmp, sp);
   const pos = LAYOUT_XY[(tmp >> 2) & 3];
   // tree count 1..4 (OpenTTD GetTreeCount), deterministic from the hash
   const count = 1 + ((h >>> 3) & 3);

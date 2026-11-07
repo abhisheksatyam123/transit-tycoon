@@ -12,6 +12,7 @@ import { openSignList } from './signList.js';
 import { openStationList } from './stationList.js';
 import { openDepot } from './depot.js';
 import { openWaypoint } from './waypoint.js';
+import { openPlantTrees } from './plantTrees.js';
 import { openDepotList } from './depotList.js';
 import { openFundIndustry } from './fundIndustry.js';
 import { openBuyVehicle } from './buyVehicle.js';
@@ -54,6 +55,7 @@ const REGISTRY = {
   stations: openStationList,
   depot: openDepot,
   waypoint: openWaypoint,
+  plantTrees: openPlantTrees,
   depots: openDepotList,
   buyVehicle: openBuyVehicle,
   vehicles: openVehicleList,

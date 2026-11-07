@@ -6,6 +6,7 @@
 import { money } from '../format.js';
 import { costText } from '../editorCost.js';
 import { rectTiles } from './geometry.js';
+import { plantOptions, PLANT_MODE_LABEL, treeTypeLabels } from './plantOptions.js';
 
 export const TERRA_MODES = ['raise', 'lower', 'level'];
 const MODE_LABEL = { raise: 'Raise', lower: 'Lower', level: 'Level' };
@@ -22,6 +23,8 @@ function makeTerraformTool(app, o) {
   /** @type {{ok:boolean,label:string}} */
   let last = { ok: false, label: '' };
   const opFor = () => (o.id === 'plant' ? 'plant' : mode);
+  // tree planting options (type + mode); only the plant tool passes them
+  const popts = () => (o.id === 'plant' ? plantOptions(app) : undefined);
 
   const preview = (end) => {
     if (!start || !end) return;
@@ -29,19 +32,19 @@ function makeTerraformTool(app, o) {
     if (key !== lastKey) {
       lastKey = key;
       const rect = { x0: start.x, y0: start.y, x1: end.x, y1: end.y };
-      const plan = app.game.planTerraform(opFor(), rect);
+      const plan = app.game.planTerraform(opFor(), rect, popts());
       if (!plan.ok) {
-        const est = app.game.estimateTerraform(opFor(), rect);
+        const est = app.game.estimateTerraform(opFor(), rect, popts());
         last = { ok: false, label: plan.error + (est.cost ? ` (${costText(app.game, est.cost)})` : '') };
       } else {
-        const est = app.game.estimateTerraform(opFor(), rect);
+        const est = app.game.estimateTerraform(opFor(), rect, popts());
         last = est.ok
           ? { ok: true, label: `${costText(app.game, est.cost)} · ${est.tiles} tile${est.tiles === 1 ? '' : 's'}` }
           : { ok: false, label: `${est.error} (${costText(app.game, est.cost)})` };
       }
       app.ui?.updateHint?.();
     }
-    const plan = app.game.planTerraform(opFor(), { x0: start.x, y0: start.y, x1: end.x, y1: end.y });
+    const plan = app.game.planTerraform(opFor(), { x0: start.x, y0: start.y, x1: end.x, y1: end.y }, popts());
     const tiles = plan.ok ? plan.changes.map((c) => ({ x: c.x, y: c.y })) : rectTiles(start.x, start.y, end.x, end.y);
     app.renderer.overlay.preview = { tiles, ok: last.ok, label: last.label };
   };
@@ -52,7 +55,10 @@ function makeTerraformTool(app, o) {
     get hint() {
       if (o.id === 'plant') {
         const live = start && last.label ? ` Now: ${last.label}.` : '';
-        return `Drag a rectangle over grass to plant trees (25 each, demolish clears them).${live} Esc cancels.`;
+        const po = plantOptions(app);
+        const what = po.mode === 'normal' ? 'Drag a rectangle over grass to plant trees'
+          : `Click a tile to plant a ${PLANT_MODE_LABEL[po.mode].toLowerCase()} around it`;
+        return `${what} (25 each; type: ${treeTypeLabels(app.game.state, po.tree)}; demolish clears them).${live} Esc cancels.`;
       }
       const modes = TERRA_MODES.map((k) => (k === mode ? `[${MODE_LABEL[k]}]` : MODE_LABEL[k])).join(' | ');
       const live = start && last.label ? ` Now: ${last.label}.` : '';
@@ -85,7 +91,7 @@ function makeTerraformTool(app, o) {
       start = null;
       lastKey = '';
       app.renderer.overlay.preview = null;
-      const res = app.game.terraform(opFor(), { x0: s.x, y0: s.y, x1: t.x, y1: t.y });
+      const res = app.game.terraform(opFor(), { x0: s.x, y0: s.y, x1: t.x, y1: t.y }, popts());
       app.exec(res, { x: t.x, y: t.y, sound: 'build' });
       app.ui?.updateHint?.();
     },

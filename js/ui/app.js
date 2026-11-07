@@ -238,6 +238,9 @@ export class App {
     const next = typeof t === 'string' ? this.tools[t] : t;
     if (this.tool) this.tool.cancel();
     this.tool = next && next !== this.tool ? next : null;
+    // Plant trees: the build-trees picker (type + mode) is open while that tool is active (OpenTTD BuildTreesWindow)
+    if (this.tool?.id === 'plant') this.open('plantTrees');
+    else if (this.wm?.windows?.has('plantTrees')) this.wm.close('plantTrees');
     const ov = this.renderer.overlay;
     ov.preview = null;
     if (!this.tool) this.refreshSelectionCatchment();
