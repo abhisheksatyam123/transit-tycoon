@@ -13,6 +13,8 @@ import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
 import { chooseBuyDefaults } from '../buyDefaults.js';
 import { isEngineHidden, setEngineHidden } from '../../simulation/cmdEngineVisibility.js';
+import { engineDisplayName } from '../../simulation/cmdRename.js';
+import { openRename } from '../rename.js';
 import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo } from '../buyFilter.js';
 
 /**
@@ -20,10 +22,10 @@ import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, carg
  * @param {HTMLSelectElement} s
  * @param {any[]} models already filtered and sorted
  */
-function fillModels(s, models) {
+function fillModels(s, models, state) {
   const prev = s.value;
   clear(s);
-  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name}${m.traction === 'electric' ? ' (electric)' : ''}${m.hidden ? ' [hidden]' : ''} — ${money(m.cost)}` }));
+  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${engineDisplayName(state, m)}${m.traction === 'electric' ? ' (electric)' : ''}${m.hidden ? ' [hidden]' : ''} — ${money(m.cost)}` }));
   if (models.some((m) => m.id === prev)) s.value = prev;
 }
 
@@ -142,6 +144,9 @@ export function openBuyVehicle(app, depotId) {
         hideBtn.disabled = !m;
         hideBtn.title = hidden ? 'Show this model in the list again' : 'Hide this model from the list (it stays buyable by AI and autoreplace)';
       };
+      // Rename… the selected engine (OpenTTD CmdRenameEngine; blank name restores the model's own name)
+      const renameBtn = el('button.btn', { type: 'button', text: 'Rename…', title: 'Give this engine a name of your own' });
+      renameBtn.addEventListener('click', () => { const m = primarySel() && byId[primarySel().value]; if (m) openRename(app, 'engine', m.id, () => relist()); });
       hideBtn.addEventListener('click', () => {
         const m = primarySel() && byId[primarySel().value];
         if (!m) return;
@@ -152,21 +157,21 @@ export function openBuyVehicle(app, depotId) {
         paintHide();
       });
       showHiddenBox.addEventListener('change', () => { showHidden = showHiddenBox.checked; relist(); onModel(); paintHide(); });
-      controls.push(el('div.btn-row', null, hideBtn, el('label.muted.small', null, showHiddenBox, ' Show hidden')));
+      controls.push(el('div.btn-row', null, hideBtn, renameBtn, el('label.muted.small', null, showHiddenBox, ' Show hidden')));
 
       let engineSel = null, wagonSel = null, roadSel = null, countIn = null, countOut = null;
       if (rail) {
         engineSel = /** @type {HTMLSelectElement} */ (el('select.input'));
-        fillModels(engineSel, primaryList(sortList(engines)));
+        fillModels(engineSel, primaryList(sortList(engines)), g.state);
         wagonSel = /** @type {HTMLSelectElement} */ (el('select.input'));
-        fillModels(wagonSel, visibleCarriers());
+        fillModels(wagonSel, visibleCarriers(), g.state);
         countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: '12', value: '4' }));
         countOut = el('span.mono', { text: '4' });
         body.append(...controls, field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,
           field('Wagons', el('span.range-wrap', null, countIn, countOut)), field('Cargo', cargoSel));
       } else {
         roadSel = /** @type {HTMLSelectElement} */ (el('select.input'));
-        fillModels(roadSel, primaryList(visibleCarriers()));
+        fillModels(roadSel, primaryList(visibleCarriers()), g.state);
         body.append(...controls, field('Model', roadSel), statA, field('Cargo', cargoSel));
       }
       const buyBtn = el('button.btn.primary', { type: 'button', text: 'Buy' });
@@ -218,8 +223,8 @@ export function openBuyVehicle(app, depotId) {
 
       // filter / sort changes re-list the carrier (and engine) models, keeping the selection when it is still listed
       const relist = () => {
-        if (rail) { fillModels(engineSel, primaryList(sortList(engines))); fillModels(wagonSel, visibleCarriers()); }
-        else fillModels(roadSel, primaryList(visibleCarriers()));
+        if (rail) { fillModels(engineSel, primaryList(sortList(engines)), g.state); fillModels(wagonSel, visibleCarriers(), g.state); }
+        else fillModels(roadSel, primaryList(visibleCarriers()), g.state);
       };
       filterSel.addEventListener('change', () => {
         filter = filterSel.value;

@@ -10,6 +10,7 @@
  */
 import { findStation, findTown, findVehicle, findDepot } from './state.js';
 import { ownerMismatch, RIVAL_OWNED } from './owner.js';
+import { MODEL_BY_ID } from '../config/vehicles.js';
 
 export const MAX_NAME_LENGTH = 32;
 
@@ -99,4 +100,65 @@ export function renameDepot(ctx, id, name, opts = {}) {
     return { ok: true, cost: 0, name: depotDefaultName(d) };
   }
   return renameWith(d, name, state.depots, 'A depot with this name already exists', opts);
+}
+
+/**
+ * Display name of an engine (vehicle model): the player's name from the lazy `state.engineNames`
+ * map ({modelId: name}) if set, else the model's own name. `model` is any object with `id` and `name`.
+ */
+export function engineDisplayName(state, model) {
+  if (!model) return '';
+  const custom = state && state.engineNames && state.engineNames[model.id];
+  return custom || model.name;
+}
+
+/**
+ * Rename an engine model (OpenTTD CmdRenameEngine). `state.engineNames` is lazy: absent until an
+ * engine is renamed, deleted again when empty. A blank name removes that model's entry (back to the
+ * model's own name). Otherwise: trimmed, 1..32 characters, no control characters (no uniqueness rule,
+ * as in OpenTTD). Unknown model ids are refused.
+ */
+export function renameEngine(ctx, modelId, name, opts = {}) {
+  const { state } = ctx;
+  const model = MODEL_BY_ID[modelId];
+  if (!model) return { ok: false, error: 'Unknown engine model' };
+  if (typeof name === 'string' && !name.trim()) {
+    if (!opts.dryRun && state.engineNames) {
+      delete state.engineNames[modelId];
+      if (!Object.keys(state.engineNames).length) delete state.engineNames;
+    }
+    return { ok: true, cost: 0, name: model.name };
+  }
+  const r = validateName(name);
+  if (!r.ok) return r;
+  if (opts.dryRun) return { ok: true, cost: 0, name: r.name };
+  if (!state.engineNames) state.engineNames = {};
+  state.engineNames[modelId] = r.name;
+  return { ok: true, cost: 0, name: r.name };
+}
+
+/**
+ * Rename the company president (OpenTTD CmdRenamePresident). Lazy `state.company.presidentName`;
+ * blank resets to the default (field deleted). Same length / character rules as other names.
+ */
+export function renamePresident(ctx, name, opts = {}) {
+  const { state } = ctx;
+  const c = state.company;
+  if (typeof name === 'string' && !name.trim()) {
+    if (!opts.dryRun) delete c.presidentName;
+    return { ok: true, cost: 0, name: '' };
+  }
+  const r = validateName(name);
+  if (!r.ok) return r;
+  if (opts.dryRun) return { ok: true, cost: 0, name: r.name };
+  c.presidentName = r.name;
+  return { ok: true, cost: 0, name: r.name };
+}
+
+/** Shown when the president has no name yet (the default label). */
+export const PRESIDENT_DEFAULT_NAME = 'Unnamed president';
+
+/** Display name of the president: the player's name if set, else the default label. */
+export function presidentDisplayName(state) {
+  return (state && state.company && state.company.presidentName) || PRESIDENT_DEFAULT_NAME;
 }

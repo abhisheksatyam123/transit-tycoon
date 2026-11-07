@@ -8,6 +8,8 @@ import { liveCompanyValue } from './graphs.js';
 import { playerSharesOf, sharePrice, shareBlock } from '../../simulation/shares.js';
 import { getSetting } from '../../simulation/settings.js';
 import { playerColourOf, COMPANY_COLOURS, setCompanyColour } from '../../simulation/companyColour.js';
+import { presidentDisplayName } from '../../simulation/cmdRename.js';
+import { openRename } from '../rename.js';
 
 /** Rows for the company window: the player first, then the rivals (pure, testable). */
 export function companyRows(state) {
@@ -86,7 +88,7 @@ export function openCompanies(app) {
         const rows = companyRows(app.game.state);
         const withShares = !!getSetting(app.game.state, 'shares');
         const cheated = !!app.game.state.cheated; // OpenTTD marks a cheated company (lazy state.cheated, cheats.js)
-        const s = JSON.stringify(rows) + withShares + cheated;
+        const s = JSON.stringify(rows) + withShares + cheated + presidentDisplayName(app.game.state);
         if (s === sig) return;
         sig = s;
         clear(table);
@@ -108,6 +110,9 @@ export function openCompanies(app) {
             withShares ? el('td', null, r.player ? null : shareButtons(app, r)) : null));
         }
         table.appendChild(tbl);
+        // President (OpenTTD CmdRenamePresident): lazy name, default label until renamed
+        table.appendChild(el('p.small', null, el('span', { text: 'President: ' + presidentDisplayName(app.game.state) + ' ' }),
+          el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'president') })));
         if (cheated) table.appendChild(el('p.small.neg', { text: 'Cheated game: a cheat was used (Settings > Cheats).' }));
         table.appendChild(colourChooser(app));
       };

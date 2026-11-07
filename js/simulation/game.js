@@ -36,7 +36,7 @@ import { buildRailWaypoint, buildRoadWaypoint } from './cmdWaypoint.js';
 import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
-import { renameStation, renameVehicle, renameTown, renameCompany, renameDepot } from './cmdRename.js';
+import { renameStation, renameVehicle, renameTown, renameCompany, renameDepot, renameEngine, renamePresident } from './cmdRename.js';
 import { setAirportClosed } from './cmdAirport.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
@@ -344,6 +344,10 @@ export class Game {
   /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
   townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }
   renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
+  /** Engine (model) rename, lazy state.engineNames; blank = model's own name. */
+  renameEngine(modelId, name, opts) { return renameEngine(this.ctx, modelId, name, opts); }
+  /** President rename, lazy company.presidentName; blank = reset. */
+  renamePresident(name, opts) { return renamePresident(this.ctx, name, opts); }
   /** Map signs (cmdSign.js): place on a tile, edit by id (empty text deletes), delete by id. */
   placeSign(x, y, text, opts) { return placeSign(this.ctx, x, y, text, opts); }
   editSign(id, text, opts) { return editSign(this.ctx, id, text, opts); }
