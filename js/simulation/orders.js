@@ -2,6 +2,7 @@
  * Order progression and station loading / unloading.
  */
 import { TICKS_PER_DAY } from './constants.js';
+import { getSetting } from './settings.js';
 import { earn } from './economy.js';
 import { calculateDeliveredCargoPayment } from './loco/economy.js';
 import { recordDelivery } from './loco/company.js';
@@ -324,6 +325,21 @@ function deliverPart(ctx, v, st, n, keys) {
   return pay;
 }
 
+/** OpenTTD Ticks::CARGO_AGING_TICKS (185) in OpenTTD day ticks (74 per day) = 2.5 days per cargo aging period. */
+export const CARGO_AGE_PERIOD_DAYS = 185 / 74;
+
+/**
+ * Days the packet has been in transit for payment (OpenTTD CargoList::AgeCargo + GetTransportedGoodsIncome).
+ * Default: continuous days since pickup. With setting cargoAgeInVehicle (OpenTTD cargo aging): the age advances
+ * only in whole 2.5-day periods, so the payment uses floor(days / 2.5) * 2.5. Computed from the pickup tick,
+ * no per-tick work.
+ */
+export function transitDays(state, load) {
+  const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
+  if (!getSetting(state, 'cargoAgeInVehicle')) return days;
+  return Math.floor(days / CARGO_AGE_PERIOD_DAYS) * CARGO_AGE_PERIOD_DAYS;
+}
+
 /**
  * OpenTTD CargoPayment::PayTransfer: the feeder vehicle is credited the income of its leg (source to this station,
  * distance and days so far) minus the feeder share the units already hold, times FEEDER_PAYMENT_SHARE percent.
@@ -333,7 +349,7 @@ function deliverPart(ctx, v, st, n, keys) {
 export function transferCredit(state, v, st, amount, feederOfAmount) {
   const load = v.load;
   const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
-  const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
+  const days = transitDays(state, load);
   const income = calculateDeliveredCargoPayment(state, v.cargoId, amount, dist, days);
   return Math.round(((income - feederOfAmount) * FEEDER_PAYMENT_SHARE) / 100);
 }
@@ -343,7 +359,7 @@ function deliverLoad(ctx, v, st) {
   const { state } = ctx;
   const load = v.load;
   const dist = manhattan(load.sourceX, load.sourceY, st.x, st.y);
-  const days = (state.tick - load.sinceTick) / TICKS_PER_DAY;
+  const days = transitDays(state, load);
   let pay = calculateDeliveredCargoPayment(state, v.cargoId, load.amount, dist, days);
   const mult = subsidyMultiplier(state, v.cargoId, load.sourceX, load.sourceY, st, ctx);
   if (mult !== 1) pay = Math.round(pay * mult);

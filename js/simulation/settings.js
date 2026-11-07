@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
   loanInterestRate: 5,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,
+  /** OpenTTD cargo aging in vehicles: cargo ages in 2.5-day periods while carried, so payment uses whole periods (orders.js transitDays). Off = continuous days. */
+  cargoAgeInVehicle: false,
   /** vehicle breakdowns: 'none' | 'reduced' | 'normal' */
   breakdowns: 'normal',
   /** subsidies offered monthly */

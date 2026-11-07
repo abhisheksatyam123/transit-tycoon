@@ -47,6 +47,8 @@ export const SETTING_META = [
     help: 'How fast towns build (OpenTTD economy.town_growth_rate). Normal = the current growth. None = towns stop growing.' },
   { key: 'serviceIntervalDays', group: 'vehicles', label: 'Service interval (days)', type: 'number', min: 0, max: 730,
     help: 'New vehicles service at the nearest depot every N days (0 = off). Existing vehicles keep theirs; change them in the vehicle window.' },
+  { key: 'cargoAgeInVehicle', group: 'economy', label: 'Cargo aging in vehicles', type: 'check',
+    help: 'Cargo ages while carried, in 2.5-day periods (OpenTTD): payment uses whole periods of transit time. Off = continuous days.' },
   { key: 'inflation', group: 'economy', label: 'Inflation', type: 'check',
     help: 'Costs and cargo payments rise every month.' },
   { key: 'timetableSeparation', group: 'vehicles', label: 'Timetable separation', type: 'check',
