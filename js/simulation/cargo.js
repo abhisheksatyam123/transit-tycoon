@@ -7,7 +7,7 @@ import { HOUSE_POP } from './towns.js';
 import { addWaiting } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
 import { manhattan, findStation } from './state.js';
-import { cdApplies, splitByDest, noteSupply } from './cargodist.js';
+import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
 
 /** Days of the month on which a production chunk is distributed. */
 export const DISTRIBUTION_DAYS = [1, 8, 15, 22];
@@ -63,7 +63,10 @@ function addToStation(state, st, cargoId, amount, sx, sy) {
   noteSupply(st, cargoId, amount);
   let added = 0;
   for (const part of splitByDest(state, st, cargoId, amount)) {
-    added += addWaiting(st, cargoId, part.amount, sx, sy, state.tick, MAX_WAITING, 0, part.dest === undefined ? null : part.dest);
+    const dest = part.dest === undefined ? null : part.dest;
+    // several flow vias to the destination: the units are split over them now (one packet per via)
+    const vias = dest == null ? [{ via: undefined, amount: part.amount }] : splitVia(state, st, cargoId, dest, part.amount);
+    for (const v of vias) added += addWaiting(st, cargoId, v.amount, sx, sy, state.tick, MAX_WAITING, 0, dest, v.via);
   }
   return added;
 }

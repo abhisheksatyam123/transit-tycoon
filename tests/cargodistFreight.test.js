@@ -2,7 +2,7 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame } from './helpers.js';
 import { placeIndustry } from '../js/simulation/industries.js';
-import { rebuildGraph, nextHop, nextHops, splitByDest, noteLeg, edgeKey } from '../js/simulation/cargodist.js';
+import { rebuildGraph, nextHop, nextHops, splitByDest, noteLeg, edgeKey, loadFilter, viaBreakdown } from '../js/simulation/cargodist.js';
 import { addWaiting, recomputeAllAcceptance } from '../js/simulation/stations.js';
 import { setSetting } from '../js/simulation/settings.js';
 
@@ -105,5 +105,53 @@ describe('capacity-constrained routing (MCF)', () => {
     const b = diamond(true).s.cargoDist.COAL.nhs;
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(edgeKey(1, 2)).toBe('1>2');
+  });
+});
+
+describe('per-flow via shares (OpenTTD FlowStat::GetVia)', () => {
+  /** Mine A with flows to destination B via B (share 2/3) and via C (share 1/3). */
+  function twoVias() {
+    const { s, M: A, P1: B, P2: C } = freightNet({ freight: 'asymmetric' });
+    const e = (x, y) => noteLeg(s, x, y.id, [{ cargoId: 'COAL', capacity: 1000 }]);
+    e(A, B); e(A, C); e(C, B); e(B, A); e(C, A); e(B, C);
+    for (const st of [A, B, C]) st.cdSupply = { COAL: 1000 };
+    rebuildGraph(s, 'COAL', 'asymmetric');
+    s.cargoDist.COAL.nhs = { [A.id]: { [B.id]: [[B.id, 2 / 3], [C.id, 1 / 3]] } };
+    return { s, A, B, C };
+  }
+
+  test('two vias 2:1: parcels split ~2:1 over N assignments, exactly and deterministically', () => {
+    const seq = () => {
+      const { s, A, B, C } = twoVias();
+      const out = [];
+      for (let i = 0; i < 300; i++) {
+        const p = { amount: 1, dest: B.id };
+        loadFilter(s, A, 'COAL', B.id)(p);
+        out.push(p.via);
+      }
+      return { out, B: B.id, C: C.id };
+    };
+    const a = seq(), b = seq();
+    expect(a.out).toEqual(b.out);
+    expect(a.out.filter((h) => h === a.B).length).toBe(200);
+    expect(a.out.filter((h) => h === a.C).length).toBe(100);
+  });
+
+  test('a parcel with several vias is loaded only by the vehicle going to its assigned via', () => {
+    const { s, A, B, C } = twoVias();
+    const p = { amount: 10, dest: B.id };
+    const loadsToB = loadFilter(s, A, 'COAL', B.id)(p);
+    const loadsToC = loadFilter(s, A, 'COAL', C.id)(p);
+    expect(loadsToB).toBe(p.via === B.id);
+    expect(loadsToC).toBe(p.via === C.id);
+    expect(loadsToB !== loadsToC).toBe(true);
+  });
+
+  test('breakdown: a station with flows to one destination via two hops shows both vias with shares', () => {
+    const { s, A, B, C } = twoVias();
+    addWaiting(A, 'COAL', 300, A.x, A.y, 0, 4000, 0, B.id);
+    const byVia = Object.fromEntries(viaBreakdown(s, A, 'COAL').map((x) => [x.via, x.amount]));
+    expect(byVia[B.id]).toBe(200);
+    expect(byVia[C.id]).toBe(100);
   });
 });

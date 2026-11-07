@@ -168,7 +168,7 @@ export function waitingAmount(st, cargoId) {
 /** Max parcels (packets) per station cargo list; overflow merges into the newest packet. */
 export const MAX_PARCELS = 32;
 
-export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0, dest = null) {
+export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0, dest = null, via = undefined) {
   if (amount <= 0) return 0;
   const list = st.cargo[cargoId] || (st.cargo[cargoId] = []);
   const have = waitingAmount(st, cargoId);
@@ -178,10 +178,11 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
   // OpenTTD CargoList: units from the same source (and destination, cargodist) merge into one packet (weighted
   // age) instead of piling up; the list is also capped at MAX_PARCELS by folding overflow into the newest packet.
   const want = dest == null ? null : dest;
+  const wantVia = via === undefined ? null : via;
   let hit = null;
   for (let i = list.length - 1; i >= 0; i--) {
     const p = list[i];
-    if (p.sourceX === sourceX && p.sourceY === sourceY && (p.dest ?? null) === want) { hit = p; break; }
+    if (p.sourceX === sourceX && p.sourceY === sourceY && (p.dest ?? null) === want && (p.via ?? null) === wantVia) { hit = p; break; }
   }
   if (!hit && list.length >= MAX_PARCELS) {
     // overflow: prefer the newest packet with the same destination, else the newest packet
@@ -196,6 +197,7 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
     const p = { amount: add, sourceX, sourceY, sinceTick: tick };
     if (fs) p.feeder = fs;
     if (want !== null) p.dest = want;
+    if (wantVia !== null) p.via = wantVia; // cargodist: the flow via this parcel is routed by (OpenTTD FlowStat)
     list.push(p);
   }
   return add;
