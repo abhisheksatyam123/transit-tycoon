@@ -14,5 +14,3 @@ export const SHIP_MODELS = [
 /** Construction costs (before construction inflation): dock, ship depot, buoy. */
 export const SHIP_COSTS = { dock: 900, depot: 1500, buoy: 500 };
 
-/** Ticks a ship needs to reach its top speed from standstill. */
-export const SHIP_ACCEL_TICKS = 120;

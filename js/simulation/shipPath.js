@@ -5,7 +5,15 @@
  * Ships never move over land, so an island with no water route is unreachable (the vehicle is lost).
  */
 import { DIRS } from './constants.js';
-import { SHIP_ACCEL_TICKS } from '../config/ships.js';
+import { MPH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+
+const SHIP_ACCEL_MPH = 1 / 3; // 0.333333_mph (OpenLoco VehicleHead.cpp:2888)
+const SHIP_BRAKE_MPH = 1.0;   // 1.0_mph (OpenLoco VehicleHead.cpp:2875)
+const SHIP_FAST_BRAKE_MPH = 3.0; // 3.0_mph when speed >= 50 mph (OpenLoco VehicleHead.cpp:2878)
+const FAST_BRAKE_THRESHOLD_TILES = 50.0 * MPH_TO_TILES_PER_TICK;
+const SHIP_ACCEL_STEP = SHIP_ACCEL_MPH * MPH_TO_TILES_PER_TICK;
+const SHIP_BRAKE_STEP = SHIP_BRAKE_MPH * MPH_TO_TILES_PER_TICK;
+const SHIP_FAST_BRAKE_STEP = SHIP_FAST_BRAKE_MPH * MPH_TO_TILES_PER_TICK;
 import { lockParts } from './cmdCanal.js';
 import { aqueductStepOk } from './aqueduct.js';
 
@@ -164,14 +172,20 @@ export function shipStopAt(state, v, order) {
 }
 
 /**
- * Ship speed (tiles/tick): accelerates to the target over SHIP_ACCEL_TICKS and brakes faster than it accelerates.
+ * Ship speed (tiles/tick): OpenLoco VehicleHead.cpp:2871-2890 water motion rules.
+ * Accelerates by 1/3 mph per tick (+0.333333_mph) up to target.
+ * Decelerates by 1.0 mph per tick (or 3.0 mph if speed >= 50 mph) down to target (or 0).
  * @param {{speed:number}} v
- * @param {number} targetTiles max speed in tiles per tick
+ * @param {number} targetTiles target speed in tiles per tick
  */
 export function shipSpeedStep(v, targetTiles) {
-  const step = targetTiles / SHIP_ACCEL_TICKS;
-  if (v.speed > targetTiles) return Math.max(targetTiles, v.speed - step * 4);
-  return Math.min(targetTiles, v.speed + step);
+  const cur = v.speed || 0;
+  if (cur === targetTiles) return cur;
+  if (cur > targetTiles) {
+    const decel = cur >= FAST_BRAKE_THRESHOLD_TILES ? SHIP_FAST_BRAKE_STEP : SHIP_BRAKE_STEP;
+    return Math.max(targetTiles, Math.max(0, cur - decel));
+  }
+  return Math.min(targetTiles, cur + SHIP_ACCEL_STEP);
 }
 
 /** Link check for a ship: the next path tile must still be open water (or a buoy / depot). */

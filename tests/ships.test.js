@@ -1,7 +1,8 @@
 /** Ships (T26): docks on land, ship depots and buoys on water, water pathing, delivery, buoy orders, save/load. */
 import { describe, expect, test } from 'bun:test';
 import { Game } from '../js/simulation/game.js';
-import { findShipPath } from '../js/simulation/shipPath.js';
+import { findShipPath, shipSpeedStep } from '../js/simulation/shipPath.js';
+import { MPH_TO_TILES_PER_TICK } from '../js/simulation/loco/vehicleMotion.js';
 import { serializeState, parseState } from '../js/simulation/save.js';
 import { SHIP_MODELS } from '../js/config/ships.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
@@ -222,5 +223,48 @@ describe('save and load', () => {
     expect(sv.modelId).toBe('ship_ferry');
     expect(sv.orders.map((o) => o.stationId)).toEqual([a.stationId, b.stationId]);
     expect(state.stations.some((st) => st.id === buoy.stationId)).toBe(true);
+  });
+});
+
+describe('ship acceleration and deceleration (OpenLoco VehicleHead.cpp:2871-2890)', () => {
+  test('accelerates by 1/3 mph per tick up to target', () => {
+    const v = { speed: 0 };
+    const target = 10 * MPH_TO_TILES_PER_TICK;
+    const accelStep = (1 / 3) * MPH_TO_TILES_PER_TICK;
+
+    v.speed = shipSpeedStep(v, target);
+    expect(v.speed).toBeCloseTo(accelStep, 8);
+
+    v.speed = shipSpeedStep(v, target);
+    expect(v.speed).toBeCloseTo(2 * accelStep, 8);
+
+    // Caps at target without overshoot
+    v.speed = target - 0.0001;
+    v.speed = shipSpeedStep(v, target);
+    expect(v.speed).toBe(target);
+  });
+
+  test('brakes faster than it accelerates (1 mph/tick below 50 mph, 3 mph/tick at >= 50 mph)', () => {
+    const accelStep = (1 / 3) * MPH_TO_TILES_PER_TICK;
+    const normalBrake = 1.0 * MPH_TO_TILES_PER_TICK;
+    const fastBrake = 3.0 * MPH_TO_TILES_PER_TICK;
+
+    // Normal brake below 50 mph: 1 mph per tick (3x accel)
+    const v1 = { speed: 20 * MPH_TO_TILES_PER_TICK };
+    v1.speed = shipSpeedStep(v1, 0);
+    expect(v1.speed).toBeCloseTo(19 * MPH_TO_TILES_PER_TICK, 8);
+    expect(20 * MPH_TO_TILES_PER_TICK - v1.speed).toBeCloseTo(normalBrake, 8);
+    expect(normalBrake).toBeGreaterThan(accelStep);
+
+    // Fast brake at or above 50 mph: 3 mph per tick
+    const v2 = { speed: 60 * MPH_TO_TILES_PER_TICK };
+    v2.speed = shipSpeedStep(v2, 0);
+    expect(v2.speed).toBeCloseTo(57 * MPH_TO_TILES_PER_TICK, 8);
+    expect(60 * MPH_TO_TILES_PER_TICK - v2.speed).toBeCloseTo(fastBrake, 8);
+
+    // Stops cleanly at target or 0 without negative speed
+    const v3 = { speed: 0.5 * MPH_TO_TILES_PER_TICK };
+    v3.speed = shipSpeedStep(v3, 0);
+    expect(v3.speed).toBe(0);
   });
 });
