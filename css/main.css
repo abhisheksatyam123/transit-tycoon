@@ -115,8 +115,8 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #toolbar.tb-fit-4 .tb-group { gap: 2px; margin-right: 4px; }
 #toolbar.tb-fit-4 .tb-btn { min-width: 30px; height: 34px; padding: 2px 3px; }
 /* phones: same, but groups dissolve so buttons fill every row */
-#toolbar.tb-fit-4.tb-flat .tb-group { display: contents; }
-#toolbar.tb-fit-4.tb-flat .tb-brand { display: none; }
+#toolbar.tb-flat .tb-group { display: contents; }
+#toolbar.tb-flat .tb-brand { display: none; }
 
 /* ---- viewport ---- */
 #viewport { position: relative; overflow: hidden; }

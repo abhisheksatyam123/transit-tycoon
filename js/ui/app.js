@@ -279,7 +279,7 @@ export class App {
    * @param {boolean} [nearCursor]
    */
   toast(text, kind = 'info', nearCursor = false, ms) {
-    this.toasts.show(text, kind, { nearCursor, ms });
+    return this.toasts.show(text, kind, { nearCursor, ms });
   }
 
   /** @param {number} id */

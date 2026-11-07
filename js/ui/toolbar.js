@@ -473,7 +473,7 @@ function fitToolbar(root) {
     if (root.scrollWidth <= root.clientWidth + 1) return;
   }
   const h = window.innerHeight || 800;
-  const maxRows = h < 500 ? 1 : h < 700 ? 2 : h < 800 ? 3 : 4;
+  const maxRows = h < 500 ? 2 : h < 700 ? 2 : h < 800 ? 3 : 4; // phone landscape (h<500): 2 rows, not a scrolled row
   if (maxRows < 2) return;
   const fits = () => root.scrollHeight <= maxRows * WRAP_ROW_PX + 8 && root.scrollWidth <= root.clientWidth + 1;
   root.classList.remove(...all, 'tb-flat');

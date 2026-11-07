@@ -81,7 +81,11 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
     if (objectError(t)) return { ok: false, error: objectError(t) };
     if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
     if (t.road) return { ok: false, error: ERR.track };
-    if (t.rail && straightAxis(t.rail) !== axis) return { ok: false, error: ERR.track };
+    if (t.rail) {
+      const have = straightAxis(t.rail);
+      if (have === null) return { ok: false, error: ERR.railCurve };
+      if (have !== axis) return { ok: false, error: ERR.railAxis };
+    }
     cost += COSTS.railStation + clearingCost(t);
   }
   cost = constructionTotal(state, factor === 1 ? cost : Math.round(cost * factor));

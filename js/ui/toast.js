@@ -28,6 +28,7 @@ export class Toasts {
    * @param {string} text
    * @param {'error'|'info'|'good'} [kind]
    * @param {{nearCursor?:boolean, ms?:number}} [opts]
+   * @returns {HTMLElement} the toast element (remove() it to hide early)
    */
   show(text, kind = 'error', opts = {}) {
     const t = el('div.toast.' + kind, { role: 'status', text });
@@ -41,5 +42,6 @@ export class Toasts {
     if (stack.length > 4) stack[0].remove();
     setTimeout(() => t.classList.add('fade'), (opts.ms || 2200) - 400);
     setTimeout(() => t.remove(), opts.ms || 2200);
+    return t;
   }
 }

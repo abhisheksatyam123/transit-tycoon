@@ -21,6 +21,9 @@ export function appendOrder(app, vehicleId, stationId) {
  * @returns {import('./index.js').Tool}
  */
 export function createAddOrderTool(app, vehicleId) {
+  /** The last "Click on a station" toast; hidden when the mode ends or an order is added. */
+  let hintEl = null;
+  const hideHint = () => { if (hintEl) { hintEl.remove(); hintEl = null; } };
   return {
     id: 'addOrder',
     vehicleId,
@@ -37,11 +40,13 @@ export function createAddOrderTool(app, vehicleId) {
       const v = app.findVehicle(vehicleId);
       if (!v) { app.setTool(null); return; }
       if (!tile || !tile.building || tile.building.type !== 'station') {
-        app.toast('Click on a station', 'error', true);
+        hideHint();
+        hintEl = app.toast('Click on a station', 'error', true);
         return;
       }
+      hideHint();
       appendOrder(app, vehicleId, tile.building.stationId);
     },
-    cancel() { app.renderer.overlay.preview = null; },
+    cancel() { app.renderer.overlay.preview = null; hideHint(); },
   };
 }

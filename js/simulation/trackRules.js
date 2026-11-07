@@ -17,6 +17,8 @@ export const ERR = {
   money: 'Not enough money',
   built: 'Already built',
   track: 'Track or road in the way',
+  railCurve: 'Station needs straight track along one axis (no curves or corners)',
+  railAxis: 'Station track runs the other way: build the station along the track',
   vehicle: 'Vehicle in the way',
   tunnel: 'Tunnel in the way: build beside it or at its portals',
   bridge: 'Bridge in the way: build beside it or at its ends',
