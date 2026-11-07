@@ -12,6 +12,7 @@ import { getSetting } from '../../simulation/settings.js';
 import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
 import { chooseBuyDefaults } from '../buyDefaults.js';
+import { isEngineHidden, setEngineHidden } from '../../simulation/cmdEngineVisibility.js';
 import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo } from '../buyFilter.js';
 
 /**
@@ -22,7 +23,7 @@ import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, carg
 function fillModels(s, models) {
   const prev = s.value;
   clear(s);
-  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name}${m.traction === 'electric' ? ' (electric)' : ''} — ${money(m.cost)}` }));
+  for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name}${m.traction === 'electric' ? ' (electric)' : ''}${m.hidden ? ' [hidden]' : ''} — ${money(m.cost)}` }));
   if (models.some((m) => m.id === prev)) s.value = prev;
 }
 
@@ -117,11 +118,46 @@ export function openBuyVehicle(app, depotId) {
       const paintDir = () => { setText(dirBtn, sort.dir === 1 ? 'Asc ▲' : 'Desc ▼'); };
       paintDir();
       const controls = [field('Cargo filter', filterSel), field('Sort by', el('span.range-wrap', null, sortSel, dirBtn))];
+      // Hide / Unhide engine (OpenTTD build_vehicle_gui: hidden engines leave the list). The company's hidden list
+      // is game state (cmdEngineVisibility.js); the "Show hidden" toggle is UI only (not saved). Hidden engines
+      // stay buyable by AI and autoreplace.
+      let showHidden = false;
+      const hideBtn = el('button.btn', { type: 'button' });
+      const showHiddenBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Show hidden engines' }));
+      const primarySel = () => (rail ? engineSel : roadSel);
+      // hidden engines are dropped from the primary list unless "Show hidden" is on (then tagged [hidden])
+      const primaryList = (list) => {
+        const out = [];
+        for (const m of list) {
+          const hidden = isEngineHidden(g.state, m.id);
+          if (hidden && !showHidden) continue;
+          out.push(hidden ? { ...m, hidden: true } : m);
+        }
+        return out;
+      };
+      const paintHide = () => {
+        const m = primarySel() && byId[primarySel().value];
+        const hidden = !!m && isEngineHidden(g.state, m.id);
+        setText(hideBtn, hidden ? 'Unhide engine' : 'Hide engine');
+        hideBtn.disabled = !m;
+        hideBtn.title = hidden ? 'Show this model in the list again' : 'Hide this model from the list (it stays buyable by AI and autoreplace)';
+      };
+      hideBtn.addEventListener('click', () => {
+        const m = primarySel() && byId[primarySel().value];
+        if (!m) return;
+        const hidden = isEngineHidden(g.state, m.id);
+        app.exec(g.setEngineHidden(m.id, !hidden), { sound: 'click' });
+        relist();
+        onModel();
+        paintHide();
+      });
+      showHiddenBox.addEventListener('change', () => { showHidden = showHiddenBox.checked; relist(); onModel(); paintHide(); });
+      controls.push(el('div.btn-row', null, hideBtn, el('label.muted.small', null, showHiddenBox, ' Show hidden')));
 
       let engineSel = null, wagonSel = null, roadSel = null, countIn = null, countOut = null;
       if (rail) {
         engineSel = /** @type {HTMLSelectElement} */ (el('select.input'));
-        fillModels(engineSel, sortList(engines));
+        fillModels(engineSel, primaryList(sortList(engines)));
         wagonSel = /** @type {HTMLSelectElement} */ (el('select.input'));
         fillModels(wagonSel, visibleCarriers());
         countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: '12', value: '4' }));
@@ -130,7 +166,7 @@ export function openBuyVehicle(app, depotId) {
           field('Wagons', el('span.range-wrap', null, countIn, countOut)), field('Cargo', cargoSel));
       } else {
         roadSel = /** @type {HTMLSelectElement} */ (el('select.input'));
-        fillModels(roadSel, visibleCarriers());
+        fillModels(roadSel, primaryList(visibleCarriers()));
         body.append(...controls, field('Model', roadSel), statA, field('Cargo', cargoSel));
       }
       const buyBtn = el('button.btn.primary', { type: 'button', text: 'Buy' });
@@ -174,7 +210,7 @@ export function openBuyVehicle(app, depotId) {
       let smart = null;
       if (!rail && !air && !ship && roadSel) smart = chooseBuyDefaults(g.state, depot);
       if (smart && smart.modelId && roadSel.querySelector(`option[value="${smart.modelId}"]`)) roadSel.value = smart.modelId;
-      const onModel = () => { fillCargo(cargoSel, current()); recompute(); };
+      const onModel = () => { fillCargo(cargoSel, current()); recompute(); paintHide(); };
       for (const s of [engineSel, wagonSel, roadSel, countIn]) if (s) s.addEventListener('input', onModel);
       onModel();
       if (smart && smart.cargo && [...cargoSel.options].some((o) => o.value === smart.cargo)) cargoSel.value = smart.cargo;
@@ -182,8 +218,8 @@ export function openBuyVehicle(app, depotId) {
 
       // filter / sort changes re-list the carrier (and engine) models, keeping the selection when it is still listed
       const relist = () => {
-        if (rail) { fillModels(engineSel, sortList(engines)); fillModels(wagonSel, visibleCarriers()); }
-        else fillModels(roadSel, visibleCarriers());
+        if (rail) { fillModels(engineSel, primaryList(sortList(engines))); fillModels(wagonSel, visibleCarriers()); }
+        else fillModels(roadSel, primaryList(visibleCarriers()));
       };
       filterSel.addEventListener('change', () => {
         filter = filterSel.value;

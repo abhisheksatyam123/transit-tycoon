@@ -38,6 +38,7 @@ import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
+import { setEngineHidden } from './cmdEngineVisibility.js';
 import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
@@ -335,6 +336,8 @@ export class Game {
   placeSign(x, y, text, opts) { return placeSign(this.ctx, x, y, text, opts); }
   editSign(id, text, opts) { return editSign(this.ctx, id, text, opts); }
   deleteSign(id, opts) { return deleteSign(this.ctx, id, opts); }
+  /** Hide/unhide an engine in the build-vehicle list (cmdEngineVisibility.js; UI list only, still buyable). */
+  setEngineHidden(modelId, hidden, opts) { return setEngineHidden(this.ctx, modelId, hidden, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
   /** Refit a stopped, empty vehicle in a depot to another cargo (10% of the model price). */
