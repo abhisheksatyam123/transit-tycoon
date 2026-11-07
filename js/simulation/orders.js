@@ -277,7 +277,7 @@ function transferUnits(ctx, v, st, want, dest) {
   const feederOut = held && amount < load.amount ? Math.round((held * amount) / load.amount) : held;
   const credit = transferCredit(ctx.state, v, st, amount, feederOut);
   // the packet keeps its feeder share and gains this leg's transfer credit (OpenTTD AddFeederShare(profit))
-  const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit, dest);
+  const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit, dest, undefined, true);
   if (credit) {
     v.profitThisYear = (v.profitThisYear || 0) + credit;
     v.transferCredits = (v.transferCredits || 0) + credit; // lazy: shown in the vehicle window, reset yearly
@@ -518,7 +518,7 @@ function loadSlice(ctx, v, st) {
   // cargodist: only parcels whose next hop is the vehicle's next stop (or with no route known)
   const cd = cdApplies(state, v.cargoId);
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
-  const got = takeWaiting(st, v.cargoId, room, pred);
+  const got = takeWaiting(st, v.cargoId, room, pred, state.tick);
   if (got.amount <= 0) return 0;
   recordCarrier(st, v.cargoId, model ? model.speed : 0, v.age || 0);
   const l = v.load;
@@ -529,7 +529,7 @@ function loadSlice(ctx, v, st) {
   const total = l.amount + got.amount;
   l.sourceX = Math.round((l.sourceX * l.amount + got.sourceX * got.amount) / total);
   l.sourceY = Math.round((l.sourceY * l.amount + got.sourceY * got.amount) / total);
-  l.sinceTick = Math.round((l.sinceTick * l.amount + state.tick * got.amount) / total);
+  l.sinceTick = Math.round((l.sinceTick * l.amount + got.sinceTick * got.amount) / total);
   l.amount = total;
   if (got.feeder) l.feeder = (l.feeder || 0) + got.feeder;
   l.fromStationId = st.id;

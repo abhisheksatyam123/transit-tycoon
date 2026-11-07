@@ -171,7 +171,7 @@ export function waitingAmount(st, cargoId) {
 /** Max parcels (packets) per station cargo list; overflow merges into the newest packet. */
 export const MAX_PARCELS = 32;
 
-export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0, dest = null, via = undefined) {
+export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, feeder = 0, dest = null, via = undefined, xfer = false) {
   if (amount <= 0) return 0;
   const list = st.cargo[cargoId] || (st.cargo[cargoId] = []);
   const have = waitingAmount(st, cargoId);
@@ -185,7 +185,7 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
   let hit = null;
   for (let i = list.length - 1; i >= 0; i--) {
     const p = list[i];
-    if (p.sourceX === sourceX && p.sourceY === sourceY && (p.dest ?? null) === want && (p.via ?? null) === wantVia) { hit = p; break; }
+    if (p.sourceX === sourceX && p.sourceY === sourceY && (p.dest ?? null) === want && (p.via ?? null) === wantVia && (p.xfer === true) === xfer) { hit = p; break; }
   }
   if (!hit && list.length >= MAX_PARCELS) {
     // overflow: prefer the newest packet with the same destination, else the newest packet
@@ -198,6 +198,7 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
     if (fs) hit.feeder = (hit.feeder || 0) + fs;
   } else {
     const p = { amount: add, sourceX, sourceY, sinceTick: tick };
+    if (xfer) p.xfer = true; // lazy: cargo transferred from another station (keeps its age while waiting)
     if (fs) p.feeder = fs;
     if (want !== null) p.dest = want;
     if (wantVia !== null) p.via = wantVia; // cargodist: the flow via this parcel is routed by (OpenTTD FlowStat)
@@ -214,7 +215,7 @@ export function addWaiting(st, cargoId, amount, sourceX, sourceY, tick, cap, fee
  * destination station id to the amount taken.
  * @returns {{amount:number,sourceX:number,sourceY:number,sinceTick:number,feeder?:number,dests?:object}}
  */
-export function takeWaiting(st, cargoId, amount, pred) {
+export function takeWaiting(st, cargoId, amount, pred, tick) {
   const list = st.cargo[cargoId] || [];
   let taken = 0, sx = 0, sy = 0, since = 0, feeder = 0, anyDest = false;
   const dests = {};
@@ -222,7 +223,9 @@ export function takeWaiting(st, cargoId, amount, pred) {
     const p = list[i];
     if (pred && !pred(p)) { i++; continue; }
     const n = Math.min(p.amount, amount - taken);
-    sx += p.sourceX * n; sy += p.sourceY * n; since += p.sinceTick * n;
+    sx += p.sourceX * n; sy += p.sourceY * n;
+    // produced here (no xfer flag): age 0 at pickup, OpenLoco Station.cpp enrouteAge stays 0 at the origin station
+    since += (tick !== undefined && !p.xfer ? tick : p.sinceTick) * n;
     if (p.feeder) {
       const fs = p.amount === n ? p.feeder : Math.round((p.feeder * n) / p.amount);
       feeder += fs;

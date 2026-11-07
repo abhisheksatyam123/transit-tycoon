@@ -222,26 +222,32 @@ function packParcels(list) {
   if (!Array.isArray(list) || list.length === 0) return list;
   // cargodist: parcels may also carry a destination station id (dest), packed as a 5th column (dest+1, 0 = none)
   const withDest = list.some((p) => p && p.dest !== undefined && p.dest !== null);
-  const nk = withDest ? 5 : 4;
+  // transfer flag (lazy, set only on parcels moved in from another station): parcels-v3 adds a 6th column (0/1)
+  const withXfer = list.some((p) => p && p.xfer === true);
   for (const p of list) {
     const keys = Object.keys(p);
     const ok = keys.length === 4 || (withDest && keys.length === 5 && keys.includes('dest') && (p.dest === null || Number.isSafeInteger(p.dest) && p.dest >= 0));
-    if (!ok || PARCEL_KEYS.some((k) => !Number.isSafeInteger(p[k]))) return list;
+    const okX = !withXfer || keys.every((k) => PARCEL_KEYS.includes(k) || k === 'dest' || k === 'xfer') && (p.xfer === undefined || p.xfer === true || p.xfer === false);
+    if (!ok && !(withXfer && okX)) return list;
+    if (PARCEL_KEYS.some((k) => !Number.isSafeInteger(p[k]))) return list;
   }
   const bytes = [];
   const cols = PARCEL_KEYS.map(() => 0);
   let dcol = 0;
   for (const p of list) {
     for (let j = 0; j < 4; j++) { const v = p[PARCEL_KEYS[j]]; putVarint(bytes, zigzag(v - cols[j])); cols[j] = v; }
-    if (withDest) { const v = p.dest == null ? 0 : p.dest + 1; putVarint(bytes, zigzag(v - dcol)); dcol = v; }
+    if (withDest || withXfer) { const v = p.dest == null ? 0 : p.dest + 1; putVarint(bytes, zigzag(v - dcol)); dcol = v; }
+    if (withXfer) putVarint(bytes, p.xfer === true ? 1 : 0);
   }
+  if (withXfer) return { fmt: 'parcels-v3', n: list.length, d: bytesToB64(Uint8Array.from(bytes)) };
   if (withDest) return { fmt: 'parcels-v2', n: list.length, d: bytesToB64(Uint8Array.from(bytes)) };
   return { fmt: 'parcels-v1', n: list.length, d: bytesToB64(Uint8Array.from(bytes)) };
 }
 
 function unpackParcels(p) {
   const buf = b64ToBytes(p.d), cols = [0, 0, 0, 0], out = new Array(p.n);
-  const withDest = p.fmt === 'parcels-v2';
+  const withXfer = p.fmt === 'parcels-v3';
+  const withDest = p.fmt === 'parcels-v2' || withXfer;
   let q = 0, dcol = 0;
   const getVarint = () => {
     let v = 0, mul = 1, b;
@@ -255,6 +261,7 @@ function unpackParcels(p) {
       dcol += unzigzag(getVarint());
       o.dest = dcol === 0 ? null : dcol - 1;
     }
+    if (withXfer && getVarint() === 1) o.xfer = true;
     out[i] = o;
   }
   return out;
@@ -277,7 +284,7 @@ function unpackStations(stations) {
     if (!st || !st.cargo || typeof st.cargo !== 'object') continue;
     for (const k of Object.keys(st.cargo)) {
       const v = st.cargo[k];
-      if (v && typeof v === 'object' && !Array.isArray(v) && (v.fmt === 'parcels-v1' || v.fmt === 'parcels-v2')) st.cargo[k] = unpackParcels(v);
+      if (v && typeof v === 'object' && !Array.isArray(v) && (v.fmt === 'parcels-v1' || v.fmt === 'parcels-v2' || v.fmt === 'parcels-v3')) st.cargo[k] = unpackParcels(v);
     }
   }
   return stations;
