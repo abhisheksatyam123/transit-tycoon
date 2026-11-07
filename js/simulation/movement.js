@@ -18,6 +18,7 @@ import { altitudeAt, isRunwayCentre } from './aircraft.js';
 import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
 import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed } from './airportGround.js';
+import { trainEntersCrossing } from './trainCollision.js'; // vehicleCollisions setting (off by default)
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
@@ -337,6 +338,7 @@ function move(ctx, v) {
     v.tx = p.x; v.ty = p.y;
     v.history.unshift({ x: p.x, y: p.y });
     if (v.history.length > keep) v.history.length = keep;
+    if (ctx.collide && v.kind === 'train') trainEntersCrossing(ctx, v, p.x, p.y); // vehicleCollisions (trainCollision.js)
     if (v.pathIndex >= v.path.length - 1) { v.progress = 0; onPathEnd(ctx, v); return; }
     if (passStation(ctx, v)) { v.progress = 0; return; } // stop 'all' / 'via' at a station on the way
     if (!linkOk(state, layer, v)) { v.progress = 0; replan(ctx, v); return; }

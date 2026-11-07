@@ -8,6 +8,8 @@ import { beginOccupancy, syncOccupancy } from '../blocking.js';
 import { vehiclesYearly } from '../vehicleLife.js';
 import { trafficTick, trafficDaily } from '../traffic.js';
 import { refreshBarred } from '../levelCrossing.js';
+import { getSetting } from '../settings.js';
+import { removeVehicle } from '../planeCrash.js';
 import { companyById } from '../owner.js';
 import { spend } from '../economy.js';
 import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } from './vehicle.js';
@@ -18,11 +20,16 @@ export function tick(game) {
   ctx.occupancy = beginOccupancy(game.state); // queueing index (blocking.js), derived, never saved
   refreshBarred(ctx, game.state); // level crossings barred this tick (levelCrossing.js; setting off = null)
   if (ctx.barredNew) for (const i of ctx.barredNew) ctx.emit('levelCrossingClosed', { i });
+  // vehicleCollisions (trainCollision.js): only meaningful with barred crossings; one setting read per tick
+  ctx.collide = !!ctx.barred && getSetting(game.state, 'vehicleCollisions') === true;
   for (const v of game.state.vehicles) {
+    if (v.wrecked) continue; // destroyed this tick by a train (removed below)
     vehicleBreakdownTick(v);
     vehicleTick(ctx, v);
     syncOccupancy(ctx, v);
   }
+  if (ctx.wrecked) { for (const v of ctx.wrecked) removeVehicle(game.state, v); ctx.wrecked = null; }
+  ctx.collide = false;
   ctx.occupancy = null;
   trafficTick(ctx);
   ctx.barredNew = null;
