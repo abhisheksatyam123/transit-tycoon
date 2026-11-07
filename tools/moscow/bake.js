@@ -4,7 +4,7 @@
  * Usage: bun tools/moscow/bake.js [rawDir] [outFile]
  * Contract: scratchpad/moscow-contract.md. Missing layers are skipped with a warning.
  */
-import { writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WIDTH, HEIGHT, BBOX, TILE_M, project, projectF } from './proj.js';
@@ -177,7 +177,8 @@ function main() {
   const railS = toStr(rail.bits, (v) => v.toString(16));
   const terrOut = terrS;
 
-  const fetched = new Date().toISOString().slice(0, 10);
+  // Pinned snapshot date (tracked file): a wall-clock date would make every re-bake drift.
+  const fetched = readFileSync(resolve(HERE, 'fetched.txt'), 'utf8').trim();
   const body = [
     '/**',
     ' * Moscow map baked from OpenStreetMap by tools/moscow/bake.js. Do not edit by hand.',

@@ -3,7 +3,7 @@
  */
 import { DIRS, OPPOSITE } from './constants.js';
 import { inBounds } from './map.js';
-import { mkIssue, emitItems, labelComponents } from './diagIssue.js';
+import { mkIssue, emitItems, labelComponents, labelComponentsAll } from './diagIssue.js';
 
 /** Radius (tiles) of the town core whose road network must be a single piece. */
 export const TOWN_CORE_RADIUS = 12;
@@ -60,7 +60,7 @@ export function checkTownRoads(state) {
   const R2 = TOWN_CORE_RADIUS * TOWN_CORE_RADIUS;
   // global labels (depend only on the map, so computed once for all towns): core pieces joined
   // through roads outside the radius are still connected
-  const labels = towns.length ? labelComponents(map, 'road', () => true) : null;  // shared with `all` below
+  const labels = towns.length ? labelComponentsAll(map, 'road') : null;  // shared with `all` below
   for (const town of towns) {
     const inCore = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= R2;
     const seen = new Set();

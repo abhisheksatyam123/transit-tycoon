@@ -20,7 +20,7 @@ import { allocId, findStation, manhattan } from './state.js';
 import { renewRivalFleet } from './aiRenew.js';
 import { upgradeRivalAirports } from './aiAirUpgrade.js';
 import { getTile, inBounds } from './map.js';
-import { labelComponents } from './diagIssue.js';
+import { labelComponents, labelComponentsAll } from './diagIssue.js';
 import { TOWN_CORE_RADIUS } from './diagChecksMap.js';
 import { DIRS, OPPOSITE, CATCHMENT } from './constants.js';
 import { canAddBits } from './trackRules.js';
@@ -296,7 +296,7 @@ function townServed(state, town) {
  * @returns {[object, object]|null}
  */
 export function pickTownPair(state) {
-  const labels = labelComponents(state.map, 'road', () => true);
+  const labels = labelComponentsAll(state.map, 'road');
   const cands = state.towns.filter((t) => !townServed(state, t))
     .map((t) => ({ t, comp: townComponent(state, labels, t) }))
     .filter((c) => c.comp >= 0);
@@ -384,7 +384,7 @@ function buildRoute(ctx, r) {
   if (!pair) return false;
   const [ta, tb] = pair;
   const owner = r.id;
-  const labels = labelComponents(state.map, 'road', () => true);
+  const labels = labelComponentsAll(state.map, 'road');
   const comp = townComponent(state, labels, ta);
   const sa = placeStop(ctx, ta, owner, labels, comp);
   if (!sa) return false;

@@ -8,7 +8,7 @@ import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { writeFileSync } from 'fs';
 import { Game } from '../js/simulation/game.js';
 import { runDiagnostics, summarizeIssues } from '../js/simulation/diagnostics.js';
-import { labelComponents } from '../js/simulation/diagIssue.js';
+import { labelComponents, labelComponentsAll } from '../js/simulation/diagIssue.js';
 import { placeIndustry } from '../js/simulation/industries.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
 
@@ -92,7 +92,7 @@ const oppBit = (b) => ({ 1: 4, 2: 8, 4: 1, 8: 2 })[b];
 
 /** Road component label of a town centre (or -1 if none). */
 function roadLabel(g, town) {
-  const labels = labelComponents(g.state.map, 'road', () => true);
+  const labels = labelComponentsAll(g.state.map, 'road');
   return labels[town.y * g.state.map.width + town.x];
 }
 

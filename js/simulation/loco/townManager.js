@@ -6,7 +6,7 @@
  */
 import { rollTownStats } from '../townGrowth.js';
 import { repairTownRoads } from './townGrow.js';
-import { labelComponents } from '../diagIssue.js';
+import { labelComponents, labelComponentsAll } from '../diagIssue.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
 import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown } from './town.js';
@@ -24,9 +24,9 @@ export function tick(game) {
 export function updateMonthly(game) {
   const s = game.state;
   // M3 (Moscow only): keep each town's core roads on one network (see townGrow.repairTownRoads)
-  let labels = s.scenario === 'moscow' ? labelComponents(s.map, 'road', () => true) : null;
+  let labels = s.scenario === 'moscow' ? labelComponentsAll(s.map, 'road') : null;
   for (const town of s.towns) {
-    if (labels && repairTownRoads(s, town, labels)) labels = labelComponents(s.map, 'road', () => true);
+    if (labels && repairTownRoads(s, town, labels)) labels = labelComponentsAll(s.map, 'road');
     updateMonthlyTown(town);
     if (town.fundMonths > 0) town.buildSpeed = FUND_BUILD_SPEED; // fund new buildings (townAuthority.js)
     rollTownStats(s, town);

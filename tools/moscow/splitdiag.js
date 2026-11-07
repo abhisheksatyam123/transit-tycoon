@@ -6,7 +6,7 @@
  * houses vs. destinations (other town / industry) to show where trips cannot route.
  */
 import { Game } from '../../js/simulation/game.js';
-import { labelComponents } from '../../js/simulation/diagIssue.js';
+import { labelComponents, labelComponentsAll } from '../../js/simulation/diagIssue.js';
 import { TOWN_CORE_RADIUS } from '../../js/simulation/diagChecksMap.js';
 import { neighbours } from '../../js/simulation/map.js';
 
@@ -16,7 +16,7 @@ const days = opt('--days', 0), seed = opt('--seed', 1);
 const g = Game.create({ scenario: 'moscow', seed });
 const s = g.state, map = s.map, W = map.width;
 if (days) g.stepDays(days);
-const labels = labelComponents(map, 'road', () => true);
+const labels = labelComponentsAll(map, 'road');
 const R2 = TOWN_CORE_RADIUS * TOWN_CORE_RADIUS;
 const sizes = new Map();
 for (let i = 0; i < labels.length; i++) if (labels[i] >= 0) sizes.set(labels[i], (sizes.get(labels[i]) || 0) + 1);

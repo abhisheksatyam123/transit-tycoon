@@ -78,3 +78,30 @@ export function labelComponents(map, layer, allowed) {
   }
   return labels;
 }
+
+// Cache for the unrestricted labelling (allowed = all tiles). Labels depend only on the layer
+// bits, so the cache keeps an exact snapshot of those bits per map/layer and reuses the labels
+// while the snapshot still matches: no mutation counter needed, and every road/rail write is seen.
+const labelCache = new WeakMap();
+const ALL_TILES = () => true;
+
+/** labelComponents(map, layer, all tiles), memoised on the exact layer-bit snapshot. */
+export function labelComponentsAll(map, layer) {
+  let perMap = labelCache.get(map);
+  if (!perMap) labelCache.set(map, perMap = {});
+  const { width: W, height: H, tiles } = map;
+  const n = W * H;
+  let hit = perMap[layer];
+  if (hit && hit.snap.length === n) {
+    const snap = hit.snap;
+    let same = true;
+    for (let i = 0; i < n; i++) if (snap[i] !== (tiles[i][layer] | 0)) { same = false; break; }
+    if (same) return hit.labels;
+  }
+  const labels = labelComponents(map, layer, ALL_TILES);
+  const snap = hit && hit.snap.length === n ? hit.snap : new Uint16Array(n);
+  for (let i = 0; i < n; i++) snap[i] = tiles[i][layer] | 0;
+  perMap[layer] = { snap, labels };
+  return labels;
+}
+

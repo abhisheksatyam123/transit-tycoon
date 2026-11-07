@@ -3,7 +3,7 @@
  * Routes are found by deterministic A* over terrain (no RNG use).
  */
 import { linkTiles } from './network.js';
-import { labelComponents } from './diagIssue.js';
+import { labelComponents, labelComponentsAll } from './diagIssue.js';
 import { TOWN_CORE_RADIUS } from './diagChecksMap.js';
 
 const ROAD_COST = 0.4;
@@ -163,7 +163,7 @@ function coreRoadTiles(map, town) {
 /** Connect two towns by road if they are not already on one network. */
 function linkPair(state, a, b) {
   const { map } = state;
-  const labels = labelComponents(map, 'road', () => true);
+  const labels = labelComponentsAll(map, 'road');
   const la = labels[a.y * map.width + a.x], lb = labels[b.y * map.width + b.x];
   if (la >= 0 && la === lb) return true;
   const sources = coreRoadTiles(map, a);

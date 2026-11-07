@@ -29,7 +29,7 @@ import { roadAllowedHere, nextGrowthAction } from '../townLayout.js';
 import { pickStyle, tileDist } from '../scenarios/moscowStyles.js';
 import { ensembleBoxes } from '../scenarios/moscowTowns.js';
 import { findRoadPath, layRoadPath } from '../townRoads.js';
-import { labelComponents } from '../diagIssue.js';
+import { labelComponents, labelComponentsAll } from '../diagIssue.js';
 import { TOWN_CORE_RADIUS } from '../diagChecksMap.js';
 
 /** kBuildSpeedToGrowthPerTick */
@@ -119,7 +119,7 @@ function joinStreetToCore(state, town, street) {
   const own = new Set(street.map((p) => p.y * map.width + p.x));
   const goals = new Set();
   // only the network that holds the town's existing roads (the one the diagnostic measures against)
-  const labels = labelComponents(map, 'road', () => true);
+  const labels = labelComponentsAll(map, 'road');
   let home = -1, bd = Infinity;
   for (let y = town.y - R; y <= town.y + R; y++) for (let x = town.x - R; x <= town.x + R; x++) {
     if (x < 0 || y < 0 || x >= map.width || y >= map.height || !inCore(x, y)) continue;
