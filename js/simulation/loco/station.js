@@ -143,7 +143,14 @@ export function updateCargo(game, st) {
   const stationRatingCheat = stationRatingFixed(state) && !(st.ownerId !== undefined && st.ownerId !== null); // cheats.js: player stations only
   st.rating200 = st.rating200 || {};
   st.cargoAge = st.cargoAge || {};
-  for (const cargoId of Object.keys(st.lastPickup)) {
+  // OpenLoco Station::updateCargo loops every cargo slot that is not empty. Transfer-only cargo (unloaded by
+  // transferUnits, never picked up here) has no lastPickup entry, so also rate cargo with waiting units.
+  // Daily loop only; lastPickup cargo first (unchanged order), then transfer-only cargo.
+  const cargoIds = Object.keys(st.lastPickup);
+  for (const k of Object.keys(st.cargo)) {
+    if (st.lastPickup[k] === undefined && waitingAmount(st, k) > 0) cargoIds.push(k);
+  }
+  for (const cargoId of cargoIds) {
     if (st.rating200[cargoId] === undefined) {
       // legacy saves store only the % rating
       st.rating200[cargoId] = st.rating[cargoId] !== undefined ? st.rating[cargoId] * 2 : INITIAL_CARGO_RATING;
