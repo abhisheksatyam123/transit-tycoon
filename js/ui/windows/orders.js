@@ -4,15 +4,17 @@
  */
 import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
-import { createAddOrderTool, appendOrder } from '../tools/addOrder.js';
+import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
-import { unloadMode, stopMode, hasTimetable } from '../../simulation/orders.js';
+import { unloadMode, stopMode, hasTimetable, orderFlagText } from '../../simulation/orders.js';
+import { refitCargos } from '../../simulation/refit.js';
+import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 import { orderCargoWarning } from '../../simulation/orderCargo.js';
 
-const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['none', 'No loading']];
+const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['fullAny', 'Full load any'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
 const STOP_OPTIONS = [['non', 'Non-stop'], ['all', 'Stop at all stations'], ['via', 'Go via']];
 
@@ -26,6 +28,12 @@ export function orderVerb(o) {
 function usableBy(v, st) {
   const k = st.kinds || {};
   return ['rail', 'bus', 'truck', 'airport', 'ship'].some((x) => k[x] && stopKindOk(v, x));
+}
+
+/** Whether a depot can take this vehicle (kind match; a plane only at an airport it fits). */
+function depotKindOk(v, d) {
+  const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
+  return d.kind === kind;
 }
 
 /** Stop modes apply to trains and road vehicles only (OpenTTD; ships and aircraft are always non-stop here). */
@@ -62,21 +70,24 @@ export function openOrders(app, id) {
       } });
       const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear the recorded lateness', onclick: () => app.exec(app.game.resetLateness(id), { quiet: true, sound: 'click' }) });
       const pickSel = el('select.input', { 'aria-label': 'Station to add', title: 'Pick a station this vehicle can use', style: { flex: '1', minWidth: '0' } });
-      const pickBtn = el('button.btn', { type: 'button', text: 'Add', title: 'Append the selected station to the orders', onclick: () => {
-        const sid = Number(pickSel.value);
-        if (!sid) return;
-        appendOrder(app, id, sid);
+      const pickBtn = el('button.btn', { type: 'button', text: 'Add', title: 'Append the selected station or depot to the orders', onclick: () => {
+        const val = pickSel.value;
+        if (!val) return;
+        if (val.startsWith('d:')) appendDepotOrder(app, id, Number(val.slice(2)));
+        else appendOrder(app, id, Number(val));
       } });
       const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn);
       let pickSig = '';
       const fillPicker = (v) => {
         const sts = app.game.state.stations.filter((st) => st.ownerId == null && usableBy(v, st));
-        const sig = sts.map((st) => st.id + ':' + st.name).join('|');
+        const deps = depotsFor(v);
+        const sig = sts.map((st) => st.id + ':' + st.name).join('|') + '#' + deps.map((d) => d.id).join(',');
         if (sig === pickSig) return;
         pickSig = sig;
-        pickSel.replaceChildren(el('option', { value: '', text: sts.length ? 'Choose a station…' : 'No station this vehicle can use' }),
-          ...sts.map((st) => el('option', { value: String(st.id), text: st.name })));
-        pickBtn.disabled = !sts.length;
+        pickSel.replaceChildren(el('option', { value: '', text: sts.length || deps.length ? 'Choose a station or depot…' : 'No station this vehicle can use' }),
+          ...sts.map((st) => el('option', { value: String(st.id), text: st.name })),
+          ...deps.map((d) => el('option', { value: 'd:' + d.id, text: `Go to depot at ${d.x},${d.y}` })));
+        pickBtn.disabled = !sts.length && !deps.length;
       };
       // OpenTTD timetable start: days from now (0 = now); blank clears. Spread evenly over the shared group.
       const startIn = el('input.input', { type: 'number', min: '0', max: '3650', step: '1', title: 'Timetable start date: days from now (blank = no start date)', placeholder: 'days', 'aria-label': 'Timetable start in days', style: 'width:5em',
@@ -98,6 +109,16 @@ export function openOrders(app, id) {
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
         ...STOP_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
+      /** Depots this vehicle can be sent to (same kind, company's own; aircraft use the airport checks). */
+      const depotsFor = (v) => app.game.state.depots.filter((d) => d.ownerId == null && depotKindOk(v, d));
+      const refitSel = el('select.input', { title: 'Refit to', 'aria-label': 'Refit to', onchange: (e) => edit((os) => {
+        const i = Number(e.target.dataset.i);
+        if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
+      }) });
+      const svcChk = el('input', { type: 'checkbox', title: 'Service only if needed: skip this depot when the vehicle is not due for service', 'aria-label': 'Service only if needed' });
+      const depotRowCtl = el('span.depot-ctl', null,
+        el('label.small', { text: ' service only if needed ' }, svcChk),
+        el('label.small', { text: ' refit ' }, refitSel));
       const edit = (fn) => {
         const v = app.findVehicle(id);
         if (!v) return;
@@ -144,6 +165,7 @@ export function openOrders(app, id) {
           (it) => el('div.order-row', null,
             el('span.order-idx.mono'), el('span.name'),
             el('span.order-flags', null,
+              depotRowCtl,
               el('select.input', { title: 'Load', onchange: (e) => edit((os) => { os[it.i].load = e.target.value; os[it.i].full = e.target.value === 'full'; }) },
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
@@ -163,23 +185,52 @@ export function openOrders(app, id) {
           (row, it) => {
             const st = app.findStation(it.o.stationId);
             setText(row.children[0], String(it.i + 1));
-            setText(row.children[1], `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);
+            const isDepot = it.o.depotId != null;
+            const dep = isDepot ? app.game.state.depots.find((d) => d.id === it.o.depotId) : null;
+            const depotName = dep ? (dep.name || `Depot at ${dep.x},${dep.y}`) : `depot #${it.o.depotId} (removed)`;
+            const depotText = `Go to ${depotName}${orderFlagText(it.o)}`;
+            setText(row.children[1], isDepot ? depotText
+              : `${orderVerb(it.o)} ${st ? st.name : `Station #${it.o.stationId} (removed)`}`);
+            const ctl = row.querySelector(':scope > .order-flags > .depot-ctl');
+            if (ctl) {
+              ctl.hidden = !isDepot;
+              const svc = ctl.querySelector('input'), rsel = ctl.querySelector('select');
+              if (isDepot) {
+                svc.checked = !!it.o.serviceOnly;
+                svc.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].serviceOnly = true; else delete os[it.i].serviceOnly; });
+                const opts = refitCargos(v) || [];
+                const sig = opts.join(',');
+                if (rsel.dataset.sig !== sig) {
+                  rsel.dataset.sig = sig;
+                  rsel.replaceChildren(el('option', { value: '', text: 'No refit' }), ...opts.map((c) => el('option', { value: c, text: cargoName(c) })));
+                }
+                rsel.dataset.i = String(it.i);
+                rsel.value = it.o.refit || '';
+              }
+            }
+
             const stopEl = row.querySelector('select[title="Stop"]');
             if (stopEl && stopEl.value !== stopMode(it.o)) stopEl.value = stopMode(it.o);
-            if (stopEl) stopEl.hidden = !canStopAtIntermediate(v);
+            if (stopEl) stopEl.hidden = isDepot || !canStopAtIntermediate(v);
+            for (const x of Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"], :scope > .order-flags > label'))) {
+              x.hidden = isDepot;
+            }
             // P7: warn when this stop neither accepts nor supplies any cargo the vehicle carries
-            const warn = st ? orderCargoWarning(app.game.state, v, st) : '';
+            // no warning on depot orders, nor on go-via (waypoint) orders: the vehicle passes through without loading
+            const warn = st && !isDepot && stopMode(it.o) !== 'via' ? orderCargoWarning(app.game.state, v, st) : '';
             let w = row.querySelector(':scope > .order-warn');
             if (!w) { w = el('span.order-warn', { title: 'This stop cannot take the cargo this vehicle carries' }); row.children[1].after(w); }
             setText(w, warn ? '⚠ ' + warn : '');
             w.hidden = !warn;
             row.classList.toggle('current', it.i === v.orderIndex);
-            const [loadSel, unloadSel] = /** @type {HTMLSelectElement[]} */ (Array.from(row.querySelectorAll('select')));
-            if (loadSel.value !== loadModeOf(it.o)) loadSel.value = loadModeOf(it.o);
-            if (unloadSel.value !== unloadMode(it.o)) unloadSel.value = unloadMode(it.o);
-            const [waitIn, travelIn] = /** @type {HTMLInputElement[]} */ (Array.from(row.querySelectorAll('input')));
-            if (document.activeElement !== waitIn) waitIn.value = it.o.waitDays ? String(it.o.waitDays) : '';
-            if (document.activeElement !== travelIn) travelIn.value = it.o.travelDays ? String(it.o.travelDays) : '';
+            if (!isDepot) {
+              const [loadSel, unloadSel] = /** @type {HTMLSelectElement[]} */ (Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"]')));
+              if (loadSel.value !== loadModeOf(it.o)) loadSel.value = loadModeOf(it.o);
+              if (unloadSel.value !== unloadMode(it.o)) unloadSel.value = unloadMode(it.o);
+              const [waitIn, travelIn] = /** @type {HTMLInputElement[]} */ (Array.from(row.querySelectorAll(':scope > .order-flags > label > input')));
+              if (document.activeElement !== waitIn) waitIn.value = it.o.waitDays ? String(it.o.waitDays) : '';
+              if (document.activeElement !== travelIn) travelIn.value = it.o.travelDays ? String(it.o.travelDays) : '';
+            }
           }, 'No orders — click "Add order", then a station on the map');
       };
     },

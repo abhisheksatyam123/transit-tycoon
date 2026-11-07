@@ -19,7 +19,8 @@ import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaP
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
-import { servicePerformed } from './service.js';
+import { servicePerformed, serviceDueNow } from './service.js';
+import { refitCore } from './refit.js';
 import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
@@ -92,10 +93,21 @@ export function vehicleTick(ctx, v) {
 export function replan(ctx, v) {
   const { state } = ctx;
   let goals;
-  if (v.kind === 'aircraft' && (v.goingToDepot === null || v.goingToDepot === undefined) && v.orders.length && ftaReplan(ctx, v)) return true;
+  const noDepotTrip = v.goingToDepot === null || v.goingToDepot === undefined;
+  if (noDepotTrip && v.orders.length && skipNotDueDepotOrders(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
+  const order = noDepotTrip && v.orders.length ? currentOrder(v) : null;
+  const toDepotOrder = !!order && order.depotId != null;
+  if (v.kind === 'aircraft' && noDepotTrip && v.orders.length && !toDepotOrder && ftaReplan(ctx, v)) return true;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) {
     goals = depotGoals(state, v, v.goingToDepot);
     if (!goals.length) { v.goingToDepot = null; return replan(ctx, v); }
+  } else if (toDepotOrder) { // go-to-depot order: the order's depot; a removed depot order is skipped
+    goals = depotGoals(state, v, order.depotId);
+    if (!goals.length) { // the depot is gone: skip that order (all depot orders gone -> nothing to do)
+      if (v.orders.every((o) => o.depotId != null)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
+      advanceOrder(v);
+      return replan(ctx, v);
+    }
   } else {
     if (!v.orders.length) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
     goals = orderGoals(state, v);
@@ -118,6 +130,23 @@ export function replan(ctx, v) {
   v.progress = 0;
   v.retryTick = state.tick + LOST_RETRY_TICKS;
   return false;
+}
+
+/** A service-only go-to-depot order whose vehicle is not due for service is skipped (advance past it). */
+function depotOrderNotDue(state, v, o) {
+  return o.depotId != null && o.serviceOnly && !serviceDueNow(state, v);
+}
+
+/**
+ * Skip the current order(s) while they are service-only depot orders that are not due (bounded by the list).
+ * @returns {boolean} true when every order is such a skipped depot order (nothing left to drive to)
+ */
+function skipNotDueDepotOrders(state, v) {
+  for (let k = 0; k < v.orders.length; k++) {
+    if (!depotOrderNotDue(state, v, currentOrder(v))) return false;
+    advanceOrder(v);
+  }
+  return true;
 }
 
 /**
@@ -417,12 +446,18 @@ function onPathEnd(ctx, v) {
     replan(ctx, v);
     return;
   }
+  const order = currentOrder(v);
+  if (order && order.depotId != null) { // go-to-depot order: visit the depot (service / refit) and go on
+    const hangarHere = b && b.type === 'station' && (b.part === 'hangar' || b.part === 'helipad');
+    if (b && ((b.type === 'depot' || hangarHere) && b.depotId === order.depotId)) depotOrderVisit(ctx, v, order);
+    else replan(ctx, v);
+    return;
+  }
   if (v.kind === 'ship') { // water stop: a dock beside the ship (loads) or a buoy (waypoint, passes on)
     if (shipArrive(ctx, v) === 'stop') return;
     replan(ctx, v);
     return;
   }
-  const order = currentOrder(v);
   if (v.kind === 'aircraft' && ftaGroundFor(v, b) && b.part === 'terminal' && ftaParked(state, v, v.tx, v.ty)) return; // terminal taken meanwhile: wait on the taxiway
   if (v.kind === 'aircraft') clearGround(v); // a finished ground path (landing taxi at the terminal)
   if (v.kind === 'aircraft' && v.hold && (v.tx !== v.hold.x || v.ty !== v.hold.y)) { // holding loop corner
@@ -478,6 +513,31 @@ export function enterDepot(ctx, v, depotId) {
     v.reliability = v.baseReliability ?? v.reliability;
     v.breakdownTicks = 0;
   }
+}
+
+/**
+ * A go-to-depot order reached (OpenTTD OT_GOTO_DEPOT): a service-only order that is not due is skipped; otherwise
+ * the vehicle is serviced in the depot (autoreplace/autorenew as on a service visit), refitted to the order's
+ * cargo when empty, and leaves on its next order without stopping (same as a service trip).
+ */
+function depotOrderVisit(ctx, v, order) {
+  const { state } = ctx;
+  if (depotOrderNotDue(state, v, order)) { advanceOrder(v); replan(ctx, v); return; }
+  v.goingToDepot = order.depotId; // autorenew (keepRoute) finds the depot by goingToDepot
+  const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
+  const cur = nv || v;
+  cur.goingToDepot = null;
+  if (cur.serviceIntervalDays) servicePerformed(state, cur);
+  else { cur.reliability = cur.baseReliability ?? cur.reliability; cur.breakdownTicks = 0; }
+  // refit order: only an empty single-cargo vehicle is refitted (refit.js refitCore; the cost is charged)
+  if (order.refit && cur.cargoId !== order.refit) {
+    const r = refitCore(ctx, cur, order.refit);
+    if (!r.ok) notify(ctx, `${cur.name} could not be refitted to ${order.refit}: ${r.error}.`, 'bad', cur.tx, cur.ty, 'advice');
+  }
+  cur.atStationId = null;
+  delete cur.intermediate;
+  advanceOrder(cur);
+  replan(ctx, cur);
 }
 
 /**

@@ -16,6 +16,24 @@ export function appendOrder(app, vehicleId, stationId) {
 }
 
 /**
+ * Append a go-to-depot order (OpenTTD OT_GOTO_DEPOT) to a vehicle's orders.
+ * @returns {boolean} true when the order was added
+ */
+export function appendDepotOrder(app, vehicleId, depotId) {
+  const v = app.findVehicle(vehicleId);
+  if (!v) return false;
+  const orders = v.orders.map((o) => ({ ...o }));
+  orders.push({ depotId });
+  return !!app.exec(app.game.setOrders(vehicleId, orders), { sound: 'click', quiet: true });
+}
+
+/** Depot kind matches the vehicle (rail / road / air / ship). */
+function depotOrderFits(v, d) {
+  const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
+  return d.kind === kind;
+}
+
+/**
  * @param {import('../app.js').App} app
  * @param {number} vehicleId
  * @returns {import('./index.js').Tool}
@@ -28,10 +46,10 @@ export function createAddOrderTool(app, vehicleId) {
     id: 'addOrder',
     vehicleId,
     label: 'Add order',
-    hint: 'Click a station on the map or in the Stations list. Esc cancels.',
+    hint: 'Click a station or a depot on the map, or in the Stations list. Esc cancels.',
     move(t) {
       const tile = app.game.tile(t.x, t.y);
-      const ok = !!(tile && tile.building && tile.building.type === 'station');
+      const ok = !!(tile && tile.building && (tile.building.type === 'station' || tile.building.type === 'depot'));
       app.renderer.overlay.preview = { tiles: [t], ok };
     },
     down() {},
@@ -39,13 +57,21 @@ export function createAddOrderTool(app, vehicleId) {
       const tile = app.game.tile(t.x, t.y);
       const v = app.findVehicle(vehicleId);
       if (!v) { app.setTool(null); return; }
-      if (!tile || !tile.building || tile.building.type !== 'station') {
+      const b = tile && tile.building;
+      if (b && b.type === 'depot') { // a depot is a go-to-depot order (its kind must match the vehicle)
+        const d = app.game.state.depots.find((x) => x.id === b.depotId);
+        if (!d || !depotOrderFits(v, d)) { hideHint(); hintEl = app.toast('That depot cannot take this vehicle', 'error', true); return; }
         hideHint();
-        hintEl = app.toast('Click on a station', 'error', true);
+        appendDepotOrder(app, vehicleId, d.id);
+        return;
+      }
+      if (!b || b.type !== 'station') {
+        hideHint();
+        hintEl = app.toast('Click on a station or a depot', 'error', true);
         return;
       }
       hideHint();
-      appendOrder(app, vehicleId, tile.building.stationId);
+      appendOrder(app, vehicleId, b.stationId);
     },
     cancel() { app.renderer.overlay.preview = null; hideHint(); },
   };

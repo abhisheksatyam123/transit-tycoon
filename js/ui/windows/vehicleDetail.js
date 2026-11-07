@@ -141,8 +141,9 @@ export function openVehicleDetail(app, id) {
         }
         groupSel.value = v.groupId != null && groups.some((x) => x.id === v.groupId) ? String(v.groupId) : 'none';
         const o = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
-        const st = o ? app.findStation(o.stationId) : null;
-        set['Next order'](st ? `${st.name}${orderFlagText(o)}` : 'No orders');
+        const st = o && o.depotId == null ? app.findStation(o.stationId) : null;
+        const nextDep = o && o.depotId != null ? app.game.state.depots.find((d) => d.id === o.depotId) : null;
+        set['Next order'](st ? `${st.name}${orderFlagText(o)}` : o && o.depotId != null ? `Depot at ${nextDep ? `${nextDep.x},${nextDep.y}` : '(removed)'}${orderFlagText(o)}` : 'No orders');
         win.setTitle(v.name || 'Vehicle');
         reverseBtn.hidden = v.kind !== 'train';
         setText(startStop, v.state === 'stopped' || v.state === 'depot' ? 'Start' : 'Stop');

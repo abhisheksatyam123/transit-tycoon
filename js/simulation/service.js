@@ -15,6 +15,12 @@ import { getSetting } from './settings.js';
 
 export const MAX_SERVICE_INTERVAL = 730;
 
+/** Due for service now (interval elapsed or flagged): the test for a 'service only if needed' depot order. */
+export function serviceDueNow(state, v) {
+  if (v.serviceDue) return true;
+  return !!v.serviceIntervalDays && dayNumber(state.date) - (v.lastServiceDay ?? 0) >= v.serviceIntervalDays;
+}
+
 /** Restore reliability after a service (movement.js calls this on arrival at the depot). */
 export function servicePerformed(state, v) {
   v.reliability = v.baseReliability ?? v.reliability;

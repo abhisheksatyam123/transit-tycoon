@@ -8,7 +8,8 @@ import { recordDelivery } from './loco/company.js';
 import { companyOf, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
-import { findStation, manhattan, findIndustry, nearestTown } from './state.js';
+import { findStation, findDepot, manhattan, findIndustry, nearestTown } from './state.js';
+import { refitCargos } from './refit.js';
 import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting } from './stations.js';
 import { deliverToIndustry } from './industries.js';
 import { recordTownDelivery } from './townGrowth.js';
@@ -18,7 +19,7 @@ import { noteDelivery } from './goals.js';
 import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
-import { stopKindOk, stationFitsVehicle } from './routing.js';
+import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
 import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 
@@ -36,7 +37,7 @@ export const FULL_LOAD_RETRY = 20;
  * All orders behave as OpenTTD non-stop orders (its default for new orders): arrival is only checked at the end
  * of the path against the current order's station, so vehicles never stop at intermediate stations.
  */
-export const LOAD_MODES = ['normal', 'full', 'none'];
+export const LOAD_MODES = ['normal', 'full', 'none', 'fullAny'];
 export const UNLOAD_MODES = ['normal', 'all', 'transfer', 'none'];
 /**
  * Stop modes (OpenTTD ONSF_*): absent / 'non' = non-stop (default, arrival checked at the order's station only),
@@ -67,7 +68,13 @@ export function unloadMode(order) {
 export function orderFlagText(o) {
   if (!o) return '';
   const parts = [];
+  if (o.depotId != null) { // go-to-depot order (see movement.js depotOrderVisit)
+    if (o.serviceOnly) parts.push('service if needed');
+    if (o.refit) parts.push(`refit to ${cargoName(o.refit)}`);
+    return parts.length ? ` (${parts.join(', ')})` : '';
+  }
   if (o.full) parts.push('full load');
+  if (o.load === 'fullAny') parts.push('full load any');
   if (o.load === 'none') parts.push('no loading');
   if (o.stop === 'all') parts.push('stop at all stations');
   else if (o.stop === 'via') parts.push('go via');
@@ -109,7 +116,7 @@ export function setOrderField(state, v, idx, patch) {
  * single-station route cannot wait for cargo that only it could deliver), so with fewer the vehicle departs.
  */
 export function distinctOrderStations(v) {
-  return new Set(v.orders.map((o) => o.stationId)).size;
+  return new Set(v.orders.filter((o) => o.depotId == null).map((o) => o.stationId)).size;
 }
 
 /** Current order of a vehicle or null. */
@@ -170,6 +177,12 @@ function inSlice(v, cargoId, capacity, fn) {
 export function isFull(v) {
   if (!v.consist) return v.load.amount >= v.capacity;
   return cargoSlices(v).every((s) => ((v.loads && v.loads[s.cargoId] && v.loads[s.cargoId].amount) || 0) >= s.capacity);
+}
+
+/** Full load any cargo (OpenTTD OLFB_FULL_LOAD_ANY): depart when any one cargo slice is full (single cargo = full). */
+export function isFullAny(v) {
+  if (!v.consist) return v.load.amount >= v.capacity;
+  return cargoSlices(v).some((s) => s.capacity > 0 && ((v.loads && v.loads[s.cargoId] && v.loads[s.cargoId].amount) || 0) >= s.capacity);
 }
 
 /** Whole-train load amount of a mixed consist = sum of its cargo packets (drops empty packets). */
@@ -460,8 +473,9 @@ export function loadingTick(ctx, v) {
   // no loading when told so, and no reloading of cargo just dropped here (transfer / unload all)
   const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
   if (!order || (order.load !== 'none' && !dropped)) loadCargo(ctx, v, st);
-  if (order && order.full && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
-    && order.stationId === st.id && !isFull(v) && distinctOrderStations(v) >= 2) {
+  const fullMode = order && (order.full || order.load === 'fullAny');
+  if (fullMode && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
+    && order.stationId === st.id && !(order.load === 'fullAny' ? isFullAny(v) : isFull(v)) && distinctOrderStations(v) >= 2) {
     v.loadingTicks = FULL_LOAD_RETRY;
     return false;
   }
@@ -514,6 +528,12 @@ export function normaliseOrders(state, v, orders, kindOf) {
   if (orders.length > 16) return { ok: false, error: 'Too many orders' };
   const out = [];
   for (const o of orders) {
+    if (o && o.depotId != null) { // go-to-depot order: no station; optional service-if-needed and refit
+      const r = normaliseDepotOrder(state, v, o);
+      if (!r.ok) return r;
+      out.push(r.entry);
+      continue;
+    }
     const st = o && findStation(state, o.stationId);
     if (!st) return { ok: false, error: 'Unknown station in orders' };
     const kind = kindOf(v);
@@ -538,6 +558,7 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (!UNLOAD_MODES.includes(unload)) return { ok: false, error: `Unknown unload mode ${unload}` };
     const entry = { stationId: st.id, full: load === 'full' };
     if (load === 'none') entry.load = 'none';
+    else if (load === 'fullAny') entry.load = 'fullAny';
     if (unload !== 'normal') entry.unload = unload;
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
@@ -545,6 +566,21 @@ export function normaliseOrders(state, v, orders, kindOf) {
     out.push(entry);
   }
   return { ok: true, orders: out };
+}
+
+/** Validate a go-to-depot order: an existing depot of the vehicle's kind, own company, optional refit cargo. */
+function normaliseDepotOrder(state, v, o) {
+  const d = findDepot(state, o.depotId);
+  if (!d) return { ok: false, error: 'Unknown depot in orders' };
+  if (ownerMismatch(d, { owner: v.ownerId ?? null })) return { ok: false, error: RIVAL_OWNED };
+  if (!depotGoals(state, v, d.id).length) return { ok: false, error: 'That depot cannot take this vehicle' };
+  const entry = { depotId: d.id };
+  if (o.serviceOnly) entry.serviceOnly = true;
+  if (o.refit != null) {
+    if (!(refitCargos(v) || []).includes(o.refit)) return { ok: false, error: `Cannot refit this vehicle to ${o.refit}` };
+    entry.refit = o.refit;
+  }
+  return { ok: true, entry };
 }
 
 /** Cargo name helper for UI lines. */
