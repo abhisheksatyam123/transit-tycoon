@@ -15,6 +15,7 @@
  *    (not part of this OpenLoco version's cargo rating).
  */
 import { waitingAmount, takeWaiting, recomputeAcceptance } from '../stations.js';
+import { stationRatingFixed } from '../cheats.js';
 
 export const MIN_CARGO_RATING = 0;
 export const MAX_CARGO_RATING = 200;
@@ -120,6 +121,7 @@ function typeAge(state, st) {
 export function updateCargo(game, st) {
   const { state, rng } = game;
   let good = false;
+  const stationRatingCheat = stationRatingFixed(state) && !(st.ownerId !== undefined && st.ownerId !== null); // cheats.js: player stations only
   st.rating200 = st.rating200 || {};
   st.cargoAge = st.cargoAge || {};
   st.pickupSeen = st.pickupSeen || {};
@@ -144,6 +146,7 @@ export function updateCargo(game, st) {
     });
     const delta = Math.max(-2, Math.min(2, target - st.rating200[cargoId]));
     let r = (st.rating200[cargoId] += delta);
+    if (stationRatingCheat) r = st.rating200[cargoId] = MAX_CARGO_RATING; // OpenTTD station_rating cheat (station_cmd.cpp:4016)
 
     if (r <= 50) {
       if (quantity >= 400) { takeWaiting(st, cargoId, rng.int(1, 32)); quantity = waitingAmount(st, cargoId); }

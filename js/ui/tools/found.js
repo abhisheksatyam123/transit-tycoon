@@ -9,6 +9,7 @@ import { createPlacementTool } from './placement.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { money } from '../format.js';
 import { costText } from '../editorCost.js';
+import { isRawIndustry, rawIndustryMode } from '../../simulation/cmdFound.js';
 
 /** @param {import('../app.js').App} app */
 export function createFoundTownTool(app) {
@@ -33,6 +34,7 @@ export function createFundIndustryTool(app) {
       const type = tool.typeId && INDUSTRY_BY_ID[tool.typeId];
       if (!type) return 'Pick an industry type in the Fund industry window (opens on click). Esc cancels.';
       const cost = app.game.estimateFound('industry', 0, 0, type.id).cost;
+      if (isRawIndustry(type) && rawIndustryMode(app.game.state) === 'prospect') return `Prospecting ${type.name} costs ${costText(app.game, cost)}; the site is random. Esc cancels.`;
       return `Click a site for a new ${type.name} (${type.w}x${type.h}, ${costText(app.game, cost)}). Needs flat land and 8+ tiles from towns. Esc cancels.`;
     },
     command: (game, x, y, opts) => {

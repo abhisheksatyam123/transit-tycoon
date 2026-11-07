@@ -60,6 +60,36 @@ export function magicBulldozer(state) {
   return !!(state && state.cheats && state.cheats.magicBulldozer);
 }
 
+/**
+ * Generic on/off cheat flags kept in state.cheats (lazy, like the magic bulldozer). Setting one on marks the game
+ * cheated; turning it off deletes the key so a save stays clean. Keys: 'stationRating' (OpenTTD station_rating:
+ * player stations rate 100%), 'noJetCrash' (OpenTTD no_jetcrash: jets at short-strip airports never crash by the 3276 rule).
+ */
+export const CHEAT_FLAGS = ['stationRating', 'noJetCrash'];
+
+/** Set a cheat flag (CHEAT_FLAGS). @returns {{ok:true,on:boolean}|{ok:false,error:string}} */
+export function setCheatFlag(state, key, on) {
+  if (!CHEAT_FLAGS.includes(key)) return { ok: false, error: 'Unknown cheat' };
+  if (!on) {
+    if (state.cheats) { delete state.cheats[key]; if (!Object.keys(state.cheats).length) delete state.cheats; }
+    return { ok: true, on: false };
+  }
+  state.cheats = { ...(state.cheats || {}), [key]: true };
+  markCheated(state);
+  return { ok: true, on: true };
+}
+
+/** True when a cheat flag is on (lazy). */
+export function cheatFlag(state, key) {
+  return !!(state && state.cheats && state.cheats[key]);
+}
+
+/** OpenTTD station_rating cheat: player stations get the maximum rating (station_cmd.cpp:4016). */
+export function stationRatingFixed(state) { return cheatFlag(state, 'stationRating'); }
+
+/** OpenTTD no_jetcrash cheat: short-strip jet landings skip the 3276 crash chance (aircraft_cmd.cpp:1391). */
+export function noJetCrash(state) { return cheatFlag(state, 'noJetCrash'); }
+
 /** True when any cheat was used in this game (lazy). */
 export function isCheated(state) {
   return !!(state && state.cheated);

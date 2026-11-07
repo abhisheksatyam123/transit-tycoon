@@ -49,6 +49,8 @@ export const DEFAULT_SETTINGS = {
   shares: false,
   /** T29 OpenTTD temperate bank (produces/accepts Valuables) placed in towns of 1200+ people by the map generator. Off by default. */
   extraIndustries: false,
+  /** OpenTTD construction.raw_industry_construction (settings_type.h:496): 'normal' funds raw industries at a site (default); 'none' blocks raw (primary) industries; 'prospect' prospects them at a random site with the type's chance (cmdFound.js). Processing industries are always fundable. */
+  rawIndustryConstruction: 'normal',
   /** T29 OpenLoco farm fields: farms plant field tiles around themselves and production scales with them. Off by default. */
   farmFields: false,
   /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */

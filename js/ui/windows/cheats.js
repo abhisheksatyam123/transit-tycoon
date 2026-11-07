@@ -5,7 +5,7 @@
  */
 import { el } from '../dom.js';
 import { money } from '../format.js';
-import { moneyCheat, changeYearCheat, setMagicBulldozer, magicBulldozer, isCheated, MONEY_CHEAT_AMOUNT } from '../../simulation/cheats.js';
+import { moneyCheat, changeYearCheat, setMagicBulldozer, magicBulldozer, isCheated, MONEY_CHEAT_AMOUNT, setCheatFlag, cheatFlag } from '../../simulation/cheats.js';
 
 /** @param {import('../app.js').App} app */
 export function openCheats(app) {
@@ -19,6 +19,8 @@ export function openCheats(app) {
       const yearIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'number', 'aria-label': 'New year', value: String(state().date.year) }));
       const yearMsg = el('p.muted.small', { text: '' });
       const bull = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Magic bulldozer' }));
+      const ratingBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Station ratings fixed at 100%' }));
+      const jetBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'No jet crash' }));
       const status = el('p.muted.small', { text: '' });
       const cheatedLine = el('p.small', { text: '' });
 
@@ -26,6 +28,8 @@ export function openCheats(app) {
         const s = state();
         moneyLine.textContent = 'Company money: ' + money(s.company.money);
         bull.checked = magicBulldozer(s);
+        ratingBox.checked = cheatFlag(s, 'stationRating');
+        jetBox.checked = cheatFlag(s, 'noJetCrash');
         cheatedLine.textContent = isCheated(s) ? 'This game is marked as cheated.' : 'No cheat used in this game.';
       };
 
@@ -51,11 +55,24 @@ export function openCheats(app) {
         refresh();
       });
 
+      ratingBox.addEventListener('change', () => {
+        setCheatFlag(state(), 'stationRating', ratingBox.checked);
+        status.textContent = ratingBox.checked ? 'Station ratings are fixed at 100% for your stations.' : 'Station ratings back to normal.';
+        refresh();
+      });
+      jetBox.addEventListener('change', () => {
+        setCheatFlag(state(), 'noJetCrash', jetBox.checked);
+        status.textContent = jetBox.checked ? 'Jets at short-strip airports will not crash.' : 'Jet crash rule back to normal.';
+        refresh();
+      });
+
       body.append(
         note,
         el('div.set-row', null, plus, moneyLine),
         el('div.set-row', null, el('label', { text: 'Year ' }), yearIn, setYear, yearMsg),
         el('div.set-row', null, el('label', null, bull, el('span', { text: ' Magic bulldozer' })), el('span.set-help.muted', { text: 'Demolish anything, incl. town buildings and industries.' })),
+        el('div.set-row', null, el('label', null, ratingBox, el('span', { text: ' Station ratings 100%' })), el('span.set-help.muted', { text: 'Your stations always rate 100% (OpenTTD station_rating cheat).' })),
+        el('div.set-row', null, el('label', null, jetBox, el('span', { text: ' No jet crash' })), el('span.set-help.muted', { text: 'Jets landing at short-strip airports never crash (OpenTTD no_jetcrash).' })),
         status, cheatedLine,
       );
       refresh();
