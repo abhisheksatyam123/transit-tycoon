@@ -6,7 +6,9 @@ import { money, num, speed } from '../format.js';
 import { condText } from '../../simulation/condOrders.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
-import { cargoSlices } from '../../simulation/orders.js';
+import { cargoSlices, currentOrder } from '../../simulation/orders.js';
+import { platformWarning } from '../../simulation/platformLength.js';
+import { findStation } from '../../simulation/state.js';
 import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText, hasTimetable } from '../../simulation/orders.js';
@@ -41,7 +43,7 @@ export function openVehicleDetail(app, id) {
     onClose: () => { if (app.renderer.overlay.selectedVehicleId === id && app.followId !== id) app.renderer.overlay.selectedVehicleId = null; },
     build(body, win) {
       app.renderer.overlay.selectedVehicleId = id;
-      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Transfer credits', 'Value', 'Next order', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
+      const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Transfer credits', 'Value', 'Next order', 'Platform', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
       const loadBar = bar(0);
       body.appendChild(loadBar);
       const startStop = el('button.btn', { type: 'button' });
@@ -118,6 +120,9 @@ export function openVehicleDetail(app, id) {
         win.setTitle(v.name);
         set['State'](STATE_LABEL[v.state] || v.state);
         set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
+        const co = currentOrder(v);
+        const platWarn = platformWarning(g().state, v, co ? findStation(g().state, co.stationId) : null);
+        set['Platform'](platWarn || '');
         set['Altitude'](v.kind !== 'aircraft' ? '—' : (v.alt || 0) > 0.01 ? (v.alt >= 0.99 ? `${Math.round(v.alt * 100)}% · cruising` : `${Math.round(v.alt * 100)}% · climbing / descending`) : 'on the ground');
         set['Cargo'](`${v.consist ? cargoSlices(v).map((c) => cargoName(c.cargoId)).join(' + ') : cargoName(v.cargoId)}${v.kind === 'train' ? ` · ${v.wagons} wagon(s)` : ''}`);
         const amt = v.load ? v.load.amount || 0 : 0;

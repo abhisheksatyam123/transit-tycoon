@@ -24,6 +24,7 @@ import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
 import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
+import { updatePlatFit } from './platformLength.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
 export const FEEDER_PAYMENT_SHARE = 75;
@@ -143,6 +144,7 @@ export function advanceOrder(v) {
  * @returns {number} cash income earned (transfer credits are not cash)
  */
 export function unload(ctx, v, st) {
+  if (v.platFit != null && !v.consist) return inPlatform(v, () => unloadSlice(ctx, v, st));
   if (!v.consist) return unloadSlice(ctx, v, st);
   let income = 0;
   for (const s of cargoSlices(v)) income += inSlice(v, s.cargoId, s.capacity, () => unloadSlice(ctx, v, st));
@@ -152,7 +154,8 @@ export function unload(ctx, v, st) {
 /** Mixed consists (v.consist): the wagons' cargo slices, one per cargo, with their total capacity. */
 export function cargoSlices(v) {
   const out = [];
-  for (const w of v.consist || []) {
+  const list = v.consist || [];
+  for (const w of v.platFit != null ? list.slice(0, v.platFit) : list) { // mixed consist: wagons inside the platform only
     const s = out.find((x) => x.cargoId === w.cargoId);
     const cap = (MODEL_BY_ID[w.modelId] ? MODEL_BY_ID[w.modelId].capacity : 0);
     if (s) s.capacity += cap; else out.push({ cargoId: w.cargoId, capacity: cap });
@@ -175,15 +178,54 @@ function inSlice(v, cargoId, capacity, fn) {
   }
 }
 
+/**
+ * Platform length (OpenTTD): a train longer than its platform loads and unloads only the wagons inside it
+ * (platformLength.js). v.platFit = wagons inside (absent = whole train). The engine carries no cargo, so the
+ * inside share of a plain train is platFit / wagons of its load and capacity.
+ */
+function platCapacity(v) {
+  return v.platFit == null || !v.wagons ? v.capacity : Math.floor(v.capacity * v.platFit / v.wagons);
+}
+
+/**
+ * Run fn with only the inside share of a plain train's load visible (load.amount and load.dests cut to the
+ * inside wagons, capacity to platCapacity). Afterwards the outside share is put back on the vehicle.
+ */
+function inPlatform(v, fn) {
+  const load = v.load, whole = v.capacity;
+  const total = load.amount;
+  const inside = Math.min(total, platCapacity(v));
+  const outside = total - inside;
+  const dests = load.dests;
+  let outDests = null;
+  if (dests && outside > 0) {
+    outDests = {};
+    let left = inside;
+    for (const k of Object.keys(dests)) {
+      const keep = Math.min(dests[k] || 0, left);
+      left -= keep;
+      outDests[k] = (dests[k] || 0) - keep;
+      dests[k] = keep;
+    }
+  }
+  load.amount = inside;
+  v.capacity = platCapacity(v);
+  try { return fn(); } finally {
+    v.capacity = whole;
+    load.amount += outside;
+    if (outDests) for (const k of Object.keys(outDests)) if (outDests[k] > 0) load.dests[k] = (load.dests[k] || 0) + outDests[k];
+  }
+}
+
 /** Full load: a plain train is full at capacity; a mixed consist only when every cargo slice is full. */
 export function isFull(v) {
-  if (!v.consist) return v.load.amount >= v.capacity;
+  if (!v.consist) return v.load.amount >= platCapacity(v);
   return cargoSlices(v).every((s) => ((v.loads && v.loads[s.cargoId] && v.loads[s.cargoId].amount) || 0) >= s.capacity);
 }
 
 /** Full load any cargo (OpenTTD OLFB_FULL_LOAD_ANY): depart when any one cargo slice is full (single cargo = full). */
 export function isFullAny(v) {
-  if (!v.consist) return v.load.amount >= v.capacity;
+  if (!v.consist) return v.load.amount >= platCapacity(v);
   return cargoSlices(v).some((s) => s.capacity > 0 && ((v.loads && v.loads[s.cargoId] && v.loads[s.cargoId].amount) || 0) >= s.capacity);
 }
 
@@ -404,6 +446,7 @@ function creditDelivery(state, st, cargoId, amount) {
  * @returns {number} amount loaded
  */
 export function loadCargo(ctx, v, st) {
+  if (v.platFit != null && !v.consist) return inPlatform(v, () => loadSlice(ctx, v, st));
   if (!v.consist) return loadSlice(ctx, v, st);
   let got = 0;
   for (const s of cargoSlices(v)) got += inSlice(v, s.cargoId, s.capacity, () => loadSlice(ctx, v, st));
@@ -454,6 +497,7 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
   v.atStationId = st.id;
   if (intermediate) v.intermediate = true; // stop 'all': an intermediate stop, the order does not advance on departure
   else delete v.intermediate;
+  updatePlatFit(state, v, st); // platformLength setting: wagons that fit the platform (absent when all fit)
   unload(ctx, v, st);
   v.loadingTicks = LOAD_TICKS;
   if (!intermediate) recordArrival(ctx, v, currentOrder(v));
@@ -510,6 +554,7 @@ export function loadingTick(ctx, v) {
       return false;
     }
   }
+  if (v.platFit !== undefined) delete v.platFit;
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)
   return true;

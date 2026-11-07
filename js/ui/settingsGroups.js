@@ -25,6 +25,8 @@ export const SETTING_META = [
   { key: 'roadSide', group: 'vehicles', label: 'Road driving side', type: 'select', newGame: true,
     options: [['right', 'Right (default)'], ['left', 'Left']],
     help: 'Road vehicles and traffic drive on this side of the road (OpenTTD road side). Only changeable before any road vehicle exists.' },
+  { key: 'platformLength', group: 'vehicles', label: 'Platform length limits trains', type: 'check',
+    help: 'A train longer than its station platform (rail tiles along the track) loads and unloads only the wagons that stand inside the platform (OpenTTD). Off = trains always fit.' },
   { key: 'trainAcceleration', group: 'vehicles', label: 'Train acceleration', type: 'select',
     options: [['original', 'Original'], ['realistic', 'Realistic (OpenTTD)']],
     help: 'Realistic: trains slow for curves (OpenTTD corner limits) and accelerate from tractive effort, air drag, rolling friction and slope against their weight.' },

@@ -7,6 +7,8 @@
  * and sort Default the lists are exactly the old ones, so the smart default selection is unchanged.
  */
 import { el, setText, clear } from '../dom.js';
+import { longestPlatform } from '../../simulation/platformLength.js';
+import { getSetting } from '../../simulation/settings.js';
 import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
 import { chooseBuyDefaults } from '../buyDefaults.js';
@@ -69,6 +71,13 @@ function stats(m) {
  * @param {import('../app.js').App} app
  * @param {number} depotId
  */
+/** platformLength setting: warning when a train of `vehicles` engine+wagon slots exceeds the longest rail platform. */
+function platformNote(state, vehicles) {
+  if (!getSetting(state, 'platformLength')) return '';
+  const plat = longestPlatform(state);
+  return plat && (vehicles * 0.5) > plat + 1e-9 ? 'Train longer than platform' : '';
+}
+
 export function openBuyVehicle(app, depotId) {
   const depot = app.findDepot(depotId);
   if (!depot) return null;
@@ -126,7 +135,8 @@ export function openBuyVehicle(app, depotId) {
       const buyBtn = el('button.btn.primary', { type: 'button', text: 'Buy' });
       // F14: Buy is disabled (with the reason) while the total costs more than the company's cash
       const reason = el('div.muted.small.buy-reason');
-      body.append(total, reason, el('div.btn-row', null, buyBtn));
+      const platNote = el('div.muted.small.plat-warn');
+      body.append(total, reason, platNote, el('div.btn-row', null, buyBtn));
       const updateBuy = (cost) => {
         const short = !g.state.editor && cost > g.state.company.money;
         buyBtn.disabled = short;
@@ -145,6 +155,7 @@ export function openBuyVehicle(app, depotId) {
           setText(statB, w ? `${stats(w)} · total cap ${num((w.capacity || 0) * n)}` : '');
           const cost = (e ? e.cost : 0) + (w ? w.cost * n : 0);
           setText(total, 'Cost: ' + money(cost));
+          setText(platNote, platformNote(g.state, n + 1));
           updateBuy(cost);
         } else {
           const m = byId[roadSel.value];
