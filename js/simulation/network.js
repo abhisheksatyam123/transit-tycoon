@@ -27,12 +27,19 @@ export function straightAxis(bits) {
   return null;
 }
 
+/** DIRS entry for a unit step (dx,dy), or undefined. Allocation-free: this runs per car move. */
+function dirFromDelta(dx, dy) {
+  if (dx === 0) return dy === -1 ? DIRS[0] : dy === 1 ? DIRS[2] : undefined;
+  if (dy === 0) return dx === 1 ? DIRS[1] : dx === -1 ? DIRS[3] : undefined;
+  return undefined;
+}
+
 /**
  * True if tiles A and B (adjacent) are connected on layer ('rail'|'road').
  */
 export function connected(map, layer, ax, ay, bx, by) {
   if (!inBounds(map, ax, ay) || !inBounds(map, bx, by)) return false;
-  const d = DIRS.find((q) => q.dx === bx - ax && q.dy === by - ay);
+  const d = dirFromDelta(bx - ax, by - ay);
   if (!d) return false;
   const a = map.tiles[ay * map.width + ax], b = map.tiles[by * map.width + bx];
   if ((a[layer] & d.bit) === 0 || (b[layer] & OPPOSITE[d.bit]) === 0) return false;

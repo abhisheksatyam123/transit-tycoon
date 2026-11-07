@@ -162,23 +162,42 @@ const SPACING = 0.38 + GAP_MIN;
 
 /** Scratch: first car (sorted position) per lane key, -1 when empty; reset after use. */
 let laneFirst = null;
+let laneHead = null;
+let laneNext = new Int32Array(0);
+let laneTouched = new Int32Array(0);
 
 /**
  * Index cars by the lane they occupy this tick: sets c._key, c._ahead (car just ahead on the same
  * lane, or null) and returns the scratch array of lane-first cars for next-tile lookups.
  */
 function laneIndex(map, cars, nKeys) {
-  if (!laneFirst || laneFirst.length !== nKeys) laneFirst = new Int32Array(nKeys).fill(-1);
-  const keyed = [];
-  for (const c of cars) {
+  if (!laneFirst || laneFirst.length !== nKeys) { laneFirst = new Int32Array(nKeys).fill(-1); laneHead = new Int32Array(nKeys).fill(-1); }
+  if (laneNext.length < cars.length) { laneNext = new Int32Array(cars.length * 2); laneTouched = new Int32Array(cars.length * 2); }
+  // bucket cars by lane key (linked lists over car indices); keys visited in ascending order
+  let nTouched = 0;
+  for (let j = 0; j < cars.length; j++) {
+    const c = cars[j];
     c._key = -1;
     c._ahead = null;
     if (c.i + 1 >= c.path.length) continue;
     const a = c.path[c.i];
-    c._key = occKey(a, linkBit(map, a, c.path[c.i + 1]));
-    keyed.push(c);
+    const k = occKey(a, linkBit(map, a, c.path[c.i + 1]));
+    c._key = k;
+    if (laneHead[k] < 0) laneTouched[nTouched++] = k;
+    laneNext[j] = laneHead[k];
+    laneHead[k] = j;
   }
-  keyed.sort((p, q) => p._key - q._key || p.t - q.t || p.id - q.id);
+  const touched = laneTouched.subarray(0, nTouched).sort();
+  // within a lane: order by progress on the tile, then car id (a total order, so the result is unique)
+  const keyed = [];
+  for (let q = 0; q < nTouched; q++) {
+    const k = touched[q];
+    const group = [];
+    for (let j = laneHead[k]; j >= 0; j = laneNext[j]) group.push(cars[j]);
+    laneHead[k] = -1;
+    group.sort((p, r) => p.t - r.t || p.id - r.id);
+    for (const c of group) keyed.push(c);
+  }
   for (let p = 0; p < keyed.length; p++) {
     const c = keyed[p];
     if (laneFirst[c._key] < 0) laneFirst[c._key] = p;
