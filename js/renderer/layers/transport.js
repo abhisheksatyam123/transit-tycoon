@@ -95,22 +95,26 @@ const TRK_STYLE = {
   2: { beam: '#8a94a0', post: '#4b5563', w: 2.6 },   // monorail: one raised beam on posts
   3: { beam: '#1e3a8a', post: '#60a5fa', w: 3.2 },   // maglev: dark guideway with a blue glowing edge
 };
+/** Beam lift above the ground (px): the same at tile centre and every tile edge, so neighbours join exactly. */
+const BEAM_LIFT = 6;
 function drawTrackTypeRails(ctx, tile, sx, sy, c) {
   const st = TRK_STYLE[tile.trk] || TRK_STYLE[2];
   const hc = (c[0] + c[1] + c[2] + c[3]) / 4 * HEIGHT_STEP;
   ctx.save();
   ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   for (const [bit, dx, dy] of [[1, 0, -1], [2, 1, 0], [4, 0, 1], [8, -1, 0]]) {
     if (!(tile.rail & bit)) continue;
     const [a, b] = TRAM_EDGE[bit];
     const he = (c[a] + c[b]) / 2 * HEIGHT_STEP;
-    const ex = (dx - dy) * HALF_W / 2, ey = (dx + dy) * HALF_H / 2;
-    // support post at the tile centre, then the beam from centre to edge
+    const ex = (dx - dy) * HALF_W / 2, ey = (dx + dy) * HALF_H / 2; // tile edge midpoint (iso)
+    // support post at the tile centre, then the beam from centre to the edge midpoint (both lifted by BEAM_LIFT)
     ctx.strokeStyle = st.post; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(sx, sy - hc); ctx.lineTo(sx, sy - hc + 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy - hc); ctx.lineTo(sx, sy - hc - BEAM_LIFT); ctx.stroke();
+    const x1 = sx + ex, y1 = sy + ey - he - BEAM_LIFT;
     ctx.strokeStyle = st.beam; ctx.lineWidth = st.w;
-    ctx.beginPath(); ctx.moveTo(sx, sy - hc + 6); ctx.lineTo(sx + ex, sy + ey - he + 6); ctx.stroke();
-    if (tile.trk === 3) { ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(sx, sy - hc + 5); ctx.lineTo(sx + ex, sy + ey - he + 5); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(sx, sy - hc - BEAM_LIFT); ctx.lineTo(x1, y1); ctx.stroke();
+    if (tile.trk === 3) { ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(sx, sy - hc - BEAM_LIFT - 1); ctx.lineTo(x1, y1 - 1); ctx.stroke(); }
   }
   ctx.restore();
 }
