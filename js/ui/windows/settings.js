@@ -13,6 +13,7 @@ import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
+import { saveNewGameSetting } from '../newGamePrefs.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -37,12 +38,12 @@ export function openSettings(app) {
       const control = (m) => {
         if (m.type === 'check') {
           const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
-          i.addEventListener('change', () => setSetting(state(), m.key, i.checked));
+          i.addEventListener('change', () => { setSetting(state(), m.key, i.checked); if (m.newGame) saveNewGameSetting(m.key, i.checked); });
           return { node: i, sync: (s) => { i.checked = !!s[m.key]; } };
         }
         if (m.type === 'select') {
           const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...m.options.map(([v, t]) => el('option', { value: v, text: t }))));
-          sel.addEventListener('change', () => setSetting(state(), m.key, m.key === 'aiCompanies' ? Number(sel.value) : sel.value));
+          sel.addEventListener('change', () => { const v = m.key === 'aiCompanies' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v); });
           return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); } };
         }
         const n = /** @type {HTMLInputElement} */ (el('input.input.mono', { type: 'number', min: String(m.min), max: String(m.max), step: '1' }));
@@ -50,6 +51,8 @@ export function openSettings(app) {
           const v = Math.max(m.min, Math.min(m.max, Math.round(Number(n.value)) || 0));
           n.value = String(v);
           setSetting(state(), m.key, v);
+ 
+          if (m.newGame) saveNewGameSetting(m.key, v);
         });
         return { node: n, sync: (s) => { if (document.activeElement !== n) n.value = String(s[m.key] || 0); } };
       };

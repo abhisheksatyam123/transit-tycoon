@@ -17,6 +17,7 @@ import { checkBankruptcy } from './bankruptcy.js';
 import { touchIssues } from './diagCache.js';
 import { localizeMoneyText } from './newsMoney.js';
 import { currentCurrency } from './units.js';
+import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js';
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
@@ -144,6 +145,8 @@ export class App {
    * @param {{seed?:number,width?:number,height?:number,townCount?:number,startYear?:number,industryCount?:number}} opts
    */
   async newGame(opts) {
+    // OpenTTD new-game settings: remembered Settings-window choices apply to every new game (not Moscow, not editor)
+    opts = carryOverNewGameSettings(opts, loadNewGameSettings());
     const game = await runWithLoading(buildingLabel(opts && opts.scenario), () => createGameFast(opts, this.GameClass));
     this.setGame(game);
     if (game.state.scenario) this.announceScenario(game);

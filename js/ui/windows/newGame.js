@@ -6,6 +6,7 @@ import { loadSlotData, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
 import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
+import { loadNewGameSettings } from '../newGamePrefs.js';
 
 /**
  * Labeled form field.
@@ -87,12 +88,19 @@ export function openNewGame(app) {
         el('option', { value: 'default', text: 'Default (normal)' }), el('option', { value: 'reduced', text: 'Reduced' }), el('option', { value: 'none', text: 'None' })));
       const extra = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const remembered = loadNewGameSettings();
       const ai = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: '0', text: 'None (default)' }), el('option', { value: '1', text: '1 rival' }), el('option', { value: '2', text: '2 rivals' }), el('option', { value: '3', text: '3 rivals' })));
       const farms = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const eras = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const largeHouses = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', checked: !!remembered.largeHouses, 'aria-label': 'Large houses' }));
+      // Initial values follow the remembered Settings-window choices (carried over on start)
+      extra.value = remembered.extraIndustries ? 'on' : 'default';
+      farms.value = remembered.farmFields ? 'on' : 'default';
+      eras.value = remembered.buildingEras ? 'on' : 'default';
+      ai.value = String(remembered.aiCompanies || 0);
       // T34 map generator options (OpenTTD genworld): default values reproduce the classic map
       const sel = (opts) => /** @type {HTMLSelectElement} */ (el('select.input', null, ...opts.map(([v, t]) => el('option', { value: v, text: t }))));
       const mgTerrain = sel([['normal', 'Normal (default)'], ['flat', 'Flat'], ['hilly', 'Hilly'], ['mountainous', 'Mountainous']]);
@@ -107,6 +115,7 @@ export function openNewGame(app) {
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
         field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai),
+        el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Smoothness', mgSmooth),
         field('Town density', mgTowns), field('Industry density', mgInd),
         field('Climate', mgClimate), field('Snow line', mgSnow));
@@ -141,9 +150,15 @@ export function openNewGame(app) {
         if (Number(pay.value) > 0) settings.cargoPaymentPercent = Number(pay.value);
         if (brk.value !== 'default') settings.breakdowns = brk.value;
         if (extra.value === 'on') settings.extraIndustries = true; // T29 opt-in
+        else if (remembered.extraIndustries) settings.extraIndustries = false; // explicit off overrides a remembered on
         if (farms.value === 'on') settings.farmFields = true; // T29 opt-in
+        else if (remembered.farmFields) settings.farmFields = false;
         if (eras.value === 'on') settings.buildingEras = true; // gap #31b opt-in
+        else if (remembered.buildingEras) settings.buildingEras = false;
+        if (largeHouses.checked) settings.largeHouses = true; // remembered via Settings; unticking overrides a remembered on
+        else if (remembered.largeHouses) settings.largeHouses = false;
         if (Number(ai.value) > 0) settings.aiCompanies = Number(ai.value); // gap #25: only when > 0
+        else if (remembered.aiCompanies) settings.aiCompanies = 0;
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
