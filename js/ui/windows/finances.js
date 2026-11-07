@@ -22,6 +22,9 @@ export function openFinances(app) {
         el('button.btn', { type: 'button', text: `Borrow ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.borrow(LOAN_STEP), { sound: 'income' }) }),
         el('button.btn', { type: 'button', text: `Repay ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.repay(LOAN_STEP), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Rename company…', onclick: () => openRename(app, 'company') })));
+      const autoBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
+      autoBox.addEventListener('change', () => { app.exec(app.game.setLoanAutopay(autoBox.checked), { sound: 'click' }); });
+      body.appendChild(el('div.btn-row', null, el('label.small', { title: 'Repay the loan from cash every day while cash is positive' }, autoBox, ' Loan autopay')));
       const tableWrap = el('div.table-wrap');
       body.appendChild(tableWrap);
       let sig = '';
@@ -32,6 +35,7 @@ export function openFinances(app) {
         set['Loan'](money(c.loan));
         set['Max loan'](money(c.maxLoan));
         set['Interest (yearly)']('5%');
+        autoBox.checked = !!c.autopayLoan;
         const hist = (c.ledger.history || []).slice(-11);
         const cols = [...hist.map((h) => ({ label: `${monthName(h.month)} ${String(h.year).slice(2)}`, h })), { label: 'This month', h: c.ledger.current }];
         const s = JSON.stringify(cols.map((x) => [x.h.income, x.h.expenses, x.h.byType]));

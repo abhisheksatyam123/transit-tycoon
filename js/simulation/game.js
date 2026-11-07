@@ -392,6 +392,8 @@ export class Game {
   spreadTimetableStart(id, opts) { return vcmd.spreadTimetableStart(this.ctx, id, opts); }
   borrow(amount) { return borrow(this.state.company, amount); }
   repay(amount) { return repay(this.state.company, amount); }
+  /** Loan autopay (OpenLoco CompanyFlags::autopayLoan, CompanyWindow loan_autopay): on = repay from cash daily (companyManager.updateDaily). Default false (companyDefaults), so the default save and hash are unchanged. */
+  setLoanAutopay(on) { const c = this.state.company; c.autopayLoan = !!on; return { ok: true, cost: 0, autopayLoan: !!on }; }
 
   // ---- queries ----
   trafficCars() { return trafficCars(this.state); }
