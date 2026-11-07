@@ -36,7 +36,7 @@ const SLOPE_OFFSET = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0];
 const POP_MAX = [25, 90, 150, Infinity];
 
 /** Toyland pack (set by pack/index.js) and the toyland flag of the attached game (set by the renderer). */
-export const toylandState = { pack: null, base: null, on: false, top: [], map: null };
+export const toylandState = { pack: null, base: null, on: false, top: [], map: null, groundDone: false };
 
 /** Attach the climate flag and the game map. Resets the cached flat tops. */
 export function setToylandClimate(on, map = null) {
@@ -267,23 +267,45 @@ export const SPR_TOY_HOLE = 4675;
  * @param {number} topY tile top corner y
  */
 export function drawToylandIndustryTile(ctx, ind, x, y, topX, topY) {
+  const groundDone = toylandState.groundDone; // renderer pre-pass already drew the ground of every visible tile
   const pack = toylandState.pack;
   if (!pack) return false;
   const w = ind.w || 1, h = ind.h || 1;
   const layout = toylandIndustryLayout(ind.typeId, w, h, ind.id);
   if (!layout) return false;
   const gfx = layout.get((x - ind.x) + ',' + (y - ind.y));
-  if (gfx === undefined) { blitPackFrom(pack, ctx, String(SPR_TOY_HOLE), topX, topY); return true; } // empty layout tile
+  if (gfx === undefined) { if (!groundDone) blitPackFrom(pack, ctx, String(SPR_TOY_HOLE), topX, topY); return true; } // empty layout tile
   const pair = TOYLAND_INDUSTRY_GFX[gfx];
   if (!pair) return false;
   const [ground, building, dx, dy] = pair;
   if (!ground && !building) return false;
-  blitPackFrom(pack, ctx, String(ground || SPR_TOY_HOLE), topX, topY);
+  if (!groundDone) blitPackFrom(pack, ctx, String(ground || SPR_TOY_HOLE), topX, topY);
   if (building) {
     const [ox, oy] = subtileOffset(dx | 0, dy | 0);
     blitPackFrom(pack, ctx, String(building), topX + ox, topY + oy);
   }
   // OTTD special draw proc (industry_cmd.cpp): child sprites at screen offsets from the tile origin, frame 0
   for (const [sid, cx, cy] of TOYLAND_INDUSTRY_CHILDREN[gfx] || []) blitPackFrom(pack, ctx, String(sid), topX + cx, topY + cy);
+  return true;
+}
+
+/**
+ * Ground layer of a toyland industry footprint tile (the pre-pass in renderer.js draws these for every visible tile
+ * before any building, so ground never paints over a neighbouring building). Same gfx lookup as drawToylandIndustryTile.
+ * @returns {boolean} false when the tile has no toyland layout (nothing drawn)
+ */
+export function drawToylandIndustryGround(ctx, ind, x, y, topX, topY) {
+  const pack = toylandState.pack;
+  if (!pack) return false;
+  const w = ind.w || 1, h = ind.h || 1;
+  const layout = toylandIndustryLayout(ind.typeId, w, h, ind.id);
+  if (!layout) return false;
+  const gfx = layout.get((x - ind.x) + ',' + (y - ind.y));
+  if (gfx === undefined) { blitPackFrom(pack, ctx, String(SPR_TOY_HOLE), topX, topY); return true; }
+  const pair = TOYLAND_INDUSTRY_GFX[gfx];
+  if (!pair) return false;
+  const [ground, building] = pair;
+  if (!ground && !building) return false;
+  blitPackFrom(pack, ctx, String(ground || SPR_TOY_HOLE), topX, topY);
   return true;
 }

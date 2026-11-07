@@ -26,7 +26,7 @@ import { invalidateNet } from './net/index.js';
 import { GroundCache } from './groundCache.js';
 import { setArcticClimate } from './pack/arctic.js';
 import { setTropicClimate } from './pack/tropic.js';
-import { setToylandClimate } from './pack/toyland.js';
+import { setToylandClimate, toylandState, drawToylandIndustryGround } from './pack/toyland.js';
 import { isArctic, snowLineOf, isTropic, isToyland } from '../simulation/climate.js';
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
@@ -340,6 +340,26 @@ export class Renderer {
     const showCars = this.overlay.trafficCars !== false;
     if (showCars) this.collectCars();
 
+    // TY: toyland industry ground is the lowest layer: draw it for every visible industry tile first, so the
+    // buildings of the object pass below are never painted over by the ground of a later diagonal (OTTD)
+    toylandState.groundDone = false;
+    if (toylandState.on) {
+      for (let d = range.x0 + range.y0; d <= range.x1 + range.y1; d++) {
+        const xa = Math.max(range.x0, d - range.y1), xb = Math.min(range.x1, d - range.y0);
+        for (let x = xa; x <= xb; x++) {
+          const y = d - x;
+          const tile = tiles[y * W + x];
+          const b = tile.building;
+          if (!b || b.type !== 'industry' || b.lm3d) continue;
+          const sx = (x - y) * HALF_W;
+          const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
+          if (sx < r.x0 || sx > r.x1 || sy < r.y0 - 20 || sy > r.y1 + 160) continue;
+          const ind = this.industryLookup(b.industryId);
+          if (ind) drawToylandIndustryGround(ctx, ind, x, y, sx, sy - HALF_H);
+        }
+      }
+    }
+    toylandState.groundDone = toylandState.on;
     for (let d = range.x0 + range.y0; d <= range.x1 + range.y1; d++) {
       const xa = Math.max(range.x0, d - range.y1), xb = Math.min(range.x1, d - range.y0);
       // OpenGFX bridge decks: back (deck + pillars) under the vehicles of this diagonal (OTTD DrawBridgeMiddle)
@@ -404,6 +424,7 @@ export class Renderer {
       }
     }
 
+    toylandState.groundDone = false;
     for (const [f, p] of lmLate) drawLm3dObjects(ctx, f.id, f.x, f.y, p.x, p.y, r);
     if (this.showMetro) drawMetroOverlay(ctx, this, range);
     // aircraft: above the whole map pass (shadow on the ground, body lifted by altitude)
