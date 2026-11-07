@@ -3,6 +3,7 @@
  * (green/red + estimated cost) while dragging; commits on release.
  */
 import { money } from '../format.js';
+import { bridgeTypesAvailable, bridgeCostMult } from '../../config/bridges.js';
 import { RAIL_SELECTOR, selectorTrack, trackTypeAvailable } from '../../config/railTypes.js';
 
 /** Labels of the rail track selector (config/railTypes.js RAIL_SELECTOR). */
@@ -39,6 +40,10 @@ export function createLineTool(app, o) {
   // rail track selector (config/railTypes.js RAIL_SELECTOR): ';' cycles Rail / Electric / Monorail / Maglev. Shared
   // with the station and depot tools through app.railSelector so one choice applies to every rail build.
   const railSelOf = () => app.railSelector || 'rail';
+  // Bridge mode (U): the bridge type picked with K (0 = auto: fastest type that fits the span; then each type available this year)
+  let bridgeSel = 0;
+  const bridgeChoices = () => ['auto', ...bridgeTypesAvailable(app.game.state.date.year)];
+  const bridgeChoice = () => { const c = bridgeChoices(); return c[bridgeSel % c.length]; };
   // OTTD autorail (always on for rail, like OTTD's rail tool): diagonal drags lay the staircase, single clicks pick X/Y from the cursor
   const autoOn = () => o.layer === 'rail';
   /** Shape actually used for a drag: autorail turns an L drag on a diagonal into the staircase. */
@@ -51,6 +56,7 @@ export function createLineTool(app, o) {
     const r = routeFor(sh, x0, y0, x1, y1);
     return r ? r.path : lTiles(x0, y0, x1, y1);
   };
+  const bridgeOpts = () => { const c = bridgeChoice(); return { bridgeType: c === 'auto' ? 'auto' : c.id }; };
   const build = (g, x0, y0, x1, y1, opts) => {
     const tunnel = railMode === 'tunnel';
     const bridge = railMode === 'bridge';
@@ -58,7 +64,7 @@ export function createLineTool(app, o) {
     const rsel = o.layer === 'rail' ? { trk: selectorTrack(railSel), electric: railSel === 'electric' } : {};
     const sh = effShape(x0, y0, x1, y1);
     const r = sh === 'L' ? null : routeFor(sh, x0, y0, x1, y1);
-    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge, ...rsel });
+    if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge, ...rsel, ...(bridge ? bridgeOpts() : {}) });
     if (tunnel) return { ok: false, error: 'Tunnels must be straight' };
     if (bridge) return { ok: false, error: 'Bridges must be straight' };
     const fn = o.layer === 'rail' ? g.buildRailPath : g.buildRoadPath;
@@ -67,10 +73,10 @@ export function createLineTool(app, o) {
 
   const preview = (end) => {
     if (!start || !end) return;
-    const key = `${shape},${highway},${railMode},${railSelOf()},${start.x},${start.y},${end.x},${end.y}`;
+    const key = `${shape},${highway},${railMode},${bridgeSel},${railSelOf()},${start.x},${start.y},${end.x},${end.y}`;
     if (key !== lastKey) {
       lastKey = key;
-      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel: railMode === 'tunnel', bridge: railMode === 'bridge' });
+      const res = build(app.game, start.x, start.y, end.x, end.y, { dryRun: true, highway, tunnel: railMode === 'tunnel', bridge: railMode === 'bridge', ...bridgeOpts() });
       lastResult = res && res.ok
         ? { ok: true, label: money(res.cost || 0) }
         : { ok: false, label: (res && res.error) || 'Not possible' };
@@ -88,6 +94,7 @@ export function createLineTool(app, o) {
       if (o.layer) keys.push(`C shape: ${SHAPE_LABEL[shape]}`);
       if (o.layer === 'rail' || o.layer === 'road') {
         keys.push(`U mode: ${railMode === 'tunnel' ? 'Tunnel' : railMode === 'bridge' ? 'Bridge' : 'Surface'}`);
+        if (railMode === 'bridge') { const c = bridgeChoice(); keys.push(`K type: ${c === 'auto' ? 'Auto (fastest that fits)' : `${c.name}, ${c.speed} km/h`}`); }
       }
       if (o.layer === 'rail') keys.push(`; track: ${RAIL_SEL_LABEL[railSelOf()]} (Rail / Electric / Monorail / Maglev)`);
       if (o.layer === 'road') keys.push(`H class: ${highway ? 'Highway' : 'Local'}`);
@@ -102,6 +109,16 @@ export function createLineTool(app, o) {
         app.ui?.updateHint?.();
         const desc = railMode === 'tunnel' ? 'tunnel (underground)' : railMode === 'bridge' ? 'bridge (over valley)' : 'surface';
         app.toast?.(`${o.layer === 'road' ? 'Road' : 'Rail'}: ${desc}`, 'info');
+        return true;
+      }
+      if (railMode === 'bridge' && (e.key === 'k' || e.key === 'K') && (o.layer === 'rail' || o.layer === 'road')) {
+        // bridge type picker: cycles auto -> each type available this year (speed and cost in the toast)
+        bridgeSel = (bridgeSel + 1) % bridgeChoices().length;
+        lastKey = '';
+        if (start) preview(start);
+        app.ui?.updateHint?.();
+        const c = bridgeChoice();
+        app.toast?.(c === 'auto' ? 'Bridge: Auto (fastest type that fits the span)' : `Bridge: ${c.name}, ${c.speed} km/h, cost x${bridgeCostMult(c).toFixed(2)}`, 'info');
         return true;
       }
       if (o.layer === 'rail' && e.key === ';') {

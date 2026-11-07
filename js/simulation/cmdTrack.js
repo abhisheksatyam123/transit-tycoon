@@ -555,7 +555,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       if (t.overBridge) {
         // OpenTTD-style: the deck above ground track goes, the ground track of the other layer stays
         const ol = t.overBridge;
-        delete t.overBridge; delete t.bridgeDeck; delete t.playerBridge;
+        delete t.overBridge; delete t.bridgeDeck; delete t.playerBridge; delete t.bridgeType;
         if (ol === 'rail') { delete t.signal; delete t.elec; delete t.trk; }
         stripLayer(map, j.x, j.y, ol);
         continue;
@@ -563,7 +563,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       delete t.signal;
       delete t.elec; delete t.trk;
       if (t.playerTunnel) { delete t.playerTunnel; delete t.tunnel; delete t.tunnelPortal; }
-      if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; }
+      if (t.playerBridge) { delete t.playerBridge; delete t.bridgeDeck; delete t.bridgeType; }
       stripLayer(map, j.x, j.y, 'rail');
       stripLayer(map, j.x, j.y, 'road');
       stripLayer(map, j.x, j.y, 'tram');

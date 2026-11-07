@@ -17,6 +17,7 @@ import { clearingCost } from './trackRules.js';
 import { authorityTown, ratingTitle, townRating } from './townAuthority.js';
 import { companyById } from './owner.js';
 import { formatMoney } from './currency.js';
+import { bridgeType as bridgeTypeOf } from '../config/bridges.js';
 import { nearestTown } from './state.js';
 
 const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck', 'tram'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'], ship: ['ship'] };
@@ -111,6 +112,11 @@ export function tileInfo(state, x, y, clear = null) {
   } else if (b && b.type === 'depot') {
     out.depot = findDepot(state, b.depotId);
     L.push(`${b.kind === 'rail' ? 'Rail' : 'Road'} depot`);
+  }
+  // typed player bridge (config/bridges.js): default bridges (no bridgeType) show nothing extra
+  if (tile.bridgeType !== undefined) {
+    const bt = bridgeTypeOf(tile.bridgeType);
+    if (bt) L.push(`Bridge: ${bt.name}, max speed ${bt.speed} km/h`);
   }
   if (tile.avenue && tile.road) L.push(`Avenue (${AVENUE_NAME[tile.avenue] || 'road'})`);
   // owners: one tile.owner serves road and rail; OTTD prints them separately only when they differ

@@ -10,6 +10,7 @@ import { TICKS_PER_DAY } from './constants.js';
 import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP } from './loco/vehicleMotion.js';
 import { curveSpeedLimitKmh, realisticTrainSpeedStep } from './loco/trainRealistic.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+import { bridgeType } from '../config/bridges.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
@@ -320,6 +321,12 @@ function move(ctx, v) {
     const cur = v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
     let maxTiles = v.maxSpeed;
     if (cur && cur.maxSpeed > 0) { const c = cur.maxSpeed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; }
+    // Typed bridge (config/bridges.js, OTTD train_cmd.cpp:437 / roadveh): the bridge's speed caps trains and road
+    // vehicles on its tiles. Untyped tiles (the default bridge) only pay one property read.
+    if ((v.kind === 'train' || v.kind === 'road') && v.pathIndex + 1 < v.path.length) {
+      const nb = v.path[v.pathIndex + 1], nt = state.map.tiles[nb.y * state.map.width + nb.x];
+      if (nt.bridgeType !== undefined) { const bs = bridgeType(nt.bridgeType); if (bs) { const c = bs.speed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; } }
+    }
     if (v.kind === 'train' && getSetting(state, 'trainAcceleration') === 'realistic') {
       // OTTD curve limit (train_cmd.cpp GetCurveSpeedLimit) caps the target; acceleration is the OTTD model
       const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;

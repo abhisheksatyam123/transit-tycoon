@@ -3,6 +3,7 @@
  * Connects two land heads at equal height across lower terrain (valleys/water).
  */
 import { COSTS } from '../config/costs.js';
+import { bridgeType as lookupBridgeType, bridgeCostMult, bridgeSpanLimits, autoBridgeType } from '../config/bridges.js';
 import { MAX_BRIDGE_LENGTH, ERR, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney, objectBlocks } from './trackRules.js';
 import { DIRS, OPPOSITE, AXIS_BITS } from './constants.js';
 import { linePath, straightAxis, pruneOneWay } from './network.js';
@@ -137,6 +138,17 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
   const plan = planLandBridge(map, pts, layer);
   if (!plan.ok) return plan;
 
+  // Bridge type (config/bridges.js): absent = the standard bridge (no speed cap, base cost, always available).
+  let btype = null, costMult = 1;
+  if (opts.bridgeType !== undefined) {
+    btype = opts.bridgeType === 'auto' ? autoBridgeType(state.date.year, pts.length) : lookupBridgeType(opts.bridgeType); // auto: fastest that fits
+    if (!btype) return { ok: false, error: 'Unknown bridge type' };
+    if (btype.introYear > 0 && state.date.year < btype.introYear) return { ok: false, error: `${btype.name} bridge not yet available` };
+    const [minSpan, maxSpan] = bridgeSpanLimits(btype);
+    if (pts.length < minSpan) return { ok: false, error: `${btype.name} bridge needs a longer span` };
+    if (pts.length > maxSpan) return { ok: false, error: `${btype.name} bridge too long (max ${maxSpan - 2} tiles)` };
+    costMult = bridgeCostMult(btype);
+  }
   const n = pts.length;
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
   const bits = AXIS_BITS[axis];
@@ -148,7 +160,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
     if (plan.deck.has(i)) {
-      cost += COSTS[layer] + (layer === 'road' ? COSTS.bridgeRoad : COSTS.bridgeRail) + clearingCost(t);
+      cost += COSTS[layer] + Math.round((layer === 'road' ? COSTS.bridgeRoad : COSTS.bridgeRail) * costMult) + clearingCost(t);
       changed++;
       continue;
     }
@@ -179,6 +191,7 @@ export function buildLandBridge(ctx, x0, y0, x1, y1, opts = {}) {
     clearTerrain(t);
     t[layer] |= bits;
     t.playerBridge = 1;
+    if (btype) t.bridgeType = btype.id; // heads and deck alike: a typed bridge tile caps its traffic
     if (plan.deck.has(i)) t.bridgeDeck = plan.height;
     if (plan.over.has(i)) {
       // ground track of the other layer stays as it is; the deck is only added above it
