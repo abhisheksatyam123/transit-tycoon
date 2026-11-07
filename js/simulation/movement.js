@@ -7,7 +7,10 @@
  * Signals are not simulated; head-on trains on single track pass each other.
  */
 import { TICKS_PER_DAY } from './constants.js';
-import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP, MPH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP, MPH_TO_TILES_PER_TICK, AIR_MPH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+
+/** OL taxi speed cap for aircraft on the ground (VehicleHead.cpp:2074/2098 20_mph), in air tiles per tick. */
+const TAXI_TILES = 20 * AIR_MPH_TO_TILES_PER_TICK;
 
 /** OL VehicleHead.cpp:2858-2866: broken-down ships target 5 mph. */
 const BROKEN_SHIP_MPH = 5;
@@ -21,7 +24,7 @@ import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath
 import { altitudeAt, isRunwayCentre } from './aircraft.js';
 import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
-import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed } from './airportGround.js';
+import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed, ftaNextIsTaxi } from './airportGround.js';
 import { trainEnters } from './trainCollision.js'; // vehicleCollisions setting (off by default)
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
@@ -320,7 +323,10 @@ function move(ctx, v) {
   if (v.kind === 'aircraft') {
     // planeSpeedFactor (OpenTTD vehicle.plane_speed, aircraft_cmd.cpp): speed limit divided by N; 1 = unchanged
     const pf = getSetting(state, 'planeSpeedFactor') || 1;
-    v.speed = airSpeedStep(v, pf > 1 ? v.maxSpeed / pf : v.maxSpeed);
+    let aTarget = pf > 1 ? v.maxSpeed / pf : v.maxSpeed;
+    // OL VehicleHead.cpp:2074/2098 taxiing target 20 mph: the ground phase taxi (not the runway roll) is capped
+    if (v.ftaGroundEnd != null && aTarget > TAXI_TILES && ftaNextIsTaxi(state, v)) aTarget = TAXI_TILES;
+    v.speed = airSpeedStep(v, aTarget);
     // diagonal (Bresenham) steps are sqrt(2) tiles long (kMovementNibbleToDistance diagonal / straight)
     const a = v.path[v.pathIndex], b = v.path[v.pathIndex + 1];
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;

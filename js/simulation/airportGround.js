@@ -40,6 +40,17 @@ export function isFtaGroundBuilding(b) {
   return !!b && b.type === 'station' && b.kind === 'airport' && FTA_GROUND_TYPES.has(airportTypeId(b));
 }
 
+/** OL VehicleHead.cpp:2074/2098: taxi target 20 mph. True when aircraft v's next path tile is a taxi tile
+ * (apron, terminal, helipad) rather than a runway roll (runway / runwayDep). Reads one tile; no allocation. */
+const TAXI_CAP_PARTS = new Set(['apron', 'terminal', 'helipad']);
+export function ftaNextIsTaxi(state, v) {
+  const i = v.pathIndex + 1;
+  if (i >= v.path.length) return false;
+  const p = v.path[i];
+  const b = buildingAt(state, p.x, p.y);
+  return !!b && TAXI_CAP_PARTS.has(b.part);
+}
+
 /** True when aircraft v uses the ground FTA at tile building b. */
 export function ftaGroundFor(v, b) {
   return v.kind === 'aircraft' && !isHelicopter(v) && isFtaGroundBuilding(b);
