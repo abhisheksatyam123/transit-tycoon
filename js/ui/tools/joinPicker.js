@@ -5,6 +5,7 @@
  */
 import { el } from '../dom.js';
 import { spreadOk } from '../../simulation/stations.js';
+import { getSetting } from '../../simulation/settings.js';
 
 /** True when one of the footprint tiles is 4-adjacent to a station tile of ours. */
 export function adjacentOwn(state, tiles) {
@@ -25,7 +26,8 @@ export function adjacentOwn(state, tiles) {
 
 /** Our stations (any facility, as in OpenTTD) that the footprint could join (within spread). */
 export function joinChoices(state, kind, tiles) {
-  return state.stations.filter((st) => st.ownerId == null && spreadOk(st, tiles))
+  const limit = getSetting(state, 'stationSpread');
+  return state.stations.filter((st) => st.ownerId == null && spreadOk(st, tiles, limit))
     .map((st) => ({ id: st.id, name: st.name }));
 }
 

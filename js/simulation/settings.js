@@ -125,6 +125,10 @@ export const DEFAULT_SETTINGS = {
   townCouncilTolerance: 0,
   /** OpenTTD economy.feeder_payment_share: percent of a transfer leg's income credited to the feeder (orders.js transferCredit). Default 75. */
   feederPaymentShare: 75,
+  /** OpenTTD station.station_spread: max bounding-box side (tiles) of one player station (default 12 = STATION_SPREAD). */
+  stationSpread: 12,
+  /** OpenTTD vehicle.max_train_length: most wagons in a player train (default 12 = MAX_WAGONS). */
+  maxTrainWagons: 12,
 };
 
 /** Read a setting (state.settings value or the default). */

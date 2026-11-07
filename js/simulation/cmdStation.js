@@ -14,7 +14,13 @@ import { DEFAULT_STYLE, styleAvailable, styleById } from '../config/stationTypes
 import { allocId, findStation } from './state.js';
 import { stationTileBits } from './stationLinks.js';
 import { refusalAt } from './townAuthority.js';
+import { getSetting } from './settings.js';
 import { invalidateBlocks } from './signals.js';
+
+/** Player station spread limit (settings.stationSpread; default = STATION_SPREAD). */
+export function spreadLimit(state) {
+  return getSetting(state, 'stationSpread');
+}
 
 /**
  * Distant join (OpenTTD station picker): the station the player chose with Ctrl+click via
@@ -26,7 +32,7 @@ export function joinTarget(state, opts, kind, tiles) {
   const st = findStation(state, opts.joinStationId);
   if (!st) return { error: 'No such station to join' };
   // OpenTTD: any facility may join any own station within spread (a bus stop can join a rail station)
-  if (!spreadOk(st, tiles)) return { error: 'Station too spread out' };
+  if (!spreadOk(st, tiles, spreadLimit(state))) return { error: 'Station too spread out' };
   return st;
 }
 
@@ -101,7 +107,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   if (join && ownerMismatch(join, opts)) return { ok: false, error: RIVAL_OWNED };
   // a station of another company next door is not joined (OpenTTD builds a separate station)
   const existing = join || adjacentStations(state, tiles).find((st) => !ownerMismatch(st, opts)) || null;
-  if (opts.player && existing && !spreadOk(existing, tiles)) return { ok: false, error: 'Station too spread out' };
+  if (opts.player && existing && !spreadOk(existing, tiles, spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   invalidateBlocks(ctx.state);
@@ -166,7 +172,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (join && ownerMismatch(join, opts)) return { ok: false, error: RIVAL_OWNED };
   // a station of another company next door is not joined (OpenTTD builds a separate station)
   const existing = join || adjacentStations(state, [{ x, y }]).find((st) => !ownerMismatch(st, opts)) || null;
-  if (opts.player && existing && !spreadOk(existing, [{ x, y }])) return { ok: false, error: 'Station too spread out' };
+  if (opts.player && existing && !spreadOk(existing, [{ x, y }], spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   clearTerrain(t);

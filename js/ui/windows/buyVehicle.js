@@ -165,7 +165,7 @@ export function openBuyVehicle(app, depotId) {
         fillModels(engineSel, primaryList(sortList(engines)), g.state);
         wagonSel = /** @type {HTMLSelectElement} */ (el('select.input'));
         fillModels(wagonSel, visibleCarriers(), g.state);
-        countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: '12', value: '4' }));
+        countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: String(getSetting(g.state, 'maxTrainWagons')), value: '4' }));
         countOut = el('span.mono', { text: '4' });
         body.append(...controls, field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,
           field('Wagons', el('span.range-wrap', null, countIn, countOut)), field('Cargo', cargoSel));

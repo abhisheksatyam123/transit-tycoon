@@ -305,18 +305,18 @@ export function stationTilesOfKind(st, kind) {
 export const STATION_SPREAD = 12;
 
 /**
- * True when the bounding box of a station's tiles plus `extra` fits in STATION_SPREAD.
+ * True when the bounding box of a station's tiles plus `extra` fits in `limit` (default STATION_SPREAD; player builds pass the stationSpread setting).
  * @param {{tiles:{x:number,y:number}[]}} st station record (may be null: only `extra`)
  * @param {{x:number,y:number}[]} extra tiles about to be added
  */
-export function spreadOk(st, extra) {
+export function spreadOk(st, extra, limit = STATION_SPREAD) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const all = [...(st ? st.tiles : []), ...extra];
   for (const p of all) {
     x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
     x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
   }
-  return x1 - x0 + 1 <= STATION_SPREAD && y1 - y0 + 1 <= STATION_SPREAD;
+  return x1 - x0 + 1 <= limit && y1 - y0 + 1 <= limit;
 }
 
 /**

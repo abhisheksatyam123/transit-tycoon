@@ -8,7 +8,6 @@ import { spend, earn } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { resolvePurchase, createVehicle, purchasable, modelAvailable, refundValue } from './vehicles.js';
 import { getSetting } from './settings.js';
-import { MAX_WAGONS } from './constants.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField, isDepotOrder } from './orders.js';
@@ -59,7 +58,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };
   }
-  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'));
+  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'));
   if (!r.ok) return r;
   const limit = vehicleLimitError(state, vehicleKindOfModel(r.template.model), opts.owner ?? null);
   if (limit) return { ok: false, error: limit };
@@ -678,7 +677,7 @@ function applyWagonDelta(state, v, wagon, delta, unit) {
 /**
  * Buy n more wagons for a train stopped in a depot (OpenTTD-style consist edit, simplified to one wagon
  * model per train). Price per wagon = the purchase price of its wagon model, inflated (vehiclePrice).
- * Limit: total wagons <= MAX_WAGONS. The train must be empty and its cargo carried by the wagon model.
+ * Limit: total wagons <= maxTrainWagons setting (default MAX_WAGONS). The train must be empty and its cargo carried by the wagon model.
  * @returns {{ok:true,cost:number,wagons:number,capacity:number}|{ok:false,error:string}}
  */
 export function addWagons(ctx, id, n, opts = {}) {
@@ -686,7 +685,8 @@ export function addWagons(ctx, id, n, opts = {}) {
   const c = consistCheck(ctx, id, n, opts);
   if (!c.ok) return c;
   const { v, wagon, unit } = c;
-  if (v.wagons + n > MAX_WAGONS) return { ok: false, error: `A train can have at most ${MAX_WAGONS} wagons` };
+  const maxWagons = getSetting(state, 'maxTrainWagons');
+  if (v.wagons + n > maxWagons) return { ok: false, error: `A train can have at most ${maxWagons} wagons` };
   if (v.cargoId && !wagon.cargos.includes(v.cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${v.cargoId}` };
   const cost = unit * n;
   const capacity = wagon.capacity * (v.wagons + n);
@@ -765,7 +765,8 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
   const cargoId = opts.cargoId || wagon.cargos[0];
   if (!wagon.cargos.includes(cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${cargoId}` };
   const list = wagonList(v);
-  if (list.length >= MAX_WAGONS) return { ok: false, error: `A train can have at most ${MAX_WAGONS} wagons` };
+  const maxWagons = getSetting(state, 'maxTrainWagons');
+  if (list.length >= maxWagons) return { ok: false, error: `A train can have at most ${maxWagons} wagons` };
   const cost = wagonUnitPrice(state, modelId);
   const money = checkMoney(state, cost);
   if (money) return money;

@@ -12,7 +12,7 @@ import { depotDisplayName } from '../../simulation/cmdRename.js';
 
 /**
  * Consist editor strip (T19): one block per engine/wagon and +/- wagon buttons. Only for trains in a depot.
- * Rules (simulation/cmdVehicle.js addWagons/removeWagons): empty train, max MAX_WAGONS, min 0 wagons.
+ * Rules (simulation/cmdVehicle.js addWagons/removeWagons): empty train, max maxTrainWagons setting (default MAX_WAGONS), min 0 wagons.
  */
 function consistStrip(app, id) {
   const blocks = el('span.consist-blocks');
