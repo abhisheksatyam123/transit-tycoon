@@ -1,21 +1,66 @@
 /**
- * Train vs road vehicle collisions at level crossings (OpenTTD train_cmd.cpp TrainCollideWithRoadVehicle /
- * roadveh_cmd.cpp RoadVehCrash). Setting vehicleCollisions (default off: nothing is checked, no random draws).
- * When a train's head enters a level crossing tile (ctx.barred crossing, levelCrossing.js) a road vehicle
- * (bus, truck or tram) whose body covers that tile is destroyed: passengers on board die, news is posted and
- * 'crash' is emitted for the smoke. The victim is only marked here (v.wrecked) and removed by
- * vehicleManager.tick after the vehicle loop, because removeVehicle replaces state.vehicles mid-loop.
- * Simplifications: the train is not damaged (OpenTTD), no delay before removal, no company rating change;
- * train-train overlap is not handled (see the report: trains block same-direction traffic and head-on pass).
+ * Vehicle collisions (OpenTTD train_cmd.cpp CheckTrainCollision / TrainCrashed, roadveh_cmd.cpp RoadVehCrash).
+ * Setting vehicleCollisions (default off: nothing is checked, no random draws). Called from movement.js move()
+ * when a train's head has just entered a tile (ctx.collide = setting on).
+ *
+ *  - Train vs train: a head entering a tile where another train's body covers it, moving the OTHER way, crashes
+ *    both trains (head-on). Same-direction trains never crash (blocking.js holds the follower). Trains in a
+ *    station (state 'loading') and in depots are not part of this check (not indexed / skipped).
+ *  - Train vs road vehicle at a barred level crossing (OpenTTD TrainCollideWithRoadVehicle): a road vehicle whose
+ *    body covers the crossing is destroyed (trainEntersCrossing; on a level crossing tile).
+ *
+ * Crashed vehicles are only marked (v.wrecked) and removed by vehicleManager.tick after the vehicle loop, because
+ * removeVehicle replaces state.vehicles mid-loop. A crash posts one news item and emits 'crash' at the tile.
+ * Simplifications: no wreck delay, no company rating change, a third train passing a wreck is not crashed.
+ * Cost: O(vehicles indexed on one tile) per train head step, only with the setting on.
  */
 import { notify } from './news.js';
 import { isLevelCrossing } from './levelCrossing.js';
 import { getTile } from './map.js';
-import { vehiclesOn } from './blocking.js';
+import { vehiclesOn, vehicleDir } from './blocking.js';
+import { dirBetween } from './constants.js';
+
+/** Mark v as wrecked (once) and queue it for removal after the vehicle loop. Returns its passengers. */
+function wreck(ctx, v) {
+  v.wrecked = true;
+  (ctx.wrecked || (ctx.wrecked = [])).push(v);
+  return v.load && v.cargoId === 'PASS' ? v.load.amount || 0 : 0;
+}
 
 /**
- * Called from movement.js move() when train v's head has just entered tile (x,y). Cheap: only runs for a
- * crossing tile while ctx.collide is set (setting on and a crossing barred this tick).
+ * Called from movement.js move() when train v's head has just entered tile (x,y): crashes it head-on with another
+ * train whose body covers the tile, then checks a barred level crossing.
+ */
+export function trainEnters(ctx, v, x, y) {
+  if (ctx.occupancy) {
+    const list = vehiclesOn(ctx, 'rail', x, y);
+    if (list && v.state !== 'loading') {
+      const dir = trainDir(v, x, y);
+      for (const o of list) {
+        if (o === v || o.kind !== 'train' || o.wrecked || o.state === 'loading' || o.state === 'depot') continue;
+        const od = vehicleDir(o);
+        if (!od || !dir || od === dir) continue; // same way (follower at blocking distance) or unknown: no crash
+        const victims = wreck(ctx, v) + wreck(ctx, o);
+        notify(ctx, `Train crash! ${victims} die in collision`, 'bad', x, y, 'accident');
+        if (ctx.emit) ctx.emit('crash', { x, y, victims });
+        return;
+      }
+    }
+  }
+  trainEntersCrossing(ctx, v, x, y);
+}
+
+/** Direction bit of train v's head moving onto (x,y) along its path (0 if unknown). */
+function trainDir(v, x, y) {
+  const p = v.path, i = v.pathIndex;
+  if (!p || i < 1) return 0;
+  const a = p[i - 1];
+  return dirBetween(a.x, a.y, x, y);
+}
+
+/**
+ * Called from trainEnters when train v's head has just entered tile (x,y). Cheap: only a level crossing tile
+ * (isLevelCrossing) reaches the occupancy lookup; the caller already needs ctx.collide.
  */
 export function trainEntersCrossing(ctx, v, x, y) {
   const { state } = ctx;
@@ -26,9 +71,7 @@ export function trainEntersCrossing(ctx, v, x, y) {
   if (!list) return;
   for (const r of list) {
     if (r.kind !== 'road' || r.wrecked || r.state === 'depot') continue;
-    r.wrecked = true;
-    (ctx.wrecked || (ctx.wrecked = [])).push(r);
-    const victims = r.load && r.cargoId === 'PASS' ? r.load.amount || 0 : 0;
+    const victims = wreck(ctx, r);
     notify(ctx, 'Road vehicle destroyed in collision with train', 'bad', x, y, 'accident');
     if (ctx.emit) ctx.emit('crash', { x, y, victims });
   }

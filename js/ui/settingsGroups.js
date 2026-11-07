@@ -22,8 +22,8 @@ export const SETTING_GROUPS = [
 export const SETTING_META = [
   { key: 'levelCrossings', group: 'construction', label: 'Level crossing barriers', type: 'check',
     help: 'A level crossing is barred while a train is on it or about to enter it: road vehicles and cars stop before the barriers and go on when the train has passed. Trains never wait for road traffic. Off = crossings are always open.' },
-  { key: 'vehicleCollisions', group: 'vehicles', label: 'Train collisions with road vehicles', type: 'check',
-    help: 'A train entering a level crossing destroys a road vehicle (bus, truck or tram) that is on it at that moment: its passengers die and the company is told by news. Needs Level crossing barriers. Off = no collisions.' },
+  { key: 'vehicleCollisions', group: 'vehicles', label: 'Vehicle collisions', type: 'check',
+    help: 'Trains that meet head-on (or cross paths) on the same tile both crash, and a train entering a barred level crossing destroys a road vehicle on it; passengers die and the news reports it. Use signals to keep trains apart. Off = trains pass through each other.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'roadSide', group: 'vehicles', label: 'Road driving side', type: 'select', newGame: true,

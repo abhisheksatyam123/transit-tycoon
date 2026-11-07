@@ -20,8 +20,8 @@ export function tick(game) {
   ctx.occupancy = beginOccupancy(game.state); // queueing index (blocking.js), derived, never saved
   refreshBarred(ctx, game.state); // level crossings barred this tick (levelCrossing.js; setting off = null)
   if (ctx.barredNew) for (const i of ctx.barredNew) ctx.emit('levelCrossingClosed', { i });
-  // vehicleCollisions (trainCollision.js): only meaningful with barred crossings; one setting read per tick
-  ctx.collide = !!ctx.barred && getSetting(game.state, 'vehicleCollisions') === true;
+  // vehicleCollisions (trainCollision.js): train-train and train-road; one setting read per tick
+  ctx.collide = getSetting(game.state, 'vehicleCollisions') === true;
   for (const v of game.state.vehicles) {
     if (v.wrecked) continue; // destroyed this tick by a train (removed below)
     vehicleBreakdownTick(v);
