@@ -6,6 +6,9 @@ import { money } from '../format.js';
 import { costText } from '../editorCost.js';
 import { catchmentAround } from './geometry.js';
 import { adjacentOwn, joinChoices, openJoinPicker } from './joinPicker.js';
+import { tileAcceptance } from '../../simulation/stations.js';
+import { ACCEPT_THRESHOLD } from '../../simulation/constants.js';
+import { CARGO_BY_ID } from '../../config/cargos.js';
 
 /**
  * @typedef {Object} PlacementOptions
@@ -28,6 +31,21 @@ export function createPlacementTool(app, o) {
   let hover = null;
   let lastKey = '';
   let last = { ok: false, label: '' };
+  // F13: cargos the hovered catchment would accept (stations only), shown in the tool hint
+  let accepts = '';
+
+  /** Cargo names a station placed at these tiles would accept (catchment-based, same rule as the sim). */
+  const acceptsText = (tiles, radius) => {
+    const state = app.game.state;
+    const m = state.map;
+    const sum = {};
+    for (const p of catchmentAround(tiles, radius, m.width, m.height)) {
+      for (const [c, v] of Object.entries(tileAcceptance(state, p.x, p.y))) sum[c] = (sum[c] || 0) + v;
+    }
+    const names = Object.keys(sum).filter((c) => sum[c] >= ACCEPT_THRESHOLD)
+      .map((c) => (CARGO_BY_ID[c] ? CARGO_BY_ID[c].name : c));
+    return names.length ? `Accepts: ${names.sort().join(', ')}` : 'Accepts: nothing';
+  };
 
   const refresh = () => {
     if (!hover) return;
@@ -42,13 +60,15 @@ export function createPlacementTool(app, o) {
     if (o.catchment) {
       const m = app.game.state.map;
       ov.catchment = catchmentAround(tiles, o.catchment, m.width, m.height);
+      const next = acceptsText(tiles, o.catchment);
+      if (next !== accepts) { accepts = next; app.ui.updateHint(); }
     }
   };
 
   return {
     id: o.id,
     label: o.label,
-    get hint() { return o.hint(); },
+    get hint() { return accepts ? `${o.hint()} ${accepts}.` : o.hint(); },
     move(t) { hover = t; refresh(); },
     down() {},
     up(t) {
@@ -79,6 +99,7 @@ export function createPlacementTool(app, o) {
       lastKey = '';
       app.renderer.overlay.preview = null;
       app.renderer.overlay.catchment = null;
+      if (accepts) { accepts = ''; app.ui.updateHint(); }
     },
   };
 }

@@ -7,6 +7,7 @@ import { num, money } from '../format.js';
 import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
 import { actionList, ratingTitle, townRating } from '../../simulation/townAuthority.js';
+import { isArctic, snowLineOf, isTropic, tropicZoneAt } from '../../simulation/climate.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -18,6 +19,11 @@ export function openTown(app, id) {
     width: 280,
     build(body, win) {
       const set = kvGrid(body, ['Population', 'Houses', 'Passengers last month', 'Passengers transported', 'Goods delivered', 'Growth', 'Local authority']);
+      // F13: OTTD-style growth requirements (only in sub-tropic desert / sub-arctic snow-line towns)
+      const needWrap = el('div');
+      const needSet = kvGrid(needWrap, ['Food required to grow', 'Water required to grow']);
+      needWrap.hidden = true;
+      body.appendChild(needWrap);
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
         const t = app.findTown(id);
         if (t) app.centerOn(t.x, t.y);
@@ -39,6 +45,12 @@ export function openTown(app, id) {
         set['Goods delivered'](num(t.goodsDelivered));
         const g = t.passengersTransported > 0 || t.goodsDelivered > 0 ? 'Fast (served)' : 'Slow (no service)';
         set['Growth'](g);
+        const need = growthNeeds(app.game.state, t);
+        needWrap.hidden = !need;
+        if (need) {
+          needSet['Food required to grow'](`delivered ${num(t.foodLastMonth || 0)} last month`);
+          needSet['Water required to grow'](need.water ? `delivered ${num(t.waterLastMonth || 0)} last month` : 'not required here');
+        }
         const r = townRating(t);
         set['Local authority'](`${ratingTitle(r)} (${r})`);
         const list = actionList(app.game.state, t);
@@ -56,4 +68,19 @@ export function openTown(app, id) {
       };
     },
   });
+}
+
+/**
+ * OTTD town growth requirements for a town (F13). Sub-tropic desert towns need FOOD and WATER; sub-arctic towns whose
+ * centre is at or above the snow line need FOOD. Null for every other town (temperate towns unchanged).
+ * @returns {{food:boolean, water:boolean}|null}
+ */
+export function growthNeeds(state, t) {
+  if (!state || !t || !state.map) return null;
+  if (isTropic(state) && tropicZoneAt(state.map, t.x, t.y) === 1) return { food: true, water: true };
+  if (isArctic(state)) {
+    const tile = state.map.tiles[t.y * state.map.width + t.x];
+    if (tile && tile.height >= snowLineOf(state)) return { food: true, water: false };
+  }
+  return null;
 }

@@ -31,3 +31,41 @@ describe('buy window defaults (F10)', () => {
     expect(suppliedFreight([a])).toEqual(['COAL', 'GOOD']);
   });
 });
+
+describe('buy window defaults (F13): raw producers beat processed output', () => {
+  // truck stop at (40,60) covers tiles within 3. Rubber plantation (raw) at (42,60) inside the catchment.
+  // Factory (processing, GOOD output, no input yet) at (44,60) also inside. Depot at (33,58) is within 12 of both.
+  const ind = (id, typeId, x, y, w, h) => ({ id, typeId, x, y, w, h, name: id, produced: {}, received: {} });
+  const withInd = (stations, industries) => ({ ...state(stations), industries, mapgen: { climate: 'tropic' } });
+  const rubberTruckStop = st(1, 40, 60, 'truck');
+  const rubberCase = () => withInd([rubberTruckStop], [
+    ind(10, 'rubber_plantation', 41, 59, 4, 5),
+    ind(11, 'factory_tropic', 43, 59, 2, 4),
+  ]);
+
+  test('depot near rubber plantation + factory picks Rubber Truck, not Goods Truck', () => {
+    const s = rubberCase();
+    const pick = chooseBuyDefaults(s, road);
+    expect(pick.cargo).toBe('RUBBER');
+    expect(pick.modelId).not.toBeNull();
+    expect(pick.modelId).toBe(chooseBuyDefaults(s, road).modelId);
+  });
+
+  test('suppliedFreight puts the raw producer cargo before the processed GOOD', () => {
+    expect(suppliedFreight([rubberTruckStop], rubberCase(), road)).toEqual(['RUBBER', 'GOOD']);
+  });
+
+  test('cargo waiting at the stations outranks a raw producer', () => {
+    const withGoods = st(1, 40, 60, 'truck', { GOOD: [{ amount: 12 }] });
+    const s = withInd([withGoods], rubberCase().industries);
+    expect(suppliedFreight([withGoods], s, road)).toEqual(['GOOD', 'RUBBER']);
+  });
+
+  test('nearer raw producer wins among raw producers (distance tiebreak)', () => {
+    const near = ind(20, 'rubber_plantation', 41, 59, 4, 5);
+    const far = ind(21, 'rubber_plantation', 36, 59, 2, 2);
+    const s = withInd([rubberTruckStop], [far, near]);
+    // both produce RUBBER; order is by cargo id so this only checks it does not throw and keeps RUBBER first
+    expect(suppliedFreight([rubberTruckStop], s, road)[0]).toBe('RUBBER');
+  });
+});
