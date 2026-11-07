@@ -46,7 +46,7 @@ function shareButtons(app, r) {
 export function openCompanies(app) {
   return app.wm.open('companies', {
     title: 'Companies',
-    width: Math.min(getSetting(app.game.state, 'shares') ? 900 : 620, Math.max(320, (typeof window !== 'undefined' ? window.innerWidth : 900) - 24)),
+    width: Math.min(getSetting(app.game.state, 'shares') ? 1040 : 620, Math.max(320, (typeof window !== 'undefined' ? window.innerWidth : 900) - 24)),
     build(body) {
       const table = el('div.table-wrap');
       body.appendChild(table);
