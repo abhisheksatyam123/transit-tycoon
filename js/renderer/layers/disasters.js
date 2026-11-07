@@ -31,6 +31,48 @@ function drawUfo(ctx, p, alt, flash) {
   ctx.restore();
 }
 
+/** Big UFO: a larger saucer with a ring of lights (OpenTTD SPR_UFO_HARVESTER stand-in); lower when landed. */
+function drawBigUfo(ctx, p, landed, flash) {
+  ctx.save();
+  ctx.translate(p.x, p.y - (landed ? 6 : 50));
+  ctx.fillStyle = '#6a7d9a';
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#9ad8ff';
+  ctx.beginPath(); ctx.ellipse(0, -5, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = flash ? '#ffe066' : '#c8d2e0';
+  for (let i = -2; i <= 2; i++) { ctx.fillRect(i * 8 - 1, 4, 2, 2); }
+  ctx.restore();
+}
+
+/** Bomber (plane) and helicopter: a fixed-wing jet or a rotor craft (OpenTTD SPR_F_15 / SPR_AH_64A stand-ins). */
+function drawAircraft(ctx, p, kind, firing) {
+  ctx.save();
+  ctx.translate(p.x, p.y - 45);
+  if (kind === 'bomber') {
+    ctx.fillStyle = '#c0c8d4';
+    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(18, 0); ctx.lineTo(4, -4); ctx.lineTo(-6, -4); ctx.fill();
+    ctx.fillRect(-4, -8, 8, 8);
+  } else {
+    ctx.fillStyle = '#4a5a3a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a2f25';
+    ctx.fillRect(-18, -1, 36, 2); // rotor blur
+  }
+  if (firing) { ctx.fillStyle = '#ff7043'; ctx.fillRect(-2, 4, 4, 4); }
+  ctx.restore();
+}
+
+/** Submarine: a dark hull with a conning tower at the surface (OpenTTD SPR_SUB_SMALL / SPR_SUB_LARGE stand-in). */
+function drawSub(ctx, p, big) {
+  ctx.save();
+  ctx.translate(p.x, p.y - 2);
+  ctx.fillStyle = '#1d3b52';
+  ctx.beginPath(); ctx.ellipse(0, 0, big ? 16 : 11, big ? 4 : 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2f5d78';
+  ctx.fillRect(-2, -6, 4, 4);
+  ctx.restore();
+}
+
 /**
  * Draw the active disasters above the map pass.
  * @param {CanvasRenderingContext2D} ctx
@@ -51,4 +93,12 @@ export function drawDisasters(ctx, state, toScreen, frame) {
     const u = d.ufo;
     drawUfo(ctx, toScreen(u.x, u.y), u.alt != null ? u.alt : 1, (frame & 8) !== 0);
   }
+  if (d.bigUfo) {
+    const u = d.bigUfo;
+    const landed = u.state === 2;
+    drawBigUfo(ctx, toScreen(landed ? u.lx : u.x, landed ? u.ly : u.y), landed, (frame & 8) !== 0);
+  }
+  if (d.bomber) drawAircraft(ctx, toScreen(d.bomber.x, d.bomber.y), 'bomber', d.bomber.state === 1 || d.bomber.state === 2);
+  if (d.heli) drawAircraft(ctx, toScreen(d.heli.x, d.heli.y), 'heli', d.heli.state === 1 || d.heli.state === 2);
+  if (d.sub) drawSub(ctx, toScreen(d.sub.x, d.sub.y), d.sub.big);
 }

@@ -17,10 +17,27 @@ import { createRng } from './rng.js';
 import { getTile } from './map.js';
 import { removeVehicle } from './planeCrash.js';
 import { airportTypeId } from './airportTypes.js';
+import { nearestTown } from './state.js';
 
 /** OpenTTD DisasterCreation years [min, max) (disaster_vehicle.cpp _disasters table, lines 941-942). */
 const ZEP_YEARS = [1930, 1955];
 const UFO_YEARS = [1940, 1970];
+/** OpenTTD big UFO era (disaster_vehicle.cpp _disasters line 944). */
+const BIG_UFO_YEARS = [2000, 2100];
+/** Big UFO: random tiles before homing in on a train (line 598: ++age < 6), breakdown radius 12 tiles (line 571). */
+const BIG_UFO_WANDER = 6;
+const BIG_UFO_RADIUS = 12;
+/** Chosen here (OTTD: the Skyranger destroyer flies in from the west): ticks after landing until it shoots the UFO down. */
+const BIG_UFO_DESTROY_TICKS = 400;
+/** OpenTTD submarine eras (line 945-946): small 1940-1965, big 1975-2010. Submarine lives 8880 ticks (line 693). */
+const SUB_SMALL_YEARS = [1940, 1965], SUB_BIG_YEARS = [1975, 2010];
+const SUB_MAX_AGE = 8880, SUB_STEP = 0.125; // step chosen here; moves every second tick (line 695)
+/** Airplane (refinery) and helicopter (factory) eras (lines 947-948). */
+const BOMB_YEARS = [1960, 1990], HELI_YEARS = [1970, 2000];
+/** Attack phase (OpenTTD DisasterTick_Aircraft): fire within 15 tiles, 112 ticks until the strike, 55 ticks of explosions. */
+const ATTACK_RANGE = 15, ATTACK_STRIKE_TICKS = 112, ATTACK_EXPLODE_TICKS = 55;
+const AIR_STEP = 0.25, HELI_STEP = 0.125; // tiles per tick (chosen here)
+const ATTACK_TYPES = { bomber: new Set(['refinery']), heli: new Set(['factory', 'factory_tropic']) };
 /** OpenTTD ResetDisasterDelay: 730 + GB(Random(), 0, 9) days (line 970). */
 const DELAY_MIN = 730, DELAY_SPAN = 512;
 /** Zeppelin: age limit in the blocking phase (line 277: ++age <= 13320) and the crash phase (lines 296-313). */
@@ -66,14 +83,67 @@ export function dailyDisasters(game) {
   if (--s.disasterDelay !== 0) return;
   const rng = createRng(s, 'rngState');
   s.disasterDelay = DELAY_MIN + rng.int(0, DELAY_SPAN - 1);
-  const year = s.date.year;
-  const avail = [];
-  if (year >= ZEP_YEARS[0] && year < ZEP_YEARS[1]) avail.push('zep');
-  if (year >= UFO_YEARS[0] && year < UFO_YEARS[1]) avail.push('ufo');
+  const avail = disasterKindsForYear(s.date.year);
   if (!avail.length) return;
   const pick = avail[rng.int(0, avail.length - 1)];
   if (pick === 'zep') spawnZeppelin(game, rng);
+  else if (pick === 'bigufo') spawnBigUfo(game, rng);
+  else if (pick === 'bomber' || pick === 'heli') spawnAttacker(game, rng, pick);
+  else if (pick === 'sub') spawnSub(game, rng);
   else spawnUfo(game, rng);
+  const d = s.disasters;
+  if (d && !hasAny(d)) delete s.disasters;
+}
+
+/** Disaster kinds whose OpenTTD era (_disasters table, lines 940-950) includes `year`, in table order. */
+export function disasterKindsForYear(year) {
+  const avail = [];
+  const inEra = (r) => year >= r[0] && year < r[1];
+  if (inEra(ZEP_YEARS)) avail.push('zep');
+  if (inEra(UFO_YEARS)) avail.push('ufo');
+  if (inEra(BOMB_YEARS)) avail.push('bomber');
+  if (inEra(HELI_YEARS)) avail.push('heli');
+  if (inEra(BIG_UFO_YEARS)) avail.push('bigufo');
+  if (inEra(SUB_SMALL_YEARS)) avail.push('sub');
+  if (inEra(SUB_BIG_YEARS)) avail.push('sub');
+  return avail;
+}
+
+const DISASTER_KEYS = ['zep', 'ufo', 'bigUfo', 'bomber', 'heli', 'sub'];
+function hasAny(d) { return DISASTER_KEYS.some((k) => d[k]); }
+
+/** Pick a random industry of the given attack types (OpenTTD Disaster_Airplane/Helicopter_Init: random candidate). */
+function attackTarget(state, rng, kind) {
+  const cands = (state.industries || []).filter((i) => ATTACK_TYPES[kind].has(i.typeId));
+  return cands.length ? cands[rng.int(0, cands.length - 1)] : null;
+}
+
+/** Plane (refinery) or helicopter (factory) init (OpenTTD Disaster_Airplane_Init line 793, Helicopter_Init line 819). */
+function spawnAttacker(game, rng, kind) {
+  const s = game.state;
+  const d = s.disasters || (s.disasters = {});
+  if (d[kind]) return;
+  const ind = attackTarget(s, rng, kind);
+  if (!ind) return;
+  const cx = ind.x + ind.w / 2, cy = ind.y + ind.h / 2;
+  // bomber enters from the east edge; helicopter from the west (lines 797-799, 823)
+  const x = kind === 'bomber' ? s.map.width + 9 : -16;
+  d[kind] = { kind, indId: ind.id, x, y: cy, dest: { x: cx, y: cy }, state: 0, age: 0, prev: null, name: ind.name };
+}
+
+/** Submarine init (OpenTTD Disaster_Submarine_Init, lines 867-888): a water tile on the top or bottom edge. */
+function spawnSub(game, rng) {
+  const s = game.state;
+  const d = s.disasters || (s.disasters = {});
+  if (d.sub) return;
+  const W = s.map.width, H = s.map.height;
+  const x = rng.int(0, W - 1);
+  const down = rng.int(0, 1) === 0;
+  const y = down ? 0 : H - 1;
+  const t = getTile(s.map, x, y);
+  if (!t || t.terrain !== 'water') return; // OTTD: no submarine if the edge tile is not water (line 882)
+  d.sub = { x, y, dx: 0, dy: down ? 1 : -1, age: 0, tick: 0, big: false };
+  notify({ state: s }, 'Submarine sighted offshore', 'info', x, y, 'general');
 }
 
 /** Airport types a zeppelin targets (OpenTTD AT_SMALL / AT_LARGE; TT's small and city-sized airports). */
@@ -112,6 +182,146 @@ function spawnUfo(game, rng) {
   if (d.ufo) return;
   const W = s.map.width, H = s.map.height;
   d.ufo = { x: rng.int(0, W - 1), y: rng.int(0, H - 1), dest: { x: W >> 1, y: H >> 1 }, state: 0, age: 0, targetId: null, alt: 1 };
+}
+
+/** Big UFO init (OpenTTD Disaster_Big_Ufo_Init, lines 847-860): from the north edge, first flies to the map centre. */
+function spawnBigUfo(game, rng) {
+  const s = game.state;
+  const d = s.disasters || (s.disasters = {});
+  if (d.bigUfo) return;
+  const W = s.map.width, H = s.map.height;
+  d.bigUfo = { x: rng.int(0, W - 1), y: H - 1, dest: { x: W >> 1, y: H >> 1 }, state: 0, age: 0, targetId: null };
+}
+
+/**
+ * Big UFO per-tick (OpenTTD DisasterTick_Big_Ufo, lines 540-640). States: 0 wander, then home in on a player train
+ * (lines 598-630); 1 landing on it; 2 landed: trains within 12 tiles break down every tick (lines 571-572) until the
+ * destroyer shoots it down. Track under the UFO is blocked only through these breakdowns (simplification).
+ */
+function tickBigUfo(ctx, u, d) {
+  const { state } = ctx;
+  if (u.state === 0) {
+    const dx = u.dest.x - u.x, dy = u.dest.y - u.y;
+    if (Math.abs(dx) + Math.abs(dy) >= UFO_CRASH_DIST) {
+      const L = Math.hypot(dx, dy) || 1;
+      u.x += (dx / L) * UFO_SPEED; u.y += (dy / L) * UFO_SPEED;
+      return;
+    }
+    if (++u.age < BIG_UFO_WANDER) {
+      const rng = createRng(state, 'rngState');
+      u.dest = { x: rng.int(0, state.map.width - 1), y: rng.int(0, state.map.height - 1) };
+      return;
+    }
+    const rng = createRng(state, 'rngState');
+    const trains = (state.vehicles || []).filter((v) => v.kind === 'train' && v.ownerId == null && v.state !== 'depot');
+    if (!trains.length) { d.bigUfo = null; return; } // no targetable train: the UFO leaves (line 615-619)
+    const target = trains[rng.int(0, trains.length - 1)];
+    u.targetId = target.id; u.state = 1; u.age = 0;
+    return;
+  }
+  if (u.state === 1) {
+    const target = (state.vehicles || []).find((v) => v.id === u.targetId);
+    const p = target ? roadPos(target) : { x: u.x, y: u.y };
+    const dist = Math.abs(u.x - p.x) + Math.abs(u.y - p.y);
+    if (dist >= UFO_CRASH_DIST) {
+      const L = Math.hypot(p.x - u.x, p.y - u.y) || 1;
+      u.x += ((p.x - u.x) / L) * UFO_SPEED; u.y += ((p.y - u.y) / L) * UFO_SPEED;
+      return;
+    }
+    // landed on the rail (line 540-575): the train under it is destroyed, the rest in radius break down
+    u.state = 2; u.age = 0; u.lx = p.x; u.ly = p.y;
+    const tx = Math.floor(p.x), ty = Math.floor(p.y);
+    if (target && state.vehicles.includes(target)) {
+      notify(ctx, `Train destroyed in 'UFO' landing!`, 'bad', tx, ty, 'accident');
+      removeVehicle(state, target);
+    }
+    notify(ctx, `'UFO' lands near ${nearTownName(state, tx, ty)}!`, 'bad', tx, ty, 'accident');
+    if (ctx.emit) ctx.emit('disaster', { kind: 'bigufo', x: tx, y: ty });
+    return;
+  }
+  // state 2: landed; trains within 12 tiles stay broken down, then the destroyer shoots the UFO down (lines 642-687)
+  breakTrainsNear(state, u.lx, u.ly);
+  if (++u.age < BIG_UFO_DESTROY_TICKS) return;
+  notify(ctx, `'UFO' shot down near ${nearTownName(state, Math.floor(u.lx), Math.floor(u.ly))}`, 'good', Math.floor(u.lx), Math.floor(u.ly), 'accident');
+  d.bigUfo = null;
+}
+
+function breakTrainsNear(state, x, y) {
+  for (const v of state.vehicles || []) {
+    if (v.kind !== 'train') continue;
+    const p = roadPos(v);
+    if (Math.abs(p.x - x) + Math.abs(p.y - y) <= BIG_UFO_RADIUS) { v.breakdownTicks = Math.max(v.breakdownTicks || 0, 5); v.state = 'broken'; }
+  }
+}
+
+function nearTownName(state, x, y) {
+  const t = nearestTown(state, x, y);
+  return t ? t.name : 'the map';
+}
+
+/** Set a target's production to 0 (OpenTTD DestructIndustry; here a closure held while the attacker is active). */
+function closeIndustry(ind, a) {
+  if (a.prev == null) a.prev = ind.productionRate == null ? 255 : ind.productionRate;
+  ind.productionRate = 0;
+}
+function reopenIndustry(state, a) {
+  const ind = (state.industries || []).find((i) => i.id === a.indId);
+  if (ind && a.prev != null) ind.productionRate = a.prev;
+  a.prev = null;
+}
+
+/**
+ * Bomber / helicopter per-tick (OpenTTD DisasterTick_Aircraft, lines 447-506). 0 fly to the target; 1 within 15 tiles
+ * and hovering; 2 after 112 ticks the strike closes the industry (DestructIndustry), 55 ticks of explosions; 3 fly out
+ * and leave. Simplification: the closure is lifted when the aircraft leaves (OTTD destroys the building for good).
+ */
+function tickAttacker(ctx, a, d, key) {
+  const { state } = ctx;
+  const ind = (state.industries || []).find((i) => i.id === a.indId);
+  if (!ind && a.state < 2) { d[key] = null; return; } // target gone before the strike: it leaves
+  const step = key === 'bomber' ? AIR_STEP : HELI_STEP;
+  if (a.state === 0) {
+    const dx = a.dest.x - a.x, dy = a.dest.y - a.y, L = Math.hypot(dx, dy) || 1;
+    if (L <= ATTACK_RANGE) { a.state = 1; a.age = 0; return; }
+    a.x += (dx / L) * step; a.y += (dy / L) * step;
+    return;
+  }
+  if (a.state === 1) {
+    if (++a.age < ATTACK_STRIKE_TICKS) return;
+    a.state = 2; a.age = 0;
+    closeIndustry(ind, a);
+    const tx = Math.floor(a.dest.x), ty = Math.floor(a.dest.y);
+    const town = nearTownName(state, tx, ty);
+    const text = key === 'bomber' ? `Oil refinery explosion near ${town}!` : `Factory destroyed in suspicious circumstances near ${town}!`;
+    notify(ctx, text, 'bad', tx, ty, 'accident');
+    if (ctx.emit) ctx.emit('disaster', { kind: key, x: tx, y: ty });
+    return;
+  }
+  if (a.state === 2) {
+    if (++a.age < ATTACK_EXPLODE_TICKS) return;
+    a.state = 3; a.age = 0;
+    reopenIndustry(state, a);
+    return;
+  }
+  // state 3: leave by the side it came from
+  a.x += key === 'bomber' ? step : -step;
+  if (a.x > state.map.width + 9 || a.x < -16) { reopenIndustry(state, a); d[key] = null; }
+}
+
+/** Submarine per-tick (OpenTTD DisasterTick_Submarine, lines 689-715): cosmetic; drifts through water, turns at land. */
+function tickSub(ctx, sub, d) {
+  const { state } = ctx;
+  sub.tick++;
+  if (++sub.age > SUB_MAX_AGE) { d.sub = null; return; }
+  if ((sub.tick & 1) === 0) return; // HasBit(tick_counter, 0)
+  const nx = sub.x + sub.dx * SUB_STEP, ny = sub.y + sub.dy * SUB_STEP;
+  const t = getTile(state.map, Math.floor(nx), Math.floor(ny));
+  const rng = createRng(state, 'rngState');
+  if (t && t.terrain === 'water' && rng.next() >= 1 / 90) { sub.x = nx; sub.y = ny; return; }
+  // turn 90 degrees left or right (OTTD: random turn; line 713)
+  const left = rng.int(0, 1) === 0;
+  const dx = sub.dx, dy = sub.dy;
+  sub.dx = left ? -dy : dy; sub.dy = left ? dx : -dx;
 }
 
 /** Zeppelin per-tick (OpenTTD DisasterTick_Zeppeliner, lines 235-320). */
@@ -200,10 +410,16 @@ export function tickDisasters(ctx) {
   const d = state.disasters;
   if (!d) return;
   if (!getSetting(state, 'disasters')) { // switched off mid-disaster: remove the vehicles
+    if (d.bomber) reopenIndustry(state, d.bomber);
+    if (d.heli) reopenIndustry(state, d.heli);
     delete state.disasters;
     return;
   }
   if (d.zep) tickZeppelin(ctx, d.zep, d);
   if (d.ufo) tickUfo(ctx, d.ufo, d);
-  if (!d.zep && !d.ufo) delete state.disasters;
+  if (d.bigUfo) tickBigUfo(ctx, d.bigUfo, d);
+  if (d.bomber) tickAttacker(ctx, d.bomber, d, 'bomber');
+  if (d.heli) tickAttacker(ctx, d.heli, d, 'heli');
+  if (d.sub) tickSub(ctx, d.sub, d);
+  if (!hasAny(d)) delete state.disasters;
 }
