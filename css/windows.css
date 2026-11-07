@@ -101,8 +101,10 @@
 .order-row.current { border-color: var(--accent-border); box-shadow: inset 3px 0 0 var(--accent); }
 .order-idx { color: var(--muted); text-align: center; }
 .order-flags { display: flex; flex-direction: column; gap: 2px; }
+/* order rows: name, warnings and buttons on line 1; the flag/timetable controls wrap on a full-width line 2 (the name is not squeezed) */
+.order-row > .order-flags { grid-column: 2 / -1; grid-row: 2; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .order-flags select { font-size: 11px; width: 112px; padding: 1px 4px; }
-.order-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 8em; min-width: 8em; }
+.order-row .name { overflow-wrap: anywhere; min-width: 6em; }
 .order-row .depot-ctl[hidden] { display: none; }
 .order-row .depot-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .chk { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #cbd5e1; cursor: pointer; }
