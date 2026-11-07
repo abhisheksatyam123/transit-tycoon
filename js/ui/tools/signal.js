@@ -5,7 +5,8 @@
  * Drag (OpenTTD drag signals): press on one tile, drag along a straight, diagonal or L run, release to place a
  * signal every `signalSpacing` tiles (ui/signalSpacing.js, default 4), using the selected kind. Ctrl+drag removes
  * the signals on the run. The preview shows the run's total cost. A run stops at junctions/stations (signalRun.js).
- * A press and release on the same tile is a plain click, unchanged.
+ * A press and release on the same tile is a plain click, unchanged. Ctrl+click (no drag) on an existing signal
+ * converts it to the selected kind (OpenTTD convert flag; cost = signal build price, see convertSignal).
  */
 import { createPlacementTool } from './placement.js';
 import { money } from '../format.js';
@@ -33,7 +34,7 @@ export function createSignalTool(app) {
   const base = createPlacementTool(app, {
     id: 'signal',
     label: 'Signal',
-    hint: () => 'Click a straight rail tile to place a ' + names[kind] + ' signal (' + money(app.game.buildSignal(0, 0, { dryRun: true }).cost || 0) + '). Drag along track to place one every ' + getSignalSpacing() + ' tiles; Ctrl+drag removes. Key S: next kind (now: ' + names[kind] + '); click a one-way/path signal to reverse it, click again to remove; click a block signal to remove it. Esc cancels.',
+    hint: () => 'Click a straight rail tile to place a ' + names[kind] + ' signal (' + money(app.game.buildSignal(0, 0, { dryRun: true }).cost || 0) + '). Drag along track to place one every ' + getSignalSpacing() + ' tiles; Ctrl+drag removes. Key S: next kind (now: ' + names[kind] + '); click a one-way/path signal to reverse it, click again to remove; click a block signal to remove it; Ctrl+click an existing signal to convert it to the selected kind. Esc cancels.',
     command: (game, x, y, opts) => {
       const t = game.state.map.tiles[y * game.state.map.width + x];
       if (!t.signal) return game.buildSignal(x, y, { ...opts, type: kind });
@@ -84,7 +85,17 @@ export function createSignalTool(app) {
       lastKey = '';
       app.renderer.overlay.preview = null;
       // a press and release on the same tile is a plain click (unchanged behaviour)
-      if (s.x === t.x && s.y === t.y) { base.up(t); return; }
+      if (s.x === t.x && s.y === t.y) {
+        // Ctrl+click on an existing signal converts it to the selected kind (OpenTTD convert flag)
+        const tile = app.game.state.map.tiles[t.y * app.game.state.map.width + t.x];
+        if (t.ctrl && tile.signal) {
+          const res = app.game.convertSignal(t.x, t.y, kind);
+          app.exec(res, { x: t.x, y: t.y, sound: 'build' });
+          return;
+        }
+        base.up(t);
+        return;
+      }
       const tiles = signalDragTiles(s.x, s.y, t.x, t.y);
       const res = app.game.buildSignalRun(tiles, { spacing: getSignalSpacing(), remove: !!t.ctrl, type: kind });
       app.exec(res, { x: t.x, y: t.y, sound: t.ctrl ? 'demolish' : 'build' });

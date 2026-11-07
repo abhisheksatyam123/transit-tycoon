@@ -64,6 +64,32 @@ export function buildSignal(ctx, x, y, opts = {}) {
   return { ok: true, cost, tiles: 1 };
 }
 
+/**
+ * Convert the existing signal on (x,y) to kind `type` (OpenTTD CMD_BUILD_SIGNALS convert flag: Ctrl-click or
+ * the convert button). Keeps the pass direction of a typed signal (a block signal gets the default direction).
+ * Charged the signal build cost (COSTS.signal, as OpenTTD charges the build price of the new signal).
+ * Refused on a non-signal tile, a rival-owned tile (t.owner 'rival') or when the kind is unchanged.
+ */
+export function convertSignal(ctx, x, y, type = 'block', opts = {}) {
+  const { state } = ctx;
+  if (!coordsOk(state.map, x, y)) return { ok: false, error: ERR.bounds };
+  const t = state.map.tiles[y * state.map.width + x];
+  if (!t.signal) return { ok: false, error: 'No signal here' };
+  if (t.owner === 'rival') return { ok: false, error: 'Owned by a rival company' };
+  if (!SIGNAL_KINDS.includes(type)) return { ok: false, error: 'Unknown signal type' };
+  const cur = typeof t.signal === 'object' ? t.signal.type : 'block';
+  if (cur === type) return { ok: false, error: 'Signal is already ' + type };
+  const cost = constructionTotal(state, COSTS.signal);
+  const money = checkMoney(state, cost);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost, tiles: 1, type };
+  const dir = typeof t.signal === 'object' ? t.signal.dir : signalDefaultDir(state, x, y);
+  t.signal = type === 'block' ? 1 : { type, dir };
+  invalidateBlocks(state);
+  spend(state.company, 'construction', cost);
+  return { ok: true, cost, tiles: 1, type };
+}
+
 /** Default pass direction of a one-way/path signal: east on an x-axis tile, south on a y-axis tile. */
 export function signalDefaultDir(state, x, y, dir) {
   const axis = straightAxis(state.map.tiles[y * state.map.width + x].rail);

@@ -18,8 +18,13 @@ export const MAX_CHUNKS = 24;
 /** Per-frame time budget (ms) for building chunks: the first one is always built, more only within budget,
  *  so startup / fast pans spread chunk rasterising over frames instead of one 200-300 ms frame. */
 export const BUILD_BUDGET_MS = 10;
+/** Per-frame budget (ms) while visible chunks are still unbuilt (placeholder on screen, e.g. right after boot).
+ *  Only applies while something visible is missing, so steady-state frames keep BUILD_BUDGET_MS. */
+export const BUILD_BUDGET_MISSING_MS = 16;
 /** Placeholder fill for a chunk that is still waiting to be built (flat grass diamond). */
 const PLACEHOLDER = '#5b7f3a';
+/** Placeholder colour for terrains whose look does not depend on the climate. */
+const PLACEHOLDER_COLOUR = { forest: '#4a6e30', water: '#2a5a8a' }; // others: PLACEHOLDER grass (desert/snow/rock tiles draw climate-dependent ground)
 const PAD_TOP = HALF_H + 8 * HEIGHT_STEP;
 const PAD_BOTTOM = HALF_H + 10 * HEIGHT_STEP;
 const TERRAIN_CODE = { grass: 1, forest: 2, desert: 3, rock: 4, snow: 5, water: 6 };
@@ -188,19 +193,29 @@ export class GroundCache {
     return this.chunks[job.idx];
   }
 
-  /** Flat diamond in the ground colour where a not-yet-built chunk goes (avoids holes). */
+  /**
+   * Ground-coloured stand-in where a not-yet-built chunk goes (avoids holes): one quad per tile following its
+   * corner heights, coloured by terrain, batched into one path per colour (no per-tile allocations or fills).
+   */
   placeholder(ctx, cx, cy) {
-    const m = this.map;
+    const m = this.map, hs = this.heights, W = m.width;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const x1 = Math.min(m.width, x0 + CHUNK) - 1, y1 = Math.min(m.height, y0 + CHUNK) - 1;
-    ctx.fillStyle = PLACEHOLDER;
-    ctx.beginPath();
-    ctx.moveTo((x0 - y0) * HALF_W, (x0 + y0) * HALF_H - HALF_H);
-    ctx.lineTo((x1 - y0) * HALF_W + HALF_W, (x1 + y0) * HALF_H);
-    ctx.lineTo((x1 - y1) * HALF_W, (x1 + y1) * HALF_H + HALF_H);
-    ctx.lineTo((x0 - y1) * HALF_W - HALF_W, (x0 + y1) * HALF_H);
-    ctx.closePath();
-    ctx.fill();
+    const x1 = Math.min(W, x0 + CHUNK), y1 = Math.min(m.height, y0 + CHUNK);
+    const paths = {};
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const col = PLACEHOLDER_COLOUR[m.tiles[y * W + x].terrain] || PLACEHOLDER;
+        const path = paths[col] || (paths[col] = new Path2D());
+        const sx = (x - y) * HALF_W, sy = (x + y) * HALF_H;
+        // (sx, sy) is the tile centre (as in stepJob); corners N, E, S, W like iso.js
+        path.moveTo(sx, sy - HALF_H - hs.cornerH(x, y) * HEIGHT_STEP);
+        path.lineTo(sx + HALF_W, sy - hs.cornerH(x + 1, y) * HEIGHT_STEP);
+        path.lineTo(sx, sy + HALF_H - hs.cornerH(x + 1, y + 1) * HEIGHT_STEP);
+        path.lineTo(sx - HALF_W, sy - hs.cornerH(x, y + 1) * HEIGHT_STEP);
+        path.closePath();
+      }
+    }
+    for (const col in paths) { ctx.fillStyle = col; ctx.fill(paths[col]); }
   }
 
   /** Release least-recently-drawn chunks (not drawn this frame) until within MAX_CHUNKS. */
@@ -237,6 +252,7 @@ export class GroundCache {
     const cy0 = Math.floor(range.y0 / CHUNK), cy1 = Math.floor(range.y1 / CHUNK);
     this.pending = 0; // chunks drawn as placeholders this call (whole-map export waits for 0)
     const t0 = performance.now();
+    const budgetMs = this.missingLast > 0 ? BUILD_BUDGET_MISSING_MS : BUILD_BUDGET_MS;
     let worked = false;
     for (let s = cx0 + cy0; s <= cx1 + cy1; s++) {
       for (let cx = Math.max(cx0, s - cy1); cx <= Math.min(cx1, s - cy0); cx++) {
@@ -258,9 +274,9 @@ export class GroundCache {
         if (job) {
           job.used = frame;
           // time-sliced: the frame budget is shared by all chunks; the first tile of a frame always runs
-          if (!worked || performance.now() - t0 < BUILD_BUDGET_MS) {
+          if (!worked || performance.now() - t0 < budgetMs) {
             worked = true;
-            if (this.stepJob(job, t0 + BUILD_BUDGET_MS)) use = this.finishJob(job);
+            if (this.stepJob(job, t0 + budgetMs)) use = this.finishJob(job);
           }
           if (use === rec) {
             if (!rec) { this.placeholder(ctx, cx, cy); this.pending++; use = null; } // stale chunk is drawn meanwhile
@@ -272,6 +288,7 @@ export class GroundCache {
         }
       }
     }
+    this.missingLast = this.pending; // next frame: larger budget while visible chunks are missing
     this.trim();
     setSpriteLod(pixelScale);
   }

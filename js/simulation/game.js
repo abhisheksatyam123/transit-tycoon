@@ -23,7 +23,7 @@ import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { convertRail } from './cmdElectrify.js';
-import { buildSignal, removeSignal } from './signals.js';
+import { buildSignal, removeSignal, convertSignal } from './signals.js';
 import { buildSignalRun } from './signalRun.js';
 import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { toggleOneWay } from './cmdOneWay.js';
@@ -260,6 +260,7 @@ export class Game {
   flipSignal(x, y, opts) { return flipSignal(this.state, x, y, opts); }
   /** Remove the block signal on a tile (T3b). */
   removeSignal(x, y, opts) { return removeSignal(this.ctx, x, y, opts); }
+  convertSignal(x, y, type, opts) { return convertSignal(this.ctx, x, y, type, opts); }
   /** Terraform: op 'raise'|'lower'|'level'|'plant' over rect {x0,y0,x1,y1}. */
   terraform(op, rect, opts) { return terraform(this.ctx, op, rect, opts); }
   estimateTerraform(op, rect) { return estimateTerraform(this.state, op, rect); }
