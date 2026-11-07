@@ -7,7 +7,10 @@
  * Signals are not simulated; head-on trains on single track pass each other.
  */
 import { TICKS_PER_DAY } from './constants.js';
-import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP } from './loco/vehicleMotion.js';
+import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP, MPH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+
+/** OL VehicleHead.cpp:2858-2866: broken-down ships target 5 mph. */
+const BROKEN_SHIP_MPH = 5;
 import { curveSpeedLimitKmh, realisticTrainSpeedStep } from './loco/trainRealistic.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { bridgeType } from '../config/bridges.js';
@@ -49,7 +52,7 @@ export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
  */
 export function vehicleTick(ctx, v) {
   if (v.kind === 'aircraft' && v.state !== 'running' && v.state !== 'broken') v.alt = 0;
-  if (v.blockedTicks && v.state !== 'running') clearBlock(v);
+  if (v.blockedTicks && v.state !== 'running' && !crawling(v)) clearBlock(v);
   if (v.resv) releaseReservations(ctx.state, v); // path signal reservations (pathSignals.js); only when held
   switch (v.state) {
     case 'depot':
@@ -57,9 +60,11 @@ export function vehicleTick(ctx, v) {
       return;
     case 'stopped':
       return;
-    case 'broken':
-      v.speed = 0;
-      if (--v.breakdownTicks <= 0) { v.breakdownTicks = 0; v.state = 'running'; }
+    case 'broken': // OL VehicleHead::updateBreakdown: a broken road/rail/ship crawls on (capped), aircraft and UFO-frozen stay put
+      if (--v.breakdownTicks <= 0) { v.breakdownTicks = 0; delete v.breakdownFrozen; v.state = 'running'; return; }
+      if (!crawling(v)) { v.speed = 0; return; }
+      if (v.kind === 'ship') moveShip(ctx, v); else move(ctx, v);
+      if (v.state !== 'broken') { v.breakdownTicks = 0; delete v.breakdownFrozen; } // reached a stop / replanned: the breakdown ends with the state change
       return;
     case 'lost':
       if (ctx.state.tick >= v.retryTick) replan(ctx, v);
@@ -247,7 +252,8 @@ function moveShip(ctx, v) {
   const { state } = ctx;
   if (!v.path.length || v.pathIndex >= v.path.length - 1) { onPathEnd(ctx, v); return; }
   if (v.progress === 0 && !shipLinkOk(state.map, v)) { replan(ctx, v); return; }
-  v.speed = shipSpeedStep(v, v.maxSpeed);
+  // OL VehicleHead.cpp:2858-2866: a broken-down ship is capped at 5 mph
+  v.speed = shipSpeedStep(v, v.state === 'broken' ? Math.min(v.maxSpeed, BROKEN_SHIP_MPH * MPH_TO_TILES_PER_TICK) : v.maxSpeed);
   v.progress += v.speed;
   if (v.blockedTicks) clearBlock(v);
   const keep = historyNeeded(v);
@@ -297,6 +303,11 @@ function passStation(ctx, v) {
   return true;
 }
 
+/** A broken-down vehicle that keeps moving at reduced speed (OL Vehicle1.cpp:190-197); aircraft and UFO-frozen ones stop. */
+export function crawling(v) {
+  return v.state === 'broken' && v.kind !== 'aircraft' && !v.breakdownFrozen;
+}
+
 /** Move a running vehicle along its path. */
 function move(ctx, v) {
   const { state } = ctx;
@@ -327,6 +338,7 @@ function move(ctx, v) {
       const nb = v.path[v.pathIndex + 1], nt = state.map.tiles[nb.y * state.map.width + nb.x];
       if (nt.bridgeType !== undefined) { const bs = bridgeType(nt.bridgeType); if (bs) { const c = bs.speed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; } }
     }
+    if (v.state === 'broken') { const c = v.maxSpeed / 4; if (c < maxTiles) maxTiles = c; } // OL Vehicle1.cpp:190: maxSpeed/4 while broken
     if (v.kind === 'train' && getSetting(state, 'trainAcceleration') === 'realistic') {
       // OTTD curve limit (train_cmd.cpp GetCurveSpeedLimit) caps the target; acceleration is the OTTD model
       const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;

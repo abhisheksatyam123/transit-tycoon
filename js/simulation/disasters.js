@@ -250,7 +250,7 @@ function breakTrainsNear(state, x, y) {
   for (const v of state.vehicles || []) {
     if (v.kind !== 'train') continue;
     const p = roadPos(v);
-    if (Math.abs(p.x - x) + Math.abs(p.y - y) <= BIG_UFO_RADIUS) { v.breakdownTicks = Math.max(v.breakdownTicks || 0, 5); v.state = 'broken'; }
+    if (Math.abs(p.x - x) + Math.abs(p.y - y) <= BIG_UFO_RADIUS) { v.breakdownTicks = Math.max(v.breakdownTicks || 0, 5); v.state = 'broken'; v.breakdownFrozen = true; v.speed = 0; }
   }
 }
 

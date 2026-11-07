@@ -100,7 +100,8 @@ export function vehicleBreakdownTick(v) {
   v.breakdownPending = false;
   v.state = 'broken';
   v.breakdownTicks = BREAKDOWN_DAYS * TICKS_PER_DAY;
-  v.speed = 0;
+  if (v.kind === 'aircraft') v.speed = 0; // aircraft still stop; road/rail/ship crawl on (movement.js 'broken')
+  delete v.breakdownFrozen;
   v.breakdowns = (v.breakdowns || 0) + 1;
 }
 
