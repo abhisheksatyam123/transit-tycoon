@@ -6,6 +6,7 @@ import { findStation, manhattan } from './state.js';
 import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { airLine, isRunwayCentre } from './aircraft.js';
 import { airportTypeId, isHelicopter, vehicleFitsAirport } from './airportTypes.js';
+import { HELI_PAD_TYPES, ftaTileOccupied } from './airportGround.js';
 import { findShipPath, shipGoals } from './shipPath.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { getSetting } from './settings.js';
@@ -53,13 +54,19 @@ export function orderGoals(state, v) {
 function airGoals(state, st, v) {
   const { map } = state;
   const model = v && MODEL_BY_ID[v.modelId];
-  const out = [];
+  const heli = !!v && isHelicopter(v);
+  const out = [], pads = [];
   for (const t of st.tiles) {
     if (t.kind !== 'airport') continue;
     const b = map.tiles[t.y * map.width + t.x].building;
-    if (isRunwayCentre(b) && (!model || vehicleFitsAirport(model, airportTypeId(b)))) out.push({ x: t.x, y: t.y });
+    if (!model || !vehicleFitsAirport(model, airportTypeId(b))) continue;
+    if (heli && b && b.part === 'helipad' && HELI_PAD_TYPES.has(airportTypeId(b))) pads.push({ x: t.x, y: t.y });
+    else if (isRunwayCentre(b)) out.push({ x: t.x, y: t.y });
   }
-  return out;
+  if (!pads.length) return out;
+  // helicopters: every helipad of the station; the free ones first (a busy pad is taken only when all are busy)
+  const free = pads.filter((p) => !ftaTileOccupied(state, v, p.x, p.y));
+  return free.length ? free : pads;
 }
 
 /** True when a station has a goal this aircraft may use (a plane has no goal at a heliport). */

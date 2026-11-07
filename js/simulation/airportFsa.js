@@ -10,6 +10,7 @@
  */
 import { airportTypeId, isHelicopter } from './airportTypes.js';
 import { airLine } from './aircraft.js';
+import { HELI_PAD_TYPES, ftaTileOccupied } from './airportGround.js';
 
 export const RUNWAY_TICKS = 6;
 export const HOLD_RADIUS = 5;
@@ -22,7 +23,7 @@ export const AIRPORT_CAPACITY = {
   metropolitan: { terminals: 3, helipads: 0 },
   international: { terminals: 6, helipads: 2 },
   helidepot: { terminals: 0, helipads: 1 },
-  helistation: { terminals: 0, helipads: 3 },
+  helistation: { terminals: 0, helipads: 2 }, // layout HPAT/PAAA: two helipads
 };
 
 /** Slot pool a helicopter uses at a type: its helipads when it has any, else the terminals (planes: terminals). */
@@ -57,6 +58,8 @@ export function airSlotFree(state, v, st, b) {
   const typeId = airportTypeId(b);
   if (airOccupancy(state, st, typeId, heli, v) >= airCapacity(typeId, heli)) return false;
   if (!heli && (st.airRunwayUntil ?? -1) > state.tick) return false;
+  // a helicopter needs its pad clear (not loading, not lifting off from it)
+  if (heli && HELI_PAD_TYPES.has(typeId) && ftaTileOccupied(state, v, v.tx, v.ty)) return false;
   return true;
 }
 

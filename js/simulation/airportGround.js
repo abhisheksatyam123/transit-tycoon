@@ -17,15 +17,18 @@
 import { airportTypeId, isHelicopter } from './airportTypes.js';
 import { airLine } from './aircraft.js';
 
+/** Airport types whose helicopters use the helipad ground phase (OTTD helipads: heliport, helidepot, helistation). */
+export const HELI_PAD_TYPES = new Set(['heliport', 'helidepot', 'helistation']);
+
 /** Airport types with the ported ground movement. */
 export const FTA_GROUND_TYPES = new Set(['city', 'small', 'commuter', 'metropolitan', 'international']);
 /** Layout part names (airportTypes.js): landing runway, departure runway (takeoff roll; metro/international), apron. */
 export const RUNWAY_PART = 'runway';
 export const DEPARTURE_PART = 'runwayDep';
 /** Parts an aircraft taxies on (taxi graph). */
-const TAXI_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART]);
+const TAXI_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART, 'helipad']);
 /** Parts that are blocks: one aircraft at a time in the ground phase (runways, terminals, and the apron). */
-const BLOCK_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART]);
+const BLOCK_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART, 'helipad']);
 /** Ticks a blocked plane waits before it moves anyway (deadlock guard). */
 export const FTA_WAIT_MAX = 40;
 
@@ -171,6 +174,56 @@ export function takeoffViaTerminal(state, st, fx, fy, goals, avoid = null, v = n
     if (rest) return { path: hop.concat(rest.path.slice(1)), groundEnd: rest.groundEnd + hop.length - 1 };
   }
   return takeoffPath(state, st, fx, fy, goals, avoid);
+}
+
+/**
+ * True when helicopter v uses the helipad ground phase at tile building b (a pad-type heliport, helidepot or
+ * helistation). Helicopters at other airports keep the flight model (no pad block).
+ */
+export function ftaHeliFor(v, b) {
+  return v.kind === 'aircraft' && isHelicopter(v) && !!b && b.type === 'station' && b.kind === 'airport'
+    && HELI_PAD_TYPES.has(airportTypeId(b));
+}
+
+/**
+ * Nearest helipad of station st that v may take now: not occupied, not promised to another helicopter.
+ * @returns {{x,y}|null}
+ */
+export function heliFreePad(state, v, st) {
+  let best = null, bd = Infinity;
+  for (const p of ftaPartTiles(state, st, 'helipad')) {
+    if (ftaClaimed(state, v, p.x, p.y)) continue;
+    const d = Math.abs(p.x - v.tx) + Math.abs(p.y - v.ty);
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+
+/**
+ * Helicopter departure route from building b (a helipad, or the hangar of a helidepot/helistation), OpenTTD
+ * helicopter TakeOff: from a hangar it taxis over the pads to a free one and lifts off there; from a pad it
+ * lifts off at once. The ground phase ends on the lift-off pad (groundEnd); the flight to the nearest goal follows.
+ * @returns {{path:{x,y}[], groundEnd:number}|null} null when no pad is free (the caller flies instead)
+ */
+export function heliDepartPath(state, st, v, b, goals, avoid = null) {
+  if (!goals.length) return null;
+  const nearest = (from) => goals.reduce((a, g) => (Math.abs(g.x - from.x) + Math.abs(g.y - from.y)
+    < Math.abs(a.x - from.x) + Math.abs(a.y - from.y) ? g : a));
+  if (b.part === 'helipad') {
+    const goal = nearest(v);
+    return { path: airLine(v.tx, v.ty, goal.x, goal.y), groundEnd: 0 };
+  }
+  const free = ftaPartTiles(state, st, 'helipad').filter((t) => !ftaClaimed(state, v, t.x, t.y));
+  const taxi = free.length ? taxiPath(state, st, v.tx, v.ty, free, avoid) : null;
+  if (!taxi) return null;
+  const e = taxi[taxi.length - 1];
+  const goal = nearest(e);
+  return { path: taxi.concat(airLine(e.x, e.y, goal.x, goal.y).slice(1)), groundEnd: taxi.length - 1 };
+}
+
+/** True when helicopter v has a helipad of station st it can take now (not occupied, not promised). */
+export function heliAnyFree(state, v, st) {
+  return heliFreePad(state, v, st) !== null;
 }
 
 /** Lazy ground-phase fields cleared (ground path finished or flight planned). */

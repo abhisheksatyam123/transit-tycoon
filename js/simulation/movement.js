@@ -15,7 +15,7 @@ import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath
 import { altitudeAt, isRunwayCentre } from './aircraft.js';
 import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
-import { ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed } from './airportGround.js';
+import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed } from './airportGround.js';
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
@@ -76,6 +76,7 @@ export function vehicleTick(ctx, v) {
         else if (ftaBlocked(ctx.state, v)) { v.ftaWait = (v.ftaWait || 0) + 1; v.speed = 0; v.alt = 0; return; }
         else if (v.ftaWait) delete v.ftaWait;
       }
+      if (v.kind === 'aircraft' && v.hold && heliHoldPadFree(ctx, v)) { delete v.hold; replan(ctx, v); return; } // holding helicopter: a pad opened
       move(ctx, v);
       if (v.kind === 'aircraft') { v.alt = v.ftaGroundEnd != null ? 0 : altitudeAt(v, isHelicopter(v)); if (v.hold) v.alt = 1; } // holding: cruise height
       return;
@@ -127,6 +128,7 @@ export function replan(ctx, v) {
 function ftaReplan(ctx, v) {
   const { state } = ctx;
   const b = state.map.tiles[v.ty * state.map.width + v.tx].building;
+  if (ftaHeliFor(v, b)) return heliReplan(ctx, v, b);
   if (!ftaGroundFor(v, b)) return false;
   const order = currentOrder(v);
   const st = order && findStation(state, order.stationId);
@@ -144,6 +146,37 @@ function ftaReplan(ctx, v) {
   }
   const goals = orderGoals(state, v);
   const p = goals.length ? takeoffViaTerminal(state, here, v.tx, v.ty, goals, (x, y) => ftaParked(state, v, x, y), v) : null;
+  if (!p) return false;
+  setGroundPath(v, p);
+  return true;
+}
+
+/**
+ * A holding helicopter at a pad-type airport re-checks the helipads every tick (not only at its loop corners), so a
+ * freed pad goes to the first helicopter that sees it instead of whichever one happens to be at a corner.
+ */
+function heliHoldPadFree(ctx, v) {
+  const { state } = ctx;
+  const ab = state.map.tiles[v.hold.y * state.map.width + v.hold.x].building;
+  if (!ftaHeliFor(v, ab)) return false;
+  const order = currentOrder(v);
+  const hst = order && findStation(state, order.stationId);
+  return !!hst && heliAnyFree(state, v, hst);
+}
+
+/**
+ * Helicopter departure (OpenTTD helicopter TakeOff): from a hangar it taxis to a free helipad and lifts off there;
+ * from a pad it lifts off at once. Returns false (flight rules) when it stays at its own station or no pad is free.
+ */
+function heliReplan(ctx, v, b) {
+  const { state } = ctx;
+  const order = currentOrder(v);
+  const st = order && findStation(state, order.stationId);
+  const here = findStation(state, b.stationId);
+  if (!st || !here || st.id === here.id) return false;
+  delete v.hold;
+  const goals = orderGoals(state, v);
+  const p = goals.length ? heliDepartPath(state, here, v, b, goals, (x, y) => ftaParked(state, v, x, y)) : null;
   if (!p) return false;
   setGroundPath(v, p);
   return true;
@@ -394,7 +427,8 @@ function onPathEnd(ctx, v) {
   if (v.kind === 'aircraft' && v.hold && (v.tx !== v.hold.x || v.ty !== v.hold.y)) { // holding loop corner
     const hst = order && findStation(state, order.stationId);
     const ab = state.map.tiles[v.hold.y * state.map.width + v.hold.x].building;
-    const free = ftaGroundFor(v, ab) ? ftaCanLand(state, v, hst) : airSlotFree(state, v, hst, ab);
+    const free = ftaGroundFor(v, ab) ? ftaCanLand(state, v, hst)
+      : ftaHeliFor(v, ab) ? heliAnyFree(state, v, hst) : airSlotFree(state, v, hst, ab);
     if (hst && ab && free) { delete v.hold; replan(ctx, v); return; }
     holdFlyLeg(state, v, v.hold.x, v.hold.y);
     return;
