@@ -342,6 +342,10 @@ export class Renderer {
     // Generic overlays draw in tile order; stamped (geographically accurate) fronts draw after
     // overlays on the same tile so major monuments stay prominent.
     const lm3dOverlays = lm3dOverlayBuckets(map);
+    // one shared water test for the whole frame (was a new closure per object tile); reads its tile from wx/wy
+    let wx = 0, wy = 0;
+    const fieldAt = (dx, dy) => { const nx = wx + dx, ny = wy + dy; return nx >= 0 && ny >= 0 && nx < W && ny < map.height && map.tiles[ny * W + nx].field !== undefined; };
+    const waterAt = (dx, dy) => { const nx = wx + dx, ny = wy + dy; return nx >= 0 && ny >= 0 && nx < W && ny < map.height && shipPassable(map, ny * W + nx); };
     const lmFronts = lm3dFronts(map), lmLate = [];
     for (const f of lmFronts) {
       const p = { x: (f.x - f.y) * HALF_W, y: (f.x + f.y) * HALF_H - this.heights.centerH(f.x, f.y) * HEIGHT_STEP };
@@ -409,7 +413,8 @@ export class Renderer {
         const sx = (x - y) * HALF_W;
         const tile = tiles[y * W + x];
         const lb = tile.building;
-        const overlays = lm3dOverlays.get(x + ',' + y);
+        const overlays = lm3dOverlays.size ? lm3dOverlays.get(y * W + x) : undefined;
+        wx = x; wy = y;
         const sy = (x + y) * HALF_H - this.heights.centerH(x, y) * HEIGHT_STEP;
         if (lb && lb.lm3d) { // ensemble sprites are wide: never culled by their front tile position
           if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);
@@ -417,7 +422,7 @@ export class Renderer {
           continue;
         }
         if (!(sx < r.x0 || sx > r.x1) && sy >= r.y0 - 20 && sy <= r.y1 + 160 && (tile.building || tile.object || tile.terrain === 'forest' || tile.field !== undefined)) {
-          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup, (dx, dy) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < W && ny < map.height && shipPassable(map, ny * W + nx); }, (dx, dy) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < W && ny < map.height && map.tiles[ny * W + nx].field !== undefined; });
+          const piece = drawObject(ctx, tile, x, y, sx, sy, this.industryLookup, waterAt, fieldAt);
           if (piece && smokeOn && SMOKE[piece] && ((x * 7 + y * 3 + (this.frame >> 3)) % 3 === 0)) {
             const [ou, ov, oz] = SMOKE[piece];
             const [px, py] = P(ou, ov, oz);

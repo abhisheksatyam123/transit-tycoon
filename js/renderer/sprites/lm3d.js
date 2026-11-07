@@ -83,7 +83,8 @@ export function lm3dOverlayBuckets(map) {
     const buckets = new Map();
     if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) {
       if (!o || !LM3D[o.id] || !Number.isInteger(o.x) || !Number.isInteger(o.y)) continue;
-      const key = o.x + ',' + o.y;
+      if (o.x < 0 || o.y < 0 || o.x >= map.width || o.y >= map.height) continue; // off-map: never drawn (and must not alias a real tile key)
+      const key = o.y * map.width + o.x; // numeric tile key (no per-frame string keys)
       const bucket = buckets.get(key); if (bucket) bucket.push(o); else buckets.set(key, [o]);
     }
     c = { buckets, n: 0 }; overlayCache.set(map, c);
