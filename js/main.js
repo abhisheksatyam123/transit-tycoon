@@ -54,7 +54,7 @@ async function initialGame() {
     return { game, restored: false, scenario: true };
   }
   const clim = new URLSearchParams(location.search).get('climate');
-  const data = clim === 'arctic' || clim === 'tropic' ? null : loadSlotData('autosave');
+  const data = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? null : loadSlotData('autosave');
   if (data) {
     try {
       return { game: Game.deserialize(data), restored: true, scenario: false };
@@ -62,8 +62,8 @@ async function initialGame() {
       console.warn('Autosave could not be loaded; starting a new game', err);
     }
   }
-  // ?climate=arctic: a random sub-arctic map (opt-in; default games keep the temperate climate)
-  const mapgen = clim === 'arctic' || clim === 'tropic' ? { climate: clim } : undefined;
+  // ?climate=arctic|tropic|toyland: a random map of that climate (opt-in; default games keep the temperate climate)
+  const mapgen = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? { climate: clim } : undefined;
   return { game: Game.create({ seed: Math.floor(Math.random() * 1e9), mapgen }), restored: false, scenario: false };
 }
 

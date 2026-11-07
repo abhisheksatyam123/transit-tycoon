@@ -14,6 +14,7 @@ import { tropicState } from './tropic.js';
 import { TROPIC_HOUSES } from './tropic_house_table.js';
 import { blitPackFrom } from './draw.js';
 import { LARGE_HOUSES } from './large_house_table.js';
+import { toylandState, drawToylandHouse } from './toyland.js';
 
 /** Concrete ground used when a house has no ground sprite. */
 const SPR_CONCRETE = 1420;
@@ -90,8 +91,9 @@ export function houseSprites(b, x, y, year = gameYear) {
  */
 export function drawOgfxHouse(ctx, b, x, y, topX, topY, snow = -1) {
   // multi-tile house part (largeHouses setting): draw this part's sprites, its footprint offset from the anchor tile
-  if (b.size && b.lgId !== undefined && !tropicState.on && !arcticState.on) return drawLargeHousePart(ctx, b, x, y, topX, topY);
+  if (b.size && b.lgId !== undefined && !toylandState.on) return drawLargeHousePart(ctx, b, x, y, topX, topY, snow);
   // sub-arctic games (arctic pack loaded): OpenTTD's sub-arctic houses, below or above the snow line (pack/arctic_house_table.js)
+  if (toylandState.on && toylandState.pack && drawToylandHouse(ctx, b, x, y, topX, topY, gameYear, DEFAULT_CC)) return true;
   if (tropicState.on && tropicState.pack && drawTropicHouse(ctx, b, x, y, topX, topY)) return true;
   if (arcticState.on && arcticState.pack && drawArcticHouse(ctx, b, x, y, topX, topY, snow)) return true;
   const s = houseSprites(b, x, y);
@@ -134,15 +136,20 @@ function drawTropicHouse(ctx, b, x, y, topX, topY) {
  * come from the house's own TileHash2Bit pairs (so the tile's ground matches the neighbours), drawn at the part's
  * subtile offset. b.part indexes the group; the table entry gives the sprite pair for this tile's hash.
  */
-function drawLargeHousePart(ctx, b, x, y, topX, topY) {
+function drawLargeHousePart(ctx, b, x, y, topX, topY, snow = -1) {
   const entry = LARGE_HOUSES[b.lgId + (b.part | 0)];
   if (!entry) return false;
   const hash = tileHash(x, y);
-  const [ground, building, dx, dy] = entry.pairs[hash & 3];
-  if (!HOUSE_TABLE_OK(ground) || !HOUSE_TABLE_OK(building)) return false;
+  let [ground, building, dx, dy] = entry.pairs[hash & 3];
+  // sub-arctic / sub-tropic: the bare-land ground of a part is replaced by the garden ground the 1x1 houses use
+  // (concrete below the snow line, snow above it, OpenTTD DrawClearLandTile), so the parts sit on the same ground
+  if (ground === 3924 && (tropicState.on || arcticState.on)) {
+    ground = arcticState.on && snow >= 0 ? snowSpriteId(snow, [0, 0, 0, 0]) : 1420;
+  }
+  if (!HOUSE_TABLE_OK(ground)) return false;
   const [ox, oy] = subtileOffset(dx, dy);
   blitPack(ctx, ground, topX, topY);
-  blitPack(ctx, building, topX + ox, topY + oy, b.colour || DEFAULT_CC);
+  if (building && HOUSE_TABLE_OK(building)) blitPack(ctx, building, topX + ox, topY + oy, b.colour || DEFAULT_CC);
   return true;
 }
 

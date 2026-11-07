@@ -3,7 +3,8 @@
  * ('tt.gfx' = 'ogfx' | 'procedural'; default OpenGFX = the OpenTTD look; procedural is the
  * alternative with smooth diagonals and avenue classes) and exposes the toggle used by key K.
  */
-import { loadOpenGfx, loadExtraPack, loadArcticPack, loadTropicPack } from './loader.js';
+import { loadOpenGfx, loadExtraPack, loadArcticPack, loadTropicPack, loadToylandPack } from './loader.js';
+import { toylandState } from './toyland.js';
 import { tropicState } from './tropic.js';
 import { arcticState } from './arctic.js';
 import { packState } from './state.js';
@@ -45,6 +46,13 @@ export async function initPack(renderer) {
   if (pack) {
     loadTropicPack().then((tropic) => {
       tropicState.pack = tropic;
+      renderer.setPackEnabled(packState.enabled && !!pack);
+    });
+  }
+  // the TOYLAND pack (toyland ground and houses, assets/opengfx/toyland) loads the same way; used only by toyland games
+  if (pack) {
+    loadToylandPack().then((toyland) => {
+      toylandState.pack = toyland;
       renderer.setPackEnabled(packState.enabled && !!pack);
     });
   }

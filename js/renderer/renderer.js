@@ -26,7 +26,8 @@ import { invalidateNet } from './net/index.js';
 import { GroundCache } from './groundCache.js';
 import { setArcticClimate } from './pack/arctic.js';
 import { setTropicClimate } from './pack/tropic.js';
-import { isArctic, snowLineOf, isTropic } from '../simulation/climate.js';
+import { setToylandClimate } from './pack/toyland.js';
+import { isArctic, snowLineOf, isTropic, isToyland } from '../simulation/climate.js';
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
@@ -122,6 +123,8 @@ export class Renderer {
     setArcticClimate(isArctic(game.state), snowLineOf(game.state));
     // sub-tropical climate (opt-in): desert ground and sub-tropical trees; temperate games leave it off
     setTropicClimate(isTropic(game.state), m);
+    // toyland climate (opt-in): toyland ground, trees and houses; other games leave it off
+    setToylandClimate(isToyland(game.state), m);
     this.carBuckets = [];
     for (let i = 0; i < m.width + m.height; i++) { this.buckets.push([]); this.carBuckets.push([]); }
   }

@@ -11,6 +11,7 @@ import { packActive, packState } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
 import { arcticActive, drawArcticSnow, drawArcticRock } from '../pack/arctic.js';
 import { tropicActive, drawTropicDesert } from '../pack/tropic.js';
+import { toylandActive, drawToylandGround } from '../pack/toyland.js';
 import { tropicZoneAt } from '../../simulation/climate.js';
 import { drawCanalPack, drawRiverPack, drawRiverBanks, extraActive, RIVER_BANKS, RIVER_INSET } from '../pack/extra.js';
 
@@ -94,6 +95,11 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   }
   // sub-tropical (opt-in, pack/tropic.js): OpenTTD desert ground in the desert zone (and on desert terrain); trees (cacti) in the desert zone stand on sand too
   if (tropicActive(packState.enabled) && (k === 2 || ((k === 0 || k === 1) && tropicZoneAt(map, x, y) === 1)) && !flowing && drawTropicDesert(ctx, sx, sy, c, hash)) {
+    if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
+    return;
+  }
+  // toyland (opt-in, pack/toyland.js): OpenGFX toyland ground for land and desert kinds (not water, not river/canal)
+  if (toylandActive(packState.enabled) && k !== 5 && !flowing && drawToylandGround(ctx, sx, sy, c, hash, tile.terrain)) {
     if (y === H - 1 || x === W - 1) drawSkirt(ctx, x, y, W, H, sx, sy, c);
     return;
   }

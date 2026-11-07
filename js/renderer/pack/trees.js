@@ -10,6 +10,7 @@ import { packState } from './state.js';
 import { arcticState } from './arctic.js';
 import { snowDensity, tropicZoneAt } from '../../simulation/climate.js';
 import { tropicState, TREE_LAYOUT_RAINFOREST, TREE_LAYOUT_SUB_TROPICAL, TREE_LAYOUT_CACTUS } from './tropic.js';
+import { toylandState, toylandTreeRow } from './toyland.js';
 
 /** Ported from OpenTTD tree_land.h `_tree_layout_xy` (GPL-2.0). [X, Y] in 0..15 tile units. */
 const LAYOUT_XY = [
@@ -179,6 +180,8 @@ export function drawOgfxTrees(ctx, x, y, hash, sx, sy) {
     index = (tmp & 3) + ((h % types) << 2);
     sprites = rows[index];
   }
+  // toyland games (opt-in, pack/toyland.js): TREE_TOYLAND rows (OpenTTD tree_land.h rows 128..163, 9 tree types)
+  if (toylandState.on && !arctic && !tropicState.on) sprites = toylandTreeRow(tmp, h);
   const pos = LAYOUT_XY[(tmp >> 2) & 3];
   // tree count 1..4 (OpenTTD GetTreeCount), deterministic from the hash
   const count = 1 + ((h >>> 3) & 3);

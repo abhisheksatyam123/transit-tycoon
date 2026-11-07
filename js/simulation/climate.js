@@ -56,6 +56,11 @@ export function townGrowthAllowed(state, town) {
   return (town.foodLastMonth || 0) > 0;
 }
 
+/** @returns {boolean} true only for an explicit toyland game (lazy, absent otherwise). Stage 1: ground, trees, houses. */
+export function isToyland(state) {
+  return !!(state && state.mapgen && state.mapgen.climate === 'toyland');
+}
+
 // ---- sub-tropical (opt-in 'tropic'; OpenTTD landscape.cpp CreateDesertOrRainForest, CalculateDesertLine) ----
 
 /** Desert share of the map (OpenTTD desert_coverage default 35 %). */

@@ -67,6 +67,15 @@ export async function loadTropicPack(base = 'assets/opengfx/tropic/') {
   return loadPack(base);
 }
 
+/**
+ * Load the TOYLAND pack (toyland ground and town houses; assets/opengfx/toyland, keys = OpenGFX ids).
+ * @param {string} [base] default 'assets/opengfx/toyland/'
+ * @returns {Promise<OgfxPack|null>}
+ */
+export async function loadToylandPack(base = 'assets/opengfx/toyland/') {
+  return loadPack(base);
+}
+
 /** @param {string} base folder URL with manifest.json @returns {Promise<OgfxPack|null>} */
 async function loadPack(base) {
   try {
