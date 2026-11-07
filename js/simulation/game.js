@@ -361,6 +361,8 @@ export class Game {
   setAutoreplace(oldModelId, newModelId, opts) { return setAutoreplace(this.state, oldModelId, newModelId, opts); }
   /** Stop mode of one order: 'non' (non-stop, default), 'all' (stop at all stations), 'via' (go via). */
   setOrderStop(id, index, stop, opts) { return vcmd.modifyOrder(this.ctx, id, index, { stop }, opts); }
+  /** Train stop location of one station order: 'near' | 'middle' | 'far' (default). */
+  setOrderStopAt(id, index, stopAt, opts) { return vcmd.modifyOrder(this.ctx, id, index, { stopAt }, opts); }
   /** Timetable of one order: {waitDays, travelDays} (days; 0 clears). Shared orders: all members. */
   setOrderTimetable(id, orderIndex, times, opts) { return vcmd.setOrderTimetable(this.ctx, id, orderIndex, times, opts); }
   /** Timetable autofill on/off for one vehicle. */

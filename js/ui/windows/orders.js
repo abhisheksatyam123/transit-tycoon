@@ -20,6 +20,8 @@ import { orderCargoWarning } from '../../simulation/orderCargo.js';
 const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['fullAny', 'Full load any'], ['none', 'No loading']];
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
 const STOP_OPTIONS = [['non', 'Non-stop'], ['all', 'Stop at all stations'], ['via', 'Go via']];
+/** Train stop location on the platform (OpenTTD OrderStopLocation): far end is the default. */
+const STOP_AT_OPTIONS = [['far', 'Far end'], ['middle', 'Middle'], ['near', 'Near end']];
 
 /** Order row text, OpenTTD style: "Go non-stop to X" / "Go to X" (stop all) / "Go via X". */
 export function orderVerb(o) {
@@ -120,6 +122,13 @@ export function openOrders(app, id) {
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
         ...STOP_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
+      /** Train stop location select (OpenTTD order stop location); shown for train station orders only. */
+      const stopAtSel = (it) => {
+        const s = el('select.input', { title: 'Stop location on the platform', 'aria-label': 'Stop location', onchange: (e) => app.exec(app.game.setOrderStopAt(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
+          ...STOP_AT_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
+        s.value = it.o.stopAt || 'far';
+        return s;
+      };
       /** Depots this vehicle can be sent to (same kind, company's own; aircraft use the airport checks). */
       const depotsFor = (v) => app.game.state.depots.filter((d) => d.ownerId == null && depotKindOk(v, d));
       /** Per-row depot controls (service-only checkbox + refit select); one fresh set per row. */
@@ -241,6 +250,7 @@ export function openOrders(app, id) {
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
                 ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               stopSel(it),
+              ...(app.findVehicle(id)?.kind === 'train' && !isCond(it.o) && !it.o.depotId ? [stopAtSel(it)] : []),
               el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Wait days: minimum days to wait at this stop (blank = auto)', placeholder: 'wait days', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),

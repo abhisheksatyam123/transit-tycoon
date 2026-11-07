@@ -49,6 +49,11 @@ export const UNLOAD_MODES = ['normal', 'all', 'transfer', 'none'];
  * 'via' = go via the destination: pass through it, the order counts as reached without stopping.
  */
 export const STOP_MODES = ['non', 'all', 'via'];
+/**
+ * Train stop location (OpenTTD OrderStopLocation, order_type.h): 'near' = near end, 'middle', 'far' = far end.
+ * Lazy: absent = 'far' (the default, OTTD FarEnd); only train station orders keep it (routing.js trainStopPath).
+ */
+export const STOP_AT = ['near', 'middle', 'far'];
 
 /** Stop mode of an order ('non' when absent). */
 export function stopMode(order) {
@@ -80,6 +85,8 @@ export function orderFlagText(o) {
   if (o.full) parts.push('full load');
   if (o.load === 'fullAny') parts.push('full load any');
   if (o.load === 'none') parts.push('no loading');
+  if (o.stopAt === 'near') parts.push('stop at near end');
+  else if (o.stopAt === 'middle') parts.push('stop in middle');
   if (o.stop === 'all') parts.push('stop at all stations');
   else if (o.stop === 'via') parts.push('go via');
   if (o.unload === 'all') parts.push('unload all');
@@ -679,6 +686,11 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
     if (stop !== undefined) entry.stop = stop;
+    if (o.stopAt !== undefined && o.stopAt !== 'far') {
+      if (!STOP_AT.includes(o.stopAt)) return { ok: false, error: `Unknown stop location ${o.stopAt}` };
+      if (kind !== 'rail' || waypoint) return { ok: false, error: 'Only trains choose a stop location on the platform' };
+      entry.stopAt = o.stopAt;
+    }
     out.push(entry);
   }
   for (const o of out) {

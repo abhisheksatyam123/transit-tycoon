@@ -10,6 +10,7 @@ import { HELI_PAD_TYPES, ftaTileOccupied } from './airportGround.js';
 import { findShipPath, shipGoals } from './shipPath.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { getSetting } from './settings.js';
+import { trainLengthTiles } from './platformLength.js';
 
 /** Layer used by a vehicle kind. */
 export function layerOf(v) {
@@ -111,6 +112,49 @@ function extendAlongPlatform(state, path) {
 }
 
 /**
+ * Where a train stops on the platform of its order's station (OpenTTD GetTrainStopLocation, train_cmd.cpp).
+ * The path reaches platform tile g coming from the entry end (the platform end behind g, on the path's side).
+ * The head's stop tile is measured from that entry end: 'near' = the train's tail at the entry end (OpenTTD
+ * OrderStopLocation::NearEnd, stop = train length), 'middle' = centred (Middle: L - (L - T) / 2), absent or
+ * 'far' = the far end (FarEnd: stop = L; the default and the only choice when the train is as long as the
+ * platform). Lazy: stopAt exists only on orders that set it; absent keeps the far-end path unchanged.
+ */
+function trainStopPath(state, v, path) {
+  const order = v.orders && v.orders[v.orderIndex];
+  const stopAt = order && order.stopAt;
+  if (stopAt !== 'near' && stopAt !== 'middle') return extendAlongPlatform(state, path);
+  if (path.length < 2) return path;
+  const { map } = state;
+  const g = path[path.length - 1], prev = path[path.length - 2];
+  const b0 = map.tiles[g.y * map.width + g.x].building;
+  if (!b0 || b0.type !== 'station' || b0.stationId !== order.stationId || b0.kind !== 'rail') return extendAlongPlatform(state, path);
+  const dx = Math.sign(g.x - prev.x), dy = Math.sign(g.y - prev.y);
+  const isPlat = (x, y) => {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
+    const b = map.tiles[y * map.width + x].building;
+    return !!b && b.type === 'station' && b.stationId === b0.stationId && b.kind === 'rail' && b.axis === b0.axis;
+  };
+  let fwd = 0, back = 0;
+  while (isPlat(g.x + dx * (fwd + 1), g.y + dy * (fwd + 1))) fwd++;
+  while (isPlat(g.x - dx * (back + 1), g.y - dy * (back + 1))) back++;
+  const n = fwd + back + 1; // platform run length in tiles
+  const t = trainLengthTiles(v);
+  if (t >= n) return extendAlongPlatform(state, path); // as long as the platform: far end
+  const h = stopAt === 'near' ? t : n - (n - t) / 2; // head position from the entry end, in tiles
+  const j = Math.min(n - 1, Math.max(0, Math.ceil(h - 1e-9) - 1)); // head tile index from the entry end
+  const k = j - back; // head tile offset from g along the travel direction (negative = behind g)
+  if (k >= 0) {
+    const out = path.slice();
+    for (let i = 1; i <= k; i++) out.push({ x: g.x + dx * i, y: g.y + dy * i });
+    return out;
+  }
+  // the head stops behind g: cut the path at that tile when it is on the path (else far end)
+  const want = { x: g.x + dx * k, y: g.y + dy * k };
+  const cut = path.findIndex((p) => p.x === want.x && p.y === want.y);
+  return cut >= 0 ? path.slice(0, cut + 1) : extendAlongPlatform(state, path);
+}
+
+/**
  * Reverse a train's consist in place: its rear becomes its head (sets v.flipped).
  * Returns the new head tile.
  */
@@ -171,7 +215,7 @@ export function planRoute(state, v, goals) {
     if (alt) path = alt;
     else Object.assign(v, saved);
   }
-  if (v.kind === 'train') path = extendAlongPlatform(state, path);
+  if (v.kind === 'train') path = trainStopPath(state, v, path);
   v.path = path;
   v.pathIndex = 0;
   v.progress = 0;

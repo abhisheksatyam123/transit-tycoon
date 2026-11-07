@@ -117,6 +117,8 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (stop !== 'non') orders[index].stop = stop;
   if (o.waitDays > 0) orders[index].waitDays = o.waitDays;
   if (o.travelDays > 0) orders[index].travelDays = o.travelDays;
+  const stopAt = flags.stopAt !== undefined ? flags.stopAt : o.stopAt;
+  if (stopAt !== undefined && stopAt !== 'far') orders[index].stopAt = stopAt;
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
