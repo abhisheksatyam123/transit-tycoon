@@ -4,6 +4,7 @@
  * Diagonal staircases: a 2-bit corner that has a corner neighbour across a connected edge is drawn
  * as a 45° chamfer (see sprites/roadDiag.js); isolated turns stay arcs.
  */
+import { drawTramPack } from '../pack/extra.js';
 import { railSprite, roadSprite, crossingSprite, V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER } from '../sprites/transport.js';
 import { railStationGround } from '../sprites/buildings.js';
 import { drawSloped } from '../slope.js';
@@ -79,7 +80,10 @@ export function drawTransport(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
 
 /** Tram rails go on top of every road surface (incl. smooth net ribbons): the ground cache calls this last. */
 export function drawTramOverlay(ctx, tile, sx, sy, c) {
-  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot') && (tile.bridgeDeck === undefined || tile.overBridge === 'rail')) drawTramRails(ctx, tile, sx, sy, c);
+  if (tile.tram && !tile.rail && !(tile.building && tile.building.type === 'depot') && (tile.bridgeDeck === undefined || tile.overBridge === 'rail')) {
+    // OpenGFX tram overlay (pack/extra.js drawTramPack, TR4); procedural rails when the pack is off or lacks the piece
+    if (!drawTramPack(ctx, tile, sx, sy, c)) drawTramRails(ctx, tile, sx, sy, c);
+  }
 }
 
 /** Edge (corner pair) per direction bit for the corner heights [hN,hE,hS,hW]. */
