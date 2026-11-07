@@ -357,7 +357,7 @@ export function drawPackSegment(ctx, seg, sx, sy, fill) {
   const kind = PART_KIND[seg.part] || 'truck';
   const info = seg._info || {};
   if (info.roadType === 'tram') return false; // no OpenGFX tram sprites: procedural trams (sprites/trams.js)
-  const colour = vehicleColour(info.livery || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
+  const colour = vehicleColour(info.livery || seg._gc || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
   const dir = seg.ang !== undefined ? dirFromAng(seg.ang) : dirFromBit(seg.dir);
   return drawPackVehicle(ctx, kind, info.modelId || '', dir, sx, sy, {
     cargo: seg.cargoId, loaded: fill > 0.5, id: info.id | 0, colour,

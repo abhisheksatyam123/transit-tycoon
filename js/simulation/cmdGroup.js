@@ -6,6 +6,7 @@
  */
 import { validateName } from './cmdRename.js';
 import { findVehicle } from './state.js';
+import { COMPANY_COLOURS } from './companyColour.js';
 
 /** The company's group list (may be empty; not created until needed). */
 export function groupList(state) {
@@ -99,4 +100,30 @@ export function addSharedVehiclesToGroup(ctx, vehicleId, groupId, opts = {}) {
     else w.groupId = groupId;
   }
   return { ok: true, cost: 0, count: members.length };
+}
+
+/**
+ * Group livery (OpenTTD CmdSetGroupLivery, simplified to the primary colour): the vehicles of the group are
+ * drawn in `colour` instead of the company colour. `colour` is one of COMPANY_COLOURS' hex values, or null to
+ * reset to the company colour. Stored lazily: `group.colour` is absent while unset; `company.groupColourRev`
+ * bumps on each change so the renderer's lookup cache (renderer/groupLivery.js) rebuilds.
+ * Player-only (groups belong to the player company): a rival owner is refused.
+ * @returns {{ok:true,cost:0}|{ok:false,error:string}}
+ */
+export function setGroupColour(ctx, id, colour, opts = {}) {
+  const { state } = ctx;
+  if (((opts && opts.owner) ?? null) !== null) return { ok: false, error: 'Owned by a rival company' };
+  const g = findGroup(state, id);
+  if (!g) return { ok: false, error: 'Unknown group' };
+  let hex = null;
+  if (colour != null) {
+    hex = String(colour).toLowerCase();
+    if (!COMPANY_COLOURS.some((c) => c.hex === hex)) return { ok: false, error: 'Unknown company colour' };
+  }
+  if (opts.dryRun) return { ok: true, cost: 0 };
+  if ((g.colour || null) === hex) return { ok: true, cost: 0 };
+  if (hex == null) delete g.colour;
+  else g.colour = hex;
+  state.company.groupColourRev = (state.company.groupColourRev || 0) + 1;
+  return { ok: true, cost: 0 };
 }

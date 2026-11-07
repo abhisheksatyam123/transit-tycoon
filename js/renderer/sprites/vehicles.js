@@ -50,13 +50,14 @@ function isMetro(info) {
  * @param {number} fill
  * @param {any} info
  */
-function drawPart(ctx, part, dir, cargo, fill, info) {
+function drawPart(ctx, part, dir, cargo, fill, info, gc) {
   const { axis, s } = orient(dir);
   const mid = info && info.modelId ? info.modelId : '';
   const hv = hash2(mid || part, info && info.id !== undefined ? info.id : 0);
   const metro = isMetro(info);
   // player vehicles without a livery take the chosen company colour (palette.js); rivals always carry one
-  const liv = info && info.livery && info.livery[0] === '#' ? info.livery : (info && info.ownerId == null ? playerVehicleColour() || undefined : undefined);
+  // group livery (gc, from the renderer's group map) beats the company colour; rivals always carry their own
+  const liv = info && info.livery && info.livery[0] === '#' ? info.livery : gc || (info && info.ownerId == null ? playerVehicleColour() || undefined : undefined);
   if (part === 'loco') {
     if (metro) drawMetroCar(ctx, axis, s, liv, true);
     else drawEngine(ctx, axis, s, ENGINE_FAMILY[mid] || 'diesel', hv % 2);
@@ -89,17 +90,18 @@ export function setCargoColors(map) {
  * @param {string} cargo cargo id
  * @param {number} fill 0..1 (quantised to quarters)
  * @param {any} [info] owning vehicle (optional)
+ * @param {string} [gc] group livery colour '#rrggbb' (optional; overrides the company colour)
  * @returns {import('./canvas.js').Sprite}
  */
-export function vehicleSprite(part, dir, cargo, fill, info) {
+export function vehicleSprite(part, dir, cargo, fill, info, gc) {
   const q = Math.round(Math.max(0, Math.min(1, fill || 0)) * 4) / 4;
   const d = dir === 1 || dir === 2 || dir === 4 || dir === 8 ? dir : 2;
   const mid = info && info.modelId ? info.modelId : '';
   let vk = 0;
   if (info) vk = isMetro(info) ? 1000 + (hash2(info.livery || info.metroLine || '', 0) % 64) : hash2(mid || part, info.id | 0) % 4;
   const pc = info && info.ownerId == null && !(info.livery && info.livery[0] === '#') ? playerVehicleColour() : ''; // player colour choice is part of the key
-  const key = `v:${part}:${d}:${cargo}:${q}:${mid}:${vk}:${pc}`;
+  const key = `v:${part}:${d}:${cargo}:${q}:${mid}:${vk}:${pc}:${gc || ''}`;
   return cache.get(key, () => makeSprite(SIZE, SIZE, SIZE / 2, SIZE * 0.66, (ctx) => {
-    drawPart(ctx, part, d, cargo, q, info);
+    drawPart(ctx, part, d, cargo, q, info, gc);
   }));
 }

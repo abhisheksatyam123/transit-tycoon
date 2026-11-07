@@ -183,7 +183,7 @@ export function drawSegment(ctx, seg, sx, sy, selected) {
     const dx = -Math.sin(ang) * k, dy = Math.cos(ang) * k;
     sx += (dx - dy) * HALF_W; sy += (dx + dy) * HALF_H;
   }
-  const s = vehicleSprite(seg.part, seg.dir, seg.cargoId, fill, seg._info);
+  const s = vehicleSprite(seg.part, seg.dir, seg.cargoId, fill, seg._info, seg._gc);
   if (selected) {
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 1.5;

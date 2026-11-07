@@ -9,6 +9,7 @@ import { listOrEmpty } from './common.js';
 import { hasTimetable } from '../../simulation/orders.js';
 import { openPrompt } from '../prompt.js';
 import { groupList } from '../../simulation/cmdGroup.js';
+import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -128,6 +129,21 @@ export function openVehicleList(app) {
           return r;
         } });
       } });
+      // group livery (OpenTTD CmdSetGroupLivery): the 16 company colours (same swatches as the company chooser) plus
+      // 'Company colour' (reset). Shown only while a group is selected; the swatches are rebuilt on group change only.
+      const livery = el('div.group-livery', { style: { display: 'none', gap: '4px', flexWrap: 'wrap', alignItems: 'center' } });
+      const liveryKey = { sig: null };
+      const liveryRow = (g) => {
+        const sig = g.id + '|' + (g.colour || '');
+        if (liveryKey.sig === sig) return;
+        liveryKey.sig = sig;
+        const setCol = (hex) => { app.exec(app.game.setGroupColour(g.id, hex), { sound: 'click' }); app.wm.updateAll(); };
+        const reset = el('button.btn.sm', { type: 'button', text: 'Company colour', title: 'Draw this group in the company colour', disabled: !g.colour, onclick: () => setCol(null) });
+        livery.replaceChildren(el('span.muted', { text: 'Group colour' }), ...COMPANY_COLOURS.map((c) => el('button.colour-swatch', { type: 'button',
+          title: c.name, 'aria-label': 'Group colour ' + c.name, 'aria-pressed': String(c.hex === g.colour),
+          style: { background: c.hex, width: '20px', height: '20px', margin: '2px', border: c.hex === g.colour ? '2px solid #fff' : '1px solid #0008', outline: c.hex === g.colour ? '2px solid #000' : 'none' },
+          onclick: () => setCol(c.hex) })), reset);
+      };
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
         el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn);
       sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
@@ -154,7 +170,7 @@ export function openVehicleList(app) {
         el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
       const head = el('div.table-head', null, el('span', { text: 'Vehicle' }), el('span', { text: 'State' }), el('span', { text: 'This year' }), el('span', { text: 'Last year' }), el('span', { text: 'Late' }), el('span'));
       const list = el('div.list.scroll.table');
-      body.append(summary, groupControls, controls, head, list);
+      body.append(summary, groupControls, livery, controls, head, list);
       const refresh = () => {
         sortSel.value = state.sort;
         filterSel.value = state.filter;
@@ -182,6 +198,9 @@ export function openVehicleList(app) {
         const hasGroup = typeof state.group === 'number';
         renameGroupBtn.disabled = !hasGroup;
         deleteGroupBtn.disabled = !hasGroup;
+        const selG = hasGroup ? groupList(app.game.state).find((x) => x.id === state.group) : null;
+        livery.style.display = selG ? 'flex' : 'none';
+        if (selG) liveryRow(selG);
         const vs = sortVehicles(all, state);
         setText(summary, `${vs.length} of ${all.length} vehicle(s) · profit this year ${money(p)}`);
         listOrEmpty(list, vs, (v) => v.id,
