@@ -85,7 +85,7 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   // EXTRA pack (canal dikes/locks, river slopes; pack/extra.js): drawn in place of the procedural water when present
   // locks: rear wall at tile origin, front wall at the OTTD DrawTileSeq offset (pack/extra.js); tram overlay stays procedural (anchor unverified)
   if (tile.canal && extraActive() && drawCanalPack(ctx, map, x, y, sx, sy, c, tile.lock ?? null)) return;
-  if (tile.river && !tile.canal && extraActive() && c.some((h) => h !== c[0]) && drawRiverPack(ctx, sx, sy, c)) return;
+  if (tile.river && !tile.canal && extraActive() && c.some((h) => h !== c[0]) && drawRiverPack(ctx, map, x, y, sx, sy, c)) return;
   // river tiles (tile.river) sit on slopes: the flat water sprite 4061 would leave a wedge, so they are drawn procedurally
   // sub-arctic (opt-in, pack/arctic.js): tiles at or above the snow line get OpenGFX snowy ground (OpenTTD DrawClearLandTile)
   if (arcticActive() && k !== 5 && !flowing && drawArcticSnow(ctx, sx, sy, c)) {

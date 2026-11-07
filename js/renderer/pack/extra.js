@@ -100,13 +100,18 @@ export function drawCanalPack(ctx, map, x, y, sx, sy, c, lock) {
  * diagonal one-level slope. Other shapes return false (procedural river).
  * @returns {boolean}
  */
-export function drawRiverPack(ctx, sx, sy, c) {
+export function drawRiverPack(ctx, map, x, y, sx, sy, c) {
   if (!extraActive()) return false;
   if (flat(c)) return blitPackFrom(packState.pack, ctx, FLAT_WATER, sx, sy - HALF_H - S * c[0]);
   const slope = twoCornerSlope(c);
   if (!slope || !has('river_slope.' + WATER_SLOPE[slope])) return false;
-  return blitExtra(ctx, 'river_slope.' + WATER_SLOPE[slope], sx, sy, c);
+  blitExtra(ctx, 'river_slope.' + WATER_SLOPE[slope], sx, sy, c);
+  // OpenTTD DrawRiverWater: the slope's own edge group (edges_offset SE 12, NE 24, SW 36, NW 48) over the rapids
+  if (RIVER_BANKS && has('river_bank.' + SLOPE_EDGE[slope])) drawWaterEdges(ctx, map, x, y, sx, sy, c, SLOPE_EDGE[slope]);
+  return true;
 }
+/** OpenTTD DrawRiverWater edges_offset per slope (SE 12, NE 24, SW 36, NW 48): base of the 12-piece river bank group. */
+const SLOPE_EDGE = { SE: 12, NE: 24, SW: 36, NW: 48 };
 
 /**
  * Tram track overlay (OpenTTD road_cmd.cpp SPR_TRAMWAY_OVERLAY + GetRoadSpriteOffset). Flat tiles use the
@@ -143,7 +148,7 @@ function drawWaterEdges(ctx, map, x, y, sx, sy, c, base) {
   const W = map.width, H = map.height, t = map.tiles;
   const watered = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < H && (!!t[ny * W + nx].canal || t[ny * W + nx].terrain === 'water');
   const n = watered(x, y - 1), e = watered(x + 1, y), s = watered(x, y + 1), w = watered(x - 1, y);
-  const put = (i) => { if (has('river_bank.' + (base + i))) blitExtra(ctx, 'river_bank.' + (base + i), sx, sy, c); };
+  const put = (i) => { const key = 'river_bank.' + (base + i); if (has(key)) blitExtra(ctx, key, sx, sy, c); };
   [!n, !e, !s, !w].forEach((land, i) => { if (land) put(i); });
   const pick = [
     (!n && !e) ? 4 : (n && e && !watered(x + 1, y - 1) ? 8 : -1),
