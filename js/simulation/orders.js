@@ -440,6 +440,7 @@ function deliverLoad(ctx, v, st) {
   if (mult !== 1) pay = Math.round(pay * mult);
   const payee = companyOf(state, v);
   recordDelivery(payee, v.cargoId, load.amount, dist);
+  if (st.ownerId != null) st.delivered = 1; // rival stations only (player stations never use it); OL StationFlags::flag_8 (VehicleHead.cpp:3134): lifts the rival rating override
   const acceptingInd = creditDelivery(state, st, v.cargoId, load.amount);
   noteFirstDelivery(ctx, state, st, v.cargoId, acceptingInd);
   noteDelivery(state, v.cargoId, load.amount, v.id);
@@ -535,6 +536,7 @@ function loadSlice(ctx, v, st) {
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
   const got = takeWaiting(st, v.cargoId, room, pred, state.tick);
   if (got.amount <= 0) return 0;
+  if (st.ownerId != null) st.pickedUp = 1; // rival stations only (player stations never use it); OL StationFlags::flag_7 (VehicleHead.cpp:3464): lifts the rival rating override
   recordCarrier(st, v.cargoId, model ? model.speed : 0, v.age || 0);
   const l = v.load;
   if (cd || l.dests) {

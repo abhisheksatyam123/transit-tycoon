@@ -32,6 +32,15 @@ export const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2, aircraft: 0, ship:
  * npc: station owned by an AI rival (Station.cpp:790-793): rating is forced to 120 after the quantity terms
  * and before the speed/vehicle-age terms. The player's stations (npc false) are unaffected.
  */
+/**
+ * OL Station.cpp:790 override gate: a non-player station has its cargo rating forced to 120 only while it has
+ * neither StationFlags::flag_7 (cargo picked up here, VehicleHead.cpp:3464) nor flag_8 (cargo delivered here,
+ * VehicleHead.cpp:3134). Lazy TT flags: st.pickedUp / st.delivered, absent until set (old saves = override active).
+ */
+export function rivalRatingOverride(st) {
+  return st.ownerId != null && !st.pickedUp && !st.delivered;
+}
+
 export function calculateCargoRating(c) {
   let rating = 0;
   if (c.age <= 7) rating += 165;
@@ -95,7 +104,7 @@ export function stationCargoRatingDetail(state, st, cargoId) {
     age, quantity,
     vehicleSpeed: carrierStats(st, cargoId).speed * KMH_TO_MPH,
     vehicleAge: carrierStats(st, cargoId).age,
-    npc: st.ownerId !== undefined && st.ownerId !== null,
+    npc: rivalRatingOverride(st),
   });
   const cur200 = st.rating200 && st.rating200[cargoId] !== undefined ? st.rating200[cargoId] : null;
   return { ...bd, age, quantity, current: st.rating ? st.rating[cargoId] : undefined, current200: cur200 };
@@ -146,7 +155,7 @@ export function updateCargo(game, st) {
       age: st.cargoAge[cargoId], quantity,
       vehicleSpeed: carrierStats(st, cargoId).speed * KMH_TO_MPH,
       vehicleAge: carrierStats(st, cargoId).age,
-      npc: st.ownerId !== undefined && st.ownerId !== null,
+      npc: rivalRatingOverride(st),
     });
     const delta = Math.max(-2, Math.min(2, target - st.rating200[cargoId]));
     let r = (st.rating200[cargoId] += delta);
