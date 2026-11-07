@@ -43,14 +43,17 @@ export function vehicleDir(v) {
   return 0;
 }
 
-/** Body cells of a vehicle as tile keys (see module comment). */
-function bodyKeys(state, v) {
+/**
+ * Body cells of a vehicle as tile keys (see module comment). `reuse` (an array no longer indexed) is
+ * refilled in place when its length matches, so re-indexing a moving vehicle does not allocate.
+ */
+function bodyKeys(state, v, reuse) {
   const layer = occupancyLayer(v);
   if (!layer || v.state === 'depot') return null;
   const w = state.map.width;
   const h = v.history && v.history.length ? v.history : [{ x: v.tx, y: v.ty }];
   const n = layer === 'road' ? Math.min(2, h.length) : h.length;
-  const keys = new Array(n);
+  const keys = reuse && reuse.length === n ? reuse : new Array(n);
   for (let i = 0; i < n; i++) keys[i] = h[i].y * w + h[i].x;
   return keys;
 }
@@ -76,7 +79,7 @@ export function beginOccupancy(state) {
   const occ = { rail: new Map(), road: new Map(), keys: new Map(), blocks: new Map(), blockIds: new Map() };
   for (const v of state.vehicles) {
     const layer = occupancyLayer(v);
-    const keys = bodyKeys(state, v);
+    const keys = bodyKeys(state, v, null);
     if (!keys) continue;
     occ.keys.set(v, keys);
     for (const k of keys) addTo(occ[layer], k, v);
@@ -120,12 +123,13 @@ export function syncOccupancy(ctx, v) {
     for (const k of old) removeFrom(occ[layer], k, v);
     occ.keys.delete(v);
   }
+  // `old` is no longer indexed, so its array can hold the new body cells
+  const keys = bodyKeys(ctx.state, v, old);
   const oldBlocks = occ.blockIds.get(v);
   if (oldBlocks) {
     for (const b of oldBlocks) removeFrom(occ.blocks, b, v);
     occ.blockIds.delete(v);
   }
-  const keys = bodyKeys(ctx.state, v);
   if (!keys) return;
   occ.keys.set(v, keys);
   for (const k of keys) addTo(occ[layer], k, v);
