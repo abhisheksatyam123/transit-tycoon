@@ -6,6 +6,7 @@
  * GPL-2.0 (OpenTTD).
  */
 import { blitPackFrom } from './draw.js';
+import { spawnBubble } from '../bubbles.js';
 import { HALF_H, HEIGHT_STEP as S, TILE_W, TILE_H } from '../iso.js';
 import { slopeBits } from './slope.js';
 import { drawSloped } from '../slope.js';
@@ -40,7 +41,6 @@ export const toylandState = { pack: null, base: null, on: false, top: [], map: n
 
 /** OTTD industry animation tables (table/industry_land.h), frame index 0.. ; 255 = not drawn (toy factory clay/robot). */
 const TOFFEE_OFFS = [255, 0, 0, 0, 2, 4, 6, 8, 10, 9, 7, 5, 3, 1, 255, 0, 0, 0, 2, 4, 6, 8, 10, 9, 7, 5, 3, 1, 255, 0, 0, 0, 2, 4, 6, 8, 10, 9, 7, 5, 3, 1, 255, 0, 0, 0, 2, 4, 6, 8, 10, 9, 7, 5, 3, 1, 255, 0, 0, 0, 2, 4, 6, 8, 10, 9, 7, 5, 3, 1];
-const BUBBLE_Y = [68, 69, 71, 74, 77, 80, 83, 85, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68];
 /** MD(img1, img2, img3) per frame: clay offset, robot offset, stamp y (table _industry_anim_offs_toys, 50 frames). */
 const TOY_MD = [[255, 255, 0], [0, 255, 0], [1, 255, 0], [2, 255, 0], [3, 255, 0], [4, 255, 0], [5, 255, 0], [6, 255, 0], [7, 255, 0], [8, 255, 0], [9, 255, 0], [10, 255, 0], [11, 255, 0], [12, 255, 0], [13, 255, 0], [14, 255, 0], [15, 255, 0], [16, 255, 0], [17, 255, 0], [18, 255, 0], [18, 255, 1], [18, 255, 2], [18, 255, 4], [18, 255, 6], [18, 255, 8], [18, 255, 11], [18, 255, 14], [18, 255, 17], [18, 255, 20], [18, 255, 24], [255, 0, 29], [255, 0, 24], [255, 0, 20], [255, 0, 17], [255, 0, 14], [255, 0, 11], [255, 0, 8], [255, 0, 6], [255, 0, 4], [255, 0, 2], [255, 0, 1], [255, 1, 0], [255, 2, 0], [255, 3, 0], [255, 4, 0], [255, 5, 0], [255, 6, 0], [255, 7, 0], [255, 8, 0], [255, 255, 0]];
 /** One OTTD animation step per this many renderer frames (approximate; OTTD steps on game ticks). */
@@ -50,7 +50,7 @@ const ANIM_GFX = { toffee: 165, bubble: 162, toy: 143 };
 
 /** Animated child sprites [spriteId, cx, cy] for an animated special-proc gfx at tile (x,y); null when static. */
 function toylandAnimKids(gfx, x, y) {
-  const kind = gfx === ANIM_GFX.toffee ? 'toffee' : gfx === ANIM_GFX.bubble ? 'bubble' : gfx === ANIM_GFX.toy ? 'toy' : null;
+  const kind = gfx === ANIM_GFX.toffee ? 'toffee' : gfx === ANIM_GFX.toy ? 'toy' : null;
   if (!kind) return null;
   const step = Math.floor(toylandState.animFrame / ANIM_STEP_FRAMES) + tileHash(x, y);
   if (kind === 'toffee') {
@@ -58,7 +58,6 @@ function toylandAnimKids(gfx, x, y) {
     const xo = v === 255 ? 0 : v;
     return [[4767, 22 - xo, 24 + xo], [4766, 6, 14]];
   }
-  if (kind === 'bubble') return [[4747, 5, BUBBLE_Y[step % BUBBLE_Y.length]], [4746, 3, 67]];
   const [i1, i2, i3] = TOY_MD[step % TOY_MD.length];
   const kids = [];
   if (i1 !== 255) kids.push([4719, 50 - i1 * 2, 96 + i1]); // clay (OpenGFX toyland 4719, appended in pack)
@@ -316,6 +315,8 @@ export function drawToylandIndustryTile(ctx, ind, x, y, topX, topY) {
   // OTTD special draw proc (industry_cmd.cpp): child sprites at screen offsets from the tile origin; animated frame (TY5)
   const kids = toylandAnimKids(gfx, x, y) || TOYLAND_INDUSTRY_CHILDREN[gfx] || [];
   for (const [sid, cx, cy] of kids) blitPackFrom(pack, ctx, String(sid), topX + cx, topY + cy);
+  // IA5 bubble generator (OTTD EV_BUBBLE): spawn a render-only bubble when the generator animates (one step in four, once per step)
+  if (gfx === ANIM_GFX.bubble && toylandState.animFrame % ANIM_STEP_FRAMES === 0 && (Math.floor(toylandState.animFrame / ANIM_STEP_FRAMES) + tileHash(x, y)) % 4 === 0) spawnBubble(topX, topY);
   return true;
 }
 

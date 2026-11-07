@@ -19,6 +19,7 @@ import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
 import { OVERLAY } from './palette.js';
 import { Smoke } from './particles.js';
+import { drawBubbles } from './bubbles.js';
 import { VehicleFx } from './vehicleFx.js';
 import { SMOKE } from './sprites/buildings.js';
 import { P } from './sprites/shapes.js';
@@ -446,6 +447,8 @@ export class Renderer {
     }
 
     this.smoke.draw(ctx, dt);
+    // IA5 bubble generator effect (render-only, OTTD EV_BUBBLE): toyland view only
+    drawBubbles(ctx, toylandState.on ? toylandState.pack : null, dt);
     drawOverlays(ctx, map, this.overlay);
     // screen-space labels and floating texts: last, always above landmarks/vehicles
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);

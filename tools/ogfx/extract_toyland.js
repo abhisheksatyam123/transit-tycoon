@@ -178,6 +178,14 @@ for (const id of [4719, 4720]) {
   pieces.push({ key: String(id), order: 500000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
 }
 
+// IA5 bubble generator effect sprites (OTTD effectvehicle.cpp EV_BUBBLE, SPR_BUBBLE_* = 4748..4762): last block
+// (order 550000+), so no earlier key moves. Drawn render-only by js/renderer/bubbles.js.
+for (let id = 4748; id <= 4762; id++) {
+  const d = rawDef(id);
+  if (!d) throw new Error(`bubble sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(id), order: 550000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
 pieces.sort((a, b) => a.order - b.order);
 const manifest = { sprites: {}, atlases: [], license: 'OpenGFX base graphics, GPL-2.0 (https://github.com/OpenTTD/OpenGFX)' };
 const placed = [];
