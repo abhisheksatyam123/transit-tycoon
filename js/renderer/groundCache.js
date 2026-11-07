@@ -8,7 +8,7 @@
  */
 import { HALF_W, HALF_H, HEIGHT_STEP } from './iso.js';
 import { drawGround } from './layers/terrain.js';
-import { drawTransport, drawTramOverlay } from './layers/transport.js';
+import { drawTransport, drawTramOverlay, setBarredTiles } from './layers/transport.js';
 import { drawNetTile } from './net/drawTile.js';
 import { setSpriteLod } from './sprites/canvas.js';
 
@@ -70,6 +70,24 @@ export class GroundCache {
   }
 
   /** Mark every chunk dirty (e.g. after a build command). */
+  /**
+   * Barred level crossings (tile indices, or null). Chunks holding a tile whose state changed are marked for
+   * rebuild at once (no need to wait for the periodic signature check).
+   */
+  setBarred(set) {
+    const prev = this.barred || null;
+    if (prev === set) return;
+    const W = this.map ? this.map.width : 0;
+    const mark = (i) => {
+      const cx = Math.floor((i % W) / CHUNK), cy = Math.floor(Math.floor(i / W) / CHUNK);
+      const rec = this.chunks[cy * this.cols + cx];
+      if (rec) rec.sig = -1;
+    };
+    if (prev) for (const i of prev) if (!set || !set.has(i)) mark(i);
+    if (set) for (const i of set) if (!prev || !prev.has(i)) mark(i);
+    this.barred = set;
+  }
+
   invalidate() {
     for (const c of this.chunks) if (c) c.sig = -1;
     for (const j of this.jobs.values()) j.stale = true; // finished job will be rebuilt on next check
@@ -99,7 +117,8 @@ export class GroundCache {
         const b = t.building;
         const lm = b && b.type === 'landmark' ? 7 + (b.dx | 0) * 3 + (b.dy | 0) * 5 + (b.id ? b.id.length : 0) * 11 : 0;
         const bc = b ? (b.type === 'station' ? (b.kind === 'rail' ? 3 : 4) + (b.axis === 'y' ? 8 : 0) : b.type === 'depot' ? 5 : 1) : 0;
-        h = (Math.imul(h, 31) + (TERRAIN_CODE[t.terrain] | 0) * 7 + t.height * 131 + t.rail * 1031 + t.road * 16411 + bc * 262147 + (t.avenue | 0) * 1048583 + lm + (t.tunnel | 0) * 2097143 + (t.gradeSep | 0) * 4194301 + (t.tunnelPortal | 0) * 8388593 + (t.trk | 0) * 16777259 + (t.bridgeDeck !== undefined ? t.bridgeDeck + 1 : 0) * 16777213) | 0;
+        const bar = this.barred && this.barred.has(y * m.width + x) ? 1 : 0; // level crossing barriers (levelCrossing.js)
+        h = (Math.imul(h, 31) + bar * 33554393 + (TERRAIN_CODE[t.terrain] | 0) * 7 + t.height * 131 + t.rail * 1031 + t.road * 16411 + bc * 262147 + (t.avenue | 0) * 1048583 + lm + (t.tunnel | 0) * 2097143 + (t.gradeSep | 0) * 4194301 + (t.tunnelPortal | 0) * 8388593 + (t.trk | 0) * 16777259 + (t.bridgeDeck !== undefined ? t.bridgeDeck + 1 : 0) * 16777213) | 0;
       }
     }
     // corner heights of the chunk (incl. the shared south/east border) capture neighbour influence
@@ -210,6 +229,7 @@ export class GroundCache {
    */
   draw(ctx, range, pixelScale, checkSig, buildBudget = 6) {
     const scale = chunkScaleFor(pixelScale);
+    setBarredTiles(this.barred || null);
     this.scale = scale;
     this.frame++;
     const frame = this.frame;

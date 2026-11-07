@@ -50,7 +50,7 @@ function drawStack(ctx, ids, sx, sy, c) {
  * @param {boolean} [diag] road corner is part of a 1:1 staircase (drawn as a straight diagonal)
  * @returns {boolean} true when handled
  */
-export function drawPackTransport(ctx, tile, sx, sy, c, diag = false) {
+export function drawPackTransport(ctx, tile, sx, sy, c, diag = false, barred = false) {
   if (!packActive()) return false;
   const b = tile.building && tile.building.kind !== 'waypoint' ? tile.building : null; // waypoint: plain rail ground
   if (b && b.type === 'landmark') return false;
@@ -70,7 +70,7 @@ export function drawPackTransport(ctx, tile, sx, sy, c, diag = false) {
   const paved = (tile.avenue | 0) > 0 || tile.owner === 'town';
   if (road && rail && tile.gradeSep) return false; // grade separation: procedural deck (sprites/gradeSep.js)
   if (road && rail) {
-    const id = crossingId(road, rail);
+    const id = crossingId(road, rail, barred);
     if (id < 0) return false;
     // crossing sprite includes the road-less rail ground; road pieces are drawn underneath.
     const rid = roadSprite(road, paved);

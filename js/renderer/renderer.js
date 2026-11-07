@@ -343,6 +343,7 @@ export class Renderer {
     this.vfx.begin(tiles, W, this.frame);
 
     // ground + transport come from cached chunks (below everything else)
+    this.ground.setBarred(this.game && this.game.ctx ? this.game.ctx.barred || null : null); // level crossing barriers (levelCrossing.js)
     this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
     drawUnderlays(ctx, map, this.overlay);
     // baked landmark ensembles: flat ground first (under every object); objects in painter's order.

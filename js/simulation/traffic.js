@@ -5,6 +5,7 @@
  */
 import { PLANS_PER_TICK } from '../config/traffic.js';
 import { getSetting } from './settings.js';
+import { entersBarred } from './levelCrossing.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { hashSeed, createRng } from './rng.js';
 import { roadConnected } from './network.js';
@@ -310,6 +311,11 @@ function moveCar(ctx, tr, c, occ, lanes) {
     const np = repath(map, a, c.path[last]);
     if (!np) { endCar(tr, c, false, state.tick); return true; }
     c.path = np; c.i = 0; c.t = 0; c.wait = 0;
+    return false;
+  }
+  if (ctx.barred && entersBarred(ctx.barred, W, a, b)) { // level crossing closed: wait for the train (levelCrossing.js)
+    c.t = 1; c.speed = 0;
+    if (++c.wait >= STUCK_TICKS) { endCar(tr, c, false, state.tick); return true; }
     return false;
   }
   const nextKey = c.i + 1 < last ? occKey(b, linkBit(map, b, c.path[c.i + 2])) : null;

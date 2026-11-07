@@ -124,6 +124,7 @@ const SOUNDS = {
   depart_train: () => { noise(0.05, 500, 0.35); tone('triangle', 90, 70, 0.07, 0.22); noise(0.05, 500, 0.3, 0.12); tone('triangle', 95, 75, 0.07, 0.2, 0.14); },
   depart_road: () => { tone('sawtooth', 70, 60, 0.18, 0.1); noise(0.12, 300, 0.12); },
   ding: () => { tone('sine', 1568, 1568, 0.4, 0.12); tone('sine', 2093, 2093, 0.5, 0.08, 0.04); },
+  crossing: () => { tone('square', 1000, 1000, 0.1, 0.08); tone('square', 1000, 1000, 0.1, 0.08, 0.16); tone('square', 1000, 1000, 0.1, 0.08, 0.32); },
   news: () => { tone('sine', 660, 660, 0.1, 0.15); tone('sine', 880, 880, 0.1, 0.15, 0.11); tone('sine', 990, 990, 0.16, 0.15, 0.22); },
 };
 

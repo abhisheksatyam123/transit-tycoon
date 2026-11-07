@@ -34,6 +34,7 @@ import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBloc
 import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
 import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick, overtakeSpeed } from './roadOvertake.js';
+import { CROSSING_HOLD, entersBarred } from './levelCrossing.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -336,6 +337,12 @@ function move(ctx, v) {
   }
 }
 
+/** Road vehicle entering a barred level crossing from a tile that is not one (OpenTTD road vehicles stop before a barred crossing). */
+export function crossingBarred(ctx, a, b) {
+  const W = ctx.state.map.width;
+  return entersBarred(ctx.barred, W, a.y * W + a.x, b.y * W + b.x);
+}
+
 /** Vehicle ahead on the next tile of the path that blocks v (see blocking.js), or null. */
 function nextBlocker(ctx, v) {
   const layer = occupancyLayer(v);
@@ -343,6 +350,7 @@ function nextBlocker(ctx, v) {
   if (!layer || !p || i + 1 >= p.length) return null;
   const a = p[i], b = p[i + 1];
   const dir = dirBetween(a.x, a.y, b.x, b.y);
+  if (layer === 'road' && ctx.barred && crossingBarred(ctx, a, b)) return CROSSING_HOLD; // level crossing closed
   if (layer === 'road' && v.overtakeId !== undefined) return overtakeBlocker(ctx, v, b.x, b.y, dir); // passing the overtaken vehicle
   const same = blockerOn(ctx, v, layer, b.x, b.y, dir);
   if (layer === 'road' && same && overtakeEnabled(ctx.state) && tryOvertake(ctx, v, same)) return overtakeBlocker(ctx, v, b.x, b.y, dir);

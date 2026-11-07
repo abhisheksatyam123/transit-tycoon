@@ -20,6 +20,8 @@ export const SETTING_GROUPS = [
  * @type {{key:string,group:string,label:string,help:string,type:'check'|'number'|'select',min?:number,max?:number,options?:[string,string][],newGame?:boolean}[]}
  */
 export const SETTING_META = [
+  { key: 'levelCrossings', group: 'construction', label: 'Level crossing barriers', type: 'check',
+    help: 'A level crossing is barred while a train is on it or about to enter it: road vehicles and cars stop before the barriers and go on when the train has passed. Trains never wait for road traffic. Off = crossings are always open.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'roadSide', group: 'vehicles', label: 'Road driving side', type: 'select', newGame: true,

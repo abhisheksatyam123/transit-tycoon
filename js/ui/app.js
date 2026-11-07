@@ -88,6 +88,7 @@ export class App {
   subscribe() {
     const g = this.game;
     const on = (ev, fn) => { g.on(ev, fn); this.subs.push([ev, fn]); };
+    on('levelCrossingClosed', () => play('crossing'));
     on('income', (e) => {
       if (!e || typeof e.x !== 'number') return;
       const amt = e.amount || 0;

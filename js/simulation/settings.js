@@ -68,6 +68,8 @@ export const DEFAULT_SETTINGS = {
   disasters: false,
   /** plane crashes on landing (OpenTTD plane_crashes): 'off' | 'reduced' | 'normal'. Off by default. */
   planeCrashes: 'off',
+  /** level crossings (OpenTTD barriers): a crossing is barred while a train is on or about to enter it; road vehicles and cars wait. Off by default. */
+  levelCrossings: false,
   /** cargo distribution for passengers and mail (OpenTTD cargodist, simplified): 'off' | 'asymmetric' | 'symmetric'. Off by default. */
   cargodist: 'off',
   /** timetable separation: vehicles on a complete timetable with shared orders depart at their evenly spaced slots. Off by default. */

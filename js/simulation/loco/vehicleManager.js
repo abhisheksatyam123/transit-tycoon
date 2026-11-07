@@ -7,6 +7,7 @@ import { vehicleTick } from '../movement.js';
 import { beginOccupancy, syncOccupancy } from '../blocking.js';
 import { vehiclesYearly } from '../vehicleLife.js';
 import { trafficTick, trafficDaily } from '../traffic.js';
+import { refreshBarred } from '../levelCrossing.js';
 import { companyById } from '../owner.js';
 import { spend } from '../economy.js';
 import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } from './vehicle.js';
@@ -15,6 +16,8 @@ import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } fro
 export function tick(game) {
   const ctx = game.ctx;
   ctx.occupancy = beginOccupancy(game.state); // queueing index (blocking.js), derived, never saved
+  refreshBarred(ctx, game.state); // level crossings barred this tick (levelCrossing.js; setting off = null)
+  if (ctx.barredNew) for (const i of ctx.barredNew) ctx.emit('levelCrossingClosed', { i });
   for (const v of game.state.vehicles) {
     vehicleBreakdownTick(v);
     vehicleTick(ctx, v);
@@ -22,6 +25,7 @@ export function tick(game) {
   }
   ctx.occupancy = null;
   trafficTick(ctx);
+  ctx.barredNew = null;
 }
 
 /** VehicleManager::updateDaily. */

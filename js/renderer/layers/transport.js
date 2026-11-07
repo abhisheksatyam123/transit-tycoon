@@ -5,10 +5,11 @@
  * as a 45° chamfer (see sprites/roadDiag.js); isolated turns stay arcs.
  */
 import { drawTramPack } from '../pack/extra.js';
-import { railSprite, roadSprite, crossingSprite, V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER } from '../sprites/transport.js';
+import { railSprite, roadSprite, crossingSprite, V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER, V_BARRED } from '../sprites/transport.js';
 import { railStationGround } from '../sprites/buildings.js';
 import { drawSloped } from '../slope.js';
 import { drawPackTransport } from '../pack/transport.js';
+import { isLevelCrossing } from '../../simulation/levelCrossing.js';
 import { landmarkGround, landmarkGroundKind } from '../sprites/landmarks.js';
 import { airportGround } from '../sprites/airport.js';
 import { airportTypeId } from '../../simulation/airportTypes.js';
@@ -25,7 +26,11 @@ import { straightAxis } from '../../simulation/network.js';
 /** Array memos indexed by mask/class/variant (no per-frame string keys). */
 const rails = new Array(16 * 2);
 const roads = new Array(16 * 64 * 4);
-const crossings = new Array(16 * 256 * 4 * 16);
+const crossings = new Array(32 * 256 * 4 * 16);
+
+/** Tile indices of level crossings barred this frame (levelCrossing.js; null = barring off). Set by the ground cache. */
+let barredSet = null;
+export function setBarredTiles(set) { barredSet = set; }
 const stationGround = { x: null, y: null };
 
 /** Direction offsets per bit: N, E, S, W. */
@@ -172,7 +177,8 @@ function drawTransportBase(ctx, tile, sx, sy, c, map = null, x = 0, y = 0) {
     return;
   }
   // monorail / maglev track (tile.trk) has no OpenGFX sprite: skip the pack rail art, draw the procedural track
-  if (!tile.trk && drawPackTransport(ctx, tile, sx, sy, c, diag)) return;
+  const barred = !!barredSet && !!map && isLevelCrossing(tile) && barredSet.has(y * map.width + x);
+  if (!tile.trk && drawPackTransport(ctx, tile, sx, sy, c, diag, barred)) return;
   drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag);
 }
 
@@ -229,6 +235,7 @@ function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
   if (tunnel && tile.playerTunnel) road = 0; // underground road run too (player road tunnel)
   const cls = roadClassOf(tile);
   let v = 0;
+  if (rail && road && map && barredSet && barredSet.has(y * map.width + x)) v |= V_BARRED;
   if (road && map) {
     if (isStaircaseCorner(map, x, y, road)) v |= V_CHAMFER;
     if (tile.terrain === 'water') v |= V_BRIDGE;

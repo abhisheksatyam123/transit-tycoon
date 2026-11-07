@@ -7,9 +7,9 @@
 import { makeSprite, SpriteCache } from './canvas.js';
 import { TILE_W, TILE_H, HALF_W, HALF_H } from '../iso.js';
 import { quad, P } from './shapes.js';
-import { EDGE, OPP, BITS, V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER, CORNER, cornerLine } from './roadDiag.js';
+import { EDGE, OPP, BITS, V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER, V_BARRED, CORNER, cornerLine } from './roadDiag.js';
 
-export { V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER };
+export { V_CHAMFER, V_BRIDGE, V_SEP, V_RCHAMFER, V_BARRED };
 
 const cache = new SpriteCache();
 
@@ -414,15 +414,25 @@ export function crossingSprite(roadMask, railMask, cls = 3, v = 0) {
       drawRoad(ctx, roadMask, false, cls, v);
       return;
     }
-    drawRoad(ctx, roadMask, false, cls, v & ~V_BRIDGE);
+    drawRoad(ctx, roadMask, false, cls, v & ~(V_BRIDGE | V_BARRED));
     drawRails(ctx, railMask, false, (v & V_RCHAMFER) !== 0);
     const alongU = (railMask & 10) !== 0;
     const posts = alongU ? [[-0.36, -0.36], [0.36, 0.36]] : [[0.36, -0.36], [-0.36, 0.36]];
+    const barred = (v & V_BARRED) !== 0;
     for (const [u, pv] of posts) {
       const [x, y] = P(u, pv, 0);
       ctx.fillStyle = '#f5f5f5'; ctx.fillRect(x - 0.8, y - 10, 1.6, 10);
       ctx.fillStyle = '#dc2626'; ctx.fillRect(x - 0.8, y - 7, 1.6, 2); ctx.fillRect(x - 0.8, y - 3, 1.6, 2);
       ctx.beginPath(); ctx.arc(x, y - 11, 1.6, 0, Math.PI * 2); ctx.fill();
+      if (barred) {
+        // closed barrier arm: from the post lowered across the road towards the other side (striped)
+        const [ex, ey] = P(-u * 0.9, -pv * 0.9, 0);
+        ctx.lineWidth = 1.8; ctx.strokeStyle = '#f5f5f5';
+        ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(ex, ey - 4); ctx.stroke();
+        ctx.setLineDash([3, 3]); ctx.strokeStyle = '#dc2626';
+        ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(ex, ey - 4); ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
   }));
 }

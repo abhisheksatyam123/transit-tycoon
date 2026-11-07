@@ -16,6 +16,7 @@ export const V_CHAMFER = 1; // corner drawn as diagonal chamfer
 export const V_BRIDGE = 2; // road deck over water: railings + posts
 export const V_SEP = 4; // grade separated road deck over rails: parapet, no posts
 export const V_RCHAMFER = 8; // (crossings only) rail corner drawn as chamfer
+export const V_BARRED = 16; // (crossings only) barriers closed across the road (levelCrossing.js)
 
 /** Half-extension (tile units) of a chamfer past its edge midpoints; clipped to the tile. */
 const CHAMFER_EXT = 0.5;
