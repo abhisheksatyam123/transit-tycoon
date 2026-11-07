@@ -82,7 +82,8 @@ export function stationFitsVehicle(state, st, v) {
 export function depotGoals(state, v, depotId) {
   const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   const model = v.kind === 'aircraft' ? MODEL_BY_ID[v.modelId] : null;
-  return state.depots.filter((d) => d.kind === kind && (depotId === undefined || d.id === depotId)
+  const own = v.ownerId ?? null; // OpenTTD FindClosest*Depot: only the vehicle owner's depots (a fixed id was owner-checked when ordered)
+  return state.depots.filter((d) => d.kind === kind && (depotId === undefined ? (d.ownerId ?? null) === own : d.id === depotId)
     && (!model || vehicleFitsAirport(model, airportTypeId(d))))
     .map((d) => ({ x: d.x, y: d.y }));
 }
