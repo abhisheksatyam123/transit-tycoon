@@ -14,6 +14,7 @@ import { drawObject, drawSegment } from './layers/objects.js';
 import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
 import { drawAircraftLayer, pruneAir } from './layers/air.js';
 import { groundedAirOffset } from './layers/airGround.js';
+import { drawDisasters } from './layers/disasters.js'; // disasters setting (procedural sprites)
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
@@ -458,6 +459,7 @@ export class Renderer {
       }
     }
 
+    if (this.game.state.disasters) drawDisasters(ctx, this.game.state, (x, y) => this.tileCenterScreen(x, y), this.frame); // disasters setting: nothing when idle
     this.smoke.draw(ctx, dt);
     // IA5 bubble generator effect (render-only, OTTD EV_BUBBLE): toyland view only
     drawBubbles(ctx, toylandState.on ? toylandState.pack : null, dt);

@@ -9,6 +9,7 @@
  * the runway timer st.airRunwayUntil and v.hold are lazy fields that survive save/load.
  */
 import { airportTypeId, isHelicopter } from './airportTypes.js';
+import { airportBlockedByDisaster } from './disasters.js';
 import { airLine } from './aircraft.js';
 import { HELI_PAD_TYPES, ftaTileOccupied } from './airportGround.js';
 
@@ -55,6 +56,7 @@ export function airOccupancy(state, st, typeId, heli, except = null) {
  */
 export function airSlotFree(state, v, st, b) {
   const heli = isHelicopter(v);
+  if (!heli && airportBlockedByDisaster(state, st)) return false; // zeppelin crashed on the runway (disasters setting)
   const typeId = airportTypeId(b);
   if (airOccupancy(state, st, typeId, heli, v) >= airCapacity(typeId, heli)) return false;
   if (!heli && (st.airRunwayUntil ?? -1) > state.tick) return false;

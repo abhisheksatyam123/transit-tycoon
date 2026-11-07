@@ -96,6 +96,11 @@ export class App {
       if (d.flash) this.ui.onNews(n);
       if (d.toast) this.toast(localizeMoneyText(n.text, currentCurrency()), n.kind === 'bad' ? 'error' : n.kind === 'good' ? 'good' : 'info', false, 6000);
     });
+    on('disaster', (e) => { // disasters.js: smoke burst at the crash / collision point
+      if (!e || typeof e.x !== 'number' || !this.renderer || !this.renderer.smoke) return;
+      const p = this.renderer.tileCenterScreen(e.x, e.y);
+      for (let k = 0; k < 14; k++) this.renderer.smoke.emit(p.x, p.y, 4 + (k % 4), k % 2 === 0);
+    });
     on('crash', (e) => { // planeCrash.js: explosion of smoke at the crash tile
       if (!e || typeof e.x !== 'number' || !this.renderer || !this.renderer.smoke) return;
       const p = this.renderer.tileCenterScreen(e.x, e.y);

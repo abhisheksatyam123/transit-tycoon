@@ -16,6 +16,7 @@
  */
 import { airportTypeId, isHelicopter } from './airportTypes.js';
 import { airLine } from './aircraft.js';
+import { airportBlockedByDisaster } from './disasters.js';
 
 /** Airport types whose helicopters use the helipad ground phase (OTTD helipads: heliport, helidepot, helistation). */
 export const HELI_PAD_TYPES = new Set(['heliport', 'helidepot', 'helistation']);
@@ -116,6 +117,7 @@ export function ftaClaimed(state, v, x, y) {
 
 /** True while a runway tile of st is taken by a ground aircraft (landing needs the runway clear). */
 export function ftaRunwayBusy(state, st, v) {
+  if (airportBlockedByDisaster(state, st)) return true; // crashed zeppelin on the runway (OTTD AirportBlock::RunwayIn)
   const R = new Set(ftaPartTiles(state, st, RUNWAY_PART).map((t) => `${t.x},${t.y}`));
   if (!R.size) return false;
   for (const o of state.vehicles) {

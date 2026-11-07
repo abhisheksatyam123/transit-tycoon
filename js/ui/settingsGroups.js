@@ -27,6 +27,8 @@ export const SETTING_META = [
   { key: 'breakdowns', group: 'vehicles', label: 'Breakdowns', type: 'select',
     options: [['none', 'None'], ['reduced', 'Reduced'], ['normal', 'Normal']],
     help: 'How often vehicles break down and stop for a while. None = never.' },
+  { key: 'disasters', group: 'vehicles', label: 'Disasters', type: 'check',
+    help: 'Now and then a zeppelin crashes on an airport runway (no landings for a while) or a small UFO destroys a road vehicle. Off = no disasters.' },
   { key: 'planeCrashes', group: 'vehicles', label: 'Plane crashes', type: 'select',
     options: [['off', 'Off'], ['reduced', 'Reduced'], ['normal', 'Normal']],
     help: 'Planes can crash when they land at an airport: passengers die, the station loses its cargo and the town rating drops. Off = never.' },

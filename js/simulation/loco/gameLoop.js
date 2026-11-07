@@ -24,6 +24,7 @@ import { getSetting } from '../settings.js';
 import * as TreeGrowth from '../treeGrowth.js';
 import * as Recession from '../recession.js';
 import * as CargoDist from '../cargodist.js';
+import { dailyDisasters, tickDisasters } from '../disasters.js'; // disasters setting (off by default)
 
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
 export const DAY_INCREMENT = 682;
@@ -50,6 +51,7 @@ export function tickDate(game) {
   EnginePreview.updateDaily(game); // opt-in enginePreview setting; returns at once when off
   IndustryManager.updateDaily(game);
   MessageManager.updateDaily(game);
+  if (getSetting(s, 'disasters')) dailyDisasters(game); // OTTD _economy_disaster_daily; off = nothing runs
 
   const { newMonth, newYear } = advanceDay(s.date);
   game.events.emit('day', { date: s.date });
@@ -89,6 +91,7 @@ export function tick(game) {
   s.tick++;
   s.scenarioTicks = (s.scenarioTicks || 0) + 1;
   const newDay = tickDate(game);
+  if (s.disasters) tickDisasters(game.ctx || { state: s, emit: (ev, p) => game.events.emit(ev, p) }); // only while a disaster is active
   TileManager.tick(game, newDay);
   TownManager.tick(game);
   IndustryManager.tick(game);
