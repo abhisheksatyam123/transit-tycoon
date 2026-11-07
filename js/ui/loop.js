@@ -1,3 +1,4 @@
+import { saveHeld } from '../simulation/saveHold.js';
 /**
  * Fixed-step game loop: requestAnimationFrame drives rendering; the simulation advances in
  * fixed ticks (BASE_TPS at 1x, multiplied by speed), capped per frame to avoid spirals.
@@ -24,7 +25,7 @@ export function startLoop(o) {
     if (!running) return;
     const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
-    const speed = o.getSpeed();
+    const speed = saveHeld() ? 0 : o.getSpeed(); // a sliced save is reading the state: no ticks (SV)
     if (speed > 0) {
       acc += dt * BASE_TPS * speed;
       let steps = Math.floor(acc);

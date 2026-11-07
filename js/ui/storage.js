@@ -4,6 +4,7 @@
  */
 
 import { compress, decompress } from './lz.js';
+import { beginSaveHold, endSaveHold } from '../simulation/saveHold.js';
 
 const PREFIX = 'tt.save.';
 const ZPREFIX = 'Z1:';
@@ -68,32 +69,45 @@ function getPacker() {
  * @param {any} game
  * @returns {Promise<{ok:boolean,quota?:boolean,error?:string}>}
  */
-export function saveToSlotAsync(slot, game) {
+export function saveToSlotAsync(slot, game, stats) {
   const w = getPacker();
   if (!w) return Promise.resolve(saveToSlot(slot, game));
-  try {
-    const s = game.state;
-    const meta = { date: s.date, money: s.company.money, savedAt: Date.now(), seed: s.seed };
-    const data = game.serialize();
-    const id = ++packSeq;
-    return new Promise((resolve) => {
-      packWaiters.set(id, {
-        resolve: (packed) => {
-          try {
-            localStorage.setItem(PREFIX + slot, ZPREFIX + packed);
-            try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* ignore */ }
-            resolve({ ok: true });
-          } catch (err) {
-            resolve(quotaResult(err));
-          }
-        },
-        reject: () => resolve(saveToSlot(slot, game)),
-      });
-      w.postMessage({ id, meta, data });
+  const s = game.state;
+  const meta = { date: s.date, money: s.company.money, savedAt: Date.now(), seed: s.seed };
+  const id = ++packSeq;
+  // SV: the snapshot is serialised in time slices and streamed to the worker piece by piece (each <= 512 KB,
+  // so no single huge postMessage copy). The sim is held (no ticks, commands blocked) until the last piece is posted.
+  return new Promise((resolve) => {
+    packWaiters.set(id, {
+      resolve: (packed) => {
+        try {
+          localStorage.setItem(PREFIX + slot, ZPREFIX + packed);
+          try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* ignore */ }
+          resolve({ ok: true });
+        } catch (err) {
+          resolve(quotaResult(err));
+        }
+      },
+      // worker failed: synchronous save of the same slot
+      reject: () => resolve(saveToSlot(slot, game)),
     });
-  } catch (err) {
-    return Promise.resolve(quotaResult(err));
-  }
+    beginSaveHold();
+    try {
+      const post = (msg) => { const t = performance.now(); w.postMessage(msg); if (stats) stats.maxBlockMs = Math.max(stats.maxBlockMs || 0, performance.now() - t); };
+      post({ op: 'begin', id, meta });
+      game.serializeAsync(stats, (chunk) => post({ op: 'chunk', id, data: chunk }))
+        .then(() => { endSaveHold(); post({ op: 'end', id }); }, (err) => {
+          endSaveHold();
+          packWaiters.delete(id);
+          console.warn('streamed save failed; saving synchronously', err);
+          resolve(saveToSlot(slot, game));
+        });
+    } catch (err) {
+      endSaveHold();
+      packWaiters.delete(id);
+      resolve(quotaResult(err));
+    }
+  });
 }
 
 /** Map a storage error to the saveToSlot result shape. */

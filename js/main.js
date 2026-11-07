@@ -73,7 +73,7 @@ let autosaveWarned = false;
 let autosaveBusy = false;
 /** game.serialize() cost of the last autosave (ms). */
 let lastSerializeMs = 0;
-const SLOW_SAVE_MS = 50;
+const SLOW_SAVE_MS = 50; // longest slice above this = a save that was not sliced (sync fallback): clamp to yearly
 const SLOW_SAVE_INTERVAL = 12;
 /** Game months since the last timed autosave (Settings > autosave interval; 0 = off). */
 let monthsSinceSave = 0;
@@ -90,9 +90,11 @@ function autosave(app) {
   autosaveBusy = true;
   const metas = AUTOSAVE_SLOTS.map((slot) => { const m = slotMeta(slot); return m ? { slot, savedAt: m.savedAt } : null; });
   const slot = pickAutosaveSlot(metas);
-  const t0 = performance.now();
-  const pending = saveToSlotAsync(slot, app.game); // serialize runs synchronously inside
-  lastSerializeMs = performance.now() - t0;
+  const stats = {};
+  // SV: serialise in time slices (sim held, commands blocked until the snapshot exists); stats.maxSliceMs = longest main-thread slice
+  const pending = saveToSlotAsync(slot, app.game, stats);
+  // longest main-thread block of the whole save: serialise slices, postMessage pieces (SV)
+  pending.then(() => { lastSerializeMs = Math.max(stats.maxSliceMs ?? 0, stats.maxBlockMs ?? 0); }, () => {});
   pending.then((r) => {
     if (!r.ok && r.quota && !autosaveWarned) {
       autosaveWarned = true;
@@ -125,8 +127,9 @@ function whenIdle(fn) {
  */
 function onMonthAutosave(app) {
   dirty = true;
-  // Expensive serialisation (Moscow ~850 ms on the main thread) is clamped to yearly timed saves; pause,
-  // hidden-tab and close saves still run. Cheap saves keep the player's chosen interval.
+  // Saves run in slices of ~8 ms (SV): the periodic interval is only clamped to yearly when a block
+  // was too long for a smooth frame (lastSerializeMs = longest slice of the last save). Pause,
+  // hidden-tab and close saves still run.
   const want = loadAutosavePrefs().interval;
   const interval = want && lastSerializeMs > SLOW_SAVE_MS ? Math.max(want, SLOW_SAVE_INTERVAL) : want;
   const r = advanceAutosaveCounter(interval, monthsSinceSave);

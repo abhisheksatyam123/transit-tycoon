@@ -1,3 +1,4 @@
+import { saveHeld } from '../simulation/saveHold.js';
 /**
  * Input: mouse / keyboard / touch on the world canvas -> camera movement and active tool.
  * Left button = tool (or inspect when no tool), right/middle drag = pan, wheel = zoom,
@@ -21,6 +22,11 @@ const PAN_SPEED = 700; // CSS px per second
  * @returns {{update:(dt:number)=>void}} per-frame updater for held keys
  */
 export function setupInput(app, canvas, shortcuts) {
+  // SV: while a sliced save reads the state, pointer/keyboard commands are blocked (capture phase on window).
+  const blockWhileSaving = (e) => { if (saveHeld()) { e.stopPropagation(); e.preventDefault(); } };
+  for (const t of ['pointerdown', 'click', 'dblclick', 'keydown']) { // wheel (camera zoom) never mutates state: left passive
+    window.addEventListener(t, blockWhileSaving, { capture: true, passive: false });
+  }
   const held = new Set();
   let panning = false, panX = 0, panY = 0, panMoved = 0;
   let leftDown = false;

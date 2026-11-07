@@ -41,7 +41,7 @@ import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
-import { parseState, serializeState } from './save.js';
+import { parseState, serializeState, serializeStateAsync } from './save.js';
 import { moscowLoaded, loadMoscowDataFor } from './scenarios/moscowRegistry.js';
 import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
@@ -195,6 +195,11 @@ export class Game {
   /** @returns {string} */
   serialize() {
     return serializeState(this.state);
+  }
+
+  /** Time-sliced serialize (same string as serialize()); the caller holds the sim (see saveHold.js). */
+  serializeAsync(stats, onChunk) {
+    return serializeStateAsync(this.state, stats, onChunk);
   }
 
   /** Goal progress for the UI: scenario objectives, or the random-world tutorial list (created on first call). */

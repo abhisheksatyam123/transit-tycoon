@@ -6,8 +6,17 @@ import { createTraffic } from './traffic.js';
 import { LM3D, moscowLoaded } from './scenarios/moscowRegistry.js';
 import { ensureGoals } from './goals.js';
 
+/** Yield to the caller every this many tiles / cars (the driver decides whether to yield to the event loop). */
+const TILE_CHUNK = 1024;
+const CAR_CHUNK = 8;
+/** Max main-thread time per slice of an async save (ms). The sync path ignores it. */
+export const SAVE_SLICE_MS = 8;
+
+/** Output is flushed to the sink in pieces of about this many chars (streamed saves; SV). */
+export const SAVE_CHUNK_CHARS = 512 * 1024;
+
 /**
- * Serialise state to a JSON string.
+ * Serialise state to a JSON string (synchronous: one run of the shared generator, see serializeStateSteps).
  * Random worlds keep the classic format (byte-identical). Scenario (real-map) saves pack the
  * big arrays: tiles become a dictionary of distinct tile JSONs + run-length coded indices, and
  * traffic per-tile arrays become run-length coded binary (format tag `rle: 1`).
@@ -15,11 +24,89 @@ import { ensureGoals } from './goals.js';
  * @returns {string}
  */
 export function serializeState(state) {
-  if (!state.scenario) return JSON.stringify(state);
-  const tiles = Array.isArray(state.map.tiles) ? packTiles(state.map.tiles) : state.map.tiles;
-  const tr = state.traffic ? packTraffic(state.traffic) : state.traffic;
-  const stations = packStations(state.stations);
-  return JSON.stringify({ ...state, map: { ...state.map, tiles }, traffic: tr, stations });
+  const sink = new Sink();
+  drainSync(serializeStateSteps(state, sink));
+  return sink.take();
+}
+
+/**
+ * Time-sliced serialisation for the browser: the same generator as serializeState, driven in slices of
+ * about SAVE_SLICE_MS with a yield to the event loop between slices. The output is byte-identical to
+ * serializeState. The caller must not mutate `state` until the promise resolves (the game loop holds).
+ *
+ * Streaming: with `onChunk`, the output is handed over in pieces (about SAVE_CHUNK_CHARS each, in order;
+ * their concatenation is the serializeState string) and the promise resolves with the total length.
+ * Without it the promise resolves with the whole string.
+ * @param {object} state
+ * @param {{maxSliceMs?:number, maxStepMs?:number, slices?:number, totalMs?:number, sliceMs?:number}} [stats] filled in when given
+ * @param {(chunk:string)=>void} [onChunk]
+ * @returns {Promise<string|number>}
+ */
+export async function serializeStateAsync(state, stats, onChunk) {
+  const sliceMs = SAVE_SLICE_MS;
+  const t0 = performance.now();
+  let maxSlice = 0, slices = 0, maxStep = 0, total = 0;
+  const sink = new Sink();
+  const gen = serializeStateSteps(state, sink);
+  const flush = () => {
+    if (sink.len < SAVE_CHUNK_CHARS && !sink.done) return;
+    const all = sink.take();
+    // hand over at most SAVE_CHUNK_CHARS per piece (bounded postMessage copies)
+    for (let i = 0; i < all.length; i += SAVE_CHUNK_CHARS) {
+      const piece = all.length <= SAVE_CHUNK_CHARS ? all : all.slice(i, i + SAVE_CHUNK_CHARS);
+      total += piece.length;
+      if (onChunk) onChunk(piece); else sink.keep.push(piece);
+    }
+  };
+  let sliceStart = performance.now();
+  for (;;) {
+    const ts = performance.now();
+    const r = gen.next();
+    maxStep = Math.max(maxStep, performance.now() - ts);
+    if (r.done) {
+      sink.done = true;
+      flush();
+      const end = performance.now();
+      maxSlice = Math.max(maxSlice, end - sliceStart);
+      slices++;
+      if (stats) Object.assign(stats, { maxSliceMs: maxSlice, maxStepMs: maxStep, slices, totalMs: end - t0, sliceMs });
+      return onChunk ? total : sink.keep.join('');
+    }
+    flush();
+    const now = performance.now();
+    if (now - sliceStart >= sliceMs) {
+      maxSlice = Math.max(maxSlice, now - sliceStart);
+      slices++;
+      await nextTurn();
+      sliceStart = performance.now();
+    }
+  }
+}
+
+/** Collects the output fragments of the generator; take() returns and clears what it has so far. */
+class Sink {
+  constructor() { this.parts = []; this.len = 0; this.keep = []; this.done = false; }
+  write(str) { this.parts.push(str); this.len += str.length; }
+  take() { const s = this.parts.join(''); this.parts = []; this.len = 0; return s; }
+}
+
+/** Run a generator to completion. */
+function drainSync(gen) {
+  for (;;) {
+    if (gen.next().done) return;
+  }
+}
+
+/** Yield to the event loop (a macrotask, so input and rendering run between slices). */
+function nextTurn() {
+  if (typeof MessageChannel === 'function') {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel();
+      ch.port1.onmessage = () => { ch.port1.close(); resolve(); };
+      ch.port2.postMessage(0);
+    });
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /** Pack an array of non-negative integers as run-length pairs in binary (base64). Null if not packable. */
@@ -95,41 +182,6 @@ function isPackedRuns(x) {
 const CAR_KEYS = ['id', 'townId', 'path', 'i', 't', 'speed', 'wait', 'born', 'kind', 'color'];
 const CAR_INT_KEYS = ['id', 'townId', 'i', 'wait', 'born', 'color'];
 
-/**
- * Columnar cars: one array per field (no per-car key names), paths concatenated as Int32 base64.
- * Derived scratch fields (keys starting with `_`, rebuilt by every traffic tick) are dropped.
- * Falls back to the plain array when any car does not have the expected shape.
- */
-function packCars(cars) {
-  if (!Array.isArray(cars) || cars.length === 0) return cars;
-  for (const c of cars) {
-    const keys = Object.keys(c).filter((k) => k[0] !== '_');
-    if (keys.length !== CAR_KEYS.length || keys.some((k, j) => k !== CAR_KEYS[j])) return cars;
-    if (!Array.isArray(c.path) || !c.path.every((v) => Number.isSafeInteger(v) && v >= 0)) return cars;
-    if (CAR_INT_KEYS.some((k) => !Number.isInteger(c[k])) || typeof c.t !== 'number' || typeof c.speed !== 'number'
-      || typeof c.kind !== 'string') return cars;
-  }
-  const kinds = [], kindIdx = new Map();
-  const col = { fmt: 'cars-col-v1', n: cars.length, plen: [], path: null };
-  for (const k of ['id', 'townId', 'i', 't', 'speed', 'wait', 'born', 'color']) col[k] = [];
-  col.kind = [];
-  let total = 0;
-  for (const c of cars) total += c.path.length;
-  const bytes = [];
-  for (const c of cars) {
-    for (const k of ['id', 'townId', 'i', 't', 'speed', 'wait', 'born', 'color']) col[k].push(c[k]);
-    let ki = kindIdx.get(c.kind);
-    if (ki === undefined) { ki = kinds.length; kinds.push(c.kind); kindIdx.set(c.kind, ki); }
-    col.kind.push(ki);
-    col.plen.push(c.path.length);
-    // path: first tile absolute, then zigzag varint deltas (neighbouring tiles are close indices)
-    let prev = 0;
-    for (const v of c.path) { putVarint(bytes, zigzag(v - prev)); prev = v; }
-  }
-  col.kinds = kinds;
-  col.path = bytesToB64(Uint8Array.from(bytes));
-  return col;
-}
 
 function zigzag(d) { return d >= 0 ? d * 2 : -d * 2 - 1; }
 function unzigzag(z) { return z % 2 === 0 ? z / 2 : -(z + 1) / 2; }
@@ -163,12 +215,6 @@ function unpackCars(col) {
   return out;
 }
 
-function packTraffic(tr) {
-  const pk = (a) => (Array.isArray(a) ? (packRuns(a) ?? packScaled(a) ?? a) : a);
-  const out = { ...tr, load: pk(tr.load), jam: pk(tr.jam), cars: packCars(tr.cars) };
-  if (tr.acc) out.acc = { ...tr.acc, samples: pk(tr.acc.samples), blocked: pk(tr.acc.blocked) };
-  return out;
-}
 
 /** Station cargo parcels {amount,sourceX,sourceY,sinceTick} -> columns (int fields, zigzag deltas). */
 const PARCEL_KEYS = ['amount', 'sourceX', 'sourceY', 'sinceTick'];
@@ -246,16 +292,147 @@ function unpackTraffic(tr) {
   return tr;
 }
 
+function* packCarsSteps(cars) {
+  if (!Array.isArray(cars) || cars.length === 0) return cars;
+  for (const c of cars) {
+    const keys = Object.keys(c).filter((k) => k[0] !== '_');
+    if (keys.length !== CAR_KEYS.length || keys.some((k, j) => k !== CAR_KEYS[j])) return cars;
+    if (!Array.isArray(c.path) || !c.path.every((v) => Number.isSafeInteger(v) && v >= 0)) return cars;
+    if (CAR_INT_KEYS.some((k) => !Number.isInteger(c[k])) || typeof c.t !== 'number' || typeof c.speed !== 'number'
+      || typeof c.kind !== 'string') return cars;
+  }
+  const kinds = [], kindIdx = new Map();
+  const col = { fmt: 'cars-col-v1', n: cars.length, plen: [], path: null };
+  for (const k of ['id', 'townId', 'i', 't', 'speed', 'wait', 'born', 'color']) col[k] = [];
+  col.kind = [];
+  let total = 0;
+  for (const c of cars) total += c.path.length;
+  const bytes = [];
+  let ci = 0;
+  for (const c of cars) {
+    if (++ci % CAR_CHUNK === 0) yield;
+    for (const k of ['id', 'townId', 'i', 't', 'speed', 'wait', 'born', 'color']) col[k].push(c[k]);
+    let ki = kindIdx.get(c.kind);
+    if (ki === undefined) { ki = kinds.length; kinds.push(c.kind); kindIdx.set(c.kind, ki); }
+    col.kind.push(ki);
+    col.plen.push(c.path.length);
+    // path: first tile absolute, then zigzag varint deltas (neighbouring tiles are close indices)
+    let prev = 0;
+    for (const v of c.path) { putVarint(bytes, zigzag(v - prev)); prev = v; }
+  }
+  col.kinds = kinds;
+  yield;
+  col.path = bytesToB64(Uint8Array.from(bytes));
+  yield;
+  return col;
+}
+
+function* packTrafficSteps(tr) {
+  const pk = (a) => (Array.isArray(a) ? (packRuns(a) ?? packScaled(a) ?? a) : a);
+  const load = pk(tr.load);
+  yield;
+  const jam = pk(tr.jam);
+  yield;
+  const cars = yield* packCarsSteps(tr.cars);
+  yield;
+  const out = { ...tr, load, jam, cars };
+  if (tr.acc) {
+    const samples = pk(tr.acc.samples);
+    yield;
+    out.acc = { ...tr.acc, samples, blocked: pk(tr.acc.blocked) };
+  }
+  return out;
+}
+
+/**
+ * The one serialisation implementation. A generator: `yield` marks a point where the caller may pause
+ * (serializeState runs it to the end; serializeStateAsync pauses on its time budget). Output fragments are
+ * written to `sink` in order; their concatenation is the result (for classic saves: JSON.stringify(state)).
+ * @param {object} state
+ * @param {Sink} sink
+ * @returns {Generator<void, void, void>}
+ */
+export function* serializeStateSteps(state, sink) {
+  if (!state.scenario) { sink.write(JSON.stringify(state)); return; }
+  const tiles = Array.isArray(state.map.tiles) ? yield* packTilesSteps(state.map.tiles) : state.map.tiles;
+  const tr = state.traffic ? yield* packTrafficSteps(state.traffic) : state.traffic;
+  yield;
+  const stations = packStations(state.stations);
+  const top = { ...state, map: { ...state.map, tiles }, traffic: tr, stations };
+  // Same bytes as JSON.stringify(top): one entry per own key, undefined/function/symbol values omitted.
+  // Written key by key so the work can be sliced between keys.
+  let first = true;
+  sink.write('{');
+  for (const k of Object.keys(top)) {
+    const v = top[k];
+    if (v === undefined || typeof v === 'function' || typeof v === 'symbol') continue;
+    sink.write((first ? '' : ',') + JSON.stringify(k) + ':');
+    first = false;
+    yield* stringifySteps(v, sink);
+  }
+  sink.write('}');
+}
+
+const ELEM_CHUNK = 256;
+const STR_CHUNK = 64 * 1024;
+/**
+ * JSON.stringify(v) written to sink as a generator: large arrays (the packed tile signatures, car columns)
+ * are written in element chunks with a yield between them. Byte-identical to JSON.stringify (same rules for
+ * undefined/function/symbol values in arrays and objects; objects with toJSON are left to JSON.stringify).
+ */
+function* stringifySteps(v, sink) {
+  if (typeof v === 'string' && v.length > STR_CHUNK) {
+    // long packed (base64) strings: JSON-escape in pieces (base64 never needs escaping, so this is exact)
+    sink.write('"');
+    for (let i = 0; i < v.length; i += STR_CHUNK) {
+      const piece = v.slice(i, i + STR_CHUNK);
+      sink.write(JSON.stringify(piece).slice(1, -1));
+      yield;
+    }
+    sink.write('"');
+    return;
+  }
+  if (v === null || typeof v !== 'object' || typeof v.toJSON === 'function') { sink.write(JSON.stringify(v)); return; }
+  if (Array.isArray(v)) {
+    if (v.length <= ELEM_CHUNK) { sink.write(JSON.stringify(v)); return; }
+    sink.write('[');
+    for (let i = 0; i < v.length; i++) {
+      if (i) sink.write(',');
+      if (i && i % ELEM_CHUNK === 0) yield;
+      const e = v[i];
+      if (e === undefined || typeof e === 'function' || typeof e === 'symbol') sink.write('null');
+      else yield* stringifySteps(e, sink);
+    }
+    sink.write(']');
+    return;
+  }
+  // plain object: recurse key by key so a big array nested anywhere below is chunked
+  sink.write('{');
+  let first = true;
+  for (const k of Object.keys(v)) {
+    const e = v[k];
+    if (e === undefined || typeof e === 'function' || typeof e === 'symbol') continue;
+    sink.write((first ? '' : ',') + JSON.stringify(k) + ':');
+    first = false;
+    yield* stringifySteps(e, sink);
+  }
+  sink.write('}');
+}
+
 /** Tiles -> { format, n, sigs: distinct tile JSON strings, runs: RLE of sig indices }. */
-function packTiles(tiles) {
+function* packTilesSteps(tiles) {
   const ids = new Map(), sigs = [], idx = new Array(tiles.length);
   for (let i = 0; i < tiles.length; i++) {
+    if (i && (i % TILE_CHUNK) === 0) yield;
     const s = JSON.stringify(tiles[i]); // exact by construction, so any tile shape round-trips
     let k = ids.get(s);
     if (k === undefined) { k = sigs.length; sigs.push(s); ids.set(s, k); }
     idx[i] = k;
   }
-  return { format: 'tiles-rle-v1', n: tiles.length, sigs, runs: packRuns(idx) };
+  yield;
+  const runs = packRuns(idx);
+  yield;
+  return { format: 'tiles-rle-v1', n: tiles.length, sigs, runs };
 }
 
 /** Inverse of packTiles: every tile is a fresh object (no shared mutable sub-objects). */
