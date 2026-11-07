@@ -5,6 +5,7 @@
  */
 import { loadLabelPrefs, townSignText, signRect, rectInView, stationSignsVisible, stationSignStyle, TOWN_POP_MIN_ZOOM } from '../labels.js';
 
+
 const FONT = '600 12px "JetBrains Mono", ui-monospace, monospace';
 const PAD_X = 6, H = 18, RADIUS = 4;
 /** @type {Map<string, number>} measured text widths (bounded) */
@@ -30,7 +31,6 @@ export function drawLabels(ctx, renderer, cam) {
   const hits = renderer.labelHits || (renderer.labelHits = []);
   hits.length = 0;
   const prefs = loadLabelPrefs();
-  if (!prefs.towns && !prefs.stations) return;
   const state = renderer.game.state;
   const zoom = cam.zoom;
   const showStations = prefs.stations && stationSignsVisible(zoom) && !renderer.showMetro;
@@ -67,12 +67,20 @@ export function drawLabels(ctx, renderer, cam) {
       place('station', st.id, c.x, c.y, st.name, sty.fill, '#ffffff', sty.rival ? '#fde68a' : 'rgba(255,255,255,0.7)');
     }
   }
+  // map signs (OpenTTD signs): player text labels, always shown; lazy state.signs (absent = none)
+  const signs = state.signs;
+  if (signs && signs.length) {
+    for (const sg of signs) {
+      const c = renderer.tileCenterScreen(sg.x, sg.y);
+      place('sign', sg.id, c.x, c.y, sg.text, '#fef3c7', '#1c1917', '#b45309');
+    }
+  }
   ctx.textAlign = 'left';
 }
 
 /**
  * Topmost sign under a viewport point (CSS px), or null. Later hits are drawn on top, so scan backwards.
- * @returns {{kind:'town'|'station', id:number}|null}
+ * @returns {{kind:'town'|'station'|'sign', id:number}|null}
  */
 export function labelAt(hits, px, py) {
   if (!hits) return null;

@@ -35,6 +35,7 @@ import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, renameCompany } from './cmdRename.js';
+import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
@@ -308,6 +309,10 @@ export class Game {
   /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
   townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }
   renameCompany(name, opts) { return renameCompany(this.ctx, name, opts); }
+  /** Map signs (cmdSign.js): place on a tile, edit by id (empty text deletes), delete by id. */
+  placeSign(x, y, text, opts) { return placeSign(this.ctx, x, y, text, opts); }
+  editSign(id, text, opts) { return editSign(this.ctx, id, text, opts); }
+  deleteSign(id, opts) { return deleteSign(this.ctx, id, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */
   cloneVehicle(id, opts) { return vcmd.cloneVehicle(this.ctx, id, opts); }
   /** Refit a stopped, empty vehicle in a depot to another cargo (10% of the model price). */

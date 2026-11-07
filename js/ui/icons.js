@@ -27,6 +27,7 @@ const PATHS = {
   objects: '<path d="M12 3v4M8 21l4-14 4 14M9 14h6M12 7l-3 3M12 7l3 3"/><circle cx="5" cy="18" r="1.5"/><circle cx="19" cy="18" r="1.5"/>',
   hq: '<path d="M4 21V7h7v14M11 21V3h9v18M2 21h20M7 11h1M7 15h1M15 7h1M15 11h1M15 15h1"/>',
   signal: '<path d="M12 3v12M12 15h-3M12 15h3M9 19h6"/><circle cx="12" cy="7" r="2" fill="currentColor"/>',
+  sign: '<path d="M4 4h16v10H4zM12 14v7M9 21h6"/><path d="M7 8h10M7 11h6"/>',
   oneWay: '<path d="M4 12h13M13 7l5 5-5 5"/>',
   plant: '<path d="M12 21v-7M12 14c-4 0-6-3-6-6 3 0 6 2 6 6zM12 12c3 0 5-3 5-6-3 0-5 2-5 6z"/><path d="M6 21h12"/>',
   electrify: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',

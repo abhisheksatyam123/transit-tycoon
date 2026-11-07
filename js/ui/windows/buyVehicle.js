@@ -1,21 +1,27 @@
 /**
  * Buy Vehicle window. Rail depot: engine + wagon model + wagon count + cargo.
  * Road depot: bus/truck model + cargo. Calls game.buyVehicle(depotId, {...}).
+ * Cargo filter + sort (buyFilter.js, OpenTTD build_vehicle_gui.cpp): the filter narrows the carrier
+ * models (wagons / road / air / ship) to those that can carry the chosen cargo; the sort reorders
+ * every model list (name, cost, speed, capacity, running cost, intro date; asc/desc). With filter All
+ * and sort Default the lists are exactly the old ones, so the smart default selection is unchanged.
  */
 import { el, setText, clear } from '../dom.js';
 import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
 import { chooseBuyDefaults } from '../buyDefaults.js';
+import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo } from '../buyFilter.js';
 
 /**
- * Build a <select> of models.
- * @param {any[]} models
- * @returns {HTMLSelectElement}
+ * Fill a <select> of models (keeps the current value when that model is still listed).
+ * @param {HTMLSelectElement} s
+ * @param {any[]} models already filtered and sorted
  */
-function modelSelect(models) {
-  const s = /** @type {HTMLSelectElement} */ (el('select.input'));
+function fillModels(s, models) {
+  const prev = s.value;
+  clear(s);
   for (const m of models) s.appendChild(el('option', { value: m.id, text: `${m.name}${m.traction === 'electric' ? ' (electric)' : ''} — ${money(m.cost)}` }));
-  return s;
+  if (models.some((m) => m.id === prev)) s.value = prev;
 }
 
 /**
@@ -79,21 +85,43 @@ export function openBuyVehicle(app, depotId) {
       const wagons = rail ? g.listModels('wagon') : [];
       const roadModels = rail ? [] : air ? g.listModels('aircraft') : ship ? g.listModels('ship') : g.listModels('road');
       for (const m of [...engines, ...wagons, ...roadModels]) byId[m.id] = m;
+      // the filter applies to the carrier models (wagons, or the road/air/ship model); engines pull any wagon
+      const carriers = rail ? wagons : roadModels;
+      let sort = loadBuySort();
+      let filter = BUY_FILTER_ALL;
+      const sortList = (list) => sortModels(list, sort.key, sort.dir);
+      const visibleCarriers = () => sortList(filterModelsByCargo(carriers, filter));
       const cargoSel = /** @type {HTMLSelectElement} */ (el('select.input'));
       const total = el('div.total.mono');
       const statA = el('div.muted.small');
       const statB = el('div.muted.small');
+
+      // cargo filter + sort controls (UI only; the sort is remembered in localStorage, never in the save)
+      const filterSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Filter by cargo' }));
+      filterSel.appendChild(el('option', { value: BUY_FILTER_ALL, text: 'All cargo' }));
+      for (const c of cargoFilterOptions(carriers)) filterSel.appendChild(el('option', { value: c, text: cargoName(c) }));
+      const sortSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Sort models by' }));
+      for (const [key, label] of BUY_SORTERS) sortSel.appendChild(el('option', { value: key, text: label }));
+      sortSel.value = sort.key;
+      const dirBtn = el('button.btn', { type: 'button', 'aria-label': 'Sort direction' });
+      const paintDir = () => { setText(dirBtn, sort.dir === 1 ? 'Asc ▲' : 'Desc ▼'); };
+      paintDir();
+      const controls = [field('Cargo filter', filterSel), field('Sort by', el('span.range-wrap', null, sortSel, dirBtn))];
+
       let engineSel = null, wagonSel = null, roadSel = null, countIn = null, countOut = null;
       if (rail) {
-        engineSel = modelSelect(engines);
-        wagonSel = modelSelect(wagons);
+        engineSel = /** @type {HTMLSelectElement} */ (el('select.input'));
+        fillModels(engineSel, sortList(engines));
+        wagonSel = /** @type {HTMLSelectElement} */ (el('select.input'));
+        fillModels(wagonSel, visibleCarriers());
         countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: '12', value: '4' }));
         countOut = el('span.mono', { text: '4' });
-        body.append(field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,
+        body.append(...controls, field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,
           field('Wagons', el('span.range-wrap', null, countIn, countOut)), field('Cargo', cargoSel));
       } else {
-        roadSel = modelSelect(roadModels);
-        body.append(field('Model', roadSel), statA, field('Cargo', cargoSel));
+        roadSel = /** @type {HTMLSelectElement} */ (el('select.input'));
+        fillModels(roadSel, visibleCarriers());
+        body.append(...controls, field('Model', roadSel), statA, field('Cargo', cargoSel));
       }
       const buyBtn = el('button.btn.primary', { type: 'button', text: 'Buy' });
       // F14: Buy is disabled (with the reason) while the total costs more than the company's cash
@@ -128,7 +156,7 @@ export function openBuyVehicle(app, depotId) {
       // Default wagon: the first freight wagon (a Passenger Coach default makes a train that cannot carry coal/ore/grain).
       if (rail && wagonSel) {
         const freight = wagons.find((m) => m.id === 'wag_hopper') || wagons.find((m) => !(m.cargos || []).includes('PASS'));
-        if (freight) wagonSel.value = freight.id;
+        if (freight && wagonSel.querySelector(`option[value="${freight.id}"]`)) wagonSel.value = freight.id;
       }
       // F10: road depot next to truck stops serving freight preselects that model + cargo (else a Passenger bus).
       let smart = null;
@@ -139,6 +167,27 @@ export function openBuyVehicle(app, depotId) {
       onModel();
       if (smart && smart.cargo && [...cargoSel.options].some((o) => o.value === smart.cargo)) cargoSel.value = smart.cargo;
       if (rail && !engines.length) setText(total, 'No engines available yet');
+
+      // filter / sort changes re-list the carrier (and engine) models, keeping the selection when it is still listed
+      const relist = () => {
+        if (rail) { fillModels(engineSel, sortList(engines)); fillModels(wagonSel, visibleCarriers()); }
+        else fillModels(roadSel, visibleCarriers());
+      };
+      filterSel.addEventListener('change', () => {
+        filter = filterSel.value;
+        relist();
+        onModel();
+        // picking a cargo selects a model that carries it, and that cargo
+        if (filter && !(current() && (current().cargos || []).includes(filter))) {
+          const first = visibleCarriers()[0];
+          if (first) { if (rail) wagonSel.value = first.id; else roadSel.value = first.id; }
+          onModel();
+        }
+        if (filter && [...cargoSel.options].some((o) => o.value === filter)) cargoSel.value = filter;
+        recompute();
+      });
+      sortSel.addEventListener('change', () => { sort = { ...sort, key: sortSel.value }; saveBuySort(sort); relist(); onModel(); });
+      dirBtn.addEventListener('click', () => { sort = { ...sort, dir: sort.dir === 1 ? -1 : 1 }; saveBuySort(sort); paintDir(); relist(); onModel(); });
 
       buyBtn.addEventListener('click', () => {
         const spec = rail

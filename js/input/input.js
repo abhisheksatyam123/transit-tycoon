@@ -6,6 +6,9 @@
 import { play } from '../audio/sfx.js';
 import { netActive, setNetActive } from '../renderer/net/state.js';
 import { labelAt } from '../renderer/layers/labels.js';
+import { openSignPrompt } from '../ui/tools/sign.js';
+import { findSign } from '../simulation/cmdSign.js';
+
 
 const PAN_SPEED = 700; // CSS px per second
 
@@ -135,6 +138,7 @@ export function setupInput(app, canvas, shortcuts) {
   /** Click with no tool: vehicle under cursor, else inspect tile. */
   const click = (p) => {
     const sign = labelAt(app.renderer.labelHits, p.x, p.y);
+    if (sign && sign.kind === 'sign') { const sg = findSign(app.game.state, sign.id); if (sg) openSignPrompt(app, { id: sg.id, x: sg.x, y: sg.y }); return; }
     if (sign) { app.open(sign.kind, sign.id); return; }
     const vid = app.renderer.pickVehicle(p.x, p.y);
     if (vid !== null) { app.open('vehicle', vid); return; }
