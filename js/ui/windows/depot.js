@@ -69,6 +69,36 @@ function updateConsistStrip(strip, app, v) {
 }
 
 /**
+ * Sell every vehicle stopped in depot `id` through the existing per-vehicle sell command (refunds identical
+ * to the row Sell button). Vehicles that cannot be sold are skipped and counted.
+ * @param {{sellVehicle:(id:number)=>{ok:boolean,cost?:number,error?:string}}} game
+ * @param {Array<{id:number}>} vehicles vehicles inside the depot
+ * @returns {{sold:number, refund:number, failed:number}}
+ */
+export function sellAllDepotVehicles(game, vehicles) {
+  let sold = 0, refund = 0, failed = 0;
+  for (const v of vehicles) {
+    const r = game.sellVehicle(v.id);
+    if (r && r.ok) { sold++; refund += -(r.cost || 0); } else failed++;
+  }
+  return { sold, refund, failed };
+}
+
+/** Confirm dialog (same look as the scenario editor's confirmRemove). */
+function confirmSellAll(question, onYes) {
+  const backdrop = el('div.prompt-backdrop');
+  const close = () => backdrop.remove();
+  backdrop.appendChild(el('section.prompt', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Confirm' },
+    el('div.win-header', null, el('span.win-title', { text: 'Confirm' })),
+    el('div.prompt-body', null,
+      el('p', { text: question }),
+      el('div.btn-row', null,
+        el('button.btn', { type: 'button', text: 'Cancel', onclick: close }),
+        el('button.btn.danger', { type: 'button', text: 'Sell all', onclick: () => { close(); onYes(); } })))));
+  document.body.appendChild(backdrop);
+}
+
+/**
  * @param {import('../app.js').App} app
  * @param {number} id depot id
  */
@@ -89,13 +119,23 @@ export function openDepot(app, id) {
         const ids = app.game.state.vehicles.filter((v) => v.depotId === id && v.state !== 'depot').map((v) => v.id);
         app.exec(app.game.massStartStop(ids, false), { sound: 'click' });
       } });
-      body.append(info, list, el('div.btn-row', null, buy, center, startAll, stopAll));
+      const sellAll = el('button.btn.danger', { type: 'button', text: 'Sell all', title: 'Sell every vehicle stopped inside this depot (refund = current value)', onclick: () => {
+        const inside = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot');
+        if (!inside.length) return;
+        confirmSellAll(`Sell all ${inside.length} vehicle(s) in this depot? Each is refunded its current value.`, () => {
+          const res = sellAllDepotVehicles(app.game, inside);
+          app.toast(`Sold ${res.sold} vehicle(s) for ${money(res.refund)}${res.failed ? ` · ${res.failed} could not be sold` : ''}`, res.failed ? 'error' : 'good');
+        });
+      } });
+      body.append(info, list, el('div.btn-row', null, buy, center, startAll, stopAll, sellAll));
       return () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }
         win.setTitle(d.kind === 'rail' ? 'Train Depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship Depot' : 'Road Vehicle Depot');
         const inside = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot');
         setText(info, `${inside.length} vehicle(s) inside · (${d.x}, ${d.y})`);
+        sellAll.disabled = !inside.length;
+        sellAll.title = inside.length ? 'Sell every vehicle stopped inside this depot (refund = current value)' : 'No vehicles inside this depot';
         listOrEmpty(list, inside, (v) => v.id,
           (v) => el('div.consist-wrap', null,
             el('div.list-row.split', null,

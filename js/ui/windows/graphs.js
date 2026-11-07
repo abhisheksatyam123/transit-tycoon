@@ -9,6 +9,8 @@ import { el, setText } from '../dom.js';
 import { money, monthName, num } from '../format.js';
 import { performanceToRating, RATING_NAMES, HISTORY_LENGTH } from '../../simulation/loco/company.js';
 import { companyValue } from '../statusbar.js';
+import { calculateDeliveredCargoPayment, PAYMENT_CARGO_IDS } from '../../simulation/loco/economy.js';
+import { CARGO_BY_ID } from '../../config/cargos.js';
 
 export const GRAPH_TABS = [
   ['value', 'Company value'],
@@ -22,6 +24,57 @@ export const GRAPH_TABS = [
 export function performanceTitle(index) {
   const r = performanceToRating(Math.max(0, Math.min(1000, Number(index) || 0)));
   return { rating: r, title: RATING_NAMES[r] || RATING_NAMES[0] };
+}
+
+/** Cargo payment rates graph (OpenTTD ShowCargoPaymentRates): 10 units over 20 tiles, 1..200 days transit. */
+export const RATE_UNITS = 10;
+export const RATE_DISTANCE = 20;
+export const RATE_MAX_DAYS = 200;
+
+/**
+ * One series per cargo: payment (real calculateDeliveredCargoPayment, incl. inflation and cargoPaymentPercent)
+ * for delivering RATE_UNITS units over RATE_DISTANCE tiles after d = 1..days transit days.
+ * Pure: reads state only.
+ * @returns {{days:number[], series:Array<{id:string,name:string,color:string,values:number[]}>}}
+ */
+export function cargoPaymentRateSeries(state, days = RATE_MAX_DAYS) {
+  const dayList = [];
+  for (let d = 1; d <= days; d++) dayList.push(d);
+  // OTTD lists the climate's cargos only: keep passengers, mail and cargos that this map's industries produce or stock
+  const used = new Set(['PASS', 'MAIL']);
+  for (const ind of state.industries || []) {
+    for (const k in ind.production || {}) used.add(k);
+    for (const k in ind.stock || {}) used.add(k);
+  }
+  const ids = PAYMENT_CARGO_IDS.filter((id) => used.has(id));
+  const series = (ids.length > 2 ? ids : PAYMENT_CARGO_IDS).map((id) => {
+    const c = CARGO_BY_ID[id] || {};
+    return { id, name: c.name || id, color: c.color || '#94a3b8',
+      values: dayList.map((d) => calculateDeliveredCargoPayment(state, id, RATE_UNITS, RATE_DISTANCE, d)) };
+  });
+  return { days: dayList, series };
+}
+
+/** Cargo payment rates window (UI only). Reuses drawChart; one line per cargo. */
+export function openCargoRates(app) {
+  return app.wm.open('cargoRates', {
+    title: 'Cargo payment rates',
+    width: 620,
+    build(body) {
+      const note = el('div.muted.small', { text: `Payment for delivering ${RATE_UNITS} units over ${RATE_DISTANCE} tiles, by days in transit (1–${RATE_MAX_DAYS}).` });
+      const canvas = el('canvas', { style: { maxWidth: '100%', margin: '4px 0' } });
+      const legend = el('div.small', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px 10px', maxHeight: '90px', overflow: 'auto' } });
+      body.append(note, canvas, legend);
+      const refresh = () => {
+        const { days, series } = cargoPaymentRateSeries(app.game.state, RATE_MAX_DAYS);
+        drawChart(canvas, { w: 600, h: 320, labels: days.map((d) => String(d)), fmt: (v) => money(v), plain: true,
+          series: series.map((s) => ({ name: s.name, color: s.color, values: s.values })) });
+        if (!legend.childElementCount) for (const s of series) legend.append(el('span', null, el('span', { style: { display: 'inline-block', width: '10px', height: '3px', background: s.color, marginRight: '4px', verticalAlign: 'middle' } }), s.name));
+      };
+      refresh();
+      return refresh;
+    },
+  });
 }
 
 /** Newest-first history array (as the simulation stores it) -> oldest-first, bounded to `max` months. */
@@ -151,6 +204,7 @@ export function drawChart(canvas, o) {
   if (sc.min < 0 && sc.max > 0) { ctx.strokeStyle = 'rgba(148,163,184,0.4)'; const y0 = Math.round(yOf(0)) + 0.5; ctx.beginPath(); ctx.moveTo(padL, y0); ctx.lineTo(w - padR, y0); ctx.stroke(); }
   for (const s of o.series) {
     if (!s.values.length) continue;
+    if (o.plain) { ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath(); s.values.forEach((v, i) => { const x = xOf(i), y = yOf(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); continue; }
     ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath();
     s.values.forEach((v, i) => { const x = xOf(i), y = yOf(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
     ctx.stroke();
@@ -164,6 +218,7 @@ export function drawChart(canvas, o) {
     if (ly - 17 < padT) { ctx.textBaseline = 'top'; ctx.fillText(fmt(s.values[last]), Math.min(xOf(last), w - padR), ly + 5); }
     else { ctx.textBaseline = 'bottom'; ctx.fillText(fmt(s.values[last]), Math.min(xOf(last), w - padR), ly - 5); }
   }
+  if (o.plain) return; // plain: no end labels; the caller shows a legend
   // legend
   ctx.textBaseline = 'top'; ctx.textAlign = 'left';
   let lx = padL;

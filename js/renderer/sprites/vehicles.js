@@ -4,6 +4,7 @@
  * `info` is the owning vehicle (modelId, id, kind, livery, metroLine) passed by the renderer;
  * without it the generic cargo-based look is used.
  */
+import { playerVehicleColour } from '../palette.js';
 import { makeSprite, SpriteCache } from './canvas.js';
 import { orient } from './iso3d.js';
 import { setCargoColorMap } from './cargoColors.js';
@@ -54,7 +55,8 @@ function drawPart(ctx, part, dir, cargo, fill, info) {
   const mid = info && info.modelId ? info.modelId : '';
   const hv = hash2(mid || part, info && info.id !== undefined ? info.id : 0);
   const metro = isMetro(info);
-  const liv = info && info.livery && info.livery[0] === '#' ? info.livery : undefined;
+  // player vehicles without a livery take the chosen company colour (palette.js); rivals always carry one
+  const liv = info && info.livery && info.livery[0] === '#' ? info.livery : (info && info.ownerId == null ? playerVehicleColour() || undefined : undefined);
   if (part === 'loco') {
     if (metro) drawMetroCar(ctx, axis, s, liv, true);
     else drawEngine(ctx, axis, s, ENGINE_FAMILY[mid] || 'diesel', hv % 2);
@@ -95,7 +97,8 @@ export function vehicleSprite(part, dir, cargo, fill, info) {
   const mid = info && info.modelId ? info.modelId : '';
   let vk = 0;
   if (info) vk = isMetro(info) ? 1000 + (hash2(info.livery || info.metroLine || '', 0) % 64) : hash2(mid || part, info.id | 0) % 4;
-  const key = `v:${part}:${d}:${cargo}:${q}:${mid}:${vk}`;
+  const pc = info && info.ownerId == null && !(info.livery && info.livery[0] === '#') ? playerVehicleColour() : ''; // player colour choice is part of the key
+  const key = `v:${part}:${d}:${cargo}:${q}:${mid}:${vk}:${pc}`;
   return cache.get(key, () => makeSprite(SIZE, SIZE, SIZE / 2, SIZE * 0.66, (ctx) => {
     drawPart(ctx, part, d, cargo, q, info);
   }));

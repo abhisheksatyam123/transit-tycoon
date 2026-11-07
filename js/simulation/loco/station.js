@@ -54,6 +54,50 @@ export function calculateCargoRating(c) {
   return Math.max(MIN_CARGO_RATING, Math.min(MAX_CARGO_RATING, rating));
 }
 
+/**
+ * UI-only: the rating components of calculateCargoRating for context `c` (same inputs), as ordered steps.
+ * Does not change the simulation: calculateCargoRating stays the hot-path authority and is unchanged.
+ * Each step = { key, label, delta, running } where running is the sum after the step (before clamping).
+ * @returns {{steps:Array<{key:string,label:string,delta:number,running:number}>, total:number}}
+ */
+export function cargoRatingBreakdown(c) {
+  const steps = [];
+  let running = 0;
+  const add = (key, label, delta) => { running += delta; steps.push({ key, label, delta, running }); };
+  const age = c.age;
+  const ageTerm = age <= 7 ? 165 : age <= 15 ? 130 : age <= 30 ? 85 : age <= 45 ? 40 : 0;
+  add('age', `Days since last pickup: ${age}`, ageTerm);
+  add('base', 'Base', -130);
+  const q = c.quantity;
+  const qTerm = q <= 100 ? 130 : q <= 200 ? 110 : q <= 300 ? 90 : q <= 500 ? 60 : q <= 1000 ? 30 : 0;
+  add('waiting', `Waiting cargo: ${q}`, qTerm);
+  if (c.npc) add('npc', 'AI-owned station: rating forced to 120', 120 - running);
+  const speed = Math.min(c.vehicleSpeed, MAX_SPEED_MPH);
+  const sTerm = speed > 35 ? Math.trunc((speed - 35) / 4) : 0;
+  add('speed', `Max speed of last vehicle: ${Math.round(c.vehicleSpeed)} mph`, sTerm);
+  const va = c.vehicleAge;
+  const vTerm = va < 1 ? 33 : va < 2 ? 20 : va < 4 ? 10 : 0;
+  add('vehicleAge', `Average vehicle age: ${va} yr`, vTerm);
+  return { steps, total: Math.max(MIN_CARGO_RATING, Math.min(MAX_CARGO_RATING, running)) };
+}
+
+/**
+ * UI-only: live inputs for cargoRatingBreakdown at station `st` (what updateCargo feeds calculateCargoRating),
+ * plus the published rating. The breakdown is the rating target for the next daily step.
+ */
+export function stationCargoRatingDetail(state, st, cargoId) {
+  const age = (st.cargoAge && st.cargoAge[cargoId]) || 0;
+  const quantity = waitingAmount(st, cargoId);
+  const bd = cargoRatingBreakdown({
+    age, quantity,
+    vehicleSpeed: (st.lastSpeed || 0) * KMH_TO_MPH,
+    vehicleAge: vehicleAgeFactor(state, st, cargoId),
+    npc: st.ownerId !== undefined && st.ownerId !== null,
+  });
+  const cur200 = st.rating200 && st.rating200[cargoId] !== undefined ? st.rating200[cargoId] : null;
+  return { ...bd, age, quantity, current: st.rating ? st.rating[cargoId] : undefined, current200: cur200 };
+}
+
 /** Average age (256-day units) of vehicles whose orders visit st and that carry cargoId. */
 function vehicleAgeFactor(state, st, cargoId) {
   let sum = 0, n = 0;

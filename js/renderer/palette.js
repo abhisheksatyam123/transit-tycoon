@@ -38,8 +38,37 @@ export const CARGO_FALLBACK = {
   STON: '#a8a29e', BMAT: '#b45f3c', PAPR: '#e7e5e4', FOOD: '#f97316',
 };
 
-/** Company livery. */
+/** Company livery. `primary`/`dark` follow the player's chosen colour (setPlayerColour); default blue. */
 export const COMPANY = { primary: '#1e6fd9', secondary: '#f2c230', dark: '#123f7a' };
+const DEFAULT_PRIMARY = COMPANY.primary, DEFAULT_DARK = COMPANY.dark;
+
+/** Player colour (companyColour.js) applied to the company livery; null = the default blue (unchanged game). */
+let playerHex = null;
+
+/** Darken a '#rrggbb' colour by 40% (the dark face of HQ/company blocks). */
+function darkerHex(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c) => Math.round(c * 0.6).toString(16).padStart(2, '0');
+  return '#' + f((n >> 16) & 255) + f((n >> 8) & 255) + f(n & 255);
+}
+
+/**
+ * Apply the player company colour to the livery (called per frame from the renderer; cheap when unchanged).
+ * @param {string|null|undefined} hex '#rrggbb' or null/undefined for the default
+ */
+export function setPlayerColour(hex) {
+  const h = typeof hex === 'string' && hex[0] === '#' && hex.length === 7 ? hex : null;
+  if (h === playerHex) return;
+  playerHex = h;
+  COMPANY.primary = h || DEFAULT_PRIMARY;
+  COMPANY.dark = h ? darkerHex(h) : DEFAULT_DARK;
+}
+
+/** The player's colour used for company-coloured sprites and labels (one getter). */
+export function playerColour() { return COMPANY.primary; }
+
+/** Livery of the player's own vehicles: the chosen colour, or null (keep the per-vehicle palette). */
+export function playerVehicleColour() { return playerHex; }
 
 /** House body/roof colour pairs by variant. */
 export const HOUSE_COLOURS = [

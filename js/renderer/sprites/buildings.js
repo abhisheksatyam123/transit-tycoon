@@ -59,7 +59,7 @@ function platform(ctx, u0, v0, u1, v1) {
  * @returns {import('./canvas.js').Sprite}
  */
 export function railStationCanopy(axis, tint = null, style = null) {
-  const key = style ? `sc:${axis}:${style}:${tint}` : tint ? `sc:${axis}:${tint}` : `sc:${axis}`;
+  const key = (style ? `sc:${axis}:${style}:${tint}` : tint ? `sc:${axis}:${tint}` : `sc:${axis}`) + '|' + COMPANY.dark; // company colour choice
   return cache.get(key, () => makeSprite(TILE_W, TILE_H + 40, HALF_W, HALF_H + 40, (ctx) => {
     const sides = axis === 'x' ? [[-0.5, 0.3, 0.5, 0.5], [-0.5, -0.5, 0.5, -0.3]] : [[0.3, -0.5, 0.5, 0.5], [-0.5, -0.5, -0.3, 0.5]];
     if (style === 'wooden') {

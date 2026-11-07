@@ -10,6 +10,7 @@ import { isMuted, setMuted } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
+import { loadGamePrefs, setPauseOnNewGame } from '../gamePrefs.js';
 import { loadTransparency, setTransparency } from '../../renderer/transparency.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
@@ -100,6 +101,8 @@ export function openSettings(app) {
             else if (p.id.startsWith('tr:')) {
               const tid = p.id.slice(3);
               i.addEventListener('change', () => { setTransparency(tid, i.checked); app.renderer.invalidateGround(); });
+            } else if (p.id === 'pauseOnNewGame') {
+              i.addEventListener('change', () => { setPauseOnNewGame(i.checked); });
             } else if (p.id === 'townLabels' || p.id === 'stationLabels') {
               const key = p.id === 'townLabels' ? 'towns' : 'stations';
               i.addEventListener('change', () => { setLabelPref(key, i.checked); });
@@ -109,6 +112,7 @@ export function openSettings(app) {
             rows.push({ item, row, pref: true, sync: () => {
               if (p.id === 'townLabels') i.checked = loadLabelPrefs().towns;
               else if (p.id === 'stationLabels') i.checked = loadLabelPrefs().stations;
+              else if (p.id === 'pauseOnNewGame') i.checked = loadGamePrefs().pauseOnNewGame;
               else if (p.id.startsWith('tr:')) i.checked = !!(loadTransparency() || {})[p.id.slice(3)];
               else i.checked = p.id === 'sound' ? !isMuted() : p.id === 'fx' ? isFxOn() : savedGfxMode() === 'ogfx';
             } });

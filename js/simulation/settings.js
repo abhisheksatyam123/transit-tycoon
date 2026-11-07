@@ -51,6 +51,11 @@ export const DEFAULT_SETTINGS = {
   farmFields: false,
   /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */
   aiCompanies: 0,
+  /** OpenTTD max_trains / max_roadveh / max_aircraft / max_ships: vehicles per company (vehicleLimit.js). Default 500 as OpenTTD. */
+  maxTrains: 500,
+  maxRoadVeh: 500,
+  maxAircraft: 500,
+  maxShips: 500,
   /** economy recessions (OpenTTD fluct): cargo and passengers halved for ~a year, every 1-3 years. Off by default. */
   economyRecessions: false,
   /** disasters (OpenTTD difficulty.disasters): a zeppelin crashes on an airport runway and blocks landings for a while; a small UFO destroys a road vehicle. Off by default. */

@@ -50,6 +50,14 @@ export const SETTING_META = [
   { key: 'townGrowthRate', group: 'environment', label: 'Town growth rate', type: 'select',
     options: [['none', 'None'], ['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['veryfast', 'Very fast']],
     help: 'How fast towns build (OpenTTD economy.town_growth_rate). Normal = the current growth. None = towns stop growing.' },
+  { key: 'maxTrains', group: 'vehicles', label: 'Max trains per company', type: 'number', min: 0, max: 5000,
+    help: 'Most trains this company may own (buying is refused at the limit; rivals obey it too). Default 500 as OpenTTD.' },
+  { key: 'maxRoadVeh', group: 'vehicles', label: 'Max road vehicles per company', type: 'number', min: 0, max: 5000,
+    help: 'Most road vehicles this company may own (buying is refused at the limit; rivals obey it too). Default 500 as OpenTTD.' },
+  { key: 'maxAircraft', group: 'vehicles', label: 'Max aircraft per company', type: 'number', min: 0, max: 5000,
+    help: 'Most aircraft this company may own (buying is refused at the limit; rivals obey it too). Default 500 as OpenTTD.' },
+  { key: 'maxShips', group: 'vehicles', label: 'Max ships per company', type: 'number', min: 0, max: 5000,
+    help: 'Most ships this company may own (buying is refused at the limit; rivals obey it too). Default 500 as OpenTTD.' },
   { key: 'serviceIntervalDays', group: 'vehicles', label: 'Service interval (days)', type: 'number', min: 0, max: 730,
     help: 'New vehicles service at the nearest depot every N days (0 = off). Existing vehicles keep theirs; change them in the vehicle window.' },
   { key: 'cargoAgeInVehicle', group: 'economy', label: 'Cargo aging in vehicles', type: 'check',
@@ -125,6 +133,7 @@ export const PREF_META = [
   { id: 'tr:stations', group: 'interface', label: 'Transparent stations', help: 'Station buildings draw semi-transparent. Ctrl+4 or Ctrl+Shift+4. Stored in this browser.' },
   { id: 'tr:bridges', group: 'interface', label: 'Transparent bridges', help: 'Bridge decks draw semi-transparent. Ctrl+5 or Ctrl+Shift+5. Stored in this browser.' },
   { id: 'tr:signs', group: 'interface', label: 'Transparent signals', help: 'Signal posts draw semi-transparent. Ctrl+6 or Ctrl+Shift+6. Stored in this browser.' },
+  { id: 'pauseOnNewGame', group: 'interface', label: 'Pause on new game', help: 'A new game starts paused (press Space to run). Stored in this browser.' },
   { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', help: 'Use the OpenGFX sprite pack. Off = procedural drawing. Same as K.' },
 ];
 

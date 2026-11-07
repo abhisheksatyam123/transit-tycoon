@@ -223,7 +223,7 @@ async function main() {
   let lastWin = 0, lastStatus = 0, lastSel = 0;
   startLoop({
     getGame: () => app.game,
-    getSpeed: () => app.speed,
+    getSpeed: () => app.effectiveSpeed(),
     onError: (err) => {
       console.error('Simulation error', err);
       app.toast('Simulation error: ' + (err && err.message ? err.message : err), 'error');

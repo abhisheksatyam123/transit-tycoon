@@ -29,6 +29,7 @@ import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from '
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
+import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -57,6 +58,8 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   }
   const r = resolvePurchase(depot, spec || {}, state.date.year);
   if (!r.ok) return r;
+  const limit = vehicleLimitError(state, vehicleKindOfModel(r.template.model), opts.owner ?? null);
+  if (limit) return { ok: false, error: limit };
   r.cost = vehiclePrice(state, r.cost); // inflated; recorded as v.value so sell-back stays consistent
   const money = checkMoney(state, r.cost, companyById(state, opts.owner ?? null));
   if (money) return money;

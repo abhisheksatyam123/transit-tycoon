@@ -59,6 +59,13 @@ const MAX_FREIGHT_ROUTES = 2;
 /** Served-town radius: a town with a station within this manhattan distance of its centre counts as served. */
 const SERVED_RADIUS = 10;
 
+/** Rival colour: the AI colours, minus the player's colour when the player picked one (lazy: default = unchanged). */
+function rivalColour(state, i) {
+  const pc = state.company && state.company.colour;
+  const cands = pc ? AI_COLOURS.filter((c) => c !== pc) : AI_COLOURS;
+  return cands[i % cands.length];
+}
+
 /** Create the rivals (lazy; only when the setting asks for them). Returns the rival list. */
 export function ensureRivals(state, n) {
   if (!state.rivals) state.rivals = [];
@@ -67,7 +74,7 @@ export function ensureRivals(state, n) {
     // a full company record (ledger, loan, history) so the shared money helpers work unchanged
     state.rivals.push({
       ...createCompany(AI_NAMES[i % AI_NAMES.length]),
-      id: allocId(state), colour: AI_COLOURS[i % AI_COLOURS.length],
+      id: allocId(state), colour: rivalColour(state, i),
       vehicles: [], stations: [], depots: [], routes: [], stats: { profit: 0, vehicles: 0 }, valueHistory: [],
       negValueMonths: 0, foundedAt: state.date.year * 12 + state.date.month,
     });

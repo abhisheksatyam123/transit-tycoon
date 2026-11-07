@@ -19,7 +19,7 @@ import { drawDisasters } from './layers/disasters.js'; // disasters setting (pro
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
 import { drawMetroOverlay } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
-import { OVERLAY } from './palette.js';
+import { OVERLAY, setPlayerColour } from './palette.js';
 import { roadSideSign } from '../config/traffic.js';
 import { getSetting } from '../simulation/settings.js';
 import { Smoke } from './particles.js';
@@ -254,6 +254,7 @@ export class Renderer {
 
   /** Bucket vehicle segments by diagonal (x+y). */
   collectVehicles() {
+    setPlayerColour(this.game.state.company && this.game.state.company.colour); // cheap no-op unless changed
     const b = this.buckets;
     for (let i = 0; i < b.length; i++) b[i].length = 0;
     this.airSegs.length = 0;

@@ -7,6 +7,7 @@ import { money } from '../format.js';
 import { liveCompanyValue } from './graphs.js';
 import { playerSharesOf, sharePrice, shareBlock } from '../../simulation/shares.js';
 import { getSetting } from '../../simulation/settings.js';
+import { playerColourOf, COMPANY_COLOURS, setCompanyColour } from '../../simulation/companyColour.js';
 
 /** Rows for the company window: the player first, then the rivals (pure, testable). */
 export function companyRows(state) {
@@ -15,7 +16,7 @@ export function companyRows(state) {
   const veh = (id) => state.vehicles.filter((v) => (id == null ? v.ownerId == null : v.ownerId === id));
   const stn = (id) => state.stations.filter((s) => (id == null ? s.ownerId == null : s.ownerId === id)).length;
   const lastYear = (co) => (co.ledger.history || []).slice(-12).reduce((a, h) => a + (h.income || 0) - (h.expenses || 0), 0);
-  rows.push({ name: c.name || 'Player', colour: '#f5b300', player: true, money: c.money, loan: c.loan, value: liveCompanyValue(state, c),
+  rows.push({ name: c.name || 'Player', colour: playerColourOf(state), player: true, money: c.money, loan: c.loan, value: liveCompanyValue(state, c),
     vehicles: veh(null).length, stations: stn(null), profit: lastYear(c), bankrupt: !!c.bankrupt });
   for (const r of state.rivals || []) {
     rows.push({ name: r.name, colour: r.colour, player: false, money: r.money, loan: r.loan, value: r.companyValue ?? (r.money - r.loan),
@@ -39,6 +40,36 @@ function shareButtons(app, r) {
     wrap.appendChild(btn);
     wrap.appendChild(document.createTextNode(' '));
   }
+  return wrap;
+}
+
+/**
+ * Company colour chooser (OpenTTD company colour): the 16 company colours; a colour a rival uses is disabled.
+ * The choice is applied through game.setCompanyColour (CmdSetCompanyColour).
+ * @param {import('../app.js').App} app
+ */
+function colourChooser(app) {
+  const state = app.game.state;
+  const cur = playerColourOf(state);
+  const taken = new Set((state.rivals || []).map((r) => String(r.colour || '').toLowerCase()));
+  const wrap = el('div.colour-chooser');
+  wrap.appendChild(el('p.small', { text: 'Your company colour (rivals keep theirs):' }));
+  const row = el('div.colour-row');
+  for (const c of COMPANY_COLOURS) {
+    const isTaken = taken.has(c.hex) && c.hex !== cur;
+    const b = el('button.colour-swatch', { type: 'button', title: isTaken ? c.name + ' (used by a rival)' : c.name,
+      'aria-label': c.name, 'aria-pressed': String(c.hex === cur), disabled: isTaken,
+      style: { background: c.hex, width: '20px', height: '20px', margin: '2px', border: c.hex === cur ? '2px solid #fff' : '1px solid #0008', outline: c.hex === cur ? '2px solid #000' : 'none' },
+      onclick: () => {
+        const res = app.game.setCompanyColour(c.hex);
+        if (!res.ok) { app.toast(res.error, 'error', true); return; }
+        app.toast('Company colour: ' + c.name, 'good');
+        app.renderer.invalidateGround();
+        app.ui.refreshToolbar?.();
+      } });
+    row.appendChild(b);
+  }
+  wrap.appendChild(row);
   return wrap;
 }
 
@@ -78,6 +109,7 @@ export function openCompanies(app) {
         }
         table.appendChild(tbl);
         if (cheated) table.appendChild(el('p.small.neg', { text: 'Cheated game: a cheat was used (Settings > Cheats).' }));
+        table.appendChild(colourChooser(app));
       };
     },
   });

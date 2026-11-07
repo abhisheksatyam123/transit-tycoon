@@ -10,6 +10,7 @@
 import { blitPack, DEFAULT_CC } from './draw.js';
 import { packState } from './state.js';
 import { HALF_H } from '../iso.js';
+import { playerVehicleColour } from '../palette.js';
 import { TOYLAND_VEH_ART, TOYLAND_VEH_KEY, toylandVehicleSpriteId } from './toyland_vehicles.js';
 
 /** Engine sprite base per rail image index (table/train_sprites.h _engine_sprite_base). */
@@ -354,7 +355,7 @@ export function drawPackSegment(ctx, seg, sx, sy, fill) {
   const kind = PART_KIND[seg.part] || 'truck';
   const info = seg._info || {};
   if (info.roadType === 'tram') return false; // no OpenGFX tram sprites: procedural trams (sprites/trams.js)
-  const colour = vehicleColour(info.livery, info.id | 0);
+  const colour = vehicleColour(info.livery || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
   const dir = seg.ang !== undefined ? dirFromAng(seg.ang) : dirFromBit(seg.dir);
   return drawPackVehicle(ctx, kind, info.modelId || '', dir, sx, sy, {
     cargo: seg.cargoId, loaded: fill > 0.5, id: info.id | 0, colour,

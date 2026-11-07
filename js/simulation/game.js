@@ -51,6 +51,7 @@ import { tick as locoTick } from './loco/gameLoop.js';
 import { setSetting, getSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
+import { setCompanyColour } from './companyColour.js';
 import { setAutoreplace } from './autoreplace.js';
 import * as gcmd from './cmdGroup.js';
 
@@ -293,6 +294,8 @@ export class Game {
   /** Lock with middle tile (x,y) on a straight inclined slope (cmdCanal.js). */
   buildLock(x, y, opts) { return buildLock(this.ctx, x, y, opts); }
   buyVehicle(depotId, spec, opts) { return vcmd.buyVehicle(this.ctx, depotId, spec, opts); }
+  /** Player company colour (companyColour.js): one of COMPANY_COLOURS, refused when a rival uses it. */
+  setCompanyColour(hex) { return setCompanyColour(this.ctx, hex); }
   setOrders(id, orders, opts) { return vcmd.setOrders(this.ctx, id, orders, opts); }
   /** Change the load/unload flags of one order: flags {load?, unload?}. */
   modifyOrder(id, index, flags, opts) { return vcmd.modifyOrder(this.ctx, id, index, flags, opts); }

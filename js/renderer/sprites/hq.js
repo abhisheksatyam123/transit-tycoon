@@ -14,8 +14,9 @@ const cache = new Map();
  */
 export function hqSprite(level) {
   const lv = Math.max(0, Math.min(4, level | 0));
-  let s = cache.get(lv);
-  if (!s) { s = buildHQ(lv); cache.set(lv, s); }
+  const key = lv + '|' + COMPANY.primary; // company colour is part of the key (player colour choice)
+  let s = cache.get(key);
+  if (!s) { s = buildHQ(lv); cache.set(key, s); }
   return s;
 }
 

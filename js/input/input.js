@@ -201,8 +201,24 @@ export function setupInput(app, canvas, shortcuts) {
     const fn = shortcuts[k];
     if (fn) { e.preventDefault(); play('click'); fn(); }
   });
-  window.addEventListener('keyup', (e) => held.delete(e.key.toLowerCase()));
-  window.addEventListener('blur', () => held.clear());
+  // Hold Tab = fast forward (OpenTTD): runs at the fastest speed while held, back to the set speed on release.
+  // Only when the game has focus (body / the map canvas / the main panel, never a dialog, input or button),
+  // so Tab keeps moving keyboard focus between controls in dialogs. Paused stays paused.
+  const tabGameFocus = (t) => !t || t === document.body || t === canvas
+    || !(t.closest && t.closest('.win, dialog, [role="dialog"], button, a, input, select, textarea, [tabindex]'));
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
+    if (!tabGameFocus(target) || app.tool) return;
+    e.preventDefault(); // keeps focus from leaving the game while it is held
+    if (app.fastForward !== true) app.setFastForward?.(true);
+  }, true);
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Tab' && app.fastForward) app.setFastForward?.(false);
+    held.delete(e.key.toLowerCase());
+  });
+  window.addEventListener('blur', () => { held.clear(); if (app.fastForward) app.setFastForward?.(false); });
 
   return {
     update(dt) {

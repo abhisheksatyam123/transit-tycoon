@@ -10,6 +10,20 @@ import { openRename } from '../rename.js';
 import { styleById } from '../../config/stationTypes.js';
 import { catchRadius } from '../../simulation/stations.js';
 import { viaBreakdown } from '../../simulation/cargodist.js';
+import { stationCargoRatingDetail } from '../../simulation/loco/station.js';
+
+/**
+ * Rating breakdown tooltip (UI-only): the components of the daily rating target for one cargo.
+ * @param {ReturnType<typeof stationCargoRatingDetail>} d
+ * @param {string} name cargo name
+ * @returns {string}
+ */
+export function ratingTooltip(d, name) {
+  const lines = [`${name} rating ${d.current !== undefined ? Math.round(d.current) + '%' : '—'} (target ${Math.round(d.total / 2)}%)`];
+  for (const s of d.steps) lines.push(`${s.delta >= 0 ? '+' : ''}${s.delta}  ${s.label}`);
+  lines.push(`= ${d.total}/200 (shown as ${Math.round(d.total / 2)}%)`);
+  return lines.join('\n');
+}
 
 /**
  * Rating colour (red -> yellow -> green).
@@ -79,6 +93,12 @@ export function openStation(app, id) {
             const rating = typeof r.r === 'number' ? r.r : 0;
             setBar(b, rating / 100, ratingColor(rating));
             setText(p, typeof r.r === 'number' ? Math.round(rating) + '%' : '—');
+            // breakdown computed on hover only (it scans vehicles), not on every refresh tick
+            row._ratingFor = () => ratingTooltip(stationCargoRatingDetail(app.game.state, st, r.c), cargoName(r.c));
+            if (!row._ratingHover) {
+              row._ratingHover = true;
+              row.addEventListener('mouseenter', () => { if (row._ratingFor) row.title = row._ratingFor(); });
+            }
           }, 'No cargo yet');
         // cargodist (setting on): passengers / mail waiting here, grouped by the next hop they ride to
         cdVia.textContent = '';

@@ -19,8 +19,11 @@ import { touchIssues } from './diagCache.js';
 import { localizeMoneyText } from './newsMoney.js';
 import { currentCurrency } from './units.js';
 import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js';
+import { loadGamePrefs } from './gamePrefs.js';
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
+/** Speed while Tab is held (OpenTTD fast forward = the fastest speed). */
+export const FAST_FORWARD_SPEED = 4;
 const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
@@ -63,6 +66,8 @@ export class App {
     this.toasts = new Toasts(o.toastsEl);
     /** simulation speed multiplier (0 = paused) */
     this.speed = 1;
+    /** hold-Tab fast forward active (not saved) */
+    this.fastForward = false;
     this.prevSpeed = 1;
     /** @type {import('./tools/index.js').Tool|null} */
     this.tool = null;
@@ -154,10 +159,14 @@ export class App {
    * @param {{seed?:number,width?:number,height?:number,townCount?:number,startYear?:number,industryCount?:number}} opts
    */
   async newGame(opts) {
+    const companyColour = opts && opts.companyColour; // New Game colour choice: applied after creation, never passed to the generator
+    if (companyColour) { opts = { ...opts }; delete opts.companyColour; }
     // OpenTTD new-game settings: remembered Settings-window choices apply to every new game (not Moscow, not editor)
     opts = carryOverNewGameSettings(opts, loadNewGameSettings());
     const game = await runWithLoading(buildingLabel(opts && opts.scenario), () => createGameFast(opts, this.GameClass));
+    if (companyColour) game.setCompanyColour(companyColour);
     this.setGame(game);
+    if (loadGamePrefs().pauseOnNewGame && !game.state.editor) this.setSpeed(0); // OpenTTD pause_on_newgame (browser pref)
     if (game.state.scenario) this.announceScenario(game);
     else this.toast(`New game started (seed ${game.state.seed})`, 'good');
   }
@@ -242,6 +251,20 @@ export class App {
     if (s > 0) this.prevSpeed = s;
     this.speed = s;
     this.ui.refreshToolbar();
+  }
+
+  /**
+   * Hold-Tab fast forward (input.js): while on, the loop runs at the fastest speed (4x); paused stays paused.
+   * Not saved; release restores the chosen speed (this.speed is never changed).
+   * @param {boolean} on
+   */
+  setFastForward(on) {
+    this.fastForward = !!on;
+  }
+
+  /** Speed the simulation loop runs at (fast forward overrides the chosen speed while held). */
+  effectiveSpeed() {
+    return this.speed > 0 && this.fastForward ? FAST_FORWARD_SPEED : this.speed;
   }
 
   /** Toggle pause. */

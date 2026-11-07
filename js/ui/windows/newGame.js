@@ -8,6 +8,7 @@ import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
 import { greyscaleFromPixels, heightsForMap } from '../../simulation/heightmap.js';
 import { loadNewGameSettings } from '../newGamePrefs.js';
+import { COMPANY_COLOURS, DEFAULT_PLAYER_COLOUR } from '../../simulation/companyColour.js';
 
 /**
  * Labeled form field.
@@ -90,6 +91,9 @@ export function openNewGame(app) {
       const extra = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const remembered = loadNewGameSettings();
+      // company colour (OpenTTD company colour): '' = default yellow; applied after the game is created (app.newGame)
+      const colourSel = /** @type {HTMLSelectElement} */ (el('select.input', null, el('option', { value: '', text: 'Default (yellow)' }),
+        ...COMPANY_COLOURS.filter((c) => c.hex !== DEFAULT_PLAYER_COLOUR).map((c) => el('option', { value: c.hex, text: c.name }))));
       const ai = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: '0', text: 'None (default)' }), el('option', { value: '1', text: '1 rival' }), el('option', { value: '2', text: '2 rivals' }), el('option', { value: '3', text: '3 rivals' })));
       const farms = /** @type {HTMLSelectElement} */ (el('select.input', null,
@@ -147,7 +151,7 @@ export function openNewGame(app) {
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
-        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai),
+        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai), field('Company colour', colourSel),
         el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth),
         field('Town density', mgTowns), field('Industry density', mgInd),
@@ -193,6 +197,7 @@ export function openNewGame(app) {
         else if (remembered.largeHouses) settings.largeHouses = false;
         if (Number(ai.value) > 0) settings.aiCompanies = Number(ai.value); // gap #25: only when > 0
         else if (remembered.aiCompanies) settings.aiCompanies = 0;
+        if (colourSel.value) opts.companyColour = colourSel.value; // stripped in app.newGame (keeps the Moscow snapshot path)
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot

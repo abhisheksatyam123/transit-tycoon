@@ -30,7 +30,7 @@ import { openSettings } from './settings.js';
 import { openCheats } from './cheats.js';
 import { openSubsidies } from './subsidies.js';
 import { openObjective } from './objective.js';
-import { openGraphs } from './graphs.js';
+import { openGraphs, openCargoRates } from './graphs.js';
 import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
 import { openCompanies } from './companies.js';
@@ -71,6 +71,7 @@ const REGISTRY = {
   subsidies: openSubsidies,
   objective: openObjective,
   graphs: openGraphs,
+  cargoRates: openCargoRates,
   map: openMap,
   autoreplace: openAutoreplace,
   companies: openCompanies,

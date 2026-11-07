@@ -74,6 +74,7 @@ export const WINDOW_BUTTONS = [
   ['depots', 'Depots', 'depots', ''],
   ['map', 'Map', 'map', 'P'],
   ['graphs', 'Graphs', 'graphs', 'E'],
+  ['cargoRates', 'Payment rates', 'graphs', ''],
   ['industries', 'Industries', 'industries', 'I'],
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],
@@ -105,7 +106,7 @@ export const TOOL_GROUPS = [
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:map', 'win:metro']],
-  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
+  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
   ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];
 
