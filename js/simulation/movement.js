@@ -8,6 +8,8 @@
  */
 import { TICKS_PER_DAY } from './constants.js';
 import { landSpeedStep, airSpeedStep, gradeMph, DIAGONAL_STEP } from './loco/vehicleMotion.js';
+import { curveSpeedLimitKmh, realisticTrainSpeedStep } from './loco/trainRealistic.js';
+import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
@@ -304,7 +306,15 @@ function move(ctx, v) {
     v.progress += a.x !== b.x && a.y !== b.y ? v.speed / DIAGONAL_STEP : v.speed;
   } else {
     const prevSpeed = v.speed;
-    v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed, getSetting(state, 'gradients') ? gradeMph(state, v) : 0);
+    const grade = getSetting(state, 'gradients') ? gradeMph(state, v) : 0;
+    if (v.kind === 'train' && getSetting(state, 'trainAcceleration') === 'realistic') {
+      // OTTD curve limit (train_cmd.cpp GetCurveSpeedLimit) caps the target; acceleration is the OTTD model
+      const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;
+      const target = lim < v.maxSpeed ? lim : v.maxSpeed;
+      v.speed = realisticTrainSpeedStep(v, vehicleModel(v), target, grade);
+    } else {
+      v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed, grade);
+    }
     if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, v.maxSpeed); // OTTD 512 vs 256
     if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
     v.progress += v.speed;

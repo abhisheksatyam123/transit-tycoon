@@ -22,6 +22,9 @@ export const SETTING_GROUPS = [
 export const SETTING_META = [
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
+  { key: 'trainAcceleration', group: 'vehicles', label: 'Train acceleration', type: 'select',
+    options: [['original', 'Original'], ['realistic', 'Realistic (OpenTTD)']],
+    help: 'Realistic: trains slow for curves (OpenTTD corner limits) and accelerate from tractive effort, air drag, rolling friction and slope against their weight.' },
   { key: 'gradients', group: 'construction', label: 'Gradients', type: 'check',
     help: 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus.' },
   { key: 'pathCosts', group: 'construction', label: 'Realistic pathfinder costs', type: 'check',

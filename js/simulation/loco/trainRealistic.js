@@ -1,0 +1,131 @@
+/**
+ * Realistic train motion (setting trainAcceleration = 'realistic'). The default 'original' keeps
+ * landSpeedStep untouched. Ported from OpenTTD (GPL-2.0), speeds in km/h:
+ *  - src/train_cmd.cpp Train::GetCurveSpeedLimit (lines ~318-380): 90 degree corner -> 61 km/h;
+ *    45 degree corners closer than VEHICLE_LENGTH (8, vehicle_type.h:67) -> 88 km/h; a run of 45 degree
+ *    corners -> 232 - (13 - avgSpacing)^2 with avgSpacing clamped to 1..12 vehicle lengths; an exact S-bend
+ *    (one left + one right 45 degree corner) -> no limit.
+ *  - src/ground_vehicle.cpp PowerChanged (~l.20-70): max_te = weight_t * GROUND_ACCELERATION(9800, vehicle_type.h:19)
+ *    * te / 256 with te = 76 (RVI default, table/engines.h:387); air drag = 2048 / maxSpeed (min 1),
+ *    cached = air + 3*air*parts/20; air drag area 14 (train.h:272).
+ *  - ground_vehicle.cpp:88-94 slope resistance = weight * steepness% * 100; axle = 10 * weight.
+ *  - train.h:309-316 rolling friction 15 * (512 + speed) / 512 (in 1e-4 per tonne-unit as OTTD does).
+ *  - ground_vehicle.cpp GetAcceleration (~l.105-175): force = min(maxTE, power*18/(5*speed_kmh)) with
+ *    power in W (746 per hp); resistance = axle + mass*rolling + area*air*speed^2/1000 + slope;
+ *    accel = (force - resistance) / (mass*4); train_cmd.cpp DoUpdateSpeed adds accel/256 km/h per tick
+ *    => dv = (force - resistance) / (mass * 1024) km/h per tick.
+ * Per tick: O(1), no allocation. Consist mass/power/TE/drag are cached on v.motionCache (recomputed only
+ * when model, wagons or cargo change); the curve limit is cached per pathIndex in v.curvePath/curveIdx/curveLimit.
+ */
+import { KMH_TO_TILES_PER_TICK, totalWeight, totalPower, landSpeedStep } from './vehicleMotion.js';
+
+/** OpenTTD GROUND_ACCELERATION (vehicle_type.h:19), N per tonne. */
+export const GROUND_ACCELERATION = 9800;
+/** Tractive effort coefficient 76/256 = 0.30 (table/engines.h:387 RVI default). */
+export const TRACTIVE_EFFORT = 76;
+const ROLLING_BASE = 15;            // train.h:309-316, 1e-4 units
+const TRAIN_AIR_DRAG_AREA = 14;     // train.h:272
+const AXLE_PER_TONNE = 10;          // ground_vehicle.cpp:94
+const WATTS_PER_HP = 746;
+const ENGINE_TONNES = 60;           // TT engine weight (vehicleMotion.js TRAIN_ENGINE_WEIGHT)
+
+/** OpenTTD curve constants (train_cmd.cpp). */
+export const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67
+export const CURVE_TILE_UNITS = 16;      // one tile along the path (OTTD TILE_SIZE); corner spacing is per tile, so the 88 rule (spacing <= 8) cannot fire on whole-tile paths
+export const CURVE_LOOKAHEAD_TILES = 6;  // corners considered ahead (constant, keeps the scan O(1))
+export const CURVE_LIMIT_90 = 61;        // train_cmd.cpp: 90 degree -> 61
+export const CURVE_LIMIT_45_CLOSE = 88;  // train_cmd.cpp: 45 degree corners closer than VEHICLE_LENGTH -> 88
+
+const NO_LIMIT = Infinity;
+
+/**
+ * Corner speed limit (km/h) from the path ahead (OpenTTD GetCurveSpeedLimit, path form). Pure apart from
+ * filling v.curveCache (keyed by pathIndex and path identity). Returns NO_LIMIT when no corner applies.
+ */
+export function curveSpeedLimitKmh(v) {
+  const p = v.path, i0 = v.pathIndex;
+  if (!p || i0 + 2 >= p.length) return NO_LIMIT;
+  if (v.curvePath === p && v.curveIdx === i0) return v.curveLimit;
+  let max = NO_LIMIT, curveL = 0, curveR = 0, numcurve = 0, sum = 0, lastPos = -1;
+  const end = Math.min(p.length - 2, i0 + CURVE_LOOKAHEAD_TILES);
+  for (let i = i0 + 1; i <= end; i++) {
+    const a = p[i - 1], b = p[i], c = p[i + 1];
+    let turn = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x);
+    if (turn > Math.PI) turn -= 2 * Math.PI; else if (turn < -Math.PI) turn += 2 * Math.PI;
+    const k = Math.round(Math.abs(turn) / (Math.PI / 4)); // 0 straight, 1 = 45 deg, 2 = 90 deg
+    if (k === 0) continue;
+    const pos = (i - i0) * CURVE_TILE_UNITS;
+    if (k === 1) {
+      if (turn < 0) curveL++; else curveR++;
+      if (lastPos !== -1) {
+        numcurve++;
+        sum += pos - lastPos;
+        if (pos - lastPos <= CURVE_VEHICLE_LENGTH && max > CURVE_LIMIT_45_CLOSE) max = CURVE_LIMIT_45_CLOSE;
+      }
+      lastPos = pos;
+    } else {
+      max = CURVE_LIMIT_90;
+    }
+  }
+  if (numcurve > 0 && max > CURVE_LIMIT_45_CLOSE) {
+    if (curveL === 1 && curveR === 1) max = NO_LIMIT; // S-bend
+    else {
+      const avg = Math.min(12, Math.max(1, Math.ceil(Math.ceil(sum / CURVE_VEHICLE_LENGTH) / numcurve)));
+      max = 232 - (13 - avg) * (13 - avg);
+    }
+  }
+  v.curvePath = p; v.curveIdx = i0; v.curveLimit = max; // plain fields: no allocation per tile
+  return max;
+}
+
+/**
+ * Consist motion constants, cached on the vehicle. Recomputed only when the model, wagon count or cargo
+ * amount change (field compare, no string keys, so no per-tick allocation).
+ */
+export function consistMotion(v, model) {
+  const cargo = v.load ? v.load.amount || 0 : 0;
+  const wagons = v.wagons || 0;
+  let c = v.motionCache;
+  if (c && c.modelId === v.modelId && c.wagons === wagons && c.cargo === cargo) return c;
+  const mass = Math.max(1, totalWeight(v));
+  const power = totalPower(v, model) * WATTS_PER_HP;
+  const te = ENGINE_TONNES * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256;
+  const maxKmh = model ? model.speed : 100;
+  const airDrag = maxKmh <= 10 ? 192 : Math.max(Math.trunc(2048 / maxKmh), 1);
+  const parts = 1 + wagons;
+  const cachedAir = airDrag + Math.trunc(3 * airDrag * parts / 20);
+  c = {
+    modelId: v.modelId, wagons, cargo,
+    mass, power, te,
+    airCoef: TRAIN_AIR_DRAG_AREA * cachedAir / 1000,
+    axle: AXLE_PER_TONNE * mass,
+  };
+  v.motionCache = c;
+  return c;
+}
+
+/**
+ * One realistic tick for a train: new speed in tiles per tick.
+ * @param targetTiles target speed (tiles/tick), already min(model speed, corner limit)
+ * @param grade signed gradient fraction (movement.js gradeMph); steepness% = grade * 10 (train 3% <-> 0.3)
+ */
+export function realisticTrainSpeedStep(v, model, targetTiles, grade = 0) {
+  const kmh = v.speed / KMH_TO_TILES_PER_TICK;
+  const targetKmh = targetTiles / KMH_TO_TILES_PER_TICK;
+  if (kmh > targetKmh) return landSpeedStep(v, model, targetTiles, 0); // braking: OpenLoco branch
+  const c = consistMotion(v, model);
+  const rolling = c.mass * ROLLING_BASE * (512 + kmh) / 512;
+  const slope = c.mass * (grade * 10) * 100;
+  const resistance = c.axle + rolling + c.airCoef * kmh * kmh + slope;
+  let force;
+  if (kmh > 0) {
+    force = c.power * 18 / (kmh * 5);
+    if (force > c.te) force = c.te;
+  } else {
+    force = Math.max(Math.min(c.te, c.power), c.mass * 8 + resistance); // kickoff, ground_vehicle.cpp:163
+  }
+  let next = kmh + (force - resistance) / (c.mass * 1024);
+  if (next < 0) next = 0;
+  if (next > targetKmh) next = targetKmh;
+  return next * KMH_TO_TILES_PER_TICK;
+}
