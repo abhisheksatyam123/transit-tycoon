@@ -6,6 +6,13 @@
  */
 import { COSTS } from '../config/costs.js';
 import { COST_INDEX, inflateCost as inflate } from './loco/economy.js';
+import { getSetting } from './settings.js';
+
+/** Apply a difficulty percent (settings vehicleCostPercent / constructionCostPercent). 100 returns the amount untouched. */
+export function applyCostPercent(state, key, amount) {
+  const p = getSetting(state, key);
+  return p === 100 ? amount : Math.round(amount * p / 100);
+}
 
 /** Like inflateCost, but never creates state.economy (dry runs must not mutate state; a missing economy means scale 1). */
 function inflateCost(state, costIndex, amount) {
@@ -15,23 +22,23 @@ function inflateCost(state, costIndex, amount) {
 
 /** Inflated construction/demolition cost for COSTS[key]. */
 export function buildCost(state, key) {
-  return inflateCost(state, COST_INDEX.construction, COSTS[key]);
+  return applyCostPercent(state, 'constructionCostPercent', inflateCost(state, COST_INDEX.construction, COSTS[key]));
 }
 
 /** Inflate an already summed construction amount (clearing, demolition, refunds...). */
 export function constructionTotal(state, amount) {
-  return inflateCost(state, COST_INDEX.construction, amount);
+  return applyCostPercent(state, 'constructionCostPercent', inflateCost(state, COST_INDEX.construction, amount));
 }
 
 /** Inflated purchase price of a vehicle model (or any base vehicle price number). */
 export function vehiclePrice(state, modelOrCost) {
   const base = typeof modelOrCost === 'number' ? modelOrCost : (modelOrCost ? modelOrCost.cost : 0);
-  return inflateCost(state, COST_INDEX.vehicles, base);
+  return applyCostPercent(state, 'vehicleCostPercent', inflateCost(state, COST_INDEX.vehicles, base));
 }
 
 /** Inflated running cost amount. */
 export function runningCost(state, amount) {
-  return inflateCost(state, COST_INDEX.running, amount);
+  return applyCostPercent(state, 'vehicleCostPercent', inflateCost(state, COST_INDEX.running, amount));
 }
 
 /** Inflated property upkeep amount. */

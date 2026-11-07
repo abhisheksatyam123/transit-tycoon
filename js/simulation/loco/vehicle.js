@@ -111,7 +111,10 @@ export function monthlyRunningCost(v, state) {
   // TT keeps one yearly figure per consist, so the monthly share is the yearly amount / 12, inflated and truncated
   // once (integer math, no separate rounding step before inflation).
   if (!state) return Math.trunc(v.runningCost / 12);
-  return Math.trunc((v.runningCost * normalisedFactor(state, COST_INDEX.running)) / (12 * 1024));
+  const cost = Math.trunc((v.runningCost * normalisedFactor(state, COST_INDEX.running)) / (12 * 1024));
+  // vehicleCostPercent (OpenTTD difficulty.vehicle_costs); 100 leaves the amount untouched.
+  const p = getSetting(state, 'vehicleCostPercent');
+  return p === 100 ? cost : Math.round(cost * p / 100);
 }
 
 /** VehicleHead::updateMonthly. @returns {number} running cost charged */

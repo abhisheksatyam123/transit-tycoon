@@ -48,7 +48,7 @@ export function openSettings(app) {
           const sel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...m.options.map(([v, t]) => el('option', { value: v, text: t }))));
           sel.addEventListener('change', () => {
             if (m.key === 'roadSide' && roadSideLocked(state())) { sel.value = String(getSetting(state(), m.key)); return; }
-            const v = m.key === 'aiCompanies' || m.key === 'planeSpeedFactor' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v);
+            const v = m.key === 'aiCompanies' || m.key === 'planeSpeedFactor' || m.key === 'vehicleCostPercent' || m.key === 'constructionCostPercent' ? Number(sel.value) : sel.value; setSetting(state(), m.key, v); if (m.newGame) saveNewGameSetting(m.key, v);
           });
           return { node: sel, sync: (s) => { if (document.activeElement !== sel) sel.value = String(s[m.key]); if (m.key === 'roadSide') sel.disabled = roadSideLocked(state()); } };
         }

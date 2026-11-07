@@ -16,6 +16,10 @@ export const DEFAULT_SETTINGS = {
   loanInterestRate: 5,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,
+  /** OpenTTD difficulty.vehicle_costs: percent scale on vehicle purchase prices and monthly running costs (prices.js vehiclePrice, loco/vehicle.js monthlyRunningCost). 100 = unchanged. */
+  vehicleCostPercent: 100,
+  /** OpenTTD difficulty.construction_cost: percent scale on all construction, demolition and terraform costs (prices.js constructionTotal/buildCost). 100 = unchanged. */
+  constructionCostPercent: 100,
   /** OpenTTD cargo aging in vehicles: cargo ages in 2.5-day periods while carried, so payment uses whole periods (orders.js transitDays). Off = continuous days. */
   cargoAgeInVehicle: false,
   /** vehicle breakdowns: 'none' | 'reduced' | 'normal' */
