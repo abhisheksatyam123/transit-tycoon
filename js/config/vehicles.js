@@ -93,6 +93,17 @@ export const TOYLAND_VEHICLE_MODELS = [
   { id: 'trk_bubbles', name: 'Bubble Truck', kind: 'truck', introYear: 1930, speed: 56, capacity: 16, cost: 4500, running: 900, reliability: 0.82, cargos: ['BUBBLES'], optIn: 'toyland', news: false },
   { id: 'trk_plastic', name: 'Plastic Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4500, running: 900, reliability: 0.82, cargos: ['PLASTIC'], optIn: 'toyland', news: false },
   { id: 'trk_fizzy', name: 'Fizzy Drinks Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 18, cost: 4300, running: 900, reliability: 0.82, cargos: ['FIZZY_DRINKS'], optIn: 'toyland', news: false },
+  // TY3 toyland rail wagons (toyland games only, temperate wagon art stand-ins: see renderer/pack/vehicles.js)
+  { id: 'wag_sweets', name: 'Sweets Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 0.82, cargos: ['SWEETS'], optIn: 'toyland', news: false },
+  { id: 'wag_sugar', name: 'Sugar Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 30, cost: 1000, running: 120, reliability: 0.82, cargos: ['SUGAR'], optIn: 'toyland', news: false },
+  { id: 'wag_toys', name: 'Toy Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 0.82, cargos: ['TOYS'], optIn: 'toyland', news: false },
+  { id: 'wag_batteries', name: 'Battery Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 24, cost: 1100, running: 120, reliability: 0.82, cargos: ['BATTERIES'], optIn: 'toyland', news: false },
+  { id: 'wag_candyfloss', name: 'Candyfloss Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 26, cost: 1100, running: 120, reliability: 0.82, cargos: ['CANDYFLOSS'], optIn: 'toyland', news: false },
+  { id: 'wag_toffee', name: 'Toffee Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 30, cost: 1100, running: 120, reliability: 0.82, cargos: ['TOFFEE'], optIn: 'toyland', news: false },
+  { id: 'wag_cola', name: 'Cola Tank Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 0.82, cargos: ['COLA'], optIn: 'toyland', news: false },
+  { id: 'wag_bubbles', name: 'Bubble Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 24, cost: 1100, running: 120, reliability: 0.82, cargos: ['BUBBLES'], optIn: 'toyland', news: false },
+  { id: 'wag_plastic', name: 'Plastic Tank Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 28, cost: 1100, running: 120, reliability: 0.82, cargos: ['PLASTIC'], optIn: 'toyland', news: false },
+  { id: 'wag_fizzy', name: 'Fizzy Drinks Wagon', kind: 'wagon', introYear: 1920, speed: 0, capacity: 26, cost: 1100, running: 120, reliability: 0.82, cargos: ['FIZZY_DRINKS'], optIn: 'toyland', news: false },
 ];
 
 export const ELECTRIC_VEHICLE_MODELS = [

@@ -12,7 +12,7 @@ import { drawSloped } from '../slope.js';
 import { makeSprite } from '../sprites/canvas.js';
 import { subtileOffset } from './subtile.js';
 import { tileHash } from '../sprites/canvas.js';
-import { TOYLAND_HOUSES, TOYLAND_TREE_ROWS } from './toyland_table.js';
+import { TOYLAND_HOUSES, TOYLAND_TREE_ROWS, TOYLAND_INDUSTRY_LAYOUTS, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from './toyland_table.js';
 
 /** Ground group bases (19 sprites each: flat + 14 slopes + steep): OpenGFX toyland groundtile sets. */
 export const TOYLAND_GROUND = {
@@ -161,4 +161,64 @@ export function drawToylandHouse(ctx, b, x, y, topX, topY, year, defaultCc) {
 export function toylandTreeRow(tmp, h) {
   const types = TOYLAND_TREE_ROWS.length >> 2;
   return TOYLAND_TREE_ROWS[(tmp & 3) + ((h % types) << 2)];
+}
+
+/** Toyland industry tile memo: "typeId|w x h|id" -> Map "dx,dy" -> gfx (null = procedural). */
+const indMemo = new Map();
+
+/**
+ * OpenTTD layout for a toyland industry footprint (TY3, build_industry.h _tile_table_*). Exact footprint only: the
+ * variant's OpenTTD X extent must equal our h and its Y extent our w; the variant is picked by the industry id.
+ * Footprint tiles the layout leaves empty draw the toyland pavement ground (4675, see SPR_TOY_HOLE).
+ * @returns {Map<string, number>|null} "dx,dy" -> gfx, or null when no variant fits
+ */
+export function toylandIndustryLayout(typeId, w, h, id) {
+  const key = typeId + '|' + w + 'x' + h + '|' + id;
+  if (indMemo.has(key)) return indMemo.get(key);
+  const fam = TOYLAND_INDUSTRY_LAYOUTS[typeId] || [];
+  const fits = (v) => Math.max(...v.map((e) => e[0] + 1)) === h && Math.max(...v.map((e) => e[1] + 1)) === w;
+  const exact = fam.filter(fits);
+  let m = null;
+  if (exact.length) {
+    m = new Map();
+    for (const [X, Y, g] of exact[Math.abs(id | 0) % exact.length]) m.set(Y + ',' + X, g); // our (dx,dy) = (Y,X)
+  }
+  indMemo.set(key, m);
+  return m;
+}
+
+/** Pavement ground for a toyland industry footprint tile the OpenTTD layout leaves empty (OpenGFX toyland 4675). */
+export const SPR_TOY_HOLE = 4675;
+
+/**
+ * Draw one toyland industry footprint tile from the TOYLAND pack (OpenGFX ids 4677+ and the base industry ids the
+ * toyland pack carries, see tools/ogfx/extract_toyland.js). Returns false when there is no toyland layout for the
+ * footprint or the pack lacks the sprites (the caller falls back to the temperate path / procedural art).
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {{id:number,typeId:string,x:number,y:number,w:number,h:number}} ind industry
+ * @param {number} x tile x
+ * @param {number} y tile y
+ * @param {number} topX tile top corner x
+ * @param {number} topY tile top corner y
+ */
+export function drawToylandIndustryTile(ctx, ind, x, y, topX, topY) {
+  const pack = toylandState.pack;
+  if (!pack) return false;
+  const w = ind.w || 1, h = ind.h || 1;
+  const layout = toylandIndustryLayout(ind.typeId, w, h, ind.id);
+  if (!layout) return false;
+  const gfx = layout.get((x - ind.x) + ',' + (y - ind.y));
+  if (gfx === undefined) { blitPackFrom(pack, ctx, String(SPR_TOY_HOLE), topX, topY); return true; } // empty layout tile
+  const pair = TOYLAND_INDUSTRY_GFX[gfx];
+  if (!pair) return false;
+  const [ground, building, dx, dy] = pair;
+  if (!ground && !building) return false;
+  blitPackFrom(pack, ctx, String(ground || SPR_TOY_HOLE), topX, topY);
+  if (building) {
+    const [ox, oy] = subtileOffset(dx | 0, dy | 0);
+    blitPackFrom(pack, ctx, String(building), topX + ox, topY + oy);
+  }
+  // OTTD special draw proc (industry_cmd.cpp): child sprites at screen offsets from the tile origin, frame 0
+  for (const [sid, cx, cy] of TOYLAND_INDUSTRY_CHILDREN[gfx] || []) blitPackFrom(pack, ctx, String(sid), topX + cx, topY + cy);
+  return true;
 }

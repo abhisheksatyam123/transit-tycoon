@@ -5,6 +5,7 @@
 import { HALF_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawOgfxHouse } from './houses.js';
 import { drawOgfxIndustryTile } from './industries.js';
+import { toylandState, drawToylandIndustryTile } from './toyland.js';
 import { industryStyle, industryPiece } from '../sprites/buildings.js';
 import { arcticState } from './arctic.js';
 import { snowDensity } from '../../simulation/climate.js';
@@ -33,7 +34,8 @@ export function drawOgfxBuilding(ctx, tile, x, y, sx, sy, industryById) {
   }
   const ind = industryById(b.industryId);
   if (!ind) return false;
-  if (!drawOgfxIndustryTile(ctx, ind, x, y, topX, topY)) return false;
+  // TY3: toyland games draw toyland industries from the toyland pack (OTTD toyland layouts, pack/toyland.js)
+  if (!(toylandState.on && drawToylandIndustryTile(ctx, ind, x, y, topX, topY)) && !drawOgfxIndustryTile(ctx, ind, x, y, topX, topY)) return false;
   const style = industryStyle(ind.typeId);
   return industryPiece(style, x - ind.x, y - ind.y, ind.w || 1);
 }

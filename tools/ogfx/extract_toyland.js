@@ -13,7 +13,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng } from './png.js';
 import { readSpriteDefs } from './pnml.js';
-import { TOYLAND_HOUSES } from '../../js/renderer/pack/toyland_table.js';
+import { TOYLAND_HOUSES, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from '../../js/renderer/pack/toyland_table.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -75,7 +75,7 @@ const defs = readSpriteDefs(SRC);
 /** Fallback: a base_graphics line `spr<id>(<id>, "<file>") { [x, y, w, h, xo, yo] }` read as plain numbers. */
 function rawDef(id) {
   const re = new RegExp(`base_graphics spr${id}\\(\\s*${id}\\s*,\\s*"([^"]+)"\\s*\\)\\s*\\{\\s*\\[([^\\]]*)\\]`);
-  for (const f of ['base/base-4627-toyland-houses.pnml']) {
+  for (const f of ['base/base-4627-toyland-houses.pnml', 'base/base-4677-toyland-industries.pnml', 'base/base-2011-industries.pnml', 'toyland/toyland-0128-industry-candy-forest.pnml']) {
     const m = re.exec(text('sprites/' + f));
     if (!m) continue;
     const n = m[2].split(',').map((e) => Number(e.trim().replace(/^0+(?=\\d)/, '')));
@@ -88,6 +88,27 @@ for (const id of [...houseIds].sort((a, b) => a - b)) {
   const d = defs.get(id) || rawDef(id);
   if (!d) throw new Error(`house sprite ${id} has no OpenGFX definition`);
   pieces.push({ key: String(id), order: 100000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
+/** Candy forest sprites 128..133 from sprites/toyland/toyland-0128-industry-candy-forest.pnml (OpenGFX toyland set). */
+function candyDef(id) {
+  const re = new RegExp(`base_graphics spr${id}\\(\\s*${id}\\s*,\\s*"([^"]+)"\\s*\\)\\s*\\{\\s*\\[([^\\]]*)\\]`);
+  const m = re.exec(text('sprites/toyland/toyland-0128-industry-candy-forest.pnml')) || re.exec(readFileSync(join(SRC, 'sprites/toyland/toyland-0128-industry-candy-forest.pnml'), 'utf8'));
+  if (!m) return null;
+  const n = m[2].split(',').map((e) => Number(e.trim()));
+  return { file: m[1], x: n[0], y: n[1], w: n[2], h: n[3], xo: n[4], yo: n[5] };
+}
+
+// toyland industry tiles (TY3): ground + building sprite ids of every stage-3 draw (toyland_table.js TOYLAND_INDUSTRY_GFX).
+const indIds = new Set([128, 129, 130, 131, 132, 133]); // candy forest trees + ground (toyland-0128 pnml)
+
+for (const [ground, building] of Object.values(TOYLAND_INDUSTRY_GFX)) { if (ground > 0) indIds.add(ground); if (building > 0) indIds.add(building); }
+for (const kids of Object.values(TOYLAND_INDUSTRY_CHILDREN)) for (const [sid] of kids) indIds.add(sid); // special-proc child sprites (TY3)
+for (const id of [...indIds].sort((a, b) => a - b)) {
+  if (pieces.some((p) => p.key === String(id))) continue; // already packed (ground 57/4675/4676, houses): keep the first definition
+  const d = (id >= 128 && id <= 133 ? candyDef(id) : null) || defs.get(id) || rawDef(id);
+  if (!d) throw new Error(`industry sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(id), order: 200000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
 }
 
 // ---- pack (same layout as extract_extra.js) ----
@@ -121,7 +142,7 @@ for (const p of pieces) {
     if (sx < 0 || sy < 0 || sx >= src.width || sy >= src.height) continue;
     const si = sy * src.width + sx, di = (yy * p.w + xx) * 4;
     rgba.set(src.rgba.subarray(si * 4, si * 4 + 4), di);
-    if (src.palIdx && src.palIdx[si] === 0) rgba[di + 3] = 0;
+    if (src.palIdx && (src.palIdx[si] === 0 || (p.file.includes('industries/') && src.palIdx[si] === 255))) rgba[di + 3] = 0;
     if (src.palIdx && src.palIdx[si] >= 198 && src.palIdx[si] <= 205) { ccMask[yy * p.w + xx] = 255; cc = true; }
   }
   p.ccMask = cc ? ccMask : null;

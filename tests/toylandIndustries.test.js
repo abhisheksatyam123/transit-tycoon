@@ -101,3 +101,57 @@ describe('toyland industries and cargos', () => {
     expect(MODEL_BY_ID.trk_sweets.cargos).toEqual(['SWEETS']);
   });
 });
+
+// TY3: toyland industry art from the OpenGFX toyland pack, laid out as OpenTTD (build_industry.h / industry_land.h).
+import { readFileSync } from 'node:fs';
+import { toylandIndustryLayout } from '../js/renderer/pack/toyland.js';
+import { TOYLAND_INDUSTRY_GFX } from '../js/renderer/pack/toyland_table.js';
+
+const TOY_MANIFEST = JSON.parse(readFileSync(new URL('../assets/opengfx/toyland/manifest.json', import.meta.url), 'utf8'));
+
+describe('toyland industry art (TY3)', () => {
+  test('every toyland industry type has an OpenTTD layout whose footprint matches its size', () => {
+    for (const t of TOYLAND_INDUSTRY_TYPES) {
+      for (let id = 0; id < 4; id++) {
+        const m = toylandIndustryLayout(t.id, t.w, t.h, id);
+        expect(m).not.toBeNull();
+        // every layout entry lies in the footprint and every footprint tile is covered (empty tiles use pavement)
+        for (const k of m.keys()) {
+          const [dx, dy] = k.split(',').map(Number);
+          expect(dx).toBeLessThan(t.w);
+          expect(dy).toBeLessThan(t.h);
+        }
+      }
+    }
+  });
+
+  test('every toyland industry gfx resolves to toyland pack sprite ids', () => {
+    for (const t of TOYLAND_INDUSTRY_TYPES) {
+      const m = toylandIndustryLayout(t.id, t.w, t.h, 0);
+      for (const g of m.values()) {
+        const pair = TOYLAND_INDUSTRY_GFX[g];
+        expect(pair).toBeDefined();
+        const [ground, building] = pair;
+        for (const sid of [ground, building]) if (sid) expect(TOY_MANIFEST.sprites[String(sid)]).toBeDefined();
+      }
+    }
+  });
+
+  test('each toyland industry has at least one stage-3 building sprite', () => {
+    for (const t of TOYLAND_INDUSTRY_TYPES) {
+      const m = toylandIndustryLayout(t.id, t.w, t.h, 0);
+      const bld = [...m.values()].map((g) => TOYLAND_INDUSTRY_GFX[g][1]).filter(Boolean);
+      expect(bld.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('a toyland rail wagon exists for every toyland cargo, toyland games only', () => {
+    for (const c of TOY_CARGOS) {
+      const w = ALL_VEHICLE_MODELS.filter((m) => m.kind === 'wagon' && m.optIn === 'toyland' && m.cargos.includes(c));
+      expect(w.length).toBeGreaterThan(0);
+      const plain = { mapgen: {}, industries: [], settings: {} };
+      expect(modelAvailable(plain, w[0])).toBe(false);
+      expect(modelAvailable({ mapgen: { climate: 'toyland' }, industries: [], settings: {} }, w[0])).toBe(true);
+    }
+  });
+});
