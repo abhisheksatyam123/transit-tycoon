@@ -1,3 +1,4 @@
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { test, expect, describe, beforeEach } from 'bun:test';
 import {
   NEW_GAME_SETTING_KEYS, parseNewGameSettings, loadNewGameSettings, saveNewGameSetting, carryOverNewGameSettings,

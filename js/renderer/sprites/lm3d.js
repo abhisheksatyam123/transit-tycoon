@@ -3,7 +3,7 @@
  * The whole ensemble is drawn once, from its front tile, at its true geographic position: level images are
  * rendered at zoom 1/2/4 and the smallest level >= the current canvas scale is used (crisp pixels when equal).
  */
-import { LM3D } from '../../config/landmarks3d.js';
+import { LM3D } from '../../simulation/scenarios/moscowRegistry.js';
 import { HALF_W, HALF_H } from '../iso.js';
 
 const images = new Map();
@@ -39,7 +39,17 @@ function blit(ctx, e, x, y, sx, sy, ground, rect) {
   if (rect && (X > rect.x1 || Y > rect.y1 + 140 || X + W < rect.x0 || Y + H < rect.y0)) return;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = scale < use.z - 1e-3;
-  ctx.drawImage(im, X, Y, W, H);
+  // PF2: draw only the part of the big level image that is on screen (9-arg form). Source px per world px
+  // is use.z; the clip keeps a 4 px guard band so the edge samples match the full draw.
+  if (rect && im.naturalWidth) {
+    const cx0 = Math.max(X, rect.x0 - 4), cx1 = Math.min(X + W, rect.x1 + 4);
+    const cy0 = Math.max(Y, rect.y0 - 4), cy1 = Math.min(Y + H, rect.y1 + 4);
+    if (cx1 <= cx0 || cy1 <= cy0) { ctx.imageSmoothingEnabled = prev; return; }
+    const k = im.naturalWidth / W;
+    const sx0 = (cx0 - X) * k, sy0 = (cy0 - Y) * k;
+    const sw = (cx1 - cx0) * k, sh = (cy1 - cy0) * k;
+    ctx.drawImage(im, sx0, sy0, sw, sh, cx0, cy0, cx1 - cx0, cy1 - cy0);
+  } else ctx.drawImage(im, X, Y, W, H);
   ctx.imageSmoothingEnabled = prev;
 }
 

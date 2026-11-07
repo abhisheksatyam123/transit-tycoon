@@ -174,9 +174,9 @@ export class App {
    * @param {string} data
    * @returns {boolean} ok
    */
-  loadFromString(data) {
+  async loadFromString(data) {
     try {
-      const game = this.GameClass.deserialize(data);
+      const game = await this.GameClass.deserializeAsync(data);
       // a saved scenario-editor map opens in play mode: a fresh company on its start year
       const fromEditor = !!game.state.editor;
       if (fromEditor) game.playScenario();

@@ -4,6 +4,7 @@
  * runs for N years printing monthly stats, then reports diagnostics and a save/load determinism check.
  * Usage: bun tools/simulate-city.js [--seed N] [--years Y] [--json path]
  */
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { writeFileSync } from 'fs';
 import { Game } from '../js/simulation/game.js';

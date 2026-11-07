@@ -5,6 +5,7 @@
  * adjacent to a station/depot tile), long tail (>3 tiles walked before a junction), short stub (<=3).
  * Usage: bun tools/moscow/analyze_railstubs.js [snapshotPath]  (default: fresh build)
  */
+import '../../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Game } from '../../js/simulation/game.js';

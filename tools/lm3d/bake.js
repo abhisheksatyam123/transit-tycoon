@@ -5,6 +5,7 @@
  * (z = 1, 2, 4) and js/config/landmarks3d.js (footprint tiles, front tile, sprite placement per level).
  * World-screen placement: (wx, wy) = zoom-1 world px of the image's top-left (tile (0,0) centre = origin, height 0).
  */
+import '../../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { loadBuildings, loadGround, loadStreets, toM, inRing } from './osm.js';
 import { partFaces, centroid, ringArea } from './roofs.js';

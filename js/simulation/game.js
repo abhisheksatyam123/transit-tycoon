@@ -39,6 +39,7 @@ import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
 import { listModels, stationsNear, tileInfo } from './queries.js';
 import { parseState, serializeState } from './save.js';
+import { moscowLoaded, loadMoscowDataFor } from './scenarios/moscowRegistry.js';
 import { buildScenario } from './scenarios/index.js';
 import { createTraffic, trafficCars, trafficStats, trafficLoad } from './traffic.js';
 import { initGoals, goalSnapshot } from './goals.js';
@@ -174,7 +175,15 @@ export class Game {
 
   /** @param {string|object} json */
   static deserialize(json) {
-    return new Game(parseState(json));
+    const state = parseState(json);
+    if (state.scenario === 'moscow' && !moscowLoaded()) throw new Error('Moscow data not loaded: await loadMoscowData() before loading a Moscow save');
+    return new Game(state);
+  }
+
+  /** Async load: fetches the Moscow data chunk first when the save needs it (browser), then deserializes. */
+  static async deserializeAsync(json) {
+    await loadMoscowDataFor(json);
+    return Game.deserialize(json);
   }
 
   /** @returns {string} */

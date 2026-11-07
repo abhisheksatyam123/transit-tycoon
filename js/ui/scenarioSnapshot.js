@@ -6,6 +6,7 @@
  */
 import { Game } from '../simulation/game.js';
 import { MAP_DEFAULTS } from '../simulation/constants.js';
+import { loadMoscowData, loadMoscowDataFor } from '../simulation/scenarios/moscowRegistry.js';
 
 export const SNAPSHOT_PATH = 'assets/scenarios/moscow-day0.json';
 export const SNAPSHOT_META_PATH = 'assets/scenarios/moscow-day0.meta.json';
@@ -37,6 +38,7 @@ export function isSnapshotRequest(opts) {
  * @returns {Promise<any>}
  */
 export async function createGameFast(opts, GameClass = Game) {
+  if (opts && opts.scenario === 'moscow') await loadMoscowData();
   if (isSnapshotRequest(opts)) {
     try {
       const res = await fetch(SNAPSHOT_PATH, { cache: 'no-cache' });

@@ -75,15 +75,15 @@ export function openLoad(app) {
       p.pause();
       for (const slot of ['autosave', ...SLOTS]) {
         const meta = slotMeta(slot);
-        const b = el('button.btn', { type: 'button', text: slot === 'autosave' ? 'Autosave' : `Slot ${slot}`, disabled: !meta, onclick: () => {
+        const b = el('button.btn', { type: 'button', text: slot === 'autosave' ? 'Autosave' : `Slot ${slot}`, disabled: !meta, onclick: async () => {
           const d = loadSlotData(slot);
-          if (d && app.loadFromString(d)) win.close();
+          if (d && await app.loadFromString(d)) win.close();
         } });
         body.appendChild(el('div.slot-row', null, b, el('span.muted.small', { text: describe(slot) })));
       }
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Import JSON file…', onclick: async () => {
         const text = await importFromFile();
-        if (text && app.loadFromString(text)) win.close();
+        if (text && await app.loadFromString(text)) win.close();
       } })));
     },
   });

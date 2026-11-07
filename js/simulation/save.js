@@ -3,7 +3,7 @@
  */
 import { SAVE_VERSION } from './constants.js';
 import { createTraffic } from './traffic.js';
-import { LM3D } from '../config/landmarks3d.js';
+import { LM3D, moscowLoaded } from './scenarios/moscowRegistry.js';
 import { ensureGoals } from './goals.js';
 
 /**
@@ -341,6 +341,7 @@ function migrate(state) {
   state.company.negativeMonths ??= 0;
   const n = state.map.width * state.map.height;
   if (state.scenario === 'moscow' && !Array.isArray(state.map.lm3dOverlays)) { // draw Moscow monuments added after this save was written
+    if (!moscowLoaded()) throw new Error('Moscow data not loaded: await loadMoscowData() before loading this save');
     state.map.lm3dOverlays = Object.values(LM3D)
       .filter((e) => !e.tiles?.length && Array.isArray(e.front) && Number.isInteger(e.front[0]) && Number.isInteger(e.front[1])
         && e.front[0] >= 0 && e.front[1] >= 0 && e.front[0] < state.map.width && e.front[1] < state.map.height)

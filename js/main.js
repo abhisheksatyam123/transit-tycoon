@@ -57,7 +57,7 @@ async function initialGame() {
   const data = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? null : loadSlotData('autosave');
   if (data) {
     try {
-      return { game: Game.deserialize(data), restored: true, scenario: false };
+      return { game: await Game.deserializeAsync(data), restored: true, scenario: false };
     } catch (err) {
       console.warn('Autosave could not be loaded; starting a new game', err);
     }

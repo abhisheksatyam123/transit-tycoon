@@ -1,3 +1,4 @@
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { test, expect, describe } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';

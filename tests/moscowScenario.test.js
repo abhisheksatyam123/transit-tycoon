@@ -1,3 +1,4 @@
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { test, expect, describe } from 'bun:test';
 import { tl } from '../js/simulation/scenarios/moscowScale.js';
 import { createHash } from 'crypto';

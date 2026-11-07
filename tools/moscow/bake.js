@@ -4,6 +4,7 @@
  * Usage: bun tools/moscow/bake.js [rawDir] [outFile]
  * Contract: scratchpad/moscow-contract.md. Missing layers are skipped with a warning.
  */
+import '../../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

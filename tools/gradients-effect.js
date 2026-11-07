@@ -3,6 +3,7 @@
  * T20 report: income with settings.gradients OFF vs ON on the same world (Moscow scenario by default).
  * Usage: bun tools/gradients-effect.js [--scenario moscow|none] [--seed N] [--months M]
  */
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { Game } from '../js/simulation/game.js';
 import { setSetting } from '../js/simulation/settings.js';
 

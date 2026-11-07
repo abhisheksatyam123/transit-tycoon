@@ -255,8 +255,15 @@ export class Renderer {
     const game = this.game;
     const last = b.length - 1;
     const tiles = game.state.map.tiles, W = game.state.map.width;
+    // visible tile range plus a margin (tail wagons trail their head tile)
+    const vr = this.camera.visibleTileRange();
+    const M = 24; // long trains: tail wagons trail the head tile by many tiles
+    const cull = { x0: vr.x0 - M, x1: vr.x1 + M, y0: vr.y0 - M, y1: vr.y1 + M };
     for (const v of game.state.vehicles) {
       if (v.state === 'depot') continue;
+      // PF2: a ground vehicle far outside the view cannot be drawn or picked; skip its segment work.
+      // Aircraft are never culled (pruneAir and their own pass need them).
+      if (cull && v.kind !== 'aircraft' && (v.tx < cull.x0 || v.tx > cull.x1 || v.ty < cull.y0 || v.ty > cull.y1)) continue;
       let segs;
       try { segs = game.getVehicleSegments(v); } catch { continue; }
       if (!segs) continue;

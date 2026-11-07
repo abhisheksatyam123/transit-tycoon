@@ -61,9 +61,9 @@ export function openTitleMenu(app, opts = {}) {
 
   const rows = [];
   if (hadAutosave) {
-    rows.push(btn('Continue', 'Resume your autosaved game', opts.loaded ? then(() => {}) : then(() => {
+    rows.push(btn('Continue', 'Resume your autosaved game', opts.loaded ? then(() => {}) : then(async () => {
       const d = loadSlotData('autosave');
-      if (!(d && app.loadFromString(d))) app.toast('Autosave could not be loaded', 'error');
+      if (!(d && await app.loadFromString(d))) app.toast('Autosave could not be loaded', 'error');
     }), ' primary'));
   }
   rows.push(btn('New game', 'Choose seed, map size and towns', then(() => openNewGame(app)), hadAutosave ? '' : ' primary'));

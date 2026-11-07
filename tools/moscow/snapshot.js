@@ -6,6 +6,7 @@
  *   bun run snapshot:moscow
  * tests/moscowSnapshot.test.js fails ("stale snapshot") when the file no longer matches a fresh build.
  */
+import '../../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { Game } from '../../js/simulation/game.js';
 import { SNAPSHOT_PATH, SNAPSHOT_META_PATH, SNAPSHOT_REQUEST } from '../../js/ui/scenarioSnapshot.js';
 import { createHash } from 'crypto';

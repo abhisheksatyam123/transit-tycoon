@@ -95,9 +95,18 @@ export class Minimap {
     if (now - this.lastBase > 1000) {
       this.rebuildBase();
       this.lastBase = now;
+      this._key = null; // base terrain changed: repaint
     }
     const { ctx, canvas } = this;
     const { s, ox, oy } = this.layout();
+    // PF2: skip the repaint when everything it shows is unchanged (paused sim, still camera). The key
+    // covers the sim tick, camera, canvas size and the overlay flags; the base is rebuilt above.
+    const R = this.renderer, cam = R.camera, st = R.game.state;
+    const key = [st.tick, cam.x, cam.y, cam.zoom, cam.viewW, cam.viewH, canvas.width, canvas.height,
+      R.showMetro ? 1 : 0, R.showLinks ? 1 : 0, R.linkCargos, this.base.width].join('|');
+    // the key misses edits made while paused (tick unchanged): repaint at least every 250 ms
+    if (key === this._key && st === this._state && now - this._paintT < 250) return;
+    this._key = key; this._state = st; this._paintT = now;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;

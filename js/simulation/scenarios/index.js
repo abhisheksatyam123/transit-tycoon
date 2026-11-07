@@ -1,8 +1,7 @@
 /**
  * Scenario registry: list of selectable worlds and the builder that prepares each one.
  */
-import { MOSCOW } from '../../config/maps/moscow.js';
-import { buildMoscow } from './moscow.js';
+import { MOSCOW_DATA } from './moscowRegistry.js';
 import { initGoals } from '../goals.js';
 
 /** Selectable scenarios (ids are stored in state.scenario). */
@@ -21,10 +20,11 @@ export const SCENARIO_IDS = SCENARIOS.map((s) => s.id);
  * @param {object} [map] override map object (tests); defaults to the baked MOSCOW
  * @returns {object} build report (see buildMoscow)
  */
-export function buildScenario(id, game, map = MOSCOW) {
+export function buildScenario(id, game, map = MOSCOW_DATA.map) {
   if (id !== 'moscow') throw new Error(`Unknown scenario ${id}`);
+  if (!MOSCOW_DATA.build) throw new Error('Moscow data not loaded: await loadMoscowData() (or import scenarios/moscowData.js)');
   if (!map) throw new Error('Moscow map not baked yet: run bun tools/moscow/bake.js');
-  const report = buildMoscow(game, map);
+  const report = MOSCOW_DATA.build(game, map);
   initGoals(game.state); // after prebuilt vehicles: their ids are the goal baseline
   return report;
 }

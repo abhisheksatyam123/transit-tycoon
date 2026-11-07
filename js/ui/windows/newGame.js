@@ -170,9 +170,9 @@ export function openNewGame(app) {
       const row = el('div.btn-row', null, start);
       const meta = slotMeta('autosave');
       if (meta) {
-        row.appendChild(el('button.btn', { type: 'button', text: `Continue (${date(meta.date)}, ${money(meta.money)})`, onclick: () => {
+        row.appendChild(el('button.btn', { type: 'button', text: `Continue (${date(meta.date)}, ${money(meta.money)})`, onclick: async () => {
           const d = loadSlotData('autosave');
-          if (d && app.loadFromString(d)) win.close();
+          if (d && await app.loadFromString(d)) win.close();
         } }));
       }
       body.appendChild(row);

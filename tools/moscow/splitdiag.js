@@ -5,6 +5,7 @@
  * Lists each split town (component sizes + tile coords) and, per town, the road components of
  * houses vs. destinations (other town / industry) to show where trips cannot route.
  */
+import '../../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { Game } from '../../js/simulation/game.js';
 import { labelComponents, labelComponentsAll } from '../../js/simulation/diagIssue.js';
 import { TOWN_CORE_RADIUS } from '../../js/simulation/diagChecksMap.js';

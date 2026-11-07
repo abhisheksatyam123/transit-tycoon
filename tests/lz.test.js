@@ -1,3 +1,4 @@
+import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data (Node: no dynamic import)
 import { test, expect } from 'bun:test';
 import { compress, decompress } from '../js/ui/lz.js';
 import { Game } from '../js/simulation/game.js';
