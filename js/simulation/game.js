@@ -24,6 +24,7 @@ import { getVehicleSegments } from './vehicles.js';
 import { buildLine, demolish } from './cmdTrack.js';
 import { convertRail } from './cmdElectrify.js';
 import { buildSignal, removeSignal } from './signals.js';
+import { buildSignalRun } from './signalRun.js';
 import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { toggleOneWay } from './cmdOneWay.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
@@ -241,6 +242,8 @@ export class Game {
   convertRail(x0, y0, x1, y1, opts) { return convertRail(this.ctx, x0, y0, x1, y1, opts || {}); }
   /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
+  /** Drag signals along a run of tiles (signalRun.js): build every opts.spacing tiles, or opts.remove all. */
+  buildSignalRun(tiles, opts) { return buildSignalRun(this.ctx, tiles, opts); }
   /** One-way road toggle on a straight road tile (T42): two-way -> +axis -> -axis -> two-way. */
   toggleOneWay(x, y, opts) { return toggleOneWay(this.ctx, x, y, opts); }
   /** Cycle an existing signal's kind: block -> oneway -> path -> block (T3c). */

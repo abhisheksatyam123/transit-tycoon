@@ -22,7 +22,7 @@ import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
-  'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'buildSignal', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
+  'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
   'buildCanal', 'buildLock', 'buyVehicle', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot',
   'sellVehicle', 'reverseVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
