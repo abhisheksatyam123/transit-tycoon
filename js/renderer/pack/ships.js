@@ -52,7 +52,7 @@ export function drawPackShipSegment(ctx, seg, sx, sy) {
   const info = seg._info || {};
   const dir = seg.ang !== undefined ? dirFromAng(seg.ang) : dirFromBit(seg.dir);
   // same precedence as pack/vehicles.js: own livery > group/type colour (seg._gc) > player colour > palette
-  const colour = vehicleColour(info.livery || seg._gc || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
+  const colour = vehicleColour((info.ownerId == null && info.colour) || info.livery || seg._gc || (info.ownerId == null ? playerVehicleColour() : null) || undefined, info.id | 0);
   return drawPackShip(ctx, info.modelId || '', dir, sx, sy, colour);
 }
 

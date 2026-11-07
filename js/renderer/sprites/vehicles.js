@@ -57,7 +57,8 @@ function drawPart(ctx, part, dir, cargo, fill, info, gc) {
   const metro = isMetro(info);
   // player vehicles without a livery take the chosen company colour (palette.js); rivals always carry one
   // group livery (gc, from the renderer's group map) beats the company colour; rivals always carry their own
-  const liv = info && info.livery && info.livery[0] === '#' ? info.livery : gc || (info && info.ownerId == null ? playerVehicleColour() || undefined : undefined);
+  // per-vehicle paint (setVehicleColour, player only) beats even a metro line livery
+  const liv = info && info.colour && info.ownerId == null ? info.colour : info && info.livery && info.livery[0] === '#' ? info.livery : gc || (info && info.ownerId == null ? playerVehicleColour() || undefined : undefined);
   if (part === 'loco') {
     if (metro) drawMetroCar(ctx, axis, s, liv, true);
     else drawEngine(ctx, axis, s, ENGINE_FAMILY[mid] || 'diesel', hv % 2);

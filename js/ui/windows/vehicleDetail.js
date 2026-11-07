@@ -21,6 +21,7 @@ function hasTimetableOrders(v) {
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
 import { refitCargos } from '../../simulation/cmdVehicle.js';
 import { groupList } from '../../simulation/cmdGroup.js';
+import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { vehicleSpecs, consistRows } from '../../simulation/vehicleSpec.js';
 import { monthlyRunningCost } from '../../simulation/loco/vehicle.js';
 import { vehicleModel } from '../../simulation/vehicles.js';
@@ -129,10 +130,28 @@ export function openVehicleDetail(app, id) {
       });
       refitRow.append(el('span.muted.small', { text: 'Refit' }), refitSel, refitBtn, refitNote);
       body.appendChild(refitRow);
+      // per-vehicle paint (OpenLoco kPaintBrush): the 16 company colours; 'Default' clears (group/type/company colour applies).
+      // Trains: the whole consist (one vehicle object). Shown for player vehicles only (rivals return early above).
+      const paintRow = el('div.paint-row', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center', margin: '2px 0' } });
+      let paintSig = null;
+      const paintUpdate = (v) => {
+        const cur = v.colour || '';
+        if (paintSig === cur) return;
+        paintSig = cur;
+        const setPaint = (hex) => { app.exec(g().setVehicleColour(id, hex), { quiet: true, sound: 'click' }); app.wm.updateAll(); };
+        paintRow.replaceChildren(el('span.muted.small', { text: 'Paint' }), ...COMPANY_COLOURS.map((c) => el('button.colour-swatch', { type: 'button',
+          title: c.name, 'aria-label': 'Paint ' + c.name, 'aria-pressed': String(c.hex === cur),
+          style: { background: c.hex, width: '16px', height: '16px', margin: '1px', border: c.hex === cur ? '2px solid #fff' : '1px solid #0008', outline: c.hex === cur ? '2px solid #000' : 'none' },
+          onclick: () => setPaint(c.hex) })), el('button.btn.sm', { type: 'button', text: 'Default', title: 'Clear the vehicle paint (group, type or company colour applies)', disabled: !cur, onclick: () => setPaint(null) }));
+      };
+      const v1 = app.findVehicle(id);
+      if (v1) paintUpdate(v1);
+      body.appendChild(paintRow);
       return () => {
         const v = app.findVehicle(id);
         if (!v) { win.close(); return; }
         win.setTitle(v.name);
+        paintUpdate(v);
         set['State'](v.ubHold ? 'Waiting to unbunch' : (STATE_LABEL[v.state] || v.state));
         set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
         const co = currentOrder(v);

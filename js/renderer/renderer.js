@@ -284,8 +284,9 @@ export class Renderer {
         s._vid = v.id;
         s._info = v;
         // group livery: only player vehicles in a coloured group; one Map lookup, and only for grouped vehicles
-        // precedence: group colour > type colour > company colour (rivals always carry their own livery, not here)
-        s._gc = tmap || gmap ? vehicleColourOverride(v, gmap, tmap) : undefined;
+        // precedence: vehicle paint > group colour > type colour > company colour (rivals always carry their own livery, not here)
+        // per-vehicle paint (cmdGroup setVehicleColour) wins over all: one property check, then the group/type lookup
+        s._gc = (v.colour && v.ownerId == null) ? v.colour : (tmap || gmap ? vehicleColourOverride(v, gmap, tmap) : undefined);
         if (s.part === 'aircraft') {
           s._model = v.modelId;
           s._alt = s.alt !== undefined ? s.alt : (v.alt || 0);
