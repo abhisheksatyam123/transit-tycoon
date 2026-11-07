@@ -130,6 +130,7 @@ export function generateTerrain(map, rng, opts = {}) {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) values[y * width + x] = elev(x, y);
   }
+  const cliffsOn = opts.cliffs === 'on';
   const sorted = Array.from(values).sort((a, b) => a - b);
   const noSea = waterRatio <= 0;
   const sea = noSea ? sorted[0] : sorted[Math.floor(sorted.length * waterRatio)]; // no sea: heights span from the lowest point
@@ -141,7 +142,7 @@ export function generateTerrain(map, rng, opts = {}) {
     if (!noSea && v < sea) { t.terrain = 'water'; t.height = 0; continue; }
     let n = (v - sea) / Math.max(1e-9, top - sea);
     if (mountainous) n = Math.pow(n, 0.6); // more peaks, full range
-    t.height = Math.min(7, Math.floor((n * scale) * 8));
+    t.height = Math.min(7, Math.floor((n * scale * (cliffsOn ? CLIFF_RELIEF : 1)) * 8));
   }
   const cliffs = opts.cliffs === 'on';
   const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
@@ -291,6 +292,8 @@ function markMountainStyle(map) {
   }
 }
 
+/** Cliffs option: relief multiplier so the elevation has steep steps (cliffs off = 1, historic). */
+export const CLIFF_RELIEF = 2.8;
 /** Cliffs option: steepest neighbour step allowed (levels); off = 1 (historic). */
 export const CLIFF_SLOPE_CAP = 4;
 /** A neighbour step of at least this many levels is a cliff (OpenLoco kCliffTerrainHeightDiff = 4, rescaled to 8-px levels). */

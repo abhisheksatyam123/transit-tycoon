@@ -59,3 +59,12 @@ describe('remembered sort (UI only)', () => {
     expect(loadBuySort()).toEqual({ key: 'default', dir: 1 });
   });
 });
+
+describe('real vehicle models', () => {
+  test('Sort by Cost desc reorders the engines (Comet before Puffer); asc keeps them', async () => {
+    const { VEHICLE_MODELS } = await import('../js/config/vehicles.js');
+    const engines = VEHICLE_MODELS.filter((m) => m.kind === 'engine' && ['eng_puffer', 'eng_comet'].includes(m.id));
+    expect(ids(sortModels(engines, 'cost', 1))).toEqual(['eng_puffer', 'eng_comet']);
+    expect(ids(sortModels(engines, 'cost', -1))).toEqual(['eng_comet', 'eng_puffer']);
+  });
+});
