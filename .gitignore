@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 *.bak
 tools/lm3d/.blocked.json
+scratchpad/
