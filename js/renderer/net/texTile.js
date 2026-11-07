@@ -100,6 +100,24 @@ function procSprite(kind, paved, hwy) {
 
 const isGreen = (r, g, b) => g > r + 12 && g > b + 8;
 
+/** Per-segment data of an edge (built once; edges are immutable): x0,y0,dx,dy,ll,minx,maxx,miny,maxy. */
+const segCache = new WeakMap();
+function segData(e) {
+  let G = segCache.get(e);
+  if (G) return G;
+  const P = e.pts, n = P.length / 2 - 1;
+  G = new Float64Array(Math.max(0, n) * 9);
+  for (let k = 0; k < n; k++) {
+    const x0 = P[2 * k], y0 = P[2 * k + 1], x1 = P[2 * k + 2], y1 = P[2 * k + 3];
+    const dx = x1 - x0, dy = y1 - y0, o = 9 * k;
+    G[o] = x0; G[o + 1] = y0; G[o + 2] = dx; G[o + 3] = dy; G[o + 4] = dx * dx + dy * dy || 1e-9;
+    G[o + 5] = Math.min(x0, x1); G[o + 6] = Math.max(x0, x1);
+    G[o + 7] = Math.min(y0, y1); G[o + 8] = Math.max(y0, y1);
+  }
+  segCache.set(e, G);
+  return G;
+}
+
 /**
  * Fill `out` (RGBA, W x H) with the ribbons of one kind touching tile i. Returns true if any pixel was set.
  */
@@ -139,10 +157,15 @@ function paint(out, W, H, map, kind, x, y, ogfx) {
       for (let q = 0; q < nb; q++) {
         if (u < bx[4 * q] || u > bx[4 * q + 1] || v < bx[4 * q + 2] || v > bx[4 * q + 3]) continue;
         const sp = list[q];
-        const e = net.edges[sp.e], P = e.pts, L = e.len;
+        const e = net.edges[sp.e], L = e.len, G = segData(e);
         for (let k = sp.i0; k < sp.i1; k++) {
-          const x0 = P[2 * k], y0 = P[2 * k + 1], dx = P[2 * k + 2] - x0, dy = P[2 * k + 3] - y0;
-          const ll = dx * dx + dy * dy || 1e-9;
+          const o = 9 * k;
+          // skip a segment whose box is clearly farther than the current best: its nearest point cannot
+          // update best (the margin keeps this exact against rounding), so the result is unchanged
+          const gx = u < G[o + 5] ? G[o + 5] - u : u > G[o + 6] ? u - G[o + 6] : 0;
+          const gy = v < G[o + 7] ? G[o + 7] - v : v > G[o + 8] ? v - G[o + 8] : 0;
+          if (gx * gx + gy * gy > best * (1 + 1e-9) + 1e-12) continue;
+          const x0 = G[o], y0 = G[o + 1], dx = G[o + 2], dy = G[o + 3], ll = G[o + 4];
           let s = ((u - x0) * dx + (v - y0) * dy) / ll;
           s = s < 0 ? 0 : s > 1 ? 1 : s;
           const qx = x0 + dx * s - u, qy = y0 + dy * s - v;
