@@ -30,6 +30,8 @@ const TRAM_SLOPE = { NE: 11, SE: 12, SW: 13, NW: 14 };
 /** Straight tram axis on a diagonal slope: X (our N|S, mask 5) on NE/SW, Y (E|W, 10) on SE/NW. */
 const SLOPE_AXIS = { NE: 5, SW: 5, SE: 10, NW: 10 };
 
+/** River bank edge art (river_bank.*, OpenTTD DrawWaterEdges): gated until the water-sliver fix is verified. */
+export const RIVER_BANKS = true;
 /** Extra pack loaded and drawing on. */
 export function extraActive() { return !!(packState.extra && packState.pack && packState.enabled); }
 /** Extra sprite present. */
@@ -125,3 +127,32 @@ export function drawTramPack(ctx, tile, sx, sy, c) {
   const key = 'tram_overlay.' + TRAM_SLOPE[slope];
   return has(key) && blitExtra(ctx, key, sx, sy, c);
 }
+
+/**
+ * Flat river tile bank edges (OpenTTD DrawWaterEdges, RiverEdge flat group, offsets 0..11) over the procedural water.
+ * Returns false when banks are off or the pack lacks them (caller keeps the old shore foam).
+ */
+export function drawRiverBanks(ctx, map, x, y, sx, sy, c) {
+  if (!RIVER_BANKS || !extraActive() || !has('river_bank.0')) return false;
+  drawWaterEdges(ctx, map, x, y, sx, sy, c, 0);
+  return true;
+}
+
+/** Bank edges as in drawWaterEdges: side pieces 0..3 (neighbour land N,E,S,W), corners 4..11 (see DrawWaterEdges). */
+function drawWaterEdges(ctx, map, x, y, sx, sy, c, base) {
+  const W = map.width, H = map.height, t = map.tiles;
+  const watered = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < H && (!!t[ny * W + nx].canal || t[ny * W + nx].terrain === 'water');
+  const n = watered(x, y - 1), e = watered(x + 1, y), s = watered(x, y + 1), w = watered(x - 1, y);
+  const put = (i) => { if (has('river_bank.' + (base + i))) blitExtra(ctx, 'river_bank.' + (base + i), sx, sy, c); };
+  [!n, !e, !s, !w].forEach((land, i) => { if (land) put(i); });
+  const pick = [
+    (!n && !e) ? 4 : (n && e && !watered(x + 1, y - 1) ? 8 : -1),
+    (!e && !s) ? 5 : (e && s && !watered(x + 1, y + 1) ? 9 : -1),
+    (!s && !w) ? 6 : (s && w && !watered(x - 1, y + 1) ? 10 : -1),
+    (!w && !n) ? 7 : (w && n && !watered(x - 1, y - 1) ? 11 : -1),
+  ];
+  for (const k of pick) if (k >= 0) put(k);
+}
+
+/** Flat river water is inset by this many px so the bank pieces own the tile edge (no blue sliver). */
+export const RIVER_INSET = 2;

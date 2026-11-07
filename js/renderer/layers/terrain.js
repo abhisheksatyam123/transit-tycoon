@@ -12,7 +12,38 @@ import { drawOgfxGround } from '../pack/ground.js';
 import { arcticActive, drawArcticSnow, drawArcticRock } from '../pack/arctic.js';
 import { tropicActive, drawTropicDesert } from '../pack/tropic.js';
 import { tropicZoneAt } from '../../simulation/climate.js';
-import { drawCanalPack, drawRiverPack, extraActive } from '../pack/extra.js';
+import { drawCanalPack, drawRiverPack, drawRiverBanks, extraActive, RIVER_BANKS, RIVER_INSET } from '../pack/extra.js';
+
+/** flat corner heights (river/shore helpers) */
+const flat = (c) => c[0] === c[1] && c[1] === c[2] && c[2] === c[3];
+
+/** True when a river tile borders land on any side (only then is its water clipped). */
+function riverHasLand(map, x, y) {
+  const W = map.width, H = map.height, t = map.tiles;
+  const water = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < H && (!!t[ny * W + nx].canal || t[ny * W + nx].terrain === 'water');
+  return !water(x, y - 1) || !water(x + 1, y) || !water(x, y + 1) || !water(x - 1, y);
+}
+
+/**
+ * Clip path of a flat river tile (centre cx, cy): the diamond with each land-bordering edge pushed inward by
+ * RIVER_INSET px. Corner N sits between edges N-E (neighbour N) and W-N (neighbour W), and so on.
+ */
+function riverClipPath(ctx, map, x, y, cx, cy) {
+  const W = map.width, H = map.height, t = map.tiles;
+  const water = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < H && (!!t[ny * W + nx].canal || t[ny * W + nx].terrain === 'water');
+  const land = [!water(x, y - 1), !water(x + 1, y), !water(x, y + 1), !water(x - 1, y)];
+  // inward unit normals of edges: 0 N-E, 1 E-S, 2 S-W, 3 W-N
+  const nrm = [[-0.894, 0.447], [-0.894, -0.447], [0.894, -0.447], [0.894, 0.447]];
+  const d = RIVER_INSET;
+  const corner = (px, py, e1, e2) => {
+    let ox = 0, oy = 0;
+    if (land[e1]) { ox += nrm[e1][0] * d; oy += nrm[e1][1] * d; }
+    if (land[e2]) { ox += nrm[e2][0] * d; oy += nrm[e2][1] * d; }
+    return [px + ox, py + oy];
+  };
+  const N = corner(cx, cy - 16, 0, 3), E = corner(cx + 32, cy, 1, 0), S = corner(cx, cy + 16, 2, 1), Wp = corner(cx - 32, cy, 3, 2);
+  ctx.moveTo(N[0], N[1]); ctx.lineTo(E[0], E[1]); ctx.lineTo(S[0], S[1]); ctx.lineTo(Wp[0], Wp[1]); ctx.closePath();
+}
 
 /** Fast array memo of sprites (avoids string-key allocation per tile per frame). */
 const KINDS = ['grass', 'forest', 'desert', 'rock', 'snow', 'water'];
@@ -83,8 +114,23 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
   if (k === 5) {
     const f = ((frame >> 3) + (hash & 7)) % WATER_FRAMES;
     const i = f * TERRAIN_VARIANTS + (hash % TERRAIN_VARIANTS);
-    drawSloped(ctx, waters[i] || (waters[i] = waterTop(f, hash % TERRAIN_VARIANTS)), sx, sy, c);
-    drawShore(ctx, map, x, y, sx, sy, c);
+    const water = waters[i] || (waters[i] = waterTop(f, hash % TERRAIN_VARIANTS));
+    if (tile.river && !tile.canal && RIVER_BANKS && extraActive() && flat(c)) {
+      // flat river: the water diamond is clipped only along its LAND edges (inset RIVER_INSET px), so the bank
+      // pieces own the outer edge and no water sliver shows; water-water edges stay full (no seam)
+      if (riverHasLand(map, x, y)) {
+        ctx.save();
+        ctx.beginPath();
+        riverClipPath(ctx, map, x, y, sx, sy - S * c[0]);
+        ctx.clip();
+        drawSloped(ctx, water, sx, sy, c);
+        ctx.restore();
+      } else drawSloped(ctx, water, sx, sy, c); // all-water neighbours: no clip, so no anti-aliased seam
+      if (!drawRiverBanks(ctx, map, x, y, sx, sy, c)) drawShore(ctx, map, x, y, sx, sy, c);
+    } else {
+      drawSloped(ctx, water, sx, sy, c);
+      drawShore(ctx, map, x, y, sx, sy, c);
+    }
     if (tile.canal) drawCanal(ctx, map, x, y, sx, sy, c, tile.lock);
   } else {
     drawSloped(ctx, top(k, hash % TERRAIN_VARIANTS), sx, sy, c);

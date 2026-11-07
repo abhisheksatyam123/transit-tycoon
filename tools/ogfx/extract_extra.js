@@ -109,6 +109,31 @@ function add(set, file, list) {
   }
 }
 
+// river bank edges (set_riverbank_temperate): 5 groups of 12 = DrawWaterEdges offsets for flat, SE, NE, SW, NW
+// (DrawRiverWater edges_offset 0/12/24/36/48). Per group: 4 bank tiles (N, E, S, W neighbour edges, file riverbank_temperate_{ne,se,sw,nw}),
+// then 4 corner pieces (offset 4..7) and 4 small corners (offset 8..11) on waterfeatures.png.
+{
+  const body = block(text('sprites/extra/extra-plus-rivers.pnml'), /spriteset\(set_riverbank_temperate,/);
+  const r = rects(body);
+  if (r.length !== 40) throw new Error(`river bank rects ${r.length}`);
+  const bank = 'sprites/png/terrain/waterfeatures/riverbank_temperate_';
+  // group rect per tmpl_level_ground_file / tmpl_slope_to_{se,ne,sw,nw} (same rect on each of the four files)
+  const groupRect = [
+    { x: 1, y: 1, w: 64, h: 31, xo: -31, yo: 0 },
+    { x: 479, y: 1, w: 64, h: 23, xo: -31, yo: 0 },
+    { x: 959, y: 1, w: 64, h: 39, xo: -31, yo: -8 },
+    { x: 241, y: 1, w: 64, h: 23, xo: -31, yo: 0 },
+    { x: 719, y: 1, w: 64, h: 39, xo: -31, yo: -8 },
+  ];
+  ['ne', 'se', 'sw', 'nw'].forEach((n, i) => {
+    // edges use the group rect on the file
+    groupRect.forEach((g, gi) => pieces.push({ key: `river_bank.${gi * 12 + i}`, file: bank + n + '.gimp.png', ...g }));
+  });
+  groupRect.forEach((_, gi) => {
+    for (let k = 0; k < 8; k++) pieces.push({ key: `river_bank.${gi * 12 + 4 + k}`, file: 'sprites/png/terrain/waterfeatures.png', ...r[gi * 8 + k] });
+  });
+}
+
 // ---- pack ----
 const srcCache = new Map();
 function loadSrc(file) {
