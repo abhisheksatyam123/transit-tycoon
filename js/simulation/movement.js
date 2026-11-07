@@ -339,11 +339,17 @@ function move(ctx, v) {
       if (nt.bridgeType !== undefined) { const bs = bridgeType(nt.bridgeType); if (bs) { const c = bs.speed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; } }
     }
     if (v.state === 'broken') { const c = v.maxSpeed / 4; if (c < maxTiles) maxTiles = c; } // OL Vehicle1.cpp:190: maxSpeed/4 while broken
-    if (v.kind === 'train' && getSetting(state, 'trainAcceleration') === 'realistic') {
-      // OTTD curve limit (train_cmd.cpp GetCurveSpeedLimit) caps the target; acceleration is the OTTD model
+    if (v.kind === 'train') {
+      // Curve speed cap (OpenLoco Vehicle1.cpp:180-188 / OTTD GetCurveSpeedLimit) in both models.
+      // Realistic mode uses the OTTD tractive effort / drag / slope acceleration model;
+      // original (default) mode caps the target fed into landSpeedStep.
       const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;
       const target = lim < maxTiles ? lim : maxTiles;
-      v.speed = realisticTrainSpeedStep(v, vehicleModel(v), target, grade);
+      if (getSetting(state, 'trainAcceleration') === 'realistic') {
+        v.speed = realisticTrainSpeedStep(v, vehicleModel(v), target, grade);
+      } else {
+        v.speed = landSpeedStep(v, vehicleModel(v), target, grade);
+      }
     } else {
       v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
