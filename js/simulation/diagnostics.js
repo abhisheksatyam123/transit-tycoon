@@ -14,18 +14,27 @@ export const SEVERITIES = ['error', 'warn', 'info'];
  * @returns {{id:string,severity:'error'|'warn'|'info',category:string,message:string,x?:number,y?:number,vehicleId?:number,stationId?:number,townId?:number}[]}
  */
 export function runDiagnostics(game) {
-  const state = game.state;
-  const stats = typeof game.trafficStats === 'function' ? safeStats(game) : null;
+  const out = [];
+  for (const stage of diagStages()) out.push(...stage(game));
+  return out;
+}
+
+/**
+ * The scan as ordered independent stages (each reads game only). runDiagnostics runs them all;
+ * the UI scan runs one stage per idle slice so no single frame pays for the whole scan.
+ * @returns {Array<(game:object)=>object[]>}
+ */
+export function diagStages() {
   return [
-    ...checkInvariants(state),
-    ...checkTrackBits(state),
-    ...checkTownRoads(state),
-    ...checkDeadEnds(state),
-    ...checkVehicles(state),
-    ...checkOrderAcceptance(state),
-    ...checkStations(state),
-    ...checkTraffic(stats),
-    ...checkFinance(state),
+    (g) => checkInvariants(g.state),
+    (g) => checkTrackBits(g.state),
+    (g) => checkTownRoads(g.state),
+    (g) => checkDeadEnds(g.state),
+    (g) => checkVehicles(g.state),
+    (g) => checkOrderAcceptance(g.state),
+    (g) => checkStations(g.state),
+    (g) => checkTraffic(typeof g.trafficStats === 'function' ? safeStats(g) : null),
+    (g) => checkFinance(g.state),
   ];
 }
 

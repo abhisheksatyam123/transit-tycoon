@@ -51,20 +51,44 @@ function packRuns(arr) {
 /** Inverse of packRuns. */
 function unpackRuns(p) {
   const buf = b64ToBytes(p.d), w = p.w, rec = w + 2, out = new Array(p.n);
+  const S = p.s || 1;
   let o = 0;
   for (let q = 0; q < buf.length; q += rec) {
     let v = 0;
     for (let b = w - 1; b >= 0; b--) v = v * 256 + buf[q + b];
     const run = buf[q + w] | (buf[q + w + 1] << 8);
-    for (let r = 0; r < run; r++) out[o++] = v;
+    const val = S === 1 ? v : v / S;
+    for (let r = 0; r < run; r++) out[o++] = val;
   }
   if (o !== p.n) throw new Error('Corrupt packed save array');
   return out;
 }
 
+/**
+ * Fractional arrays (traffic load/jam are rounded to 2-3 decimals): find a power-of-ten scale S so that
+ * every v satisfies Math.round(v*S)/S === v exactly, then pack the integers. Null when no scale fits.
+ */
+function packScaled(arr) {
+  for (const S of [1, 10, 100, 1000, 10000]) {
+    let ok = true;
+    const ints = new Array(arr.length);
+    for (let i = 0; i < arr.length && ok; i++) {
+      const v = arr[i];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) { ok = false; break; }
+      const n = Math.round(v * S);
+      if (n / S !== v || !Number.isSafeInteger(n)) ok = false; else ints[i] = n;
+    }
+    if (ok) {
+      const p = packRuns(ints);
+      if (p) return S === 1 ? p : { ...p, rle: 2, s: S }; // rle 2 = scaled integers (old builds see an unknown tag)
+    }
+  }
+  return null;
+}
+
 /** Packed arrays are objects with `rle: 1`; anything else is a plain (unpacked) array. */
 function isPackedRuns(x) {
-  return !!x && typeof x === 'object' && !Array.isArray(x) && x.rle === 1;
+  return !!x && typeof x === 'object' && !Array.isArray(x) && (x.rle === 1 || x.rle === 2);
 }
 
 /** Car keys in creation order (see traffic.js spawnCars). */
@@ -140,7 +164,7 @@ function unpackCars(col) {
 }
 
 function packTraffic(tr) {
-  const pk = (a) => (Array.isArray(a) ? (packRuns(a) ?? a) : a);
+  const pk = (a) => (Array.isArray(a) ? (packRuns(a) ?? packScaled(a) ?? a) : a);
   const out = { ...tr, load: pk(tr.load), jam: pk(tr.jam), cars: packCars(tr.cars) };
   if (tr.acc) out.acc = { ...tr.acc, samples: pk(tr.acc.samples), blocked: pk(tr.acc.blocked) };
   return out;

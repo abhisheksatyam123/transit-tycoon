@@ -64,6 +64,7 @@ let trailing = null;
 export function touchIssues(game) {
   if (!cache || cache.game !== game) return;
   dirty = true;
+  if (job && job.game === game) job.touched = true;
   if (trailing === null) {
     trailing = setTimeout(() => {
       trailing = null;
@@ -98,13 +99,58 @@ function runScan(game) {
   return cache;
 }
 
-/** Schedule one background rescan on idle time (requestIdleCallback, setTimeout fallback). */
-function scheduleIdleScan(game) {
+/** In-flight incremental idle scan: one diagnostics stage per idle slice (W7f). @type {{game:any, stages:any[], i:number, acc:any[], touched:boolean}|null} */
+let job = null;
+
+/** Queue the next stage on idle time (requestIdleCallback, setTimeout fallback). */
+function queueStep() {
   if (pending !== null) return;
-  const go = () => {
-    pending = null;
-    if (!isFresh(game) && mod && typeof mod.runDiagnostics === 'function') runScan(game);
-  };
+  if (typeof requestIdleCallback === 'function') pending = requestIdleCallback(stepJob, { timeout: 2000 });
+  else pending = setTimeout(stepJob, 0);
+}
+
+/** Run one stage of the idle scan; publish the cache after the last one. */
+function stepJob() {
+  pending = null;
+  const j = job;
+  if (!j) return;
+  if (j.i < j.stages.length) {
+    try { j.acc.push(...j.stages[j.i](j.game)); } catch (err) { job = null; cacheError(j.game, err); return; }
+    j.i++;
+  }
+  if (j.i < j.stages.length) { queueStep(); return; }
+  job = null;
+  if (j.touched) { scheduleIdleScan(j.game); return; } // a command changed the world mid-scan: scan again
+  if (!isFresh(j.game)) publish(j.game, j.acc);
+}
+
+/** Store a failed scan in the cache (same shape as runScan). */
+function cacheError(game, err) {
+  cache = { game, at: Date.now(), month: monthKey(game), issues: null, error: 'Diagnostics failed: ' + (err && err.message ? err.message : String(err)), summary: null, available: true };
+  dirty = false;
+}
+
+/** Store issues as the cache (same shape as runScan). */
+function publish(game, issues) {
+  let summary = null;
+  try {
+    summary = typeof mod.summarizeIssues === 'function' ? mod.summarizeIssues(issues) : countIssues(issues);
+  } catch { summary = countIssues(issues); }
+  cache = { game, at: Date.now(), month: monthKey(game), issues, error: null, summary, available: true };
+  dirty = false;
+}
+
+/** Schedule a background rescan on idle time, split into per-stage slices (never one long task). */
+function scheduleIdleScan(game) {
+  if (job && job.game !== game) job = null; // a different game: drop the stale job
+  if (job) return;
+  if (mod && typeof mod.diagStages === 'function') {
+    job = { game, stages: mod.diagStages(), i: 0, acc: [], touched: false };
+    queueStep();
+    return;
+  }
+  if (pending !== null) return;
+  const go = () => { pending = null; if (!isFresh(game) && mod && typeof mod.runDiagnostics === 'function') runScan(game); };
   if (typeof requestIdleCallback === 'function') pending = requestIdleCallback(go, { timeout: 2000 });
   else pending = setTimeout(go, 0);
 }
