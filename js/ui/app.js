@@ -14,6 +14,7 @@ import { play, playVehicle } from '../audio/sfx.js';
 import { runWithLoading, buildingLabel, scenarioTitle } from './loading.js';
 import { createGameFast } from './scenarioSnapshot.js';
 import { checkBankruptcy } from './bankruptcy.js';
+import { openEnginePreviewDialog, closeEnginePreviewDialog, showPendingEnginePreview } from './enginePreviewDialog.js';
 import { touchIssues } from './diagCache.js';
 import { localizeMoneyText } from './newsMoney.js';
 import { currentCurrency } from './units.js';
@@ -105,6 +106,8 @@ export class App {
       this.toast(`Goal complete: ${g.title}! +${money(g.reward)}`, 'good', false, 6000);
     });
     on('month', () => { this.onMonth(); checkBankruptcy(this); });
+    on('enginePreview', (e) => { if (e && e.modelId) openEnginePreviewDialog(this, e.modelId); });
+    on('enginePreviewClosed', () => closeEnginePreviewDialog());
   }
 
   /** Remove our game event listeners. */
@@ -134,6 +137,7 @@ export class App {
     this.minimap.lastBase = -Infinity;
     window.__game = game;
     this.subscribe();
+    showPendingEnginePreview(this); // a preview offer saved mid-offer is shown again
     this.centerOnInterest();
     // scenario editor maps start paused (time does not run while editing)
     if (game.state && game.state.editor) this.speed = 0;

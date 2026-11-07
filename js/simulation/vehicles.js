@@ -9,6 +9,7 @@ import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicle
 import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
 import { allocId } from './state.js';
 import { defaultServiceFields } from './service.js';
+import { previewBlocks } from './enginePreview.js';
 
 /**
  * Whether a model can be bought in `year` (OpenLoco era rule): introduced (introYear <= year) and not yet
@@ -22,7 +23,8 @@ export function purchasable(model, year) {
  * T29: opt-in models (config EXTRA_VEHICLE_MODELS, optIn) are offered only when a valuables source exists
  * (a bank on the map, or the extraIndustries setting). Default games never see them.
  */
-export function modelAvailable(state, model) {
+export function modelAvailable(state, model, ownerId = null) {
+  if (previewBlocks(state, model, ownerId)) return false; // engine preview (enginePreview setting): exclusive to another company
   if (!model || !model.optIn) return true;
   if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);

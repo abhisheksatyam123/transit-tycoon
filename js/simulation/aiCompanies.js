@@ -395,7 +395,7 @@ function buildRoute(ctx, r) {
   // a stop reused from an earlier route (same town) is already listed
   for (const id of [sa.id, sb.id]) if (!r.stations.includes(id)) r.stations.push(id);
   r.depots.push(depot.id);
-  const models = listModels(state, 'bus').sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
+  const models = listModels(state, 'bus', r.id).sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   const model = models[0];
   if (!model) return false;
   const route = { a: sa.id, b: sb.id, depot: depot.id, towns: [ta.id, tb.id] };
@@ -408,7 +408,7 @@ function buildRoute(ctx, r) {
 function addRouteBus(ctx, r, route) {
   const { state } = ctx;
   const depot = state.depots.find((d) => d.id === route.depot);
-  const models = listModels(state, 'bus').sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
+  const models = listModels(state, 'bus', r.id).sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   if (!depot || !models[0]) return false;
   const b = buyVehicle(ctx, depot.id, { modelId: models[0].id }, { owner: r.id });
   if (!b.ok) return false;

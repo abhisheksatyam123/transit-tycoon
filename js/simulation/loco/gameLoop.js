@@ -15,6 +15,7 @@ import * as VehicleManager from './vehicleManager.js';
 import * as StationManager from './stationManager.js';
 import * as CompanyManager from './companyManager.js';
 import * as AiCompanies from '../aiCompanies.js';
+import * as EnginePreview from '../enginePreview.js';
 import * as MessageManager from './messageManager.js';
 import * as Economy from './economy.js';
 import * as Subsidies from '../subsidies.js';
@@ -46,6 +47,7 @@ export function tickDate(game) {
   if (!updateDayCounter(s)) return false;
   StationManager.updateDaily(game);
   VehicleManager.updateDaily(game);
+  EnginePreview.updateDaily(game); // opt-in enginePreview setting; returns at once when off
   IndustryManager.updateDaily(game);
   MessageManager.updateDaily(game);
 

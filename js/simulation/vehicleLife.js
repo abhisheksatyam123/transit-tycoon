@@ -4,6 +4,7 @@
  */
 import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
 import { notify } from './news.js';
+import { getSetting } from './settings.js';
 
 export { BREAKDOWN_DAYS } from './loco/vehicle.js';
 
@@ -20,6 +21,6 @@ export function vehiclesYearly(ctx, year) {
   // era news (OpenLoco/OpenTTD new-vehicle news): fires once, when the model's intro year starts. Starting a
   // game never fires it (the yearly hook runs on the year change only), so a 1920 start gets no burst.
   for (const m of ALL_VEHICLE_MODELS) {
-    if (m.introYear === year && !m.optIn && m.news !== false) notify(ctx, `New vehicle available: ${m.name} (${m.speed} km/h) — open Autoreplace to upgrade.`, 'good', undefined, undefined, 'newVehicle');
+    if (m.introYear === year && !m.optIn && m.news !== false && !getSetting(ctx.state, 'enginePreview')) notify(ctx, `New vehicle available: ${m.name} (${m.speed} km/h) — open Autoreplace to upgrade.`, 'good', undefined, undefined, 'newVehicle');
   }
 }

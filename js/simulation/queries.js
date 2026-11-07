@@ -19,10 +19,10 @@ const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], 
  * @param {string} kind 'engine'|'train'|'wagon'|'road'|'bus'|'truck'
  * @returns {any[]} model copies with inflated `cost` and `running`
  */
-export function listModels(state, kind) {
+export function listModels(state, kind, ownerId = null) {
   const kinds = KIND_ALIASES[kind] || [kind];
   // copies carrying the inflation-adjusted price / yearly running cost (what buying now would charge)
-  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year) && modelAvailable(state, m))
+  return ALL_VEHICLE_MODELS.filter((m) => kinds.includes(m.kind) && purchasable(m, state.date.year) && modelAvailable(state, m, ownerId))
     .map((m) => ({ ...m, cost: vehiclePrice(state, m), running: runningCost(state, m.running) }));
 }
 

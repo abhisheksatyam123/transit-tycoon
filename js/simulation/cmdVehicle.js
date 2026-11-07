@@ -33,7 +33,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (!depot) return { ok: false, error: 'Unknown depot' };
   if (ownerMismatch(depot, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!companyById(state, opts.owner ?? null)) return { ok: false, error: 'Unknown company' };
-  if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId])) return { ok: false, error: 'Model not yet available' };
+  if (spec && MODEL_BY_ID[spec.modelId] && !modelAvailable(state, MODEL_BY_ID[spec.modelId], opts.owner ?? null)) return { ok: false, error: 'Model not yet available' };
   if (spec && MODEL_BY_ID[spec.modelId] && MODEL_BY_ID[spec.modelId].kind === 'tram' && !depotOnTram(state, depot)) return { ok: false, error: 'Trams need a road depot next to tram track' };
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };

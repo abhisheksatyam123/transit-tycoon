@@ -15,6 +15,7 @@ import { createCompany, borrow, repay } from './economy.js';
 import { isEditor, playScenario } from './scenarioEditor.js';
 import { buildHQ, estimateHQ } from './cmdHQ.js';
 import { acceptTakeover } from './aiCompanies.js';
+import { answerEnginePreview } from './enginePreview.js';
 import { tradeShare } from './shares.js';
 import { buildObject, estimateObject } from './cmdObject.js';
 import { industriesMonthStart } from './cargo.js';
@@ -247,6 +248,8 @@ export class Game {
   /** Company HQ with top-left tile (x,y) (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ). opts.dryRun = check only. */
   buildHQ(x, y, opts) { return buildHQ(this.ctx, x, y, opts); }
   estimateHQ(x, y) { return estimateHQ(this.state, x, y); }
+  /** Answer an engine preview offer for the player (enginePreview.js; setting 'enginePreview'). */
+  answerEnginePreview(modelId, accept) { return answerEnginePreview(this.ctx, modelId, accept); }
   /** Buy a rival that has a takeover offer (aiCompanies.js). */
   acceptTakeover(rivalId) { return acceptTakeover(this.ctx, rivalId); }
   /** Buy or sell one 25% share of a rival (shares.js; setting 'shares'). */
