@@ -13,7 +13,7 @@
  */
 import { INDUSTRY_TYPES, INDUSTRY_BY_ID } from '../../config/industries.js';
 import { clearFarmFields } from '../farmFields.js';
-import { canPlaceIndustry, placeIndustry } from '../industries.js';
+import { canPlaceIndustry, placeIndustry, industryTypesFor } from '../industries.js';
 import { notify } from '../news.js';
 import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
@@ -142,7 +142,7 @@ export function createNewIndustry(game, type, numAttempts) {
 function tryCreateNewIndustriesMonthly(game) {
   const s = game.state;
   if (s.disallowIndustriesStartUp) return;
-  for (const type of INDUSTRY_TYPES) {
+  for (const type of industryTypesFor(s)) {
     if (!canIndustryTypeBeCreated(s, type)) continue;
     const count = s.industries.reduce((n, i) => n + (i.typeId === type.id ? 1 : 0), 0);
     if (count >= capOfTypeOfIndustry(game, type)) continue;

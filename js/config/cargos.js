@@ -28,6 +28,17 @@ export const CARGOS = [
   { id: 'MAIZE', name: 'Maize', color: '#facc15', basePay: 0.7, days1: 10, days2: 40, unit: 'tonnes' },
   { id: 'COPPER_ORE', name: 'Copper Ore', color: '#b45309', basePay: 0.85, days1: 12, days2: 255, unit: 'tonnes' },
   { id: 'DIAMONDS', name: 'Diamonds', color: '#67e8f9', basePay: 1.6, days1: 10, days2: 255, unit: 'bags' },
+  // TY2: toyland cargos (OpenTTD cargo_const.h CT_CANDY, CT_COTTON_CANDY, CT_TOFFEE, ...); toyland games only
+  { id: 'SWEETS', name: 'Sweets', color: '#f472b6', basePay: 1.2, days1: 8, days2: 40, unit: 'bags' },
+  { id: 'SUGAR', name: 'Sugar', color: '#f5f5f4', basePay: 0.8, days1: 20, days2: 60, unit: 'tonnes' },
+  { id: 'TOYS', name: 'Toys', color: '#e879f9', basePay: 1.0, days1: 25, days2: 60, unit: 'items' },
+  { id: 'BATTERIES', name: 'Batteries', color: '#84cc16', basePay: 1.0, days1: 2, days2: 30, unit: 'items' },
+  { id: 'CANDYFLOSS', name: 'Candyfloss', color: '#fbcfe8', basePay: 0.9, days1: 10, days2: 25, unit: 'tonnes' },
+  { id: 'TOFFEE', name: 'Toffee', color: '#a16207', basePay: 0.9, days1: 14, days2: 60, unit: 'tonnes' },
+  { id: 'COLA', name: 'Cola', color: '#7c2d12', basePay: 0.85, days1: 5, days2: 75, unit: 'litres' },
+  { id: 'BUBBLES', name: 'Bubbles', color: '#e0f2fe', basePay: 1.3, days1: 20, days2: 80, unit: 'items' },
+  { id: 'PLASTIC', name: 'Plastic', color: '#bae6fd', basePay: 0.8, days1: 30, days2: 255, unit: 'litres' },
+  { id: 'FIZZY_DRINKS', name: 'Fizzy Drinks', color: '#34d399', basePay: 1.1, days1: 30, days2: 50, unit: 'items' },
 ];
 
 /** Cargo lookup by id. */

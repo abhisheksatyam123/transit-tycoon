@@ -81,12 +81,26 @@ export const EXTRA_VEHICLE_MODELS = [
  * once some tile of the map carries catenary, so default games never see them (hashes unchanged).
  * Electric trains only route over electrified rail (pathfinder opts.electric).
  */
+/** TY2: toyland road trucks, one per toyland cargo (temperate truck art stand-ins). optIn 'toyland': toyland games only. */
+export const TOYLAND_VEHICLE_MODELS = [
+  { id: 'trk_sweets', name: 'Sweets Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4300, running: 900, reliability: 0.82, cargos: ['SWEETS'], optIn: 'toyland', news: false },
+  { id: 'trk_sugar', name: 'Sugar Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4100, running: 900, reliability: 0.82, cargos: ['SUGAR'], optIn: 'toyland', news: false },
+  { id: 'trk_toys', name: 'Toy Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 22, cost: 4200, running: 900, reliability: 0.82, cargos: ['TOYS'], optIn: 'toyland', news: false },
+  { id: 'trk_batteries', name: 'Battery Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 16, cost: 4200, running: 900, reliability: 0.82, cargos: ['BATTERIES'], optIn: 'toyland', news: false },
+  { id: 'trk_candyfloss', name: 'Candyfloss Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 18, cost: 4000, running: 900, reliability: 0.82, cargos: ['CANDYFLOSS'], optIn: 'toyland', news: false },
+  { id: 'trk_toffee', name: 'Toffee Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4400, running: 950, reliability: 0.82, cargos: ['TOFFEE'], optIn: 'toyland', news: false },
+  { id: 'trk_cola', name: 'Cola Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4400, running: 900, reliability: 0.82, cargos: ['COLA'], optIn: 'toyland', news: false },
+  { id: 'trk_bubbles', name: 'Bubble Truck', kind: 'truck', introYear: 1930, speed: 56, capacity: 16, cost: 4500, running: 900, reliability: 0.82, cargos: ['BUBBLES'], optIn: 'toyland', news: false },
+  { id: 'trk_plastic', name: 'Plastic Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4500, running: 900, reliability: 0.82, cargos: ['PLASTIC'], optIn: 'toyland', news: false },
+  { id: 'trk_fizzy', name: 'Fizzy Drinks Truck', kind: 'truck', introYear: 1920, speed: 56, capacity: 18, cost: 4300, running: 900, reliability: 0.82, cargos: ['FIZZY_DRINKS'], optIn: 'toyland', news: false },
+];
+
 export const ELECTRIC_VEHICLE_MODELS = [
   { id: 'eng_volt', name: 'Volt Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1955, obsoleteYear: 1995, speed: 144, capacity: 0, cost: 17000, running: 4200, reliability: 0.89, power: 2400, news: false },
   { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
 ];
 
-export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
+export const ALL_VEHICLE_MODELS = [...VEHICLE_MODELS, ...AIRCRAFT_MODELS, ...SHIP_MODELS, ...EXTRA_VEHICLE_MODELS, ...TOYLAND_VEHICLE_MODELS, ...ELECTRIC_VEHICLE_MODELS, ...TRAM_VEHICLE_MODELS];
 
 /** Lookup by id. */
 export const MODEL_BY_ID = Object.fromEntries(ALL_VEHICLE_MODELS.map((m) => [m.id, m]));

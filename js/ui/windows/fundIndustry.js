@@ -4,9 +4,10 @@
  */
 import { el } from '../dom.js';
 import { money } from '../format.js';
-import { INDUSTRY_TYPES, EXTRA_INDUSTRY_TYPES } from '../../config/industries.js';
+import { EXTRA_INDUSTRY_TYPES } from '../../config/industries.js';
 import { getSetting } from '../../simulation/settings.js';
-import { bankAvailable } from '../../simulation/industries.js';
+import { bankAvailable, industryTypesFor } from '../../simulation/industries.js';
+import { isToyland } from '../../simulation/climate.js';
 
 /** @param {import('../app.js').App} app */
 export function openFundIndustry(app) {
@@ -20,9 +21,10 @@ export function openFundIndustry(app) {
       body.prepend(hint);
       // T29: the bank (OpenTTD temperate) is offered only when a town of 1200+ people exists
       // T-IN: chain industries (quarry, paper mill, ...) are offered when extraIndustries is on; the bank as before
-      const chains = getSetting(app.game.state, 'extraIndustries') ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement !== 'inTown') : [];
-      const extra = [...(bankAvailable(app.game.state) ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement === 'inTown') : []), ...chains];
-      for (const type of [...INDUSTRY_TYPES, ...extra]) {
+      const toyland = isToyland(app.game.state); // TY2: toyland games offer their own set only
+      const chains = !toyland && getSetting(app.game.state, 'extraIndustries') ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement !== 'inTown') : [];
+      const extra = toyland ? [] : [...(bankAvailable(app.game.state) ? EXTRA_INDUSTRY_TYPES.filter((t) => t.placement === 'inTown') : []), ...chains];
+      for (const type of [...industryTypesFor(app.game.state), ...extra]) {
         const price = app.game.estimateFound('industry', 0, 0, type.id).cost;
         list.append(el('button.list-row', {
           type: 'button', title: `${type.name}: ${type.w}x${type.h} tiles`,

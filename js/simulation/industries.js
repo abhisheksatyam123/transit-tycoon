@@ -1,8 +1,8 @@
 /**
  * Industry placement and monthly production / processing.
  */
-import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, TROPIC_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
-import { tropicZoneAt } from './climate.js';
+import { INDUSTRY_TYPES, INDUSTRY_BY_ID, EXTRA_INDUSTRY_TYPES, TROPIC_INDUSTRY_TYPES, TOYLAND_INDUSTRY_TYPES, EXTRA_TOWN_RADIUS } from '../config/industries.js';
+import { tropicZoneAt, isToyland } from './climate.js';
 import { allocId, manhattan } from './state.js';
 import { getSetting } from './settings.js';
 import { plantInitialFields } from './farmFields.js';
@@ -205,11 +205,16 @@ export function placeIndustry(state, typeId, x, y) {
 /**
  * Generate ~count industries covering all types (round-robin, shuffled order).
  */
+/** TY2: the primary/processing industry set of a game: toyland games get the toyland set only, others INDUSTRY_TYPES. */
+export function industryTypesFor(state) {
+  return isToyland(state) ? TOYLAND_INDUSTRY_TYPES : INDUSTRY_TYPES;
+}
+
 export function generateIndustries(state, rng, count) {
   const { map } = state;
   const order = [];
   while (order.length < count) {
-    const batch = INDUSTRY_TYPES.map((t) => t.id);
+    const batch = industryTypesFor(state).map((t) => t.id);
     for (let i = batch.length - 1; i > 0; i--) {
       const j = rng.int(0, i);
       [batch[i], batch[j]] = [batch[j], batch[i]];

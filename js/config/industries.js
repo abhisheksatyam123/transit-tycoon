@@ -65,7 +65,28 @@ export const TROPIC_INDUSTRY_TYPES = [
   { id: 'bank_tropic', name: 'Bank', w: 1, h: 2, produces: [], accepts: ['DIAMONDS'], converts: {}, production: {}, color: '#a3a3a3', totalOfType: 2, monthlyClosureChance: 0, placement: 'tropicBank', minTownPop: 0, extraCount: 2 },
 ];
 
-export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES, ...TROPIC_INDUSTRY_TYPES].map((t) => [t.id, t]));
+/**
+ * TY2 toyland industries (OpenTTD build_industry.h, LandscapeType::Toyland). Only toyland games use this set: the map
+ * generator (generateIndustries), monthly creation and the fund list pick it instead of INDUSTRY_TYPES when
+ * isToyland(state). Footprints are our approximations (procedural art, no OpenGFX industry sprites yet).
+ * Chain: cotton candy forest -> sweet factory (+ sugar mine, toffee quarry) -> sweets -> towns;
+ * battery farm + plastic fountains -> toy factory -> toys -> toy shop; cola wells + bubble generator -> fizzy drink factory -> fizzy drinks -> towns.
+ */
+export const TOYLAND_INDUSTRY_TYPES = [
+  { id: 'cotton_candy_forest', name: 'Cotton Candy Forest', w: 3, h: 3, produces: ['CANDYFLOSS'], accepts: [], converts: {}, production: { CANDYFLOSS: 100 }, color: '#f9a8d4', totalOfType: 3, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+  { id: 'sweet_factory', name: 'Sweet Factory', w: 3, h: 3, produces: ['SWEETS'], accepts: ['SUGAR', 'TOFFEE', 'CANDYFLOSS'], converts: { SUGAR: 'SWEETS', TOFFEE: 'SWEETS', CANDYFLOSS: 'SWEETS' }, production: {}, color: '#ec4899', totalOfType: 2, monthlyClosureChance: 0, placement: 'nearTown' },
+  { id: 'plastic_fountains', name: 'Plastic Fountains', w: 3, h: 3, produces: ['PLASTIC'], accepts: [], converts: {}, production: { PLASTIC: 100 }, color: '#7dd3fc', totalOfType: 2, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+  { id: 'toffee_quarry', name: 'Toffee Quarry', w: 3, h: 3, produces: ['TOFFEE'], accepts: [], converts: {}, production: { TOFFEE: 100 }, color: '#92400e', totalOfType: 2, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+  { id: 'cola_wells', name: 'Cola Wells', w: 3, h: 3, produces: ['COLA'], accepts: [], converts: {}, production: { COLA: 90 }, color: '#451a03', totalOfType: 2, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+  { id: 'fizzy_drink_factory', name: 'Fizzy Drink Factory', w: 3, h: 3, produces: ['FIZZY_DRINKS'], accepts: ['COLA', 'BUBBLES'], converts: { COLA: 'FIZZY_DRINKS', BUBBLES: 'FIZZY_DRINKS' }, production: {}, color: '#10b981', totalOfType: 2, monthlyClosureChance: 0, placement: 'nearTown' },
+  { id: 'bubble_generator', name: 'Bubble Generator', w: 2, h: 2, produces: ['BUBBLES'], accepts: [], converts: {}, production: { BUBBLES: 90 }, color: '#e0f2fe', totalOfType: 1, monthlyClosureChance: 40, placement: 'awayTown' },
+  { id: 'battery_farm', name: 'Battery Farm', w: 3, h: 3, produces: ['BATTERIES'], accepts: [], converts: {}, production: { BATTERIES: 100 }, color: '#65a30d', totalOfType: 2, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+  { id: 'toy_factory', name: 'Toy Factory', w: 3, h: 4, produces: ['TOYS'], accepts: ['PLASTIC', 'BATTERIES'], converts: { PLASTIC: 'TOYS', BATTERIES: 'TOYS' }, production: {}, color: '#c026d3', totalOfType: 2, monthlyClosureChance: 0, placement: 'nearTown' },
+  { id: 'toy_shop', name: 'Toy Shop', w: 2, h: 2, produces: [], accepts: ['TOYS'], converts: {}, production: {}, color: '#f0abfc', totalOfType: 2, monthlyClosureChance: 0, placement: 'nearTown' },
+  { id: 'sugar_mine', name: 'Sugar Mine', w: 3, h: 3, produces: ['SUGAR'], accepts: [], converts: {}, production: { SUGAR: 110 }, color: '#f5f5f4', totalOfType: 2, monthlyClosureChance: 40, placement: 'awayTown', builtInClusters: true },
+];
+
+export const INDUSTRY_BY_ID = Object.fromEntries([...INDUSTRY_TYPES, ...EXTRA_INDUSTRY_TYPES, ...TROPIC_INDUSTRY_TYPES, ...TOYLAND_INDUSTRY_TYPES].map((t) => [t.id, t]));
 
 /** Fraction of delivered input converted into output units. */
 export const CONVERSION_RATIO = 0.8;

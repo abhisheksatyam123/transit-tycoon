@@ -8,6 +8,7 @@ import { allocId, findStation } from './state.js';
 import { stationName } from './naming.js';
 import { advertBonus } from './townAuthority.js';
 import { getSetting } from './settings.js';
+import { isToyland } from './climate.js';
 import { inBounds } from './map.js';
 import { airportType, airportTypeId } from './airportTypes.js';
 
@@ -123,6 +124,8 @@ export function tileAcceptance(state, x, y) {
     if (b.level >= 2) a.GOOD = b.level * 2;
     // T-IN: towns of level 2+ also take food and building materials when extraIndustries is on
     if (b.level >= 2 && getSetting(state, 'extraIndustries')) { a.FOOD = b.level * 2; a.BMAT = b.level * 2; }
+    // TY2: toyland towns accept sweets, toys and fizzy drinks (OpenTTD town acceptance in toyland)
+    if (b.level >= 2 && isToyland(state)) { a.SWEETS = b.level * 2; a.TOYS = b.level * 2; a.FIZZY_DRINKS = b.level * 2; }
     return a;
   }
   if (b.type === 'industry') {

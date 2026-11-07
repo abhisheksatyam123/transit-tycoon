@@ -9,6 +9,7 @@ import { createRng, hashSeed } from './rng.js';
 import { createMap, generateTerrain, getTile, inBounds, DENSITY } from './map.js';
 import { generateTowns } from './towns.js';
 import { generateIndustries, placeExtraIndustries, placeTropicIndustries, placeTropicChains } from './industries.js';
+import { isToyland } from './climate.js';
 import { connectTowns, repairTownRoads } from './townRoads.js';
 import { createCompany, borrow, repay } from './economy.js';
 import { isEditor, playScenario } from './scenarioEditor.js';
@@ -158,7 +159,7 @@ export class Game {
     const townMul = DENSITY[mg.townDensity ?? 'normal'] ?? 1, indMul = DENSITY[mg.industryDensity ?? 'normal'] ?? 1;
     generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
     generateIndustries(state, game.rng, Math.round(o.industryCount * indMul));
-    if (getSetting(state, 'extraIndustries')) placeExtraIndustries(state, game.rng); // T29 opt-in banks
+    if (getSetting(state, 'extraIndustries') && !isToyland(state)) placeExtraIndustries(state, game.rng); // T29 opt-in banks (temperate set; not toyland)
     if (isTropic(state)) { placeTropicIndustries(state, game.rng); placeTropicChains(state, game.rng); } // TP water + sub-tropical chain (tropic only)
     connectTowns(state);
     repairTownRoads(state);

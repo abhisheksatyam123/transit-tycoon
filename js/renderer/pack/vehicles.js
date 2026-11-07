@@ -143,6 +143,9 @@ export const ROAD_IMG = {
   trk_maize: 6,
   trk_copper: 13,
   trk_diamonds: 10,
+  // TY2 toyland trucks: temperate truck art stand-ins (goods, bulk, tanker, food images)
+  trk_sweets: 5, trk_sugar: 18, trk_toys: 5, trk_batteries: 5, trk_candyfloss: 18,
+  trk_toffee: 18, trk_cola: 3, trk_bubbles: 7, trk_plastic: 3, trk_fizzy: 5,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
 export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];

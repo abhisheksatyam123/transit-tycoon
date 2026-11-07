@@ -17,6 +17,18 @@ const TALL = 120;
  */
 export function industryStyle(typeId) {
   const s = String(typeId || '').toLowerCase();
+  // TY2 toyland set (procedural stand-ins; checked first: 'cotton_candy_forest' also contains 'forest')
+  if (s.includes('candy')) return 'candy';
+  if (s.includes('sweet')) return 'sweet';
+  if (s.includes('toffee')) return 'toffee';
+  if (s.includes('sugar')) return 'sugarmine';
+  if (s.includes('plastic')) return 'plastic';
+  if (s.includes('cola')) return 'cola';
+  if (s.includes('fizzy')) return 'fizzy';
+  if (s.includes('bubble')) return 'bubble';
+  if (s.includes('battery')) return 'battery';
+  if (s.includes('toy_shop')) return 'toyshop';
+  if (s.includes('toy')) return 'toyfactory';
   if (s.includes('coal')) return 'coal';
   if (s.includes('power')) return 'power';
   if (s.includes('saw')) return 'sawmill';
@@ -55,6 +67,18 @@ const LAYOUT = {
   printing: ['shed', 'hall', 'shed', 'planks'],
   building: ['kiln', 'heap', 'kiln', 'shed'],
   food: ['silo', 'barn', 'silo', 'hall'],
+  // TY2 toyland stand-ins built from the pieces above
+  candy: ['trees', 'trees', 'logs', 'trees'],
+  sweet: ['factory', 'chimney', 'factory', 'yard'],
+  toffee: ['pit', 'heap', 'pit', 'oreyard'],
+  sugarmine: ['headframe', 'oreheap', 'shed', 'oreheap'],
+  plastic: ['tank', 'tanks', 'tank', 'pump'],
+  cola: ['tank', 'pump', 'tank', 'pump'],
+  fizzy: ['factory', 'tank', 'chimney', 'yard'],
+  bubble: ['tank', 'hall', 'tank', 'shed'],
+  battery: ['shed', 'hall', 'shed', 'silo'],
+  toyfactory: ['factory', 'chimney', 'hall', 'yard'],
+  toyshop: ['hall', 'hall'],
 };
 
 /** Ground tint per style. */
@@ -62,6 +86,8 @@ const GROUND = {
   coal: '#5d5a52', power: '#8c8c86', forest: '#4a7a2e', sawmill: '#8a7a5a', oil: '#a39b7a',
   refinery: '#8c8c86', farm: '#7aa04a', factory: '#8e8e88', iron: '#7a6458', steel: '#7d7a76', bank: '#9a9a92',
   quarry: '#8a8478', paper: '#b8b2a4', printing: '#8b7aa8', building: '#9c968a', food: '#c9a24a',
+  candy: '#f9a8d4', sweet: '#f472b6', toffee: '#92400e', sugarmine: '#e7e5e4', plastic: '#7dd3fc', cola: '#451a03',
+  fizzy: '#34d399', bubble: '#bae6fd', battery: '#84cc16', toyfactory: '#c026d3', toyshop: '#f0abfc',
 };
 
 /** Pieces that emit smoke: offsets (u,v,z) relative to tile centre. */
