@@ -26,8 +26,8 @@ export const TRACTIVE_EFFORT = 76;
 const ROLLING_BASE = 15;            // train.h:309-316, 1e-4 units
 const TRAIN_AIR_DRAG_AREA = 14;     // train.h:272
 const AXLE_PER_TONNE = 10;          // ground_vehicle.cpp:94
-const WATTS_PER_HP = 746;
-const ENGINE_TONNES = 60;           // TT engine weight (vehicleMotion.js TRAIN_ENGINE_WEIGHT)
+export const WATTS_PER_HP = 746;
+export const ENGINE_TONNES = 60;           // TT engine weight (vehicleMotion.js TRAIN_ENGINE_WEIGHT)
 
 /** OpenTTD curve constants (train_cmd.cpp). */
 export const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67

@@ -20,6 +20,9 @@ function hasTimetableOrders(v) {
 import { dateFromDayNumber, formatDate } from '../../simulation/date.js';
 import { refitCargos } from '../../simulation/cmdVehicle.js';
 import { groupList } from '../../simulation/cmdGroup.js';
+import { vehicleSpecs, consistRows } from '../../simulation/vehicleSpec.js';
+import { monthlyRunningCost } from '../../simulation/loco/vehicle.js';
+import { vehicleModel } from '../../simulation/vehicles.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -46,6 +49,11 @@ export function openVehicleDetail(app, id) {
       const set = kvGrid(body, ['State', 'Speed', 'Cargo', 'Load', 'Reliability', 'Age', 'Profit this year', 'Profit last year', 'Transfer credits', 'Value', 'Next order', 'Platform', 'Altitude', 'Service interval', 'Last service', 'Timetable']);
       const loadBar = bar(0);
       body.appendChild(loadBar);
+      // OpenTTD VehicleDetailsWindow extra lines: only fields TT stores or derives from its models (vehicleSpec.js)
+      const specSet = kvGrid(body, ['Running cost (monthly)', 'Max. age', 'Weight', 'Power', 'Breakdowns (total)']);
+      const consistBox = el('div.consist-list');
+      body.appendChild(consistBox);
+      let consistSig = '';
       const startStop = el('button.btn', { type: 'button' });
       startStop.addEventListener('click', () => {
         const v = app.findVehicle(id);
@@ -134,6 +142,24 @@ export function openVehicleDetail(app, id) {
         }
         setBar(loadBar, v.capacity ? amt / v.capacity : 0, cargoColor(v.cargoId));
         set['Reliability'](Math.round((v.reliability || 0) * (v.reliability <= 1 ? 100 : 1)) + '%');
+        const model = vehicleModel(v);
+        const specs = vehicleSpecs(v, model);
+        specSet['Running cost (monthly)'](money(monthlyRunningCost(v, g().state)));
+        specSet['Max. age'](v.maxAge ? `${Math.round(v.maxAge / 365)} years` : '—');
+        specSet['Weight'](`${num(specs.weightLoaded)} t loaded · ${num(specs.weightEmpty)} t empty`);
+        specSet['Power'](specs.power ? `${num(specs.power)} hp` : '—');
+        specSet['Breakdowns (total)'](String(v.breakdowns || 0));
+        if (v.kind === 'train') {
+          const rows = consistRows(v);
+          const sig = rows.map((r) => r.name + ':' + (r.cargoId || '') + ':' + r.capacity).join('|');
+          if (sig !== consistSig) {
+            consistSig = sig;
+            consistBox.replaceChildren(el('div.muted.small', { text: 'Consist' }), ...rows.map((r, i) => el('div.small.mono', {
+              text: i === 0 ? `${r.name} (engine)` : `${i}. ${r.name} · ${r.cargoId ? cargoName(r.cargoId) : 'empty'} · ${num(r.capacity)} cap`,
+            })));
+          }
+          consistBox.hidden = false;
+        } else { consistBox.hidden = true; consistSig = ''; }
         set['Age'](ageText(v.age));
         set['Profit this year'](money(v.profitThisYear));
         set['Profit last year'](money(v.profitLastYear));

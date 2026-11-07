@@ -366,6 +366,8 @@ export class Game {
   setOrderStopAt(id, index, stopAt, opts) { return vcmd.modifyOrder(this.ctx, id, index, { stopAt }, opts); }
   /** Timetable of one order: {waitDays, travelDays} (days; 0 clears). Shared orders: all members. */
   setOrderTimetable(id, orderIndex, times, opts) { return vcmd.setOrderTimetable(this.ctx, id, orderIndex, times, opts); }
+  /** Change/clear wait days, travel days and km/h speed limit of one order (index or 'all'). Shared: all members. */
+  changeOrderTimes(id, index, patch, opts) { return vcmd.changeOrderTimes(this.ctx, id, index, patch, opts); }
   /** Timetable autofill on/off for one vehicle. */
   setTimetableAutofill(id, on, opts) { return vcmd.setTimetableAutofill(this.ctx, id, on, opts); }
   /** Clear a vehicle's recorded lateness. */

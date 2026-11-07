@@ -685,6 +685,7 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (unload !== 'normal') entry.unload = unload;
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
+    if (o.maxSpeed > 0) entry.maxSpeed = Math.round(o.maxSpeed);
     if (stop !== undefined) entry.stop = stop;
     if (o.stopAt !== undefined && o.stopAt !== 'far') {
       if (!STOP_AT.includes(o.stopAt)) return { ok: false, error: `Unknown stop location ${o.stopAt}` };

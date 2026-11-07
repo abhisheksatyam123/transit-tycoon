@@ -119,6 +119,7 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (o.travelDays > 0) orders[index].travelDays = o.travelDays;
   const stopAt = flags.stopAt !== undefined ? flags.stopAt : o.stopAt;
   if (stopAt !== undefined && stopAt !== 'far') orders[index].stopAt = stopAt;
+  if (o.maxSpeed > 0) orders[index].maxSpeed = o.maxSpeed;
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
@@ -331,6 +332,40 @@ export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   setOrderField(state, v, index, patch);
   return { ok: true, cost: 0 };
+}
+
+/** Max speed limit of an order in km/h (OpenTTD order max speed): 1..1000; 0/null clears. */
+export const MAX_ORDER_SPEED_KMH = 1000;
+
+/**
+ * Change or clear the timetable times and speed limit of one order, or of every order (`index` = 'all'), like
+ * OpenTTD's timetable window (Change time / Clear time / Change speed / Clear speed; Ctrl = all orders).
+ * `patch` may hold waitDays / travelDays (days 0-365) and maxSpeed (km/h 1-1000); a key that is undefined is
+ * left alone, 0 or null clears it. Shared orders: all members.
+ */
+export function changeOrderTimes(ctx, id, index, patch = {}, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  const idxs = index === 'all' ? v.orders.map((_, i) => i) : [index];
+  if (!idxs.length || idxs.some((i) => !v.orders[i])) return { ok: false, error: 'No such order' };
+  const clean = {};
+  for (const k of ['waitDays', 'travelDays']) {
+    if (patch[k] === undefined) continue;
+    const n = patch[k] === null ? 0 : Math.round(Number(patch[k]));
+    if (!Number.isFinite(n) || n < 0 || n > 365) return { ok: false, error: `${k} must be 0-365 days` };
+    clean[k] = n;
+  }
+  if (patch.maxSpeed !== undefined) {
+    const n = patch.maxSpeed === null ? 0 : Math.round(Number(patch.maxSpeed));
+    if (!Number.isFinite(n) || n < 0 || (n > 0 && n > MAX_ORDER_SPEED_KMH)) return { ok: false, error: `speed limit must be 1-${MAX_ORDER_SPEED_KMH} km/h` };
+    clean.maxSpeed = n;
+  }
+  if (!Object.keys(clean).length) return { ok: false, error: 'Nothing to change' };
+  if (opts.dryRun) return { ok: true, cost: 0, count: idxs.length };
+  for (const i of idxs) setOrderField(state, v, i, clean);
+  return { ok: true, cost: 0, count: idxs.length };
 }
 
 /** Turn autofill of the timetable on or off for one vehicle (on = one round of orders is recorded). */

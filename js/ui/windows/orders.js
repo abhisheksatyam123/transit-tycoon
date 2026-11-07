@@ -3,6 +3,10 @@
  * All edits go through game.setOrders(id, orders).
  */
 import { el, setText } from '../dom.js';
+import { SPEED_UNITS } from '../../simulation/currency.js';
+import { currentSpeedUnit } from '../units.js';
+const speedUnitName = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).name;
+const speedFactor = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).factor;
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
@@ -138,6 +142,18 @@ export function openOrders(app, id) {
           const i = Number(e.target.dataset.i);
           if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
         }) })));
+      /** Speed limit input: km/h stored, shown in the Interface speed unit (blank = no limit). */
+      const setOrderSpeed = (i, raw) => {
+        const txt = String(raw).trim();
+        if (txt === '') { app.exec(app.game.changeOrderTimes(id, i, { maxSpeed: null }), { quiet: true, sound: 'click' }); return; }
+        const n = Number(txt);
+        if (!Number.isFinite(n) || n <= 0) { app.toast('Speed limit must be a positive number', 'error', true); return; }
+        app.exec(app.game.changeOrderTimes(id, i, { maxSpeed: Math.round(n / speedFactor()) }), { quiet: true, sound: 'click' });
+      };
+      /** Ctrl+click applies a clear to every order of the list (OpenTTD bulk variants). */
+      const bulkIdx = (e, i) => (e && e.ctrlKey ? 'all' : i);
+      const clearTimes = (e, i) => app.exec(app.game.changeOrderTimes(id, bulkIdx(e, i), { waitDays: null, travelDays: null }), { quiet: true, sound: 'click' });
+      const clearSpeed = (e, i) => app.exec(app.game.changeOrderTimes(id, bulkIdx(e, i), { maxSpeed: null }), { quiet: true, sound: 'click' });
       const edit = (fn) => {
         const v = app.findVehicle(id);
         if (!v) return;
@@ -256,7 +272,13 @@ export function openOrders(app, id) {
                 el('span', { text: ' d' })),
               el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Travel days: scheduled days from the previous stop (blank = auto)', placeholder: 'travel days', style: 'width:5.5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { travelDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
-                el('span', { text: ' d' }))),
+                el('span', { text: ' d' })),
+              el('label.small', { text: ' speed ' }, el('input.input', { type: 'number', min: '1', step: '1', title: 'Speed limit: max speed while travelling to this order (blank = no limit)', 'aria-label': 'Speed limit', placeholder: 'no limit', style: 'width:5em',
+                onchange: (e) => setOrderSpeed(it.i, e.target.value) }),
+                el('span.speed-unit', { text: ' ' + speedUnitName() })),
+              el('span.btn-row', null,
+                el('button.btn.sm', { type: 'button', text: 'Clear time', title: 'Clear wait and travel times of this order (Ctrl+click: all orders)', onclick: (e) => clearTimes(e, it.i) }),
+                el('button.btn.sm', { type: 'button', text: 'Clear speed', title: 'Clear the speed limit of this order (Ctrl+click: all orders)', onclick: (e) => clearSpeed(e, it.i) }))),
             el('span.row-actions', null,
               el('button.btn.sm', { type: 'button', text: 'Skip', title: 'Go to this order now', onclick: () => app.exec(app.game.skipToOrder(id, it.i), { quiet: true, sound: 'click' }) }),
               el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: () => editList((os) => (it.i > 0 ? moveOrderTo(os, it.i, it.i - 1) : os)) }),
@@ -293,7 +315,7 @@ export function openOrders(app, id) {
             const stopEl = row.querySelector('select[title="Stop"]');
             if (stopEl && stopEl.value !== stopMode(it.o)) stopEl.value = stopMode(it.o);
             if (stopEl) stopEl.hidden = isDepot || !canStopAtIntermediate(v);
-            for (const x of Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"], :scope > .order-flags > label'))) {
+            for (const x of Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"], :scope > .order-flags > label, :scope > .order-flags > .btn-row'))) {
               x.hidden = isDepot;
             }
             // P7: warn when this stop neither accepts nor supplies any cargo the vehicle carries
@@ -310,6 +332,13 @@ export function openOrders(app, id) {
               if (unloadSel.value !== unloadMode(it.o)) unloadSel.value = unloadMode(it.o);
               const [waitIn, travelIn] = /** @type {HTMLInputElement[]} */ (Array.from(row.querySelectorAll(':scope > .order-flags > label > input')));
               if (document.activeElement !== waitIn) waitIn.value = it.o.waitDays ? String(it.o.waitDays) : '';
+              const speedIn = row.querySelector(':scope > .order-flags > label > input[aria-label="Speed limit"]');
+              if (speedIn) {
+                const want = it.o.maxSpeed > 0 ? String(Math.round(it.o.maxSpeed * speedFactor())) : '';
+                if (document.activeElement !== speedIn && speedIn.value !== want) speedIn.value = want;
+                const unitEl = speedIn.parentElement.querySelector('.speed-unit');
+                if (unitEl) setText(unitEl, ' ' + speedUnitName());
+              }
               if (document.activeElement !== travelIn) travelIn.value = it.o.travelDays ? String(it.o.travelDays) : '';
             }
           }, 'No orders — click "Add order", then a station on the map');

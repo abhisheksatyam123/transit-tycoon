@@ -310,15 +310,20 @@ function move(ctx, v) {
   } else {
     const prevSpeed = v.speed;
     const grade = getSetting(state, 'gradients') ? gradeMph(state, v) : 0;
+    // OTTD order max speed (GetMaxSpeed of the current order): the vehicle's cap while heading to that order.
+    // Lazy: only an order with `maxSpeed` (km/h) lowers the cap; the common path is one array read.
+    const cur = v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
+    let maxTiles = v.maxSpeed;
+    if (cur && cur.maxSpeed > 0) { const c = cur.maxSpeed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; }
     if (v.kind === 'train' && getSetting(state, 'trainAcceleration') === 'realistic') {
       // OTTD curve limit (train_cmd.cpp GetCurveSpeedLimit) caps the target; acceleration is the OTTD model
       const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;
-      const target = lim < v.maxSpeed ? lim : v.maxSpeed;
+      const target = lim < maxTiles ? lim : maxTiles;
       v.speed = realisticTrainSpeedStep(v, vehicleModel(v), target, grade);
     } else {
-      v.speed = landSpeedStep(v, vehicleModel(v), v.maxSpeed, grade);
+      v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
-    if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, v.maxSpeed); // OTTD 512 vs 256
+    if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, maxTiles); // OTTD 512 vs 256
     if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
     v.progress += v.speed;
   }
