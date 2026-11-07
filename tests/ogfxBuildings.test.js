@@ -58,6 +58,7 @@ test('industry layouts cover the footprint and are deterministic', () => {
       expect(a === null ? null : [...a.entries()]).toEqual(b === null ? null : [...b.entries()]);
       if (a === null) continue; // no same-size OpenTTD layout: drawn procedurally
       if (typeId === 'printing_works') expect(a.size).toBe(12); // OpenTTD 4x4 layout: 4 empty corners (concrete ground)
+      else if (typeId === 'oil_wells') { expect(a.size).toBeGreaterThan(0); expect(a.size).toBeLessThanOrEqual(w * h); } // OTTD oil-well layouts leave bare tiles (IA4)
       else expect(a.size).toBe(w * h);
       for (const [key, g] of a) {
         const [dx, dy] = key.split(',').map(Number);
