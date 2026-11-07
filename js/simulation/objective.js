@@ -13,7 +13,7 @@ import { formatMoney } from './currency.js';
 export const OBJECTIVE_TYPES = {
   companyValue: { label: 'Company value', unit: 'money', target: 25000000 },
   vehicleProfit: { label: 'Vehicle profit', unit: 'money', target: 1000000 },
-  performanceIndex: { label: 'Performance index', unit: 'index', target: 500 },
+  performanceIndex: { label: 'Performance index', unit: 'index', target: 900 }, // OL EditorController.cpp:106 default 90% (x10, Scenario.cpp:418)
   cargoDelivery: { label: 'Cargo delivery', unit: 'units', target: 100000 },
 };
 
