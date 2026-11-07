@@ -28,6 +28,7 @@ import { GroundCache } from './groundCache.js';
 import { setArcticClimate } from './pack/arctic.js';
 import { setTropicClimate } from './pack/tropic.js';
 import { setToylandClimate, toylandState, drawToylandIndustryGround } from './pack/toyland.js';
+import { industryAnimState } from './pack/industries.js';
 import { isArctic, snowLineOf, isTropic, isToyland } from '../simulation/climate.js';
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
@@ -301,6 +302,8 @@ export class Renderer {
   render(dt) {
     this.resize();
     this.frame++;
+    toylandState.animFrame = this.frame; // TY5 industry animation phase (pack/toyland.js toylandAnimKids)
+    industryAnimState.frame = this.frame; // IA3 temperate industry animation phase (pack/industries.js)
     const { ctx, camera: cam } = this;
     const state = this.game.state;
     const map = state.map;

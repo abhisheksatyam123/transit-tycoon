@@ -120,5 +120,23 @@ export function drawOgfxIndustryTile(ctx, ind, x, y, topX, topY) {
     const [ox, oy] = subtileOffset(pair[2] | 0, pair[3] | 0);
     blitPack(ctx, pair[1], topX + ox, topY + oy);
   }
+  if (gfx === GFX_POWER_SPARKS) drawPowerSparks(ctx, x, y, topX, topY);
   return true;
+}
+
+/** IA3 animation phase (set by renderer.render); drives the power station sparks (OTTD AnimatePowerPlantSparks). */
+export const industryAnimState = { frame: 0 };
+/** OpenTTD gfx id of the power station sparks tile (industry_type.h GFX_POWERPLANT_SPARKS). */
+const GFX_POWER_SPARKS = 10;
+/** OTTD _coal_plant_sparks offsets for images 1..6 and the base sprites SPR_IT_POWER_PLANT_TRANSFORMERS + image (2055..2060). */
+const SPARK_OFFS = [[11, 23], [11, 11], [14, 6], [13, 3], [18, 1], [15, 0]];
+const SPARK_SPR = [2055, 2056, 2057, 2058, 2059, 2060];
+
+/** Draw the sparks child sprite for a power station tile (render-only). */
+function drawPowerSparks(ctx, x, y, topX, topY) {
+  const step = Math.floor(industryAnimState.frame / 4) + ((x * 5 + y * 3) & 3);
+  const n = step % 7; // 0 = no spark, 1..6 = sparks frame (OTTD image 0 draws nothing)
+  if (n === 0) return;
+  const [cx, cy] = SPARK_OFFS[n - 1];
+  blitPack(ctx, SPARK_SPR[n - 1], topX + cx, topY + cy);
 }

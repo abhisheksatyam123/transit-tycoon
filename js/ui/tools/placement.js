@@ -10,6 +10,42 @@ import { tileAcceptance } from '../../simulation/stations.js';
 import { ACCEPT_THRESHOLD } from '../../simulation/constants.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
 import { refusalLabel, priceWhenRefused, NOT_ENOUGH_MONEY } from './refusal.js';
+import { INDUSTRY_BY_ID } from '../../config/industries.js';
+
+/** Industries this near a new stop (Chebyshev tiles) are named in the catchment toast. */
+const NEAR_INDUSTRY_TILES = 6;
+
+/**
+ * UI-only catchment check after a station-type build. Returns the toast text when the catchment of `tiles`
+ * covers no house or industry that accepts or produces cargo, else null.
+ */
+export function catchmentWarning(state, tiles, radius) {
+  const m = state.map;
+  for (const p of catchmentAround(tiles, radius, m.width, m.height)) {
+    const b = m.tiles[p.y * m.width + p.x].building;
+    if (!b) continue;
+    if (b.type === 'house') return null;
+    if (b.type === 'industry') {
+      const ind = state.industries.find((i) => i.id === b.industryId);
+      const type = ind && INDUSTRY_BY_ID[ind.typeId];
+      if (type && (type.produces.length || type.accepts.length)) return null;
+    }
+  }
+  const stop = 'Station catchment covers no industry - it will not supply or accept cargo';
+  const x0 = Math.min(...tiles.map((t) => t.x)), x1 = Math.max(...tiles.map((t) => t.x));
+  const y0 = Math.min(...tiles.map((t) => t.y)), y1 = Math.max(...tiles.map((t) => t.y));
+  let near = null, nearGap = Infinity;
+  for (const ind of state.industries) {
+    const type = INDUSTRY_BY_ID[ind.typeId];
+    if (!type || !(type.produces.length || type.accepts.length)) continue;
+    // Chebyshev gap between the stop footprint box and the industry box (0 = touching/overlapping)
+    const gx = Math.max(0, ind.x - x1, x0 - (ind.x + ind.w - 1));
+    const gy = Math.max(0, ind.y - y1, y0 - (ind.y + ind.h - 1));
+    const gap = Math.max(gx, gy);
+    if (gap > radius && gap <= NEAR_INDUSTRY_TILES && gap < nearGap) { near = ind; nearGap = gap; }
+  }
+  return near ? `${near.name} is outside the catchment (${nearGap} tiles away; radius ${radius})` : stop;
+}
 
 /**
  * @typedef {Object} PlacementOptions
@@ -88,6 +124,10 @@ export function createPlacementTool(app, o) {
           res = { ...res, error: refusalLabel(res.error, cost, app.game.state.company.money) };
         }
         app.exec(res, { x: t.x, y: t.y, sound: 'build' });
+        if (res && res.ok && o.catchment) {
+          const warn = catchmentWarning(app.game.state, o.footprint(t.x, t.y), o.catchment);
+          if (warn) app.toast(warn, 'warn');
+        }
       };
       // OpenTTD distant join: Ctrl+click on a spot with no adjacent station of ours opens a picker.
       const choices = o.joinKind && t.ctrl && !adjacentOwn(app.game.state, o.footprint(t.x, t.y))

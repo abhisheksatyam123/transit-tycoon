@@ -171,6 +171,13 @@ for (const [a, b] of TOYLAND_LATE_BLOCKS) {
   }
 }
 
+// TY5 toy factory clay / robot (industry_cmd.cpp IndustryDrawToyFactory): last block (order 500000+), so no earlier key moves.
+for (const id of [4719, 4720]) {
+  const d = rawDef(id);
+  if (!d) throw new Error(`toy factory sprite ${id} has no OpenGFX definition`);
+  pieces.push({ key: String(id), order: 500000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
 pieces.sort((a, b) => a.order - b.order);
 const manifest = { sprites: {}, atlases: [], license: 'OpenGFX base graphics, GPL-2.0 (https://github.com/OpenTTD/OpenGFX)' };
 const placed = [];
