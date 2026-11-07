@@ -18,6 +18,8 @@ export const EDGE_W = 8;
 
 /** Rotated-sprite cache: key "id|rot" -> canvas (64x31 image, origin at the sprite's own offset). */
 const cache = new Map();
+/** Drop cached shore sprites (the shared pack changed, e.g. toyland view swap). */
+export function clearShoreCache() { cache.clear(); }
 
 /**
  * Canvas of one OpenGFX sprite, optionally rotated 180 degrees (rot = 1).

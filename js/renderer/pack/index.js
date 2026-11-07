@@ -4,7 +4,7 @@
  * alternative with smooth diagonals and avenue classes) and exposes the toggle used by key K.
  */
 import { loadOpenGfx, loadExtraPack, loadArcticPack, loadTropicPack, loadToylandPack } from './loader.js';
-import { toylandState } from './toyland.js';
+import { toylandState, applyToylandView } from './toyland.js';
 import { tropicState } from './tropic.js';
 import { arcticState } from './arctic.js';
 import { packState } from './state.js';
@@ -25,6 +25,7 @@ export function savedGfxMode() {
 export async function initPack(renderer) {
   const pack = await loadOpenGfx();
   packState.pack = pack;
+  toylandState.base = pack;
   packState.enabled = savedGfxMode() === 'ogfx';
   renderer.setPackEnabled(packState.enabled && !!pack);
   // the extra pack (canals, locks, river slopes, tram overlays) loads in the background: the first frame
@@ -53,6 +54,7 @@ export async function initPack(renderer) {
   if (pack) {
     loadToylandPack().then((toyland) => {
       toylandState.pack = toyland;
+      applyToylandView();
       renderer.setPackEnabled(packState.enabled && !!pack);
     });
   }

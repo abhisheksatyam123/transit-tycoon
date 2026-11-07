@@ -104,3 +104,48 @@ describe('toyland house coverage', () => {
     }
   });
 });
+
+// TY4: toyland infrastructure overrides (roads, rail, water, stations, depots, bridges, tunnels, foundations).
+import { TOYLAND_OVERRIDE_MAP, buildToylandView } from '../js/renderer/pack/toyland.js';
+import { TOYLAND_OVERRIDE_BLOCKS } from '../js/renderer/pack/toyland_overrides.js';
+
+describe('toyland infrastructure overrides (TY4)', () => {
+  test('override map covers the road, rail, water, station, depot, bridge and tunnel ids', () => {
+    const m = TOYLAND_OVERRIDE_MAP;
+    // roads (city 1313, grass 1332), rail (1005), crossings (1370, 1382), depots (1063, 1408), stations (1069)
+    for (const id of [1313, 1331, 1332, 1350, 1005, 1036, 1370, 1382, 1063, 1068, 1069, 1086, 1408, 1413]) expect(m.has(id)).toBe(true);
+    // water (4061 flat, 4062.. shore), foundations (990..1003), bus/truck stops (2692.., 2708..), docks (2727..)
+    for (const id of [4061, 4062, 4069, 990, 1003, 2692, 2707, 2708, 2723, 2727, 2732]) expect(m.has(id)).toBe(true);
+    // bridges (2437..) and tunnels (2365.., 2389..)
+    for (const id of [2437, 2592, 2365, 2388, 2389, 2396]) expect(m.has(id)).toBe(true);
+  });
+
+  test('toffee quarry ground 3981 maps to toyland grass 57 (not the temperate grass)', () => {
+    expect(TOYLAND_OVERRIDE_MAP.get(3981)).toBe(57);
+    expect(TOYLAND_OVERRIDE_MAP.get(3924)).toBe(0);
+  });
+
+  test('every override target exists in the toyland pack manifest', () => {
+    for (const t of TOYLAND_OVERRIDE_MAP.values()) expect(has(t)).toBe(true);
+  });
+
+  test('override map is one-to-one (no base id is claimed twice)', () => {
+    const n = [...TOYLAND_OVERRIDE_MAP.keys()].length;
+    let total = 0;
+    for (const [a, b] of TOYLAND_OVERRIDE_BLOCKS.map(([a, b]) => [a, b])) total += b - a + 1;
+    expect(n).toBe(total);
+  });
+
+  test('temperate lookups are unchanged: the view is only built for toyland, base sprites keep their ids', () => {
+    const base = { sprites: { 1313: [0, 0, 0, 64, 31, -31, 0, 0], 3981: [0, 1, 1, 64, 31, -31, 0, 0] }, groups: {}, atlases: [{}], masks: [null], tint: new Map() };
+    const toy = { sprites: { 57: [0, 9, 9, 64, 31, -31, 0, 0], 134: [0, 5, 5, 64, 31, -31, 0, 0] }, groups: {}, atlases: [{}], masks: [null] };
+    const view = buildToylandView(base, toy);
+    expect(view.sprites[1313]).toEqual([1, 5, 5, 64, 31, -31, 0, 0]);
+    expect(view.sprites[3981]).toEqual([1, 9, 9, 64, 31, -31, 0, 0]);
+    // the base pack is not mutated
+    expect(base.sprites[1313]).toEqual([0, 0, 0, 64, 31, -31, 0, 0]);
+    expect(base.sprites[3981]).toEqual([0, 1, 1, 64, 31, -31, 0, 0]);
+    // a base id outside every override block keeps its base entry
+    expect(view.sprites[4000]).toBeUndefined();
+  });
+});

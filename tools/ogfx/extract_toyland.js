@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { decodePng, encodePng } from './png.js';
 import { readSpriteDefs } from './pnml.js';
 import { TOYLAND_HOUSES, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from '../../js/renderer/pack/toyland_table.js';
+import { TOYLAND_OVERRIDE_BLOCKS } from '../../js/renderer/pack/toyland_overrides.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -109,6 +110,27 @@ for (const id of [...indIds].sort((a, b) => a - b)) {
   const d = (id >= 128 && id <= 133 ? candyDef(id) : null) || defs.get(id) || rawDef(id);
   if (!d) throw new Error(`industry sprite ${id} has no OpenGFX definition`);
   pieces.push({ key: String(id), order: 200000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+}
+
+// TY4 infrastructure (roads, rail, water, stations, depots, bridges, tunnels, foundations): OpenGFX toyland sprite ids
+// (toyland-grf numbers, sprites/toyland/*.pnml). Each block maps 1:1 onto a base sprite block (TOYLAND_OVERRIDE_BLOCKS in
+// toyland.js, verified by sprite size/anchor); the composite view in toyland.js redirects base ids to these keys.
+// Packed last (order 300000+) so every existing pack entry keeps its atlas position and pixels (TY3 lesson).
+const tdefs = readSpriteDefs(SRC, 'toyland');
+for (const [a, b] of TOYLAND_OVERRIDE_BLOCKS) {
+  for (let id = a; id <= b; id++) {
+    if (pieces.some((p) => p.key === String(id))) continue;
+    const d = tdefs.get(id);
+    if (!d) throw new Error(`toyland infra sprite ${id} has no OpenGFX definition`);
+    pieces.push({ key: String(id), order: 300000 + id, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
+  }
+}
+
+// TY4: legacy key 3981 (temperate grass, packed since TY3). Kept so no HEAD pack id is dropped (TY3 lesson); the toyland
+// view maps base 3981 to toyland grass 57, so this entry is not drawn in toyland games.
+if (!pieces.some((p) => p.key === '3981') && defs.get(3981)) {
+  const d = defs.get(3981);
+  pieces.push({ key: '3981', order: 300000 - 1, file: d.file, x: d.x, y: d.y, w: d.w, h: d.h, xo: d.xo, yo: d.yo });
 }
 
 // ---- pack (same layout as extract_extra.js) ----

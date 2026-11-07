@@ -13,6 +13,12 @@ import { makeSprite } from '../sprites/canvas.js';
 import { subtileOffset } from './subtile.js';
 import { tileHash } from '../sprites/canvas.js';
 import { TOYLAND_HOUSES, TOYLAND_TREE_ROWS, TOYLAND_INDUSTRY_LAYOUTS, TOYLAND_INDUSTRY_GFX, TOYLAND_INDUSTRY_CHILDREN } from './toyland_table.js';
+import { TOYLAND_OVERRIDE_BLOCKS } from './toyland_overrides.js';
+import { packState } from './state.js';
+import { clearTints } from './draw.js';
+import { clearPackTops } from './ground.js';
+import { clearDiagRoads } from './diagRoad.js';
+import { clearShoreCache } from './water.js';
 
 /** Ground group bases (19 sprites each: flat + 14 slopes + steep): OpenGFX toyland groundtile sets. */
 export const TOYLAND_GROUND = {
@@ -29,13 +35,65 @@ const SLOPE_OFFSET = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0];
 const POP_MAX = [25, 90, 150, Infinity];
 
 /** Toyland pack (set by pack/index.js) and the toyland flag of the attached game (set by the renderer). */
-export const toylandState = { pack: null, on: false, top: [], map: null };
+export const toylandState = { pack: null, base: null, on: false, top: [], map: null };
 
 /** Attach the climate flag and the game map. Resets the cached flat tops. */
 export function setToylandClimate(on, map = null) {
   toylandState.on = !!on;
   toylandState.map = map;
   toylandState.top = [];
+  applyToylandView();
+}
+
+/** Base OpenGFX sprite id -> toyland pack sprite id, for every override block (TY4, toyland_overrides.js). */
+export const TOYLAND_OVERRIDE_MAP = (() => {
+  const m = new Map();
+  for (const [a, b, base] of TOYLAND_OVERRIDE_BLOCKS) for (let t = a; t <= b; t++) m.set(base + t - a, t);
+  return m;
+})();
+
+let viewCache = null; // { base, toy, pack } last composite view
+
+/**
+ * Composite view of the base pack for toyland games (TY4): a copy of the base sprite table in which every
+ * override id points at the toyland sprite (atlases appended after the base atlases). The base pack is not mutated.
+ * @returns {object} pack-shaped object (sprites, groups, atlases, masks, tint)
+ */
+export function buildToylandView(base, toy) {
+  if (viewCache && viewCache.base === base && viewCache.toy === toy) return viewCache.pack;
+  const sprites = { ...base.sprites };
+  const off = base.atlases.length;
+  for (const [id, t] of TOYLAND_OVERRIDE_MAP) {
+    const s = toy.sprites[String(t)];
+    if (!s) continue;
+    const [ai, x, y, w, h, xo, yo, cc] = s;
+    sprites[String(id)] = [ai + off, x, y, w, h, xo, yo, cc];
+  }
+  const pack = {
+    sprites,
+    groups: base.groups,
+    atlases: [...base.atlases, ...toy.atlases],
+    masks: [...base.masks, ...toy.masks],
+    tint: new Map(),
+  };
+  viewCache = { base, toy, pack };
+  return pack;
+}
+
+/**
+ * Point the shared pack at the toyland view while a toyland game is on (and the toyland pack is loaded), back to the
+ * base pack otherwise. Caches keyed by sprite id are dropped on every swap. No-op until the base pack is known.
+ */
+export function applyToylandView() {
+  const base = toylandState.base;
+  if (!base) return;
+  const next = toylandState.on && toylandState.pack ? buildToylandView(base, toylandState.pack) : base;
+  if (packState.pack === next) return;
+  packState.pack = next;
+  clearTints();
+  clearPackTops();
+  clearDiagRoads();
+  clearShoreCache();
 }
 
 /** Active when the game is toyland, the toyland pack is loaded and the OpenGFX toggle is on. */

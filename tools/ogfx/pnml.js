@@ -91,15 +91,16 @@ function expandBody(body, env, tmpls, depth = 0) {
 /**
  * Read every explicit base sprite definition under srcRoot/sprites.
  * @param {string} srcRoot OpenGFX checkout root (contains sprites/)
+ * @param {string} [prefix='base'] file-name prefix under sprites/ to read (e.g. 'toyland' for the toyland grf sets)
  * @returns {Map<number,{file:string,x:number,y:number,w:number,h:number,xo:number,yo:number}>}
  */
-export function readSpriteDefs(srcRoot) {
+export function readSpriteDefs(srcRoot, prefix = 'base') {
   const files = listFiles(join(srcRoot, 'sprites'), ['.pnml', '.nml']).map((f) => ({ f, t: stripComments(readFileSync(f, 'utf8')) }));
   const tmpls = new Map();
   for (const { t } of files) collectTemplates(t, tmpls);
   const map = new Map();
   for (const { f, t } of files) {
-    if (!relative(join(srcRoot, 'sprites'), f).startsWith('base')) continue;
+    if (!relative(join(srcRoot, 'sprites'), f).startsWith(prefix)) continue;
     const re = /base_graphics\s+\w+\(\s*(\d+)\s*,\s*"([^"]+)"\s*\)\s*\{/g;
     let m;
     while ((m = re.exec(t))) {
