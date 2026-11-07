@@ -12,9 +12,10 @@ import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
 import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
-import { altitudeAt } from './aircraft.js';
-import { isHelicopter } from './airportTypes.js';
+import { altitudeAt, isRunwayCentre } from './aircraft.js';
+import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
+import { ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed } from './airportGround.js';
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
 import { shipLinkOk, shipSpeedStep } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
@@ -70,8 +71,13 @@ export function vehicleTick(ctx, v) {
       return;
     case 'running':
       if (v.kind === 'ship') { moveShip(ctx, v); return; }
+      if (v.kind === 'aircraft' && v.ftaGroundEnd != null) { // FTA ground phase (airportGround.js)
+        if (v.pathIndex > v.ftaGroundEnd) clearGround(v); // airborne (or taxi finished): flight rules again
+        else if (ftaBlocked(ctx.state, v)) { v.ftaWait = (v.ftaWait || 0) + 1; v.speed = 0; v.alt = 0; return; }
+        else if (v.ftaWait) delete v.ftaWait;
+      }
       move(ctx, v);
-      if (v.kind === 'aircraft') { v.alt = altitudeAt(v, isHelicopter(v)); if (v.hold) v.alt = 1; } // holding: cruise height
+      if (v.kind === 'aircraft') { v.alt = v.ftaGroundEnd != null ? 0 : altitudeAt(v, isHelicopter(v)); if (v.hold) v.alt = 1; } // holding: cruise height
       return;
     default:
   }
@@ -85,6 +91,7 @@ export function vehicleTick(ctx, v) {
 export function replan(ctx, v) {
   const { state } = ctx;
   let goals;
+  if (v.kind === 'aircraft' && (v.goingToDepot === null || v.goingToDepot === undefined) && v.orders.length && ftaReplan(ctx, v)) return true;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) {
     goals = depotGoals(state, v, v.goingToDepot);
     if (!goals.length) { v.goingToDepot = null; return replan(ctx, v); }
@@ -110,6 +117,53 @@ export function replan(ctx, v) {
   v.progress = 0;
   v.retryTick = state.tick + LOST_RETRY_TICKS;
   return false;
+}
+
+/**
+ * FTA ground start (OpenTTD AircraftEventHandler_AtTerminal / TakeOff): at its own airport the aircraft taxis to a
+ * terminal (hangar -> terminal); elsewhere it taxis to the runway and takes off. Returns false (old flight rules)
+ * for helicopters, other airport types and planes not standing on an FTA airport tile.
+ */
+function ftaReplan(ctx, v) {
+  const { state } = ctx;
+  const b = state.map.tiles[v.ty * state.map.width + v.tx].building;
+  if (!ftaGroundFor(v, b)) return false;
+  const order = currentOrder(v);
+  const st = order && findStation(state, order.stationId);
+  const here = findStation(state, b.stationId);
+  if (!st || !here) return false;
+  delete v.hold;
+  if (st.id === here.id) { // at its own airport: taxi to a terminal (free one if there is one)
+    const terms = ftaPartTiles(state, here, 'terminal');
+    const free = terms.filter((t) => !ftaClaimed(state, v, t.x, t.y));
+    if (!free.length) return false; // all terminals taken: the old flight rules (circle until a slot frees)
+    const p = taxiPath(state, here, v.tx, v.ty, free, (x, y) => ftaParked(state, v, x, y));
+    if (!p) return false;
+    setGroundPath(v, { path: p, groundEnd: p.length - 1 });
+    return true;
+  }
+  const goals = orderGoals(state, v);
+  const p = goals.length ? takeoffViaTerminal(state, here, v.tx, v.ty, goals, (x, y) => ftaParked(state, v, x, y), v) : null;
+  if (!p) return false;
+  setGroundPath(v, p);
+  return true;
+}
+
+/**
+ * FTA landing at the runway centre of st (OpenTTD LANDING -> ENDLANDING -> terminal): holds while the runway is
+ * taken or no terminal tile is free, else taxis to the nearest free terminal (the loading starts there).
+ * @returns {boolean} true when handled (holding or taxiing); false for no FTA ground path (use the old arrival)
+ */
+function ftaLand(ctx, v, st, b) {
+  const { state } = ctx;
+  if (ftaRunwayBusy(state, st, v)) { holdFlyLeg(state, v, v.tx, v.ty); return true; }
+  const free = ftaPartTiles(state, st, 'terminal').filter((t) => !ftaClaimed(state, v, t.x, t.y));
+  const p = free.length ? taxiPath(state, st, v.tx, v.ty, free, (x, y) => ftaParked(state, v, x, y)) : null;
+  if (!p) { holdFlyLeg(state, v, v.tx, v.ty); return true; }
+  delete v.hold;
+  if (maybeCrashLanding(ctx, v, st)) return true; // landing crash: vehicle removed
+  setGroundPath(v, { path: p, groundEnd: p.length - 1 });
+  return true;
 }
 
 /** Move a ship along its water path (shipPath.js): no queueing, no signals; links are open water tiles. */
@@ -335,21 +389,29 @@ function onPathEnd(ctx, v) {
     return;
   }
   const order = currentOrder(v);
+  if (v.kind === 'aircraft' && ftaGroundFor(v, b) && b.part === 'terminal' && ftaParked(state, v, v.tx, v.ty)) return; // terminal taken meanwhile: wait on the taxiway
+  if (v.kind === 'aircraft') clearGround(v); // a finished ground path (landing taxi at the terminal)
   if (v.kind === 'aircraft' && v.hold && (v.tx !== v.hold.x || v.ty !== v.hold.y)) { // holding loop corner
     const hst = order && findStation(state, order.stationId);
     const ab = state.map.tiles[v.hold.y * state.map.width + v.hold.x].building;
-    if (hst && ab && airSlotFree(state, v, hst, ab)) { delete v.hold; replan(ctx, v); return; }
+    const free = ftaGroundFor(v, ab) ? ftaCanLand(state, v, hst) : airSlotFree(state, v, hst, ab);
+    if (hst && ab && free) { delete v.hold; replan(ctx, v); return; }
     holdFlyLeg(state, v, v.hold.x, v.hold.y);
     return;
+  }
+  if (v.kind === 'aircraft' && order && b && b.type === 'station' && b.stationId === order.stationId && isRunwayCentre(b) && ftaGroundFor(v, b)) {
+    const st = findStation(state, order.stationId);
+    if (st && ftaLand(ctx, v, st, b)) return; // landed on the runway: taxi to a terminal (or hold)
   }
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);
     if (st && stopMode(order) === 'via') { advanceOrder(v); replan(ctx, v); return; } // go via: reached, no stop
     if (st) {
       if (v.kind === 'aircraft') { // no free terminal (or runway busy): circle until there is one
-        if (!airSlotFree(state, v, st, b)) { holdFlyLeg(state, v, v.tx, v.ty); return; }
+        const ground = ftaGroundFor(v, b); // FTA terminal reached on the ground: the slot was chosen by ftaLand
+        if (!ground && !airSlotFree(state, v, st, b)) { holdFlyLeg(state, v, v.tx, v.ty); return; }
         delete v.hold;
-        airTookRunway(state, v, st);
+        if (!ground) airTookRunway(state, v, st);
       }
       if (v.kind === 'aircraft' && maybeCrashLanding(ctx, v, st)) return; // landing crash: vehicle removed
       arriveAtStation(ctx, v, st); return;

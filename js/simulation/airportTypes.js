@@ -44,14 +44,14 @@ const CITY_LAYOUT = (() => {
   return out;
 })();
 
-// row 0: hangar, apron, apron, terminal; row 1: runway; row 2: apron
+// row 0: hangar, apron, terminal, terminal; row 1: runway; row 2: apron
 const SMALL_LAYOUT = (() => {
   const out = [];
   for (let dy = 0; dy < 3; dy++) {
     for (let dx = 0; dx < 4; dx++) {
       let part = dy === 1 ? 'runway' : 'apron';
       if (dy === 0 && dx === 0) part = 'hangar';
-      if (dy === 0 && dx === 3) part = 'terminal';
+      if (dy === 0 && (dx === 2 || dx === 3)) part = 'terminal'; // two terminal tiles (OTTD small: 2 terminals)
       out.push({ dx, dy, part });
     }
   }
