@@ -66,6 +66,32 @@ export function sortIndustries(industries, opts = {}) {
 }
 
 /**
+ * Name search (OpenTTD QueryString filter, town_gui.cpp / station_gui.cpp / industry_gui.cpp): true when the
+ * trimmed, case-insensitive query is a substring of the name. An empty query matches everything.
+ * Unicode-safe (Cyrillic / Latin names compare with toLowerCase).
+ * @param {string} name
+ * @param {string} query
+ */
+export function matchesName(name, query) {
+  const q = String(query || '').trim().toLowerCase();
+  return !q || String(name || '').toLowerCase().includes(q);
+}
+
+/**
+ * Keep the items whose name matches the query, preserving order. Pure: returns a new array
+ * (the input array itself when the query is empty).
+ * @template T
+ * @param {T[]} items
+ * @param {string} query
+ * @param {(item:T)=>string} nameOf
+ * @returns {T[]}
+ */
+export function filterByName(items, query, nameOf) {
+  if (!String(query || '').trim()) return items;
+  return items.filter((it) => matchesName(nameOf(it), query));
+}
+
+/**
  * Signs: filtered by a case-insensitive substring of the text, then sorted by text.
  * @param {{id:number,text?:string}[]} signs
  * @param {{filter?:string, dir?:number}} [opts]

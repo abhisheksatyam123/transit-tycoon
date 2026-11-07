@@ -10,6 +10,9 @@ import { hasTimetable } from '../../simulation/orders.js';
 import { openPrompt } from '../prompt.js';
 import { groupList } from '../../simulation/cmdGroup.js';
 import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
+import { MODEL_BY_ID } from '../../config/vehicles.js';
+import { wagonList } from '../../simulation/consist.js';
+import { cargoName } from '../cargo.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -20,6 +23,8 @@ export const STATE_LABEL = {
 export const VEHICLE_SORTS = [
   ['name', 'Name'], ['profitThisYear', 'Profit this year'], ['profitLastYear', 'Profit last year'],
   ['age', 'Age'], ['reliability', 'Reliability'], ['lateDays', 'Lateness'],
+  ['maxSpeed', 'Max speed'], ['value', 'Value'], ['model', 'Model'], ['length', 'Length (wagons)'],
+  ['cargo', 'Cargo'], ['timeToLive', 'Time to live'],
 ];
 
 /** True when the vehicle runs to a timetable (any order with a wait or travel time). */
@@ -41,6 +46,36 @@ export function lateLabel(v) {
 /** Kind filters: [value, label]. */
 export const VEHICLE_FILTERS = [['all', 'All'], ['train', 'Trains'], ['road', 'Road'], ['aircraft', 'Aircraft']];
 
+/** Model record of a vehicle (undefined for unknown ids). */
+function modelOf(v) {
+  return MODEL_BY_ID[v.modelId];
+}
+
+/** Cargo ids a vehicle carries: its own cargo plus every wagon's (OpenTTD: any part matches). */
+export function vehicleCargos(v) {
+  const set = new Set();
+  if (v.cargoId) set.add(v.cargoId);
+  for (const w of wagonList(v)) if (w && w.cargoId) set.add(w.cargoId);
+  return set;
+}
+
+/**
+ * Cargo filter: 'all' (no filter) or a cargo id; matches when any part of the vehicle carries that cargo.
+ * @param {any} v
+ * @param {string} [cargo]
+ */
+export function inCargo(v, cargo) {
+  if (cargo === undefined || cargo === 'all') return true;
+  return vehicleCargos(v).has(cargo);
+}
+
+/** Distinct cargo ids carried by any vehicle, sorted (for the cargo dropdown). */
+export function vehicleCargoOptions(vehicles) {
+  const set = new Set();
+  for (const v of vehicles) for (const c of vehicleCargos(v)) set.add(c);
+  return [...set].sort();
+}
+
 /** Reliability as a 0..1 fraction (older saves store percent). */
 function relFraction(v) {
   const r = Number(v.reliability) || 0;
@@ -58,32 +93,50 @@ export function inGroup(v, group) {
   return v.groupId === group;
 }
 
+/** Sort keys compared as strings (the rest are numeric). */
+const STRING_SORTS = new Set(['name', 'model', 'cargo']);
+
+/** Sort-key value per vehicle, computed once per call (cheap comparator). Strings for name/model/cargo. */
+function sortKey(v, sort) {
+  switch (sort) {
+    case 'profitThisYear': return Number(v.profitThisYear) || 0;
+    case 'profitLastYear': return Number(v.profitLastYear) || 0;
+    case 'age': return Number(v.age) || 0;
+    case 'reliability': return relFraction(v);
+    case 'lateDays': return Number(v.lateDays) || 0;
+    case 'maxSpeed': return Number(modelOf(v) && modelOf(v).speed) || 0;
+    case 'value': return Number(v.value) || 0;
+    case 'model': return String((modelOf(v) && modelOf(v).name) || v.modelId || '');
+    case 'length': return Number(v.wagons) || 0;
+    case 'cargo': return [...vehicleCargos(v)].sort().join(',');
+    case 'timeToLive': return (Number(v.maxAge) || 0) - (Number(v.age) || 0);
+    default: return String(v.name || ''); // name: string compare
+  }
+}
+
 /**
- * Filter then sort vehicles. Pure: does not mutate the input. Ties break on unit number then id.
+ * Filter then sort vehicles. Pure: does not mutate the input. Keys are computed once per vehicle;
+ * ties break on unit number then id (stable, deterministic).
  * @param {any[]} vehicles
- * @param {{sort?:string, dir?:number, filter?:string}} opts dir: 1 ascending, -1 descending
+ * @param {{sort?:string, dir?:number, filter?:string, group?:any, cargo?:string}} opts dir: 1 ascending, -1 descending
  * @returns {any[]}
  */
 export function sortVehicles(vehicles, opts = {}) {
-  const { sort = 'name', dir = 1, filter = 'all', group = 'all' } = opts;
-  const list = vehicles.filter((v) => (filter === 'all' || v.kind === filter) && inGroup(v, group));
-  const val = (v) => {
-    switch (sort) {
-      case 'profitThisYear': return Number(v.profitThisYear) || 0;
-      case 'profitLastYear': return Number(v.profitLastYear) || 0;
-      case 'age': return Number(v.age) || 0;
-      case 'reliability': return relFraction(v);
-      case 'lateDays': return Number(v.lateDays) || 0;
-      default: return null; // name: string compare
+  const { sort = 'name', dir = 1, filter = 'all', group = 'all', cargo = 'all' } = opts;
+  const sign = dir < 0 ? -1 : 1;
+  const rows = [];
+  for (const v of vehicles) {
+    if ((filter === 'all' || v.kind === filter) && inGroup(v, group) && inCargo(v, cargo)) {
+      rows.push({ v, k: sortKey(v, sort), u: Number(v.unitNumber) || 0, id: v.id });
     }
-  };
-  return list.sort((a, b) => {
-    let c;
-    if (sort === 'name') c = String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true });
-    else c = val(a) - val(b);
-    if (c === 0) c = (a.unitNumber || 0) - (b.unitNumber || 0) || a.id - b.id;
-    return c * (dir < 0 ? -1 : 1);
+  }
+  const isStr = STRING_SORTS.has(sort);
+  rows.sort((a, b) => {
+    let c = isStr ? String(a.k).localeCompare(String(b.k), undefined, { numeric: true }) : a.k - b.k;
+    if (c === 0) c = a.u - b.u || a.id - b.id;
+    return c * sign;
   });
+  return rows.map((r) => r.v);
 }
 
 /**
@@ -91,7 +144,7 @@ export function sortVehicles(vehicles, opts = {}) {
  */
 export function openVehicleList(app) {
   /** Window-instance state. */
-  const state = { sort: 'name', dir: 1, filter: 'all', group: 'all' };
+  const state = { sort: 'name', dir: 1, filter: 'all', group: 'all', cargo: 'all' };
   return app.wm.open('vehicles', {
     title: 'Vehicles',
     width: 440,
@@ -102,6 +155,17 @@ export function openVehicleList(app) {
       const filterSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Filter by kind', title: 'Kind filter' },
         VEHICLE_FILTERS.map(([v, l]) => el('option', { value: v, text: l })));
       const dirBtn = el('button.btn.sm', { type: 'button', title: 'Toggle ascending / descending' });
+      // cargo filter (OpenTTD vehicle_gui.cpp cargo dropdown): All cargo, or a cargo any part of the vehicle carries
+      const cargoFilterSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Filter by cargo', title: 'Cargo filter' });
+      const cargoKey = { sig: null };
+      const cargoOptions = (vs) => {
+        const opts = vehicleCargoOptions(vs);
+        const sig = opts.join('|');
+        if (cargoKey.sig === sig) return;
+        cargoKey.sig = sig;
+        cargoFilterSel.replaceChildren(el('option', { value: 'all', text: 'All cargo' }),
+          ...opts.map((c) => el('option', { value: c, text: cargoName(c) })));
+      };
       // group filter: All / Ungrouped / one option per group (count and profit of its vehicles)
       const groupSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Filter by group', title: 'Group filter' });
       const groupOpt = (value) => (value === 'all' || value === 'none' ? String(value) : `g:${value}`);
@@ -148,6 +212,7 @@ export function openVehicleList(app) {
         el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn);
       sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; refresh(); };
       filterSel.onchange = () => { state.filter = filterSel.value; refresh(); };
+      cargoFilterSel.onchange = () => { state.cargo = cargoFilterSel.value; refresh(); };
       dirBtn.onclick = () => { state.dir = -state.dir; refresh(); };
       // mass start/stop act on the vehicles the current kind filter shows (gap #40)
       const massBtn = (label, start) => el('button.btn.sm', { type: 'button', text: label, title: `${label} the vehicles shown by the filter`, onclick: () => {
@@ -164,7 +229,7 @@ export function openVehicleList(app) {
         refresh();
       } });
       const controls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel,
+        el('span.muted', { text: 'Sort' }), sortSel, dirBtn, el('span.muted', { text: 'Show' }), filterSel, el('span.muted', { text: 'Cargo' }), cargoFilterSel,
         massBtn('Start all', true), massBtn('Stop all', false),
         massDepotBtn('Send for servicing', true), massDepotBtn('Send to depot', false),
         el('button.btn.sm', { type: 'button', text: 'Autoreplace…', title: 'Replace models with newer ones when stopped in a depot', onclick: () => app.open('autoreplace') }));
@@ -174,6 +239,9 @@ export function openVehicleList(app) {
       const refresh = () => {
         sortSel.value = state.sort;
         filterSel.value = state.filter;
+        cargoOptions(app.game.state.vehicles.filter((v) => v.ownerId == null));
+        if (state.cargo !== 'all' && !Array.from(cargoFilterSel.options).some((o) => o.value === state.cargo)) state.cargo = 'all';
+        cargoFilterSel.value = state.cargo;
         setText(dirBtn, state.dir < 0 ? '▼' : '▲');
         const all = app.game.state.vehicles.filter((v) => v.ownerId == null); // player's vehicles only: rivals are not listed (gap #25)
         let p = 0;

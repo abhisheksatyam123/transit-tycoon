@@ -23,3 +23,18 @@ export function sortControls(sorts, state, onChange) {
     el('span.muted', { text: 'Sort' }), select, dirBtn);
   return { bar, select, dirBtn };
 }
+
+/**
+ * Name search box (OpenTTD QueryString filter in the town / station / industry lists). The query lives on the
+ * window's state object; typing calls `onInput` only, so the input keeps focus and its value across refreshes.
+ * @param {{query?:string}} state mutated in place (state.query)
+ * @param {string} label accessible label
+ * @param {()=>void} onInput called on every keystroke
+ * @returns {HTMLInputElement}
+ */
+export function nameSearch(state, label, onInput) {
+  const input = /** @type {HTMLInputElement} */ (el('input.input', { type: 'search', 'aria-label': label, title: label, placeholder: 'Search by name…', style: { width: '100%', marginBottom: '6px' } }));
+  input.value = state.query || '';
+  input.oninput = () => { state.query = input.value; onInput(); };
+  return input;
+}

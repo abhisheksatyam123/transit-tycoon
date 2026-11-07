@@ -1,3 +1,4 @@
+
 /**
  * Build-vehicle window helpers (OpenTTD build_vehicle_gui.cpp: cargo filter ~:487 and the sorter list
  * ~:107). Pure (no DOM) so the filter and sorter can be unit-tested. The sort choice is a UI preference
@@ -16,6 +17,9 @@ export const BUY_SORTERS = [
   ['capacity', 'Capacity', (m) => Number(m.capacity) || 0],
   ['running', 'Running cost', (m) => Number(m.running) || 0],
   ['intro', 'Intro date', (m) => Number(m.introYear) || 0],
+  // OpenTTD build_vehicle_gui.cpp:425-432 power (engine-only; a list holding non-engines sorts by name instead).
+  // No tractive-effort key: TT's TE formula has no per-engine input (vehicleSpec.js), so it would not order anything.
+  ['power', 'Power', (m) => Number(m.power) || 0, true],
 ];
 
 /** @returns {{key:string, dir:1|-1}} the remembered sort (default: list order, ascending). */
@@ -48,7 +52,9 @@ export function saveBuySort(sort) {
 export function sortModels(models, key, dir = 1) {
   const sorter = BUY_SORTERS.find((s) => s[0] === key);
   if (!sorter || !sorter[2]) return models.slice();
-  const get = sorter[2];
+  // engine-only keys need engines throughout; otherwise fall back to name order (OpenTTD keeps the list usable)
+  const nameFallback = !!sorter[3] && !models.every((m) => m && m.kind === 'engine');
+  const get = nameFallback ? (m) => String(m.name || '') : sorter[2];
   return models
     .map((m, i) => ({ m, i, v: get(m) }))
     .sort((a, b) => {

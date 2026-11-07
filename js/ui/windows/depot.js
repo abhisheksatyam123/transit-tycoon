@@ -7,6 +7,7 @@ import { cargoName, cargoColor } from '../cargo.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
 import { listOrEmpty } from './common.js';
+import { sortVehicles, VEHICLE_SORTS } from './vehicleList.js';
 import { openRename } from '../rename.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 
@@ -105,12 +106,24 @@ function confirmSellAll(question, onYes) {
  * @param {number} id depot id
  */
 export function openDepot(app, id) {
+  /** Window-instance vehicle sort (OpenTTD depot_gui.cpp uses the vehicle list sorter); not saved. */
+  const state = { sort: 'name', dir: 1 };
   return app.wm.open('depot:' + id, {
     title: 'Depot',
     width: 320,
     build(body, win) {
       const info = el('div.muted');
       const list = el('div.list.scroll');
+      const sortSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Sort depot vehicles', title: 'Sort vehicles' },
+        VEHICLE_SORTS.map(([k, l]) => el('option', { value: k, text: l })));
+      sortSel.value = state.sort;
+      const dirBtn = el('button.btn.sm', { type: 'button', title: 'Toggle ascending / descending' });
+      const paintDir = () => { dirBtn.textContent = state.dir < 0 ? 'Descending ▼' : 'Ascending ▲'; };
+      paintDir();
+      sortSel.onchange = () => { state.sort = sortSel.value; state.dir = 1; paintDir(); refresh(); };
+      dirBtn.onclick = () => { state.dir = -state.dir; paintDir(); refresh(); };
+      const sortBar = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' } },
+        el('span.muted', { text: 'Sort' }), sortSel, dirBtn);
       const buy = el('button.btn.primary', { type: 'button', text: 'Buy vehicle…', onclick: () => app.open('buyVehicle', id) });
       const rename = el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'depot', id) });
       const center = el('button.btn', { type: 'button', text: 'Center view', onclick: () => { const d = app.findDepot(id); if (d) app.centerOn(d.x, d.y); } });
@@ -130,8 +143,8 @@ export function openDepot(app, id) {
           app.toast(`Sold ${res.sold} vehicle(s) for ${money(res.refund)}${res.failed ? ` · ${res.failed} could not be sold` : ''}`, res.failed ? 'error' : 'good');
         });
       } });
-      body.append(info, list, el('div.btn-row', null, buy, rename, center, startAll, stopAll, sellAll));
-      return () => {
+      body.append(info, sortBar, list, el('div.btn-row', null, buy, rename, center, startAll, stopAll, sellAll));
+      const refresh = () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }
         win.setTitle(d.name || (d.kind === 'rail' ? 'Train Depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship Depot' : 'Road Vehicle Depot'));
@@ -139,7 +152,7 @@ export function openDepot(app, id) {
         setText(info, `${inside.length} vehicle(s) inside · ${d.name ? (d.kind === 'rail' ? 'Train depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship depot' : 'Road vehicle depot') : depotDisplayName(d)} · (${d.x}, ${d.y})`);
         sellAll.disabled = !inside.length;
         sellAll.title = inside.length ? 'Sell every vehicle stopped inside this depot (refund = current value)' : 'No vehicles inside this depot';
-        listOrEmpty(list, inside, (v) => v.id,
+        listOrEmpty(list, sortVehicles(inside, state), (v) => v.id,
           (v) => el('div.consist-wrap', null,
             el('div.list-row.split', null,
               el('button.link', { type: 'button', onclick: () => app.open('vehicle', v.id) }),
@@ -154,6 +167,8 @@ export function openDepot(app, id) {
           },
           'Empty — buy a vehicle');
       };
+      refresh();
+      return refresh;
     },
   });
 }

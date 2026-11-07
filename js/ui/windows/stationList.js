@@ -7,6 +7,8 @@
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty, packetTotal } from './common.js';
+import { matchesName } from './listSort.js';
+import { nameSearch } from './sortControls.js';
 import { appendOrder } from '../tools/addOrder.js';
 
 /** Sort keys offered in the dropdown / header buttons. */
@@ -53,14 +55,15 @@ export function hasFacility(st, facility) {
 }
 
 /**
- * Filter then sort stations. Pure: does not mutate the input.
+ * Filter (facility + case-insensitive name query, OpenTTD station_gui.cpp QueryString) then sort stations.
+ * Pure: does not mutate the input.
  * @param {any[]} stations
- * @param {{sort?:string, dir?:number, filter?:string}} opts dir: 1 ascending, -1 descending
+ * @param {{sort?:string, dir?:number, filter?:string, query?:string}} opts dir: 1 ascending, -1 descending
  * @returns {any[]}
  */
 export function sortStations(stations, opts = {}) {
-  const { sort = 'name', dir = 1, filter = 'all' } = opts;
-  const list = stations.filter((st) => filter === 'all' || hasFacility(st, filter));
+  const { sort = 'name', dir = 1, filter = 'all', query = '' } = opts;
+  const list = stations.filter((st) => (filter === 'all' || hasFacility(st, filter)) && matchesName(st.name, query));
   const val = (st) => {
     if (sort === 'waiting') return stationStats(st).waiting;
     if (sort === 'rating') return stationStats(st).maxRating ?? -1;
@@ -84,7 +87,7 @@ function ratingColor(r) {
  */
 export function openStationList(app) {
   /** Window-instance state (not saved). */
-  const state = { sort: 'name', dir: 1, filter: 'all' };
+  const state = { sort: 'name', dir: 1, filter: 'all', query: '' };
   return app.wm.open('stations', {
     title: 'Stations',
     width: 380,
@@ -111,7 +114,8 @@ export function openStationList(app) {
         })),
         el('span', { text: 'Facilities' }));
       const list = el('div.list.scroll.table');
-      body.append(summary, controls, head, list);
+      const search = nameSearch(state, 'Search stations by name', () => refresh());
+      body.append(summary, controls, search, head, list);
 
       const refresh = () => {
         sortSel.value = state.sort;
