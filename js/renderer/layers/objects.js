@@ -14,6 +14,7 @@ import { airportObject } from '../sprites/airport.js';
 import { airportTypeId } from '../../simulation/airportTypes.js';
 import { hqSprite } from '../sprites/hq.js';
 import { vehicleSprite } from '../sprites/vehicles.js';
+import { waypointSprite } from '../sprites/waypoint.js';
 import { shipDockSprite, buoySprite, shipDepotSprite, shipSegmentSprite } from '../sprites/ships.js';
 import { drawPackSegment } from '../pack/vehicles.js';
 import { drawPackShipSegment, drawPackDock, drawPackShipDepot, drawPackBuoy } from '../pack/ships.js';
@@ -109,6 +110,7 @@ export function drawObject(ctx, tile, x, y, sx, sy, industryById, waterAt, field
         }
         blit(ctx, shipDockSprite(), sx, sy); return null;
       }
+      if (b.kind === 'waypoint') { blit(ctx, waypointSprite(), sx, sy); return null; }
       if (b.kind === 'buoy') {
         if (packActive() && drawPackBuoy(ctx, sx, sy)) return null;
         blit(ctx, buoySprite(), sx, sy); return null;

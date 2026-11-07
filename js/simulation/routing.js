@@ -44,7 +44,8 @@ export function orderGoals(state, v) {
   const kind = stopKindFor(v);
   if (kind === 'airport') return airGoals(state, st, v);
   if (kind === 'ship') return shipGoals(state.map, st);
-  return st.tiles.filter((t) => stopKindOk(v, t.kind)).map((t) => ({ x: t.x, y: t.y }));
+  // rail waypoints (cmdWaypoint.js) are goal tiles for train orders too (go via: the path ends there)
+  return st.tiles.filter((t) => stopKindOk(v, t.kind) || (kind === 'rail' && t.kind === 'waypoint')).map((t) => ({ x: t.x, y: t.y }));
 }
 
 /**

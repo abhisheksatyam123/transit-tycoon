@@ -151,7 +151,7 @@ export function findPath(map, start, goals, layer, opts = {}) {
           step += (nxtH - curH) * RAIL_COSTS.SLOPE_UP;
         }
         // Station penalty for passing THROUGH a station that is not the goal
-        if (nt.building && nt.building.type === 'station' && !goalSet.has(ni)) {
+        if (nt.building && nt.building.type === 'station' && nt.building.kind !== 'waypoint' && !goalSet.has(ni)) {
           step += RAIL_COSTS.STATION_PASS;
         }
         // Occupied-block and red signal penalties

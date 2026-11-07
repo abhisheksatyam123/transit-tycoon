@@ -31,6 +31,7 @@ const PATHS = {
   oneWay: '<path d="M4 12h13M13 7l5 5-5 5"/>',
   plant: '<path d="M12 21v-7M12 14c-4 0-6-3-6-6 3 0 6 2 6 6zM12 12c3 0 5-3 5-6-3 0-5 2-5 6z"/><path d="M6 21h12"/>',
   electrify: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  waypoint: '<path d="M12 4v13M9 17h6"/><circle cx="12" cy="4" r="2"/><path d="M3 20h18"/>',
   demolish: '<path d="M14 4l6 6-9 9H5v-6zM4 21h16M11 7l6 6"/>',
   query: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M11 8v.01M11 11v3"/>',
   vehicles: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17" cy="18" r="1.5"/>',

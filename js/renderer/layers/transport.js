@@ -167,7 +167,7 @@ export function drawTunnelPortal(ctx, tile, sx, sy, c, map, x, y) {
  * @param {boolean} [diag]
  */
 function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
-  const b = tile.building;
+  const b = tile.building && tile.building.kind !== 'waypoint' ? tile.building : null; // waypoint: plain rail ground
   if (b && b.type === 'station' && b.kind === 'rail') {
     const a = b.axis === 'y' ? 'y' : 'x';
     drawSloped(ctx, stationGround[a] || (stationGround[a] = railStationGround(a)), sx, sy, c);

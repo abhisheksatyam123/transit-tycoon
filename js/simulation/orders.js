@@ -517,7 +517,9 @@ export function normaliseOrders(state, v, orders, kindOf) {
     const st = o && findStation(state, o.stationId);
     if (!st) return { ok: false, error: 'Unknown station in orders' };
     const kind = kindOf(v);
-    const hasStop = kind === 'ship' ? st.tiles.some((t) => t.kind === 'dock' || t.kind === 'buoy') : st.tiles.some((t) => stopKindOk(v, t.kind));
+    const waypoint = kind === 'rail' && st.tiles.length > 0 && st.tiles.every((t) => t.kind === 'waypoint');
+    const hasStop = kind === 'ship' ? st.tiles.some((t) => t.kind === 'dock' || t.kind === 'buoy')
+      : waypoint || st.tiles.some((t) => stopKindOk(v, t.kind));
     if (!hasStop) {
       return { ok: false, error: `${st.name} has no ${kind === 'rail' ? 'rail platform' : kind === 'ship' ? 'dock or buoy' : kind + ' stop'}` };
     }
@@ -526,7 +528,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (!stationFitsVehicle(state, st, v)) {
       return { ok: false, error: `${st.name} cannot take this aircraft (planes need an airport, small airports only take small planes)` };
     }
-    const stop = o.stop === undefined || o.stop === 'non' ? undefined : o.stop;
+    // a rail waypoint is always a go-via order (OpenTTD: waypoints are passed, never stopped at)
+    const stop = waypoint ? 'via' : (o.stop === undefined || o.stop === 'non' ? undefined : o.stop);
     if (stop !== undefined && !STOP_MODES.includes(stop)) return { ok: false, error: `Unknown stop mode ${stop}` };
     if (stop !== undefined && v.kind !== 'train' && v.kind !== 'road') return { ok: false, error: 'Only trains and road vehicles can stop at intermediate stations' };
     const load = o.load === undefined ? (o.full ? 'full' : 'normal') : o.load;

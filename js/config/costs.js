@@ -12,6 +12,9 @@ export const COSTS = {
   /** player rail tunnel: extra per underground tile (on top of normal track cost); portals are normal track */
   tunnelRail: 350,
   railStation: 700,
+  /** rail waypoint (OpenTTD Price::BuildWaypointRail 600 vs station base), demolish (ClearWaypointRail 80) */
+  railWaypoint: 600,
+  demolishWaypoint: 80,
   roadStop: 500,
   depotRail: 1200,
   depotRoad: 900,

@@ -236,7 +236,8 @@ function passStation(ctx, v) {
   const { state } = ctx;
   const t = state.map.tiles[v.ty * state.map.width + v.tx];
   const b = t.building;
-  const st = b && b.type === 'station' && stopKindOk(v, b.kind) ? findStation(state, b.stationId) : null;
+  const wp = b && b.type === 'station' && b.kind === 'waypoint'; // rail waypoint: only its own go-via order counts
+  const st = b && b.type === 'station' && (wp || stopKindOk(v, b.kind)) ? findStation(state, b.stationId) : null;
   // a station's platform tiles are consecutive: serve it once, not on every tile of it (v.passedStationId, lazy)
   if (!st || st.id !== v.passedStationId) delete v.passedStationId;
   if (!st || (st.ownerId ?? null) !== (v.ownerId ?? null)) return false;
@@ -247,7 +248,7 @@ function passStation(ctx, v) {
     replan(ctx, v);
     return true;
   }
-  if (mode !== 'all') return false;
+  if (mode !== 'all' || wp) return false;
   v.passedStationId = st.id;
   arriveAtStation(ctx, v, st, true);
   return true;
@@ -436,6 +437,9 @@ function onPathEnd(ctx, v) {
   if (v.kind === 'aircraft' && order && b && b.type === 'station' && b.stationId === order.stationId && isRunwayCentre(b) && ftaGroundFor(v, b)) {
     const st = findStation(state, order.stationId);
     if (st && ftaLand(ctx, v, st, b)) return; // landed on the runway: taxi to a terminal (or hold)
+  }
+  if (order && b && b.type === 'station' && b.kind === 'waypoint' && b.stationId === order.stationId && v.kind === 'train') {
+    advanceOrder(v); replan(ctx, v); return; // rail waypoint reached: passed, no stop (cmdWaypoint.js)
   }
   if (order && b && b.type === 'station' && b.stationId === order.stationId && stopKindOk(v, b.kind)) {
     const st = findStation(state, order.stationId);

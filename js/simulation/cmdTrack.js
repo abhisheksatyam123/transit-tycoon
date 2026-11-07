@@ -465,7 +465,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
       }
       if (b && b.type === 'station') {
         if (ownerOfStation(state, b.stationId) != null) return { ok: false, error: RIVAL_OWNED };
-        jobs.push({ x, y, kind: 'station' }); cost += COSTS.demolishStation; continue;
+        jobs.push({ x, y, kind: 'station' }); cost += b.kind === 'waypoint' ? COSTS.demolishWaypoint : COSTS.demolishStation; continue;
       }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
       if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }

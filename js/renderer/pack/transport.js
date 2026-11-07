@@ -52,7 +52,7 @@ function drawStack(ctx, ids, sx, sy, c) {
  */
 export function drawPackTransport(ctx, tile, sx, sy, c, diag = false) {
   if (!packActive()) return false;
-  const b = tile.building;
+  const b = tile.building && tile.building.kind !== 'waypoint' ? tile.building : null; // waypoint: plain rail ground
   if (b && b.type === 'landmark') return false;
   if (b && b.type === 'station' && (b.kind === 'airport')) return false;
   const road = tile.road | 0;

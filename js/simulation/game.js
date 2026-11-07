@@ -31,6 +31,7 @@ import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
 import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import { buildDock, buildShipDepot, buildBuoy } from './cmdShip.js';
+import { buildRailWaypoint } from './cmdWaypoint.js';
 import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import * as vcmd from './cmdVehicle.js';
@@ -278,6 +279,8 @@ export class Game {
   buildDock(x, y, opts) { return buildDock(this.ctx, x, y, opts); }
   buildShipDepot(x, y, opts) { return buildShipDepot(this.ctx, x, y, opts); }
   buildBuoy(x, y, opts) { return buildBuoy(this.ctx, x, y, opts); }
+  /** Rail waypoint on a straight rail tile (cmdWaypoint.js): trains order it as go-via. */
+  buildRailWaypoint(x, y, opts) { return buildRailWaypoint(this.ctx, x, y, opts); }
   /** Canal along a straight line (x0,y0)-(x1,y1) on flat land (cmdCanal.js). */
   buildCanal(x0, y0, x1, y1, opts) { return buildCanal(this.ctx, x0, y0, x1, y1, opts); }
   /** Lock with middle tile (x,y) on a straight inclined slope (cmdCanal.js). */

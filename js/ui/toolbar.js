@@ -37,6 +37,7 @@ export const TOOL_BUTTONS = [
   ['roadDepot', 'Road Depot', 'roadDepot', '7'],
   ['demolish', 'Demolish', 'demolish', '8'],
   ['electrify', 'Electrify', 'electrify', ''],
+  ['waypoint', 'Waypoint', 'waypoint', ''],
   ['query', 'Query', 'query', '9'],
   ['signal', 'Signal', 'signal', ''],
   ['sign', 'Sign', 'sign', ''],
@@ -97,7 +98,7 @@ const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load
  * A member is a tool id (from TOOL_BUTTONS) or, with a `win:` prefix, a window name (from WINDOW_BUTTONS).
  */
 export const TOOL_GROUPS = [
-  ['rail', 'Rail+', 'electrify', ['electrify']],
+  ['rail', 'Rail+', 'electrify', ['electrify', 'waypoint']],
   ['road', 'Road+', 'oneWay', ['oneWay', 'tram']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],

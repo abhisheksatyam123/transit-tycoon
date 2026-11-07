@@ -13,6 +13,7 @@ import { createTruckStopTool } from './truckStop.js';
 import { createDepotTool } from './depot.js';
 import { createDemolishTool } from './demolish.js';
 import { createElectrifyTool } from './electrify.js';
+import { createWaypointTool } from './waypoint.js';
 import { createQueryTool } from './query.js';
 import { createAirportTool } from './airport.js';
 import { createTerraformTool, createPlantTool } from './terraform.js';
@@ -56,6 +57,7 @@ export function createTools(app) {
     roadDepot: createDepotTool(app, 'road'),
     demolish: createDemolishTool(app),
     electrify: createElectrifyTool(app),
+    waypoint: createWaypointTool(app),
     query: createQueryTool(app),
     airport: createAirportTool(app, 'city'),
     smallAirport: createAirportTool(app, 'small'),
