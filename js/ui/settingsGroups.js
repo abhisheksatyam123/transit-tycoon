@@ -20,6 +20,8 @@ export const SETTING_GROUPS = [
  * @type {{key:string,group:string,label:string,help:string,type:'check'|'number'|'select',min?:number,max?:number,options?:[string,string][],newGame?:boolean}[]}
  */
 export const SETTING_META = [
+  { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
+    help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'gradients', group: 'construction', label: 'Gradients', type: 'check',
     help: 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus.' },
   { key: 'pathCosts', group: 'construction', label: 'Realistic pathfinder costs', type: 'check',

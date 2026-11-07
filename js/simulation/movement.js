@@ -30,6 +30,7 @@ import { dirBetween } from './constants.js';
 import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
 import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
+import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick } from './roadOvertake.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -71,6 +72,7 @@ export function vehicleTick(ctx, v) {
       }
       return;
     case 'running':
+      if (v.overtakeId !== undefined) overtakeTick(ctx, v); // OpenTTD overtaking state (roadOvertake.js)
       if (v.kind === 'ship') { moveShip(ctx, v); return; }
       if (v.kind === 'aircraft' && v.ftaGroundEnd != null) { // FTA ground phase (airportGround.js)
         if (v.pathIndex > v.ftaGroundEnd) clearGround(v); // airborne (or taxi finished): flight rules again
@@ -323,7 +325,10 @@ function nextBlocker(ctx, v) {
   const p = v.path, i = v.pathIndex;
   if (!layer || !p || i + 1 >= p.length) return null;
   const a = p[i], b = p[i + 1];
-  const same = blockerOn(ctx, v, layer, b.x, b.y, dirBetween(a.x, a.y, b.x, b.y));
+  const dir = dirBetween(a.x, a.y, b.x, b.y);
+  if (layer === 'road' && v.overtakeId !== undefined) return overtakeBlocker(ctx, v, b.x, b.y, dir); // passing the overtaken vehicle
+  const same = blockerOn(ctx, v, layer, b.x, b.y, dir);
+  if (layer === 'road' && same && overtakeEnabled(ctx.state) && tryOvertake(ctx, v, same)) return overtakeBlocker(ctx, v, b.x, b.y, dir);
   if (same || layer !== 'rail') return same;
   return signalBlocker(ctx, v, a, b) || typedGate(ctx, v, a, b);
 }

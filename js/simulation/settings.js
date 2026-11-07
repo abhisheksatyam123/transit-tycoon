@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS = {
   treeGrowth: false,
   /** gradients: uphill slopes slow ground vehicles (weight * steepness), downhill gives a small bonus (vehicleMotion.gradeMph). Off by default: changes deterministic results. */
   gradients: false,
+  /** roadOvertaking: OpenTTD road vehicle overtaking (roadOvertake.js): a faster road vehicle passes a slower one on a straight plain road when the opposite lane is free. Trams never. Off by default: changes results. */
+  roadOvertaking: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
   enginePreview: false,
   /** shares: OpenTTD company shares (4 x 25%) in rival companies; the 4th share takes the company over (shares.js). Off by default. */
