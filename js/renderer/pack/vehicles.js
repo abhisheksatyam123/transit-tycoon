@@ -95,13 +95,14 @@ export const WAGON_IMG = {
   wag_flat: 42,
   wag_stone: 34,
   wag_crate: 38,
-  wag_water: 36,
-  // TP sub-tropical chain wagons: OpenGFX temperate stand-ins (no tropical wagon art mapped yet)
-  wag_rubber: 36,
-  wag_fruit: 38,
-  wag_maize: 34,
-  wag_copper: 34,
-  wag_diamonds: 37,
+  wag_water: 47,
+  // TP sub-tropical chain wagons: OpenTTD table/engines.h image_index of the sub-tropic rail engine
+  // (Water Tanker 47, Fruit Truck 48, Rubber Truck 49, Copper Ore Hopper 46, Armoured Van 43, Grain Hopper 39)
+  wag_rubber: 49,
+  wag_fruit: 48,
+  wag_maize: 39,
+  wag_copper: 46,
+  wag_diamonds: 43,
 };
 /** Wagon image index per cargo when the model is unknown. */
 export const CARGO_WAGON = {
@@ -116,7 +117,7 @@ export const CARGO_WAGON = {
   WOOD: 42,
   STEL: 42,
   STON: 34, BMAT: 34, PAPR: 38, FOOD: 38,
-  RUBBER: 36, FRUIT: 38, MAIZE: 34, COPPER_ORE: 34, DIAMONDS: 37,
+  WATER: 47, RUBBER: 49, FRUIT: 48, MAIZE: 39, COPPER_ORE: 46, DIAMONDS: 43,
 };
 /** Road vehicle image index per bus/truck model. */
 export const ROAD_IMG = {
@@ -131,15 +132,17 @@ export const ROAD_IMG = {
   trk_steel: 9,
   trk_cattle: 4,
   trk_heavy: 10,
+  trk_armoured: 10,
   trk_stone: 18,
   trk_food: 5,
-  trk_water: 3,
-  // TP sub-tropical chain trucks: OpenGFX temperate stand-ins
-  trk_rubber: 3,
-  trk_fruit: 5,
-  trk_maize: 18,
-  trk_copper: 18,
-  trk_diamonds: 1,
+  trk_water: 14,
+  // TP sub-tropical chain trucks: OpenTTD table/engines.h ROV image_index of the first-generation sub-tropic truck
+  // (Uhl Water Tanker 14, Balogh Fruit 15, Balogh Rubber 16, MPS Copper Ore 13, Balogh Armoured 10, Hereford Grain 6)
+  trk_rubber: 16,
+  trk_fruit: 15,
+  trk_maize: 6,
+  trk_copper: 13,
+  trk_diamonds: 10,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
 export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];
