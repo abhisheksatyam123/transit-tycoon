@@ -41,6 +41,8 @@ export class GroundCache {
     this.scale = 1;
     this.frame = 0;
     this.map = null;
+    /** @type {Map<number, any>} in-progress chunk builds (tile-sliced), keyed by chunk index */
+    this.jobs = new Map();
   }
 
   /** Release every canvas and bind to a map. */
@@ -51,6 +53,7 @@ export class GroundCache {
     this.cols = Math.ceil(map.width / CHUNK);
     this.rows = Math.ceil(map.height / CHUNK);
     this.chunks = new Array(this.cols * this.rows).fill(null);
+    this.jobs = new Map();
   }
 
   /** @param {number} i chunk index */
@@ -62,11 +65,14 @@ export class GroundCache {
 
   releaseAll() {
     for (let i = 0; i < this.chunks.length; i++) this.release(i);
+    for (const j of this.jobs.values()) j.canvas.width = 0;
+    this.jobs = new Map();
   }
 
   /** Mark every chunk dirty (e.g. after a build command). */
   invalidate() {
     for (const c of this.chunks) if (c) c.sig = -1;
+    for (const j of this.jobs.values()) j.stale = true; // finished job will be rebuilt on next check
   }
 
   /** Number of live chunk canvases. */
@@ -105,13 +111,13 @@ export class GroundCache {
   }
 
   /**
-   * Render one chunk canvas (replacing any previous canvas of this chunk).
+   * Start a tile-sliced build of one chunk into a fresh canvas (the displayed chunk is untouched
+   * until the job finishes, then swapped in by finishJob).
    * @param {number} cx
    * @param {number} cy
    * @param {number} sig
-   * @returns {any}
    */
-  build(cx, cy, sig) {
+  startJob(cx, cy, sig) {
     const m = this.map;
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
     const x1 = Math.min(m.width, x0 + CHUNK) - 1, y1 = Math.min(m.height, y0 + CHUNK) - 1;
@@ -119,38 +125,48 @@ export class GroundCache {
     const ww = (x1 - x0 + y1 - y0 + 2) * HALF_W;
     const wy = (x0 + y0) * HALF_H - PAD_TOP;
     const wh = (x1 - x0 + y1 - y0) * HALF_H + PAD_TOP + PAD_BOTTOM;
-    const idx = cy * this.cols + cx;
     const scale = this.scale;
-    const old = this.chunks[idx];
-    let canvas;
-    if (old && old.canvas && old.canvas.width === Math.ceil(ww * scale) && old.canvas.height === Math.ceil(wh * scale)) {
-      canvas = old.canvas; // same size: reuse the canvas
-    } else {
-      if (old && old.canvas) { old.canvas.width = 0; old.canvas.height = 0; }
-      canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(ww * scale);
-      canvas.height = Math.ceil(wh * scale);
-    }
-    const rec = { canvas, wx, wy, ww, wh, sig, scale, used: this.frame };
-    this.chunks[idx] = rec;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(ww * scale);
+    canvas.height = Math.ceil(wh * scale);
     const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, -wx * scale, -wy * scale);
-    setSpriteLod(scale);
+    // tile order identical to the one-shot build (diagonals, then x): pixels do not depend on slicing
+    const order = [];
     for (let d = x0 + y0; d <= x1 + y1; d++) {
-      for (let x = Math.max(x0, d - y1); x <= Math.min(x1, d - y0); x++) {
-        const y = d - x;
-        const tile = m.tiles[y * m.width + x];
-        const sx = (x - y) * HALF_W, sy = (x + y) * HALF_H;
-        const c = this.heights.tileCorners(x, y);
-        drawGround(ctx, m, x, y, sx, sy, 0, c);
-        drawTransport(ctx, tile, sx, sy, c, m, x, y);
-        drawNetTile(ctx, m, x, y, sx, sy, this.heights);
-        if (tile.tram) drawTramOverlay(ctx, tile, sx, sy, c);
-      }
+      for (let x = Math.max(x0, d - y1); x <= Math.min(x1, d - y0); x++) order.push(x, d - x);
     }
-    return rec;
+    return { idx: cy * this.cols + cx, cx, cy, sig, scale, wx, wy, ww, wh, canvas, ctx, order, k: 0, stale: false, used: this.frame };
+  }
+
+  /**
+   * Draw tiles of a job until `deadline` (performance.now ms); at least one tile per call.
+   * @returns {boolean} true when the job is complete
+   */
+  stepJob(job, deadline) {
+    const m = this.map, ctx = job.ctx, order = job.order;
+    setSpriteLod(job.scale);
+    do {
+      const x = order[job.k], y = order[job.k + 1];
+      job.k += 2;
+      const tile = m.tiles[y * m.width + x];
+      const sx = (x - y) * HALF_W, sy = (x + y) * HALF_H;
+      const c = this.heights.tileCorners(x, y);
+      drawGround(ctx, m, x, y, sx, sy, 0, c);
+      drawTransport(ctx, tile, sx, sy, c, m, x, y);
+      drawNetTile(ctx, m, x, y, sx, sy, this.heights);
+      if (tile.tram) drawTramOverlay(ctx, tile, sx, sy, c);
+    } while (job.k < order.length && performance.now() < deadline);
+    return job.k >= order.length;
+  }
+
+  /** Swap a finished job in as the chunk's canvas (the old canvas is released). */
+  finishJob(job) {
+    const old = this.chunks[job.idx];
+    if (old && old.canvas) { old.canvas.width = 0; old.canvas.height = 0; }
+    this.jobs.delete(job.idx);
+    this.chunks[job.idx] = { canvas: job.canvas, wx: job.wx, wy: job.wy, ww: job.ww, wh: job.wh, sig: job.stale ? -1 : job.sig, scale: job.scale, used: this.frame };
+    return this.chunks[job.idx];
   }
 
   /** Flat diamond in the ground colour where a not-yet-built chunk goes (avoids holes). */
@@ -170,6 +186,7 @@ export class GroundCache {
 
   /** Release least-recently-drawn chunks (not drawn this frame) until within MAX_CHUNKS. */
   trim() {
+    for (const [idx, j] of this.jobs) if (j.used < this.frame) { j.canvas.width = 0; this.jobs.delete(idx); }
     let live = this.liveCount();
     while (live > MAX_CHUNKS) {
       let best = -1, bestUsed = Infinity;
@@ -198,27 +215,35 @@ export class GroundCache {
     const frame = this.frame;
     const cx0 = Math.floor(range.x0 / CHUNK), cx1 = Math.floor(range.x1 / CHUNK);
     const cy0 = Math.floor(range.y0 / CHUNK), cy1 = Math.floor(range.y1 / CHUNK);
-    let built = 0;
     this.pending = 0; // chunks drawn as placeholders this call (whole-map export waits for 0)
     const t0 = performance.now();
+    let worked = false;
     for (let s = cx0 + cy0; s <= cx1 + cy1; s++) {
       for (let cx = Math.max(cx0, s - cy1); cx <= Math.min(cx1, s - cy0); cx++) {
         const cy = s - cx;
         const idx = cy * this.cols + cx;
         const rec = this.chunks[idx];
         let use = rec;
-        if (!rec || rec.scale !== scale || rec.sig === -1 || checkSig) {
+        let job = this.jobs.get(idx);
+        if (job && job.scale !== scale) { job.canvas.width = 0; this.jobs.delete(idx); job = null; }
+        if (!job && (!rec || rec.scale !== scale || rec.sig === -1 || checkSig)) {
           const sig = this.signature(cx, cy);
           if (!rec || rec.scale !== scale || rec.sig !== sig) {
-            if (built === 0 || (built < buildBudget && performance.now() - t0 < BUILD_BUDGET_MS)) {
-              use = this.build(cx, cy, sig);
-              built++;
-            } else if (!rec) {
-              this.placeholder(ctx, cx, cy); // built in a later frame
-              this.pending++;
-            }
+            job = this.startJob(cx, cy, sig);
+            this.jobs.set(idx, job);
           } else if (rec.scale === scale) {
             rec.sig = sig;
+          }
+        }
+        if (job) {
+          job.used = frame;
+          // time-sliced: the frame budget is shared by all chunks; the first tile of a frame always runs
+          if (!worked || performance.now() - t0 < BUILD_BUDGET_MS) {
+            worked = true;
+            if (this.stepJob(job, t0 + BUILD_BUDGET_MS)) use = this.finishJob(job);
+          }
+          if (use === rec) {
+            if (!rec) { this.placeholder(ctx, cx, cy); this.pending++; use = null; } // stale chunk is drawn meanwhile
           }
         }
         if (use) {
