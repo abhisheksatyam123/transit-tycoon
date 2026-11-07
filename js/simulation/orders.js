@@ -10,6 +10,7 @@ import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, findDepot, manhattan, findIndustry, nearestTown } from './state.js';
 import { refitCargos } from './refit.js';
+import { normaliseCond } from './condOrders.js';
 import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting } from './stations.js';
 import { deliverToIndustry } from './industries.js';
 import { recordTownDelivery } from './townGrowth.js';
@@ -116,7 +117,7 @@ export function setOrderField(state, v, idx, patch) {
  * single-station route cannot wait for cargo that only it could deliver), so with fewer the vehicle departs.
  */
 export function distinctOrderStations(v) {
-  return new Set(v.orders.filter((o) => o.depotId == null).map((o) => o.stationId)).size;
+  return new Set(v.orders.filter((o) => o.depotId == null && !o.cond).map((o) => o.stationId)).size;
 }
 
 /** Current order of a vehicle or null. */
@@ -528,6 +529,12 @@ export function normaliseOrders(state, v, orders, kindOf) {
   if (orders.length > 16) return { ok: false, error: 'Too many orders' };
   const out = [];
   for (const o of orders) {
+    if (o && o.cond != null) { // conditional order (condOrders.js): no station; target checked below
+      const r = normaliseCond(o.cond);
+      if (!r.ok) return r;
+      out.push(r.entry);
+      continue;
+    }
     if (o && o.depotId != null) { // go-to-depot order: no station; optional service-if-needed and refit
       const r = normaliseDepotOrder(state, v, o);
       if (!r.ok) return r;
@@ -564,6 +571,9 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
     if (stop !== undefined) entry.stop = stop;
     out.push(entry);
+  }
+  for (const o of out) {
+    if (o.cond && (o.cond.to < 0 || o.cond.to >= out.length)) return { ok: false, error: 'Conditional order jumps to an order that does not exist' };
   }
   return { ok: true, orders: out };
 }

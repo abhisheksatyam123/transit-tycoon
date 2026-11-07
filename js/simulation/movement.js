@@ -25,6 +25,7 @@ import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
 import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode } from './orders.js';
+import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
 import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
@@ -97,6 +98,8 @@ export function replan(ctx, v) {
   let goals;
   const noDepotTrip = v.goingToDepot === null || v.goingToDepot === undefined;
   if (noDepotTrip && v.orders.length && skipNotDueDepotOrders(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
+  // conditional orders (condOrders.js): evaluated only here, when the vehicle advances to them
+  if (noDepotTrip && v.orders.length && !resolveConditionals(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
   const order = noDepotTrip && v.orders.length ? currentOrder(v) : null;
   const toDepotOrder = !!order && order.depotId != null;
   if (v.kind === 'aircraft' && noDepotTrip && v.orders.length && !toDepotOrder && ftaReplan(ctx, v)) return true;

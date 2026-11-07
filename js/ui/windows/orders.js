@@ -8,6 +8,9 @@ import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addO
 import { stopKindOk } from '../../simulation/routing.js';
 import { unloadMode, stopMode, hasTimetable, orderFlagText } from '../../simulation/orders.js';
 import { refitCargos } from '../../simulation/refit.js';
+import { COND_VARS, COND_CMPS, condText, deleteOrderAt, moveOrderTo, isCond } from '../../simulation/condOrders.js';
+
+const COND_VAR_LABEL = { load: 'Load %', reliability: 'Reliability %', maxSpeed: 'Max speed (km/h)', age: 'Age (years)', service: 'Requires service', always: 'Always' };
 import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
@@ -77,6 +80,14 @@ export function openOrders(app, id) {
         else appendOrder(app, id, Number(val));
       } });
       const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn);
+      // Conditional order (OpenTTD OT_CONDITIONAL): appended with the default condition "load % < 50" to the first order.
+      const condBtn = el('button.btn.sm', { type: 'button', text: '+ Add conditional', title: 'Append a conditional order: jump to an order if a condition holds, else continue', onclick: () => {
+        const v = app.findVehicle(id);
+        if (!v) return;
+        const orders = v.orders.map((o) => ({ ...o }));
+        orders.push({ cond: { v: 'load', cmp: '<', val: 50, to: 0 } });
+        app.exec(app.game.setOrders(id, orders), { quiet: true, sound: 'click' });
+      } });
       let pickSig = '';
       const fillPicker = (v) => {
         const sts = app.game.state.stations.filter((st) => st.ownerId == null && usableBy(v, st));
@@ -104,27 +115,86 @@ export function openOrders(app, id) {
       const totalLabel = el('div.muted.small.tt-total', { text: '' });
       const lateLine = el('div.small.tt-late', { text: '' });
       const ttRow = el('div.btn-row', null, el('span.small', { text: 'Start date: ' }), startIn, el('span.small', { text: ' days from now ' }), startLabel, spreadBtn);
-      body.append(list, el('div.btn-row', null, addBtn, startBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
+      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn), pickRow, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
 
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
         ...STOP_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
       /** Depots this vehicle can be sent to (same kind, company's own; aircraft use the airport checks). */
       const depotsFor = (v) => app.game.state.depots.filter((d) => d.ownerId == null && depotKindOk(v, d));
-      const refitSel = el('select.input', { title: 'Refit to', 'aria-label': 'Refit to', onchange: (e) => edit((os) => {
-        const i = Number(e.target.dataset.i);
-        if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
-      }) });
-      const svcChk = el('input', { type: 'checkbox', title: 'Service only if needed: skip this depot when the vehicle is not due for service', 'aria-label': 'Service only if needed' });
-      const depotRowCtl = el('span.depot-ctl', null,
-        el('label.small', { text: ' service only if needed ' }, svcChk),
-        el('label.small', { text: ' refit ' }, refitSel));
+      /** Per-row depot controls (service-only checkbox + refit select); one fresh set per row. */
+      const depotRowCtl = () => el('span.depot-ctl', null,
+        el('label.small', { text: ' service only if needed ' }, el('input', { type: 'checkbox', title: 'Service only if needed: skip this depot when the vehicle is not due for service', 'aria-label': 'Service only if needed' })),
+        el('label.small', { text: ' refit ' }, el('select.input', { title: 'Refit to', 'aria-label': 'Refit to', onchange: (e) => edit((os) => {
+          const i = Number(e.target.dataset.i);
+          if (e.target.value) os[i].refit = e.target.value; else delete os[i].refit;
+        }) })));
       const edit = (fn) => {
         const v = app.findVehicle(id);
         if (!v) return;
         const orders = v.orders.map((o) => ({ ...o }));
         fn(orders);
         app.exec(app.game.setOrders(id, orders), { quiet: true, sound: 'click' });
+      };
+      /** Like edit, but the callback returns the new list (move / delete renumber conditional targets). */
+      const editList = (fn) => {
+        const v = app.findVehicle(id);
+        if (!v) return;
+        app.exec(app.game.setOrders(id, fn(v.orders.map((o) => ({ ...o })))), { quiet: true, sound: 'click' });
+      };
+      /** Edit one conditional entry (orders[i].cond) in place on a copy; the list is re-validated by setOrders. */
+      const condEdit = (i, fn) => {
+        const v = app.findVehicle(id);
+        if (!v || !v.orders[i] || !isCond(v.orders[i])) return;
+        const orders = v.orders.map((o) => ({ ...o }));
+        orders[i] = { cond: { ...orders[i].cond } };
+        fn(orders[i].cond);
+        app.exec(app.game.setOrders(id, orders), { quiet: true, sound: 'click' });
+      };
+      const condMove = (i, d) => editList((os) => { const j = i + d; return j >= 0 && j < os.length ? moveOrderTo(os, i, j) : os; });
+      const condDelete = (i) => editList((os) => deleteOrderAt(os, i));
+      /** Conditional row (OpenTTD "Jump to order N if ..."): variable, comparator, value (number or true/false), target. */
+      const condRow = () => el('div.order-row.cond', null,
+        el('span.order-idx.mono'), el('span.name'),
+        el('span.order-flags', null,
+          el('select.input', { title: 'Condition variable', 'aria-label': 'Condition variable', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.v = e.target.value; if (c.v === 'service' || c.v === 'always') { c.cmp = '=='; c.val = c.v === 'always' ? 1 : 1; } else if (c.cmp === undefined) c.cmp = '<'; }) },
+            ...COND_VARS.map((x) => el('option', { value: x, text: COND_VAR_LABEL[x] }))),
+          el('select.input', { title: 'Comparator', 'aria-label': 'Comparator', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.cmp = e.target.value; }) },
+            ...COND_CMPS.map((x) => el('option', { value: x, text: x }))),
+          el('input.input', { type: 'number', min: '0', max: '100000', step: '1', title: 'Value', 'aria-label': 'Condition value', style: 'width:5em',
+            onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.val = Math.max(0, Math.round(Number(e.target.value) || 0)); }) }),
+          el('select.input', { title: 'Condition truth', 'aria-label': 'Condition truth', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.val = Number(e.target.value); }) },
+            el('option', { value: '1', text: 'is true' }), el('option', { value: '0', text: 'is false' })),
+          el('span.small', { text: 'jump to' }),
+          el('select.input', { title: 'Jump to order', 'aria-label': 'Jump to order', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.to = Number(e.target.value); }) })),
+        el('span.row-actions', null,
+          el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: (e) => condMove(Number(e.currentTarget.dataset.i), -1) }),
+          el('button.btn.sm', { type: 'button', text: '▼', title: 'Move down', onclick: (e) => condMove(Number(e.currentTarget.dataset.i), 1) }),
+          el('button.btn.sm.danger', { type: 'button', text: '✕', title: 'Delete', onclick: (e) => condDelete(Number(e.currentTarget.dataset.i)) })));
+      /** Refresh a conditional row from its order (selects, value, target options; row index kept in data-i). */
+      const updateCondRow = (row, it, v) => {
+        const c = it.o.cond;
+        const [varSel, cmpSel, valIn, truthSel, toSel] = Array.from(row.querySelectorAll('select, input'));
+        const boolVar = c.v === 'service' || c.v === 'always';
+        for (const x of row.querySelectorAll('select, input, button')) x.dataset.i = String(it.i);
+        setText(row.children[0], String(it.i + 1));
+        const cmpWanted = boolVar ? '==' : c.cmp;
+        varSel.value = c.v;
+        cmpSel.value = cmpWanted;
+        cmpSel.hidden = boolVar;
+        valIn.hidden = boolVar;
+        truthSel.hidden = !boolVar;
+        if (document.activeElement !== valIn) valIn.value = String(c.val);
+        truthSel.value = String(c.val ? 1 : 0);
+        const n = v.orders.length;
+        const sig = String(n);
+        if (toSel.dataset.sig !== sig) {
+          toSel.dataset.sig = sig;
+          toSel.replaceChildren(...Array.from({ length: n }, (_, k) => el('option', { value: String(k), text: `order ${k + 1}` })));
+        }
+        toSel.value = String(c.to);
+        setText(row.querySelector(':scope > .name'), condText(c));
+        row.classList.toggle('current', it.i === v.orderIndex);
       };
       addBtn.addEventListener('click', () => {
         if (app.tool && app.tool.id === 'addOrder') app.setTool(null);
@@ -162,10 +232,10 @@ export function openOrders(app, id) {
         setText(lateLine, !v.orders.some(hasTimetable) ? '' : late == null ? 'This vehicle is on time' : late > 0 ? `This vehicle is running ${late} day${late === 1 ? '' : 's'} late` : `This vehicle is running ${-late} day${late === -1 ? '' : 's'} early`);
         const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId }));
         listOrEmpty(list, items, (it) => it.key,
-          (it) => el('div.order-row', null,
+          (it) => isCond(it.o) ? condRow() : el('div.order-row', null,
             el('span.order-idx.mono'), el('span.name'),
             el('span.order-flags', null,
-              depotRowCtl,
+              depotRowCtl(),
               el('select.input', { title: 'Load', onchange: (e) => edit((os) => { os[it.i].load = e.target.value; os[it.i].full = e.target.value === 'full'; }) },
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
@@ -179,10 +249,11 @@ export function openOrders(app, id) {
                 el('span', { text: ' d' }))),
             el('span.row-actions', null,
               el('button.btn.sm', { type: 'button', text: 'Skip', title: 'Go to this order now', onclick: () => app.exec(app.game.skipToOrder(id, it.i), { quiet: true, sound: 'click' }) }),
-              el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: () => edit((os) => { if (it.i > 0) os.splice(it.i - 1, 0, os.splice(it.i, 1)[0]); }) }),
-              el('button.btn.sm', { type: 'button', text: '▼', title: 'Move down', onclick: () => edit((os) => { if (it.i < os.length - 1) os.splice(it.i + 1, 0, os.splice(it.i, 1)[0]); }) }),
-              el('button.btn.sm.danger', { type: 'button', text: '✕', title: 'Delete', onclick: () => edit((os) => { os.splice(it.i, 1); }) }))),
+              el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: () => editList((os) => (it.i > 0 ? moveOrderTo(os, it.i, it.i - 1) : os)) }),
+              el('button.btn.sm', { type: 'button', text: '▼', title: 'Move down', onclick: () => editList((os) => (it.i < os.length - 1 ? moveOrderTo(os, it.i, it.i + 1) : os)) }),
+              el('button.btn.sm.danger', { type: 'button', text: '✕', title: 'Delete', onclick: () => editList((os) => deleteOrderAt(os, it.i)) }))),
           (row, it) => {
+            if (isCond(it.o)) { updateCondRow(row, it, v); return; }
             const st = app.findStation(it.o.stationId);
             setText(row.children[0], String(it.i + 1));
             const isDepot = it.o.depotId != null;

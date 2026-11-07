@@ -103,6 +103,7 @@
 .order-flags { display: flex; flex-direction: column; gap: 2px; }
 .order-flags select { font-size: 11px; width: 112px; padding: 1px 4px; }
 .order-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 8em; min-width: 8em; }
+.order-row .depot-ctl[hidden] { display: none; }
 .order-row .depot-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .chk { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #cbd5e1; cursor: pointer; }
 .chk input { accent-color: var(--accent); }

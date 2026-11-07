@@ -85,6 +85,7 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!v.orders[index]) return { ok: false, error: 'No such order' };
   if (v.orders[index].depotId != null) return { ok: false, error: 'Depot orders have no load or unload flags' };
+  if (v.orders[index].cond != null) return { ok: false, error: 'Conditional orders have no load or unload flags' };
   const orders = v.orders.map((o) => ({ ...o }));
   const o = orders[index];
   const load = flags.load !== undefined ? flags.load : (o.load || (o.full ? 'full' : 'normal'));
