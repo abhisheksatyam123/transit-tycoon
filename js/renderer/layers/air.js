@@ -72,7 +72,7 @@ export function drawAircraftLayer(ctx, segs, toScreen, selV) {
       ctx.ellipse(p.x, p.y - alt * ALT_PX, 18, 9, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
-    // helicopters have no OpenGFX sprite in the atlas: always the procedural rotor model
-    if (!(packActive() && !isHeliModel(s._model) && drawPackAircraft(ctx, s._model, h, p.x, p.y - alt * ALT_PX, undefined))) blit(ctx, aircraftSprite(s._model, h, lv, false), p.x, p.y - alt * ALT_PX);
+    // s._gc: group livery (renderer.js; undefined = default colours). Helicopters have no OpenGFX sprite in the atlas: always the procedural rotor model
+    if (!(packActive() && !isHeliModel(s._model) && drawPackAircraft(ctx, s._model, h, p.x, p.y - alt * ALT_PX, s._gc))) blit(ctx, aircraftSprite(s._model, h, lv, false), p.x, p.y - alt * ALT_PX);
   }
 }
