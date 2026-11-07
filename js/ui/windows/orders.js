@@ -14,7 +14,14 @@ import { unloadMode, stopMode, hasTimetable, orderFlagText, isDepotOrder, isNear
 import { refitCargos } from '../../simulation/refit.js';
 import { COND_VARS, COND_CMPS, condText, deleteOrderAt, moveOrderTo, isCond } from '../../simulation/condOrders.js';
 
-const COND_VAR_LABEL = { load: 'Load %', reliability: 'Reliability %', maxSpeed: 'Max speed (km/h)', age: 'Age (years)', service: 'Requires service', always: 'Always' };
+const COND_VAR_LABEL = { load: 'Load %', reliability: 'Reliability %', maxSpeed: 'Max speed (km/h)', age: 'Age (years)', service: 'Requires service', always: 'Always', lifetime: 'Remaining lifetime (years)', maxReliability: 'Max reliability %' };
+/** Help text per condition variable (select tooltip). */
+const COND_VAR_HELP = {
+  load: 'Cargo load as a percent of capacity', reliability: 'Current reliability of the vehicle, percent',
+  maxSpeed: 'Maximum speed of the model, km/h', age: 'Age in whole years', service: 'True when the vehicle needs servicing',
+  always: 'Always true (unconditional jump)', lifetime: 'Whole years until the max age; negative once past it',
+  maxReliability: 'Maximum reliability of the engine model, percent',
+};
 import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
@@ -190,11 +197,11 @@ export function openOrders(app, id) {
         el('span.order-idx.mono'), el('span.name'),
         el('span.order-flags', null,
           el('select.input', { title: 'Condition variable', 'aria-label': 'Condition variable', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.v = e.target.value; if (c.v === 'service' || c.v === 'always') { c.cmp = '=='; c.val = c.v === 'always' ? 1 : 1; } else if (c.cmp === undefined) c.cmp = '<'; }) },
-            ...COND_VARS.map((x) => el('option', { value: x, text: COND_VAR_LABEL[x] }))),
+            ...COND_VARS.map((x) => el('option', { value: x, text: COND_VAR_LABEL[x], title: COND_VAR_HELP[x] }))),
           el('select.input', { title: 'Comparator', 'aria-label': 'Comparator', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.cmp = e.target.value; }) },
             ...COND_CMPS.map((x) => el('option', { value: x, text: x }))),
-          el('input.input', { type: 'number', min: '0', max: '100000', step: '1', title: 'Value', 'aria-label': 'Condition value', style: 'width:5em',
-            onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.val = Math.max(0, Math.round(Number(e.target.value) || 0)); }) }),
+          el('input.input', { type: 'number', min: '-100000', max: '100000', step: '1', title: 'Value', 'aria-label': 'Condition value', style: 'width:5em',
+            onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { const n = Math.round(Number(e.target.value) || 0); c.val = c.v === 'lifetime' ? Math.max(-100000, Math.min(100000, n)) : Math.max(0, n); }) }),
           el('select.input', { title: 'Condition truth', 'aria-label': 'Condition truth', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.val = Number(e.target.value); }) },
             el('option', { value: '1', text: 'is true' }), el('option', { value: '0', text: 'is false' })),
           el('span.small', { text: 'jump to' }),

@@ -9,14 +9,19 @@ import { cargoSlices, advanceOrder } from './orders.js';
 import { vehicleModel } from './vehicles.js';
 import { serviceDueNow } from './service.js';
 
-/** Variables (OpenTTD OrderConditionVariable subset): load %, reliability %, max speed km/h, age years, service, always. */
-export const COND_VARS = ['load', 'reliability', 'maxSpeed', 'age', 'service', 'always'];
+/**
+ * Variables (OpenTTD OrderConditionVariable subset): load %, reliability %, max speed km/h, age years, service, always,
+ * lifetime (OCV_REMAINING_LIFETIME: years until max age, may be negative), maxReliability (OCV_MAX_RELIABILITY: model max %).
+ */
+export const COND_VARS = ['load', 'reliability', 'maxSpeed', 'age', 'service', 'always', 'lifetime', 'maxReliability'];
 /** Comparators (OpenTTD OrderConditionComparator): = != < <= > >=. */
 export const COND_CMPS = ['==', '!=', '<', '<=', '>', '>='];
 /** Boolean variables: only '==' with 1 (is true) / 0 (is false). */
 const BOOL_VARS = new Set(['service', 'always']);
 /** Largest value accepted for a numeric variable. */
 const MAX_VALUE = 100000;
+/** Variables whose value may be negative (remaining lifetime after max age). */
+const SIGNED_VARS = new Set(['lifetime']);
 
 /** Whether an order entry is a conditional. */
 export function isCond(o) {
@@ -41,7 +46,8 @@ export function normaliseCond(c) {
   const cmp = bool ? '==' : c.cmp;
   if (!COND_CMPS.includes(cmp)) return { ok: false, error: `Unknown comparator ${c.cmp}` };
   let val = bool ? (Number(c.val) ? 1 : 0) : Math.round(Number(c.val));
-  if (!bool && (!Number.isFinite(val) || val < 0 || val > MAX_VALUE)) return { ok: false, error: 'Bad condition value' };
+  const lo = SIGNED_VARS.has(c.v) ? -MAX_VALUE : 0;
+  if (!bool && (!Number.isFinite(val) || val < lo || val > MAX_VALUE)) return { ok: false, error: 'Bad condition value' };
   const to = Number.isInteger(c.to) ? c.to : -1;
   return { ok: true, entry: { cond: { v: c.v, cmp, val, to } } };
 }
@@ -63,6 +69,10 @@ export function condOperand(state, v, variable) {
     case 'reliability': return Math.round((v.reliability || 0) * 100);
     case 'maxSpeed': { const m = vehicleModel(v); return m ? m.speed : 0; }
     case 'age': return Math.floor((v.age || 0) / 365);
+    // OpenTTD: (max_age - age) / DAYS_IN_LEAP_YEAR, C division truncates toward zero (negative once past max age).
+    case 'lifetime': return Math.trunc(((v.maxAge || 0) - (v.age || 0)) / 365) || 0; // || 0: no -0
+    // Model max reliability in percent (TT model.reliability 0..1; vehicles.js createVehicle baseReliability).
+    case 'maxReliability': return Math.round((v.baseReliability ?? 0) * 100);
     case 'service': return serviceDueNow(state, v) ? 1 : 0;
     case 'always': return 1;
     default: return 0;
@@ -158,7 +168,7 @@ function fixSelfTargets(list) {
   });
 }
 
-const VAR_NAME = { load: 'load %', reliability: 'reliability %', maxSpeed: 'max speed km/h', age: 'age (years)', service: 'requires service', always: 'always' };
+const VAR_NAME = { load: 'load %', reliability: 'reliability %', maxSpeed: 'max speed km/h', age: 'age (years)', service: 'requires service', always: 'always', lifetime: 'remaining lifetime (years)', maxReliability: 'max reliability %' };
 const CMP_NAME = { '==': '=', '!=': '!=', '<': '<', '<=': '<=', '>': '>', '>=': '>=' };
 
 /** UI text of a condition, e.g. "Jump to order 3 if load % < 50" (bool vars: "if requires service is true"). */
