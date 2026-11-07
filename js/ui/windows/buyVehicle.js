@@ -96,7 +96,16 @@ export function openBuyVehicle(app, depotId) {
         body.append(field('Model', roadSel), statA, field('Cargo', cargoSel));
       }
       const buyBtn = el('button.btn.primary', { type: 'button', text: 'Buy' });
-      body.append(total, el('div.btn-row', null, buyBtn));
+      // F14: Buy is disabled (with the reason) while the total costs more than the company's cash
+      const reason = el('div.muted.small.buy-reason');
+      body.append(total, reason, el('div.btn-row', null, buyBtn));
+      const updateBuy = (cost) => {
+        const short = !g.state.editor && cost > g.state.company.money;
+        buyBtn.disabled = short;
+        const why = short ? `Not enough money: costs ${money(cost)}, you have ${money(g.state.company.money)}` : '';
+        setText(reason, why);
+        buyBtn.title = why;
+      };
 
       const current = () => (rail ? byId[wagonSel.value] : byId[roadSel.value]);
       const recompute = () => {
@@ -106,11 +115,14 @@ export function openBuyVehicle(app, depotId) {
           setText(countOut, String(n));
           setText(statA, stats(e));
           setText(statB, w ? `${stats(w)} · total cap ${num((w.capacity || 0) * n)}` : '');
-          setText(total, 'Cost: ' + money((e ? e.cost : 0) + (w ? w.cost * n : 0)));
+          const cost = (e ? e.cost : 0) + (w ? w.cost * n : 0);
+          setText(total, 'Cost: ' + money(cost));
+          updateBuy(cost);
         } else {
           const m = byId[roadSel.value];
           setText(statA, stats(m));
           setText(total, 'Cost: ' + money(m ? m.cost : 0));
+          updateBuy(m ? m.cost : 0);
         }
       };
       // Default wagon: the first freight wagon (a Passenger Coach default makes a train that cannot carry coal/ore/grain).
@@ -139,6 +151,8 @@ export function openBuyVehicle(app, depotId) {
           win.close();
         }
       });
+      // F14: re-check affordability on each refresh tick, so Buy follows the company's cash
+      return () => recompute();
     },
   });
 }

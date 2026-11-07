@@ -9,6 +9,7 @@ import { adjacentOwn, joinChoices, openJoinPicker } from './joinPicker.js';
 import { tileAcceptance } from '../../simulation/stations.js';
 import { ACCEPT_THRESHOLD } from '../../simulation/constants.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
+import { refusalLabel, priceWhenRefused, NOT_ENOUGH_MONEY } from './refusal.js';
 
 /**
  * @typedef {Object} PlacementOptions
@@ -54,7 +55,10 @@ export function createPlacementTool(app, o) {
     if (key === lastKey && ov.preview) return;
     lastKey = key;
     const res = o.command(app.game, hover.x, hover.y, { dryRun: true });
-    last = res && res.ok ? { ok: true, label: costText(app.game, res.cost || 0) } : { ok: false, label: (res && res.error) || 'Not possible' };
+    // F14: a refused build shows its reason; an unaffordable one also shows the price and the balance
+    const run = (extra) => o.command(app.game, hover.x, hover.y, { ...extra, dryRun: true });
+    last = res && res.ok ? { ok: true, label: costText(app.game, res.cost || 0) }
+      : { ok: false, label: refusalLabel(res && res.error, res && res.error === NOT_ENOUGH_MONEY ? priceWhenRefused(app.game, run) : null, app.game.state.company.money) };
     const tiles = o.footprint(hover.x, hover.y);
     ov.preview = { tiles, ok: last.ok, label: last.label };
     if (o.catchment) {
@@ -77,7 +81,12 @@ export function createPlacementTool(app, o) {
         const opts = {};
         if (t.plan) opts.plan = t.plan;
         if (joinStationId != null) opts.joinStationId = joinStationId;
-        const res = o.command(app.game, t.x, t.y, opts);
+        let res = o.command(app.game, t.x, t.y, opts);
+        // F14: a refused click toasts the same wording as the hover preview (cost + balance for money)
+        if (res && !res.ok && res.error === NOT_ENOUGH_MONEY) {
+          const cost = priceWhenRefused(app.game, (extra) => o.command(app.game, t.x, t.y, { ...opts, ...extra }));
+          res = { ...res, error: refusalLabel(res.error, cost, app.game.state.company.money) };
+        }
         app.exec(res, { x: t.x, y: t.y, sound: 'build' });
       };
       // OpenTTD distant join: Ctrl+click on a spot with no adjacent station of ours opens a picker.
