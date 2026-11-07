@@ -24,7 +24,8 @@ export const DEFAULT_AIRPORT_TYPE = 'city';
 /** Largest seat count a plane may have to use a small (or commuter) airport. */
 export const SMALL_MAX_CAPACITY = 80;
 
-const PART_CODE = { H: 'hangar', T: 'terminal', W: 'tower', R: 'runway', A: 'apron', P: 'helipad' };
+// D = departure runway (OTTD: takeoffs use one runway, landings another; metropolitan and international)
+const PART_CODE = { H: 'hangar', T: 'terminal', W: 'tower', R: 'runway', D: 'runwayDep', A: 'apron', P: 'helipad' };
 
 /** Cells {dx,dy,part} from ASCII rows (all rows the same length). */
 function gridLayout(rows) {
@@ -66,12 +67,13 @@ const COMMUTER_LAYOUT = gridLayout([
   'RRRRR',
   'AAAAA',
 ]);
+// R landing runway (goal on its centre), D departure runway (taxi-out and takeoff roll)
 const METRO_LAYOUT = gridLayout([
   'HAATTW',
   'AAATTT',
   'RRRRRR',
   'AAAAAA',
-  'AAAAAA',
+  'DDDDDD',
   'AAAAAA',
 ]);
 // two hangars (OTTD international has two air depots): top-left and bottom-left
@@ -80,7 +82,7 @@ const INTERNATIONAL_LAYOUT = gridLayout([
   'AAAATTT',
   'RRRRRRR',
   'AAAAAAA',
-  'AAAAAAA',
+  'DDDDDDD',
   'HAAAAAA',
   'AAAAAAA',
 ]);

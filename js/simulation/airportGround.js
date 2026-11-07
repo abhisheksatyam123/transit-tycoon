@@ -18,11 +18,17 @@ import { airportTypeId, isHelicopter } from './airportTypes.js';
 import { airLine } from './aircraft.js';
 
 /** Airport types with the ported ground movement. */
-export const FTA_GROUND_TYPES = new Set(['city', 'small']);
+export const FTA_GROUND_TYPES = new Set(['city', 'small', 'commuter', 'metropolitan', 'international']);
+/** Layout part names (airportTypes.js): landing runway, departure runway (takeoff roll; metro/international), apron. */
+export const RUNWAY_PART = 'runway';
+export const DEPARTURE_PART = 'runwayDep';
+/** Parts an aircraft taxies on (taxi graph). */
+const TAXI_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART]);
+/** Parts that are blocks: one aircraft at a time in the ground phase (runways, terminals, and the apron). */
+const BLOCK_PARTS = new Set(['apron', 'terminal', 'runway', DEPARTURE_PART]);
 /** Ticks a blocked plane waits before it moves anyway (deadlock guard). */
 export const FTA_WAIT_MAX = 40;
 
-const TAXI_PARTS = new Set(['apron', 'terminal', 'runway']);
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** True for an airport tile building of an FTA type (city, small). */
@@ -107,7 +113,7 @@ export function ftaClaimed(state, v, x, y) {
 
 /** True while a runway tile of st is taken by a ground aircraft (landing needs the runway clear). */
 export function ftaRunwayBusy(state, st, v) {
-  const R = new Set(ftaPartTiles(state, st, 'runway').map((t) => `${t.x},${t.y}`));
+  const R = new Set(ftaPartTiles(state, st, RUNWAY_PART).map((t) => `${t.x},${t.y}`));
   if (!R.size) return false;
   for (const o of state.vehicles) {
     if (o === v || o.kind !== 'aircraft' || o.ftaGroundEnd == null || o.pathIndex > o.ftaGroundEnd) continue;
@@ -116,13 +122,19 @@ export function ftaRunwayBusy(state, st, v) {
   return false;
 }
 
+/** Runway tiles an aircraft takes off from: the departure runway when the layout has one, else the runway. */
+export function takeoffRunwayTiles(state, st) {
+  const dep = ftaPartTiles(state, st, DEPARTURE_PART);
+  return dep.length ? dep : ftaPartTiles(state, st, RUNWAY_PART);
+}
+
 /**
  * Takeoff ground path from (fx,fy): taxi to the runway, roll along the runway row to its far end, lift off,
  * then fly to the nearest goal. Null when the airport has no runway or no taxi route.
  * @returns {{path:{x,y}[], groundEnd:number}|null}
  */
 export function takeoffPath(state, st, fx, fy, goals, avoid = null) {
-  const runway = ftaPartTiles(state, st, 'runway');
+  const runway = takeoffRunwayTiles(state, st);
   if (!runway.length || !goals.length) return null;
   const taxi = taxiPath(state, st, fx, fy, runway, avoid);
   if (!taxi) return null;
@@ -178,6 +190,19 @@ export function setGroundPath(v, p) {
 }
 
 /**
+ * True when another ground-phase aircraft with a lower id is about to step onto (x,y) (its next path tile). Two
+ * planes deciding in the same tick would otherwise both enter one apron tile; the lower id goes first.
+ */
+export function ftaNextClaimed(state, v, x, y) {
+  for (const o of state.vehicles) {
+    if (o === v || o.kind !== 'aircraft' || o.id >= v.id || o.ftaGroundEnd == null || o.pathIndex >= o.ftaGroundEnd) continue;
+    const n = o.path[o.pathIndex + 1];
+    if (n && n.x === x && n.y === y) return true;
+  }
+  return false;
+}
+
+/**
  * Whether v may step into its next path tile: blocked when that tile is a runway or terminal tile taken by
  * another aircraft (only while v is in its ground phase, and only for FTA_WAIT_MAX ticks in a row).
  */
@@ -186,8 +211,8 @@ export function ftaBlocked(state, v) {
   const next = v.path[v.pathIndex + 1];
   if (!next) return false;
   const b = buildingAt(state, next.x, next.y);
-  if (!b || !(b.part === 'runway' || b.part === 'terminal')) return false;
-  if (!ftaTileOccupied(state, v, next.x, next.y)) return false;
+  if (!b || !BLOCK_PARTS.has(b.part)) return false;
+  if (!ftaTileOccupied(state, v, next.x, next.y) && !ftaNextClaimed(state, v, next.x, next.y)) return false;
   if ((v.ftaWait || 0) >= FTA_WAIT_MAX) return false;
   return true;
 }

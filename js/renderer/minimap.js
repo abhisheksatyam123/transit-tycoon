@@ -76,7 +76,7 @@ export class Minimap {
       const b = t.building;
       let c;
       if (b && b.type === 'landmark') c = PACKED.landmark;
-      else if (b && b.type === 'station' && b.kind === 'airport') c = b.part === 'runway' ? PACKED.runway : PACKED.apron;
+      else if (b && b.type === 'station' && b.kind === 'airport') c = b.part === 'runway' || b.part === 'runwayDep' ? PACKED.runway : PACKED.apron;
       else if (b && b.type === 'depot' && b.kind === 'air') c = PACKED.apron;
       else if (b) c = PACKED[b.type] || PACKED.house;
       else if (t.rail) c = PACKED.rail;

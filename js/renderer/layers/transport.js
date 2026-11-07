@@ -175,7 +175,7 @@ function drawTransportRoad(ctx, tile, sx, sy, c, map, x, y, diag = false) {
     return;
   }
   if (b && b.type === 'station' && b.kind === 'airport') {
-    drawSloped(ctx, airportGround(b.part === 'runway' ? 'runway' : b.part === 'helipad' ? 'helipad' : 'apron', 'x'), sx, sy, c);
+    drawSloped(ctx, airportGround(b.part === 'runway' || b.part === 'runwayDep' ? 'runway' : b.part === 'helipad' ? 'helipad' : 'apron', 'x'), sx, sy, c);
     return;
   }
   if (b && b.type === 'depot' && b.kind === 'air') {
