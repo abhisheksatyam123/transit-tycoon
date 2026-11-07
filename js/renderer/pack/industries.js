@@ -62,7 +62,7 @@ export const INDUSTRY_OTTD = {
 };
 
 /** Layouts whose OpenTTD shape has empty tiles inside the footprint; those tiles draw concrete ground. */
-const HOLEY = new Set(['printing_works']);
+const HOLEY = new Set(['printing_works', 'oil_wells']); // oil wells: OTTD 3x3 layout 0 covers 5 tiles, the other 4 are bare ground
 
 /** Layout entries of variant v that lie in the w x h footprint, as a Map key "dx,dy" -> gfx. */
 function coverage(variant, w, h) {
@@ -116,12 +116,46 @@ export function drawOgfxIndustryTile(ctx, ind, x, y, topX, topY) {
   const pair = GFX[gfx];
   if (!pair) { blitPack(ctx, SPR_CONCRETE_GROUND, topX, topY); return true; }
   if (pair[0]) blitPack(ctx, pair[0], topX, topY);
-  if (pair[1]) {
+  // IA4: animated coal tower wheel / oil derrick pump replace the building sprite (one blit, no overlay)
+  const bsid = gfx === GFX_COAL_TOWER ? coalTowerSprite(x, y) : gfx === GFX_OILWELL ? oilPumpSprite(x, y) : pair[1];
+  if (bsid) {
     const [ox, oy] = subtileOffset(pair[2] | 0, pair[3] | 0);
-    blitPack(ctx, pair[1], topX + ox, topY + oy);
+    blitPack(ctx, bsid, topX + ox, topY + oy);
   }
   if (gfx === GFX_POWER_SPARKS) drawPowerSparks(ctx, x, y, topX, topY);
   return true;
+}
+
+/** OTTD GFX_COAL_MINE_TOWER_NOT_ANIMATED (industry_type.h). Our layout maps it to 2013; the wheel animates from it. */
+const GFX_COAL_TOWER = 0;
+/** OTTD GFX_OILWELL_NOT_ANIMATED (industry_type.h). Derrick, animated pump. */
+const GFX_OILWELL = 29;
+/** Coal tower wheel frames by OTTD GetAnimationFrame & 3 (industry_land.h gfx 1 rows): 2013, 2014, 2015, 2015. */
+const TOWER_WHEEL = [2013, 2014, 2015, 2015];
+/** Derrick pump stages: OpenGFX oilwell_anim1..6 (2174..2179). */
+const OIL_PUMP = [2174, 2175, 2176, 2177, 2178, 2179];
+
+/**
+ * Coal tower sprite for tile (x,y) (OTTD AnimateMineTower, render-only). Per-tile phase on a 2048-tick cycle; the
+ * wheel turns in the 0x1A0 window after 0x400, one frame per 8 ticks, otherwise the base frame 2013.
+ * Time is the renderer frame / 2 (no tick counter, no state, no allocation).
+ * @returns {number} sprite id
+ */
+function coalTowerSprite(x, y) {
+  const s = ((Math.floor(industryAnimState.frame / 2) + ((x * 7 + y * 13) & 0x7ff)) & 0x7ff) - 0x400;
+  if (s < 0 || s >= 0x1a0) return 2013;
+  return TOWER_WHEEL[(s >> 3) & 3];
+}
+
+/**
+ * Oil derrick sprite for tile (x,y) (OTTD AnimateOilWell, render-only). The pump runs 32 of every 96 ticks per tile,
+ * stepping every 4 ticks through the six stages; idle = base 2174.
+ * @returns {number} sprite id
+ */
+function oilPumpSprite(x, y) {
+  const t = (Math.floor(industryAnimState.frame / 2) + ((x * 5 + y * 3) & 0x7f)) % 96;
+  if (t >= 32) return 2174;
+  return OIL_PUMP[(t >> 2) % OIL_PUMP.length];
 }
 
 /** IA3 animation phase (set by renderer.render); drives the power station sparks (OTTD AnimatePowerPlantSparks). */
