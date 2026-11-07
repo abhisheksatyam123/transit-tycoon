@@ -110,6 +110,8 @@ export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
  * - terrain: 'flat' | 'normal' | 'hilly' | 'mountainous'
  * - smoothness: 'smooth' | 'normal' | 'rough'
  * - cliffs: 'off' (default) | 'on' (steep steps up to CLIFF_SLOPE_CAP levels, marked around cliffs as rock; no RNG draws)
+ * - lakes: 'off' (default) | 'few' | 'many' (enclosed land basins flooded to water at height 0; RNG draws only when not off)
+ * - mountainStyle: 'off' (default) | 'on' (land within 12 tiles of a peak becomes rock, OpenLoco generateTerrainOnMountains; no RNG draws)
  * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
  *   (rivers on slopes at their height; the heights are not changed)
  * @param {object} map
@@ -150,6 +152,11 @@ export function generateTerrain(map, rng, opts = {}) {
     carveRivers(map, rng, riverTarget);
     limitSlopes(map, cap); // river banks drop to within one level of the water (cliffs on: within the cap)
   }
+  const lakeTarget = LAKE_COUNTS[opts.lakes ?? 'off'] ?? 0;
+  if (lakeTarget > 0) {
+    const lakeTiles = carveLakes(map, rng, lakeTarget);
+    if (lakeTiles.length) relaxAround(map, lakeTiles, cap); // lake shores drop like river banks (local, not a full sweep)
+  }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const t = tiles[y * width + x];
@@ -162,6 +169,126 @@ export function generateTerrain(map, rng, opts = {}) {
     }
   }
   if (cliffs) markCliffs(map);
+  if (opts.mountainStyle === 'on') markMountainStyle(map);
+}
+
+/** Lakes option: number of lakes to aim for (attempts are capped in carveLakes). */
+export const LAKE_COUNTS = { off: 0, few: 3, many: 8 };
+/** Lake size cap (tiles) and maximum depth above the lowest spill point (levels). */
+export const LAKE_MAX_TILES = 48;
+export const LAKE_MAX_DEPTH = 2;
+/** OpenLoco generateTerrainOnMountains marks a square of radius 12 around each peak (MapGenerator.cpp:365-388). */
+export const MOUNTAIN_RADIUS = 12;
+/** Peak height (levels) for the mountain style: the top level (7, the snow line); 6 would cover about half the map at radius 12. */
+export const MOUNTAIN_PEAK = 7;
+
+/**
+ * Lakes (TT-original; OpenLoco has no lake pass: its generateWater, MapGenerator.cpp:219, only floods below sea level).
+ * From each candidate (a land local minimum at height >= 2) try levels L = base..base+LAKE_MAX_DEPTH: the land tiles
+ * at height <= L connected to the candidate form the basin. A basin that is closed (no edge tile, no water next to
+ * it), at most LAKE_MAX_TILES large and does not overlap an earlier lake becomes water at height 0.
+ * Returns the number of lakes made. RNG draws only for the candidate picks.
+ */
+function carveLakes(map, rng, target) {
+  const { width, height, tiles } = map;
+  const cand = [];
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x, t = tiles[i];
+      if (t.terrain === 'water' || t.height < 2) continue;
+      let low = true;
+      for (const j of [i - 1, i + 1, i - width, i + width]) {
+        if (tiles[j].terrain === 'water' || tiles[j].height < t.height) { low = false; break; }
+      }
+      if (low) cand.push(i);
+    }
+  }
+  if (!cand.length) return [];
+  const taken = new Uint8Array(width * height);
+  const lakeTiles = [];
+  let made = 0;
+  for (let attempt = 0; attempt < 200 && made < target; attempt++) {
+    const start = cand[Math.floor(rng.next() * cand.length)];
+    if (taken[start] || tiles[start].terrain === 'water') continue;
+    const basin = findBasin(map, start, taken);
+    if (!basin) continue;
+    for (const i of basin) { tiles[i].terrain = 'water'; tiles[i].height = 0; taken[i] = 1; lakeTiles.push(i); }
+    made++;
+  }
+  return lakeTiles;
+}
+
+/** Lower land around changed tiles until no step exceeds cap (same rule as limitSlopes, seeded from the changed tiles). */
+function relaxAround(map, seeds, cap) {
+  const { width, height, tiles } = map;
+  const queue = seeds.slice();
+  for (let q = 0; q < queue.length; q++) {
+    const i = queue[q];
+    const x = i % width, y = (i - x) / width;
+    const h = tiles[i].height;
+    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const j = ny * width + nx, u = tiles[j];
+      if (u.height > h + cap) { u.height = h + cap; queue.push(j); }
+      else if (h > u.height + cap) { tiles[i].height = u.height + cap; queue.push(i); }
+    }
+  }
+}
+
+/** Closed land basin around start (see carveLakes), or null. Deterministic, no RNG. */
+function findBasin(map, start, taken) {
+  const { width, height, tiles } = map;
+  const base = tiles[start].height;
+  for (let L = base; L <= base + LAKE_MAX_DEPTH; L++) {
+    const seen = new Set([start]);
+    const queue = [start];
+    let ok = true;
+    for (let q = 0; q < queue.length && ok; q++) {
+      const i = queue[q];
+      const x = i % width, y = (i - x) / width;
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) { ok = false; break; }
+      for (const j of [i - 1, i + 1, i - width, i + width]) {
+        if (seen.has(j)) continue;
+        const u = tiles[j];
+        if (u.terrain === 'water' || taken[j]) { ok = false; break; }
+        if (u.height > L) continue; // the basin wall
+        seen.add(j);
+        queue.push(j);
+        if (queue.length > LAKE_MAX_TILES) { ok = false; break; }
+      }
+    }
+    if (ok) return queue;
+  }
+  return null;
+}
+
+/**
+ * Mountain style (OpenLoco generateTerrainOnMountains + applySurfaceStyleToMarkedTiles, MapGenerator.cpp:288, 365):
+ * land within MOUNTAIN_RADIUS (square) of a peak tile (height >= MOUNTAIN_PEAK) becomes rock. Snow and water stay.
+ * Uses a summed-area table, so the cost is O(width*height) whatever the number of peaks. No RNG draws.
+ */
+function markMountainStyle(map) {
+  const { width, height, tiles } = map;
+  const W1 = width + 1;
+  const sat = new Int32Array(W1 * (height + 1));
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const t = tiles[y * width + x];
+      const peak = t.terrain !== 'water' && t.height >= MOUNTAIN_PEAK ? 1 : 0;
+      sat[(y + 1) * W1 + x + 1] = sat[y * W1 + x + 1] + sat[(y + 1) * W1 + x] - sat[y * W1 + x] + peak;
+    }
+  }
+  const R = MOUNTAIN_RADIUS;
+  for (let y = 0; y < height; y++) {
+    const y0 = Math.max(0, y - R), y1 = Math.min(height - 1, y + R);
+    for (let x = 0; x < width; x++) {
+      const t = tiles[y * width + x];
+      if (t.terrain === 'water' || t.terrain === 'snow') continue;
+      const x0 = Math.max(0, x - R), x1 = Math.min(width - 1, x + R);
+      const n = sat[(y1 + 1) * W1 + x1 + 1] - sat[y0 * W1 + x1 + 1] - sat[(y1 + 1) * W1 + x0] + sat[y0 * W1 + x0];
+      if (n > 0) t.terrain = 'rock';
+    }
+  }
 }
 
 /** Cliffs option: steepest neighbour step allowed (levels); off = 1 (historic). */

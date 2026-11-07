@@ -7,6 +7,8 @@ import { terrainTop, waterTop, TERRAIN_VARIANTS, WATER_FRAMES } from '../sprites
 import { tileHash, makeSprite } from '../sprites/canvas.js';
 import { HALF_W, HALF_H, TILE_W, TILE_H, HEIGHT_STEP as S } from '../iso.js';
 import { drawSloped } from '../slope.js';
+import { cliffFace } from '../sprites/terrain.js';
+import { blit } from '../sprites/canvas.js';
 import { packActive, packState } from '../pack/state.js';
 import { drawOgfxGround } from '../pack/ground.js';
 import { arcticActive, drawArcticSnow, drawArcticRock } from '../pack/arctic.js';
@@ -149,6 +151,29 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
     if (tile.canal) drawCanal(ctx, map, x, y, sx, sy, c, tile.lock);
   } else {
     drawSloped(ctx, top(k, hash % TERRAIN_VARIANTS), sx, sy, c);
+    if (!flowing) drawCliffWalls(ctx, map, x, y, sx, sy, tile);
+  }
+}
+
+/** Steps of at least this many levels get a vertical cliff face (cliffs mapgen option; default maps never reach it). */
+export const CLIFF_WALL_STEP = 2;
+/**
+ * Vertical cliff faces under a raised tile's south-west / south-east edge when the neighbour is CLIFF_WALL_STEP or more
+ * levels lower (cliffs mapgen option; cliffFace sprite, sprites/terrain.js). Normal maps have no such step, so this
+ * costs two comparisons per tile per chunk build. Drawn in the tile's own painter slot, so the lower neighbour's top
+ * covers the foot of the wall. Walls on water and river/canal tiles are skipped.
+ */
+function drawCliffWalls(ctx, map, x, y, sx, sy, tile) {
+  const W = map.width, H = map.height, t = map.tiles;
+  const h = tile.height;
+  if (h < CLIFF_WALL_STEP || tile.terrain === 'water') return;
+  if (y + 1 < H) {
+    const d = h - t[(y + 1) * W + x].height;
+    if (d >= CLIFF_WALL_STEP) blit(ctx, cliffFace(tile.terrain, 'sw', d), sx, sy - S * h);
+  }
+  if (x + 1 < W) {
+    const d = h - t[y * W + x + 1].height;
+    if (d >= CLIFF_WALL_STEP) blit(ctx, cliffFace(tile.terrain, 'se', d), sx, sy - S * h);
   }
 }
 
