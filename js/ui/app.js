@@ -32,7 +32,7 @@ export const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'b
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setGroupFlag', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'copyOrders', 'clearOrderBackup', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
-  'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setCompanyManagerFace', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setCompanyManagerFace', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
   'expandTown', 'deleteTown', 'demolishIndustry'];
 
 /**
@@ -151,6 +151,7 @@ export class App {
     this.selectedStationId = null;
     this.minimap.lastBase = -Infinity;
     window.__game = game;
+    if (typeof window !== 'undefined') window.__app = this;
     this.subscribe();
     showPendingEnginePreview(this); // a preview offer saved mid-offer is shown again
     this.centerOnInterest();

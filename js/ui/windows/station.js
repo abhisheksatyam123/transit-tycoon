@@ -65,7 +65,16 @@ export function openStation(app, id) {
       const cdVia = el('div.list');
       body.append(kinds, catchLine, heading('Waiting cargo & rating'), cargoList, cdVia, noSource, heading('Accepts'), accepts, heading('Vehicles serving'), vehList,
         hangarRow,
-        el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
+        el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Move sign…', onclick: () => {
+          const st = app.findStation(id);
+          if (!st || !st.tiles || st.tiles.length < 2) return;
+          const cur = st.signTile || { x: st.x, y: st.y };
+          const idx = st.tiles.findIndex((t) => t.x === cur.x && t.y === cur.y);
+          const next = st.tiles[(idx + 1) % st.tiles.length];
+          const r = app.game.moveStationSign(id, next.x, next.y);
+          if (!r || !r.ok) app.toast(r ? r.error : 'Failed', 'bad');
+          app.wm.updateAll();
+        } }), el('button.btn', { type: 'button', text: 'Center view', onclick: () => {
           const st = app.findStation(id);
           if (st) app.centerOn(st.x, st.y);
         } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'station', id) })));

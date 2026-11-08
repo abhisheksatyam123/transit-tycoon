@@ -73,6 +73,22 @@ export function openCheats(app) {
         refresh();
       });
 
+      // OpenTTD CmdTownRating cheat helper: max out player ratings in all towns.
+      const excellentBtn = el('button.btn', { type: 'button', text: 'Excellent town ratings', title: 'Set your rating to Excellent (+1000) in every town (marks game cheated)' });
+      excellentBtn.addEventListener('click', () => {
+        const g = app.game;
+        const towns = g.state.towns || [];
+        let n = 0;
+        for (const t of towns) {
+          const r = g.setTownRating(t.id, null, 1000);
+          if (r.ok) n++;
+        }
+        // Ensure the game is marked cheated (setTownRating is a direct command; mark explicitly).
+        if (towns.length) g.state.cheated = true;
+        status.textContent = 'Set player rating to Excellent in ' + n + ' town' + (n === 1 ? '' : 's') + '.';
+        refresh();
+      });
+
       body.append(
         note,
         el('div.set-row', null, plus, moneyLine),
@@ -81,6 +97,7 @@ export function openCheats(app) {
         el('div.set-row', null, el('label', null, ratingBox, el('span', { text: ' Station ratings 100%' })), el('span.set-help.muted', { text: 'Your stations always rate 100% (OpenTTD station_rating cheat).' })),
         el('div.set-row', null, el('label', null, jetBox, el('span', { text: ' No jet crash' })), el('span.set-help.muted', { text: 'Jets landing at short-strip airports never crash (OpenTTD no_jetcrash).' })),
         el('div.set-row', null, el('label', null, crossBox, el('span', { text: ' Crossing tunnels' })), el('span.set-help.muted', { text: 'Allow tunnels to cross each other (OpenTTD crossing_tunnels).' })),
+        el('div.set-row', null, excellentBtn, el('span.set-help.muted', { text: 'Your rating becomes Excellent (+1000) in all towns.' })),
         status, cheatedLine,
       );
       refresh();

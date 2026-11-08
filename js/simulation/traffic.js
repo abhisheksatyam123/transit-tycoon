@@ -345,6 +345,10 @@ export function trafficTick(ctx) {
   const { state } = ctx;
   const tr = state.traffic;
   if (!tr) return;
+  if (getSetting(state, 'townTraffic') === false) {
+    if (tr.cars && tr.cars.length > 0) tr.cars = [];
+    return;
+  }
   const rng = createRng(tr, 'rngState');
   const occ = occupancyScratch(state);
   let works = null;
@@ -375,6 +379,7 @@ function fmtDate(d) {
  */
 export function trafficDaily(ctx) {
   const { state } = ctx;
+  if (getSetting(state, 'townTraffic') === false) return;
   const tr = state.traffic;
   if (!tr) return;
   const st = tr.stats, acc = tr.acc;

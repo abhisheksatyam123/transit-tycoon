@@ -14,6 +14,7 @@ import { MODEL_BY_ID } from '../config/vehicles.js';
 
 export const MAX_NAME_LENGTH = 32;
 export const MAX_TOWN_TEXT_LENGTH = 320;
+export const MAX_INDUSTRY_TEXT_LENGTH = 320;
 
 /**
  * Validate and normalise a requested name.
@@ -87,6 +88,26 @@ export function setTownText(ctx, id, text, opts = {}) {
   if (/[\u0000-\u001f\u007f]/.test(trimmed)) return { ok: false, error: 'Text contains control characters' };
   const truncated = [...trimmed].slice(0, MAX_TOWN_TEXT_LENGTH).join('');
   if (!opts.dryRun) t.text = truncated;
+  return { ok: true, cost: 0, text: truncated };
+}
+
+/**
+ * Set an industry's free-text note (lazy `ind.text`, absent unless used). Trimmed; an empty (blank) text
+ * clears the note (field deleted). Longer input is truncated to MAX_INDUSTRY_TEXT_LENGTH code points.
+ * No control characters. No sim logic reads this field.
+ */
+export function setIndustryText(ctx, id, text, opts = {}) {
+  const ind = ctx.state.industries.find((i) => i.id === id);
+  if (!ind) return { ok: false, error: 'Unknown industry' };
+  if (typeof text !== 'string') return { ok: false, error: 'Text must be text' };
+  const trimmed = text.trim();
+  if (!trimmed) {
+    if (!opts.dryRun) delete ind.text;
+    return { ok: true, cost: 0, text: '' };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) return { ok: false, error: 'Text contains control characters' };
+  const truncated = [...trimmed].slice(0, MAX_INDUSTRY_TEXT_LENGTH).join('');
+  if (!opts.dryRun) ind.text = truncated;
   return { ok: true, cost: 0, text: truncated };
 }
 

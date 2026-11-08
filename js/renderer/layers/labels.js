@@ -62,7 +62,9 @@ export function drawLabels(ctx, renderer, cam) {
   }
   if (showStations) {
     for (const st of state.stations) {
-      const c = renderer.tileCenterScreen(st.x, st.y);
+      const sx = st.signTile ? st.signTile.x : st.x;
+      const sy = st.signTile ? st.signTile.y : st.y;
+      const c = renderer.tileCenterScreen(sx, sy);
       const sty = stationSignStyle(state, st);
       place('station', st.id, c.x, c.y, st.name, sty.fill, '#ffffff', sty.rival ? '#fde68a' : 'rgba(255,255,255,0.7)');
     }

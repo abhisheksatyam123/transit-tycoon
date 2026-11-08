@@ -9,6 +9,7 @@ import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
 import { drawChart, chronological } from './graphs.js';
 import { monthName } from '../format.js';
+import { MAX_INDUSTRY_TEXT_LENGTH } from '../../simulation/cmdRename.js';
 
 /**
  * Production-history series for the industry graph (OTTD industry_gui production chart). Pure.
@@ -54,12 +55,18 @@ export function openIndustry(app, id) {
       const edit = el('div.btn-row', null, el('button.btn.danger', { type: 'button', text: 'Demolish industry', onclick: () => {
         if (app.exec(app.game.demolishIndustry(id), { quiet: true })) win.close();
       } }));
+      const noteTa = el('textarea', { rows: '3', maxlength: String(MAX_INDUSTRY_TEXT_LENGTH), style: 'width:100%;box-sizing:border-box;', 'aria-label': 'Industry note' });
+      const noteCount = el('div.muted.small', { text: '0 / ' + MAX_INDUSTRY_TEXT_LENGTH });
+      const noteSave = el('button.btn', { type: 'button', text: 'Save note', onclick: () => { app.exec(app.game.setIndustryText(id, noteTa.value), { quiet: true }); noteTa.value = (app.findIndustry(id) || {}).text || ''; noteCount.textContent = `${noteTa.value.length} / ${MAX_INDUSTRY_TEXT_LENGTH}`; } });
+      noteTa.addEventListener('input', () => { noteCount.textContent = `${noteTa.value.length} / ${MAX_INDUSTRY_TEXT_LENGTH}`; });
+      body.append(heading('Note'), noteTa, noteCount, noteSave);
       body.appendChild(edit);
       let accDone = false;
       return () => {
         const ind = app.findIndustry(id);
         if (!ind) { win.close(); return; }
         win.setTitle(ind.name);
+        if (noteTa && document.activeElement !== noteTa && noteTa.value !== (ind.text || '')) { noteTa.value = ind.text || ''; noteCount.textContent = `${noteTa.value.length} / ${MAX_INDUSTRY_TEXT_LENGTH}`; }
         edit.hidden = !app.game.state.editor;
         const type = INDUSTRY_BY_ID[ind.typeId] || { produces: [], accepts: [] };
         const produces = type.produces.length ? type.produces : Object.keys(ind.production || {});

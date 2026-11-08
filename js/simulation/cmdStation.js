@@ -290,3 +290,15 @@ export function removeDepot(ctx, depotId) {
     if (v.goingToDepot === depotId) v.goingToDepot = null;
   }
 }
+
+/** Move station/waypoint name sign to any tile of the station (OpenTTD CmdMoveStationName / CmdMoveWaypointName). */
+export function moveStationSign(ctx, id, x, y, opts = {}) {
+  const st = ctx.state.stations.find((s) => s.id === id);
+  if (!st) return { ok: false, error: 'Unknown station' };
+  if (ownerMismatch(st, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (!st.tiles.some((t) => t.x === x && t.y === y)) return { ok: false, error: 'Tile is not part of this station' };
+  if (opts.dryRun) return { ok: true, cost: 0, x, y };
+  if (x === st.x && y === st.y) delete st.signTile;
+  else st.signTile = { x, y };
+  return { ok: true, cost: 0, x, y };
+}

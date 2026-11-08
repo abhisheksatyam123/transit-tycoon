@@ -29,15 +29,15 @@ import { cycleSignalType, flipSignal } from './pathSignals.js';
 import { toggleOneWay } from './cmdOneWay.js';
 import { terraform, estimateTerraform, planTerraform } from './cmdTerraform.js';
 import { foundTown, fundIndustry, estimateFound } from './cmdFound.js';
-import { buildDepot, buildRailStation, buildRoadStop } from './cmdStation.js';
+import { buildDepot, buildRailStation, buildRoadStop, moveStationSign } from './cmdStation.js';
 import { buildAirport } from './cmdAirport.js';
 import { buildDock, buildShipDepot, buildBuoy } from './cmdShip.js';
 import { buildRailWaypoint, buildRoadWaypoint } from './cmdWaypoint.js';
 import { buildCanal, buildLock } from './cmdCanal.js';
-import { townAction } from './townAuthority.js';
+import { townAction, setTownRating, getTownRating } from './townAuthority.js';
 import { expandTown, deleteTown, demolishIndustry } from './cmdTownEdit.js';
 import * as vcmd from './cmdVehicle.js';
-import { renameStation, renameVehicle, renameTown, setTownText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint, setCompanyManagerFace } from './cmdRename.js';
+import { renameStation, renameVehicle, renameTown, setTownText, setIndustryText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint, setCompanyManagerFace } from './cmdRename.js';
 import { setAirportClosed } from './cmdAirport.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
@@ -331,6 +331,7 @@ export class Game {
   massStartStop(ids, start, opts) { return vcmd.massStartStop(this.ctx, ids, start, opts); }
   /** Rename commands (cmdRename.js): name is validated and stored in the entity's name field. */
   renameStation(id, name, opts) { return renameStation(this.ctx, id, name, opts); }
+  moveStationSign(id, x, y, opts) { return moveStationSign(this.ctx, id, x, y, opts); }
   /** Open (closed=false) or close (true) an airport station to landings (cmdAirport.js setAirportClosed). */
   setAirportClosed(id, closed, opts) { return setAirportClosed(this.ctx, id, closed, opts); }
   renameVehicle(id, name, opts) { return renameVehicle(this.ctx, id, name, opts); }
@@ -350,12 +351,17 @@ export class Game {
   renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }
   /** Town note text (lazy town.text; blank clears). */
   setTownText(id, text, opts) { return setTownText(this.ctx, id, text, opts); }
+  setIndustryText(id, text, opts) { return setIndustryText(this.ctx, id, text, opts); }
   /** Depot rename (lazy name; blank = reset to "Depot at x,y"). */
   renameDepot(id, name, opts) { return renameDepot(this.ctx, id, name, opts); }
   /** Rename a rail/road waypoint (cmdRename.js renameWaypoint). */
   renameWaypoint(id, name, opts) { return renameWaypoint(this.ctx, id, name, opts); }
   /** Town authority action ('advertise_small'|'advertise_medium'|'advertise_large'|'statue'|'fund'); see townAuthority.js. */
   townAction(townId, actionId, opts) { return townAction(this.ctx, townId, actionId, opts); }
+  /** OpenTTD CmdTownRating: set a company's rating in a town. */
+  setTownRating(townId, companyId, rating, opts) { return setTownRating(this.ctx, townId, companyId, rating, opts); }
+  /** OpenTTD CmdTownRating query: get a company's rating in a town. */
+  getTownRating(townId, companyId) { return getTownRating(this.state, townId, companyId); }
   /** Scenario editor (editor-only): OpenLoco town window 'Expand town' (8 growth steps), 'Delete town', industry 'Demolish'. See cmdTownEdit.js. */
   expandTown(townId) { return expandTown(this, townId); }
   deleteTown(townId) { return deleteTown(this, townId); }

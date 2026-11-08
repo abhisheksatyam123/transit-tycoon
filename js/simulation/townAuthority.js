@@ -274,3 +274,40 @@ export function advertBonus(state, st) {
   const b = st.adBoost;
   return b && state.tick < b.until ? b.amount : 0;
 }
+
+/**
+ * OpenTTD CmdTownRating: set a company's rating in a town (clamped to [-1000, 1000]).
+ * @param {object} ctx game context (needs state.towns)
+ * @param {number} townId
+ * @param {number|string|null} companyId null/undefined => player
+ * @param {number} rating
+ * @param {{dryRun?:boolean}} [opts]
+ * @returns {{ok:true,cost:0,rating:number}|{ok:false,error:string}}
+ */
+export function setTownRating(ctx, townId, companyId, rating, opts = {}) {
+  const town = (ctx.state.towns || []).find((t) => t.id === townId);
+  if (!town) return { ok: false, error: 'Unknown town' };
+  const r = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.round(Number(rating) || 0)));
+  if (opts.dryRun) return { ok: true, cost: 0, rating: r };
+  ensureTown(town);
+  const key = companyId == null ? 'player' : String(companyId);
+  if (!town.ratings) town.ratings = {};
+  town.ratings[key] = r;
+  // Keep legacy single-company field in sync for player (read by townRating/authority code).
+  if (key === 'player') town.companyRating = r;
+  return { ok: true, cost: 0, rating: r };
+}
+
+/**
+ * OpenTTD CmdTownRating query: get a company's rating in a town (default RATING_NEUTRAL 500).
+ * @param {object} state
+ * @param {number} townId
+ * @param {number|string|null} [companyId]
+ * @returns {number}
+ */
+export function getTownRating(state, townId, companyId = null) {
+  const t = (state.towns || []).find((x) => x.id === townId);
+  if (!t || !t.ratings) return RATING_NEUTRAL;
+  const key = companyId == null ? 'player' : String(companyId);
+  return t.ratings[key] != null ? t.ratings[key] : RATING_NEUTRAL;
+}

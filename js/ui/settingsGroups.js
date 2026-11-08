@@ -73,6 +73,7 @@ export const SETTING_META = [
   { key: 'planeSpeedFactor', group: 'vehicles', label: 'Plane speed factor', type: 'select',
     options: [['1', '1 (full speed)'], ['2', '1/2'], ['3', '1/3'], ['4', '1/4']],
     help: 'Divides aircraft speed (OpenTTD plane_speed). 1 = full speed (default).' },
+    { key: 'townTraffic', group: 'environment', label: 'Town private-car traffic', type: 'check', help: 'Towns spawn private cars on roads (traffic density and congestion). Off = no private car traffic, OpenTTD-style (only player and competitor vehicles).' },
   { key: 'townGrowthRate', group: 'environment', label: 'Town growth rate', type: 'select',
     options: [['none', 'None'], ['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['veryfast', 'Very fast']],
     help: 'How fast towns build (OpenTTD economy.town_growth_rate). Normal = the current growth. None = towns stop growing.' },
