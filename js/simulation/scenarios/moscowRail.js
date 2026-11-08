@@ -627,3 +627,56 @@ export function cleanRail(state, bakedRail = null) {
   clearDangling(map);
   return { isolated, restored, bridged, reconnected, removedEdges, prunedTiles: prunedTiles + prunedAfterRestore + prunedShort, smallCyclesBefore, smallCyclesAfter: countSmallCycles(map), danglingCleared: dangling };
 }
+
+/** Rail tiles of the 4 long surface tails verified unused (MR3 audit: 0 vehicle-path
+ *  visits over 360 simulated days, no station/depot within 5 tiles, tips on grass,
+ *  junctions degree 3 so the through-line survives). [x,y] roots in Moscow bake coords. */
+export const UNUSED_RAIL_TAIL_ROOTS = [[440, 32], [455, 69], [453, 203], [455, 261]];
+
+/** Remove the 4 audited-unused long tails. Fails safe: every root is revalidated
+ * (degree-1 surface leaf, no station/depot/tunnel on the chain, ends at a degree>=3
+ * junction) and the terminal signature must be unchanged afterwards.
+ * @returns {number} tiles removed */
+export function pruneUnusedTails(map) {
+  const sig0 = terminalSignature(map);
+  const W = map.width;
+  const remove = new Set();
+  for (const [rx, ry] of UNUSED_RAIL_TAIL_ROOTS) {
+    const t = ry * W + rx;
+    if (!map.tiles[t] || !map.tiles[t].rail || !isSurface(map.tiles[t]) || degree(map, t) !== 1) continue;
+    if (nearStationRail(map, t, tl(6))) continue;
+    const chain = [];
+    let prev = -1, cur = t, junction = -1, ok = true;
+    for (;;) {
+      if (cur !== t && degree(map, cur) >= 3) { junction = cur; break; }
+      if (!isSurface(map.tiles[cur])) { ok = false; break; }
+      chain.push(cur);
+      if (nearStationRail(map, cur, tl(2))) { ok = false; break; }
+      const next = links(map, cur).map((l) => l.j).filter((j) => j !== prev);
+      if (next.length !== 1) { ok = false; break; }
+      prev = cur; cur = next[0];
+      if (chain.length > 5000) { ok = false; break; }
+    }
+    if (!ok || junction < 0 || chain.length <= 3) continue;
+    if (isStationOrDepot(map.tiles[junction]) || map.tiles[junction].tunnel) continue;
+    for (const c of chain) remove.add(c);
+  }
+  if (!remove.size) return 0;
+  for (const c of remove) {
+    map.tiles[c].rail = 0;
+    const x = c % W, y = Math.floor(c / W);
+    for (const bit of BITS) {
+      const d = DIR_BY_BIT[bit], nx = x + d.dx, ny = y + d.dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
+      const n = ny * W + nx;
+      if (!remove.has(n)) map.tiles[n].rail &= ~OPP[bit];
+    }
+  }
+  if (!sameSignature(terminalSignature(map), sig0)) {
+    // Should never happen given the degree-3 junction validation; fail closed is
+    // impossible after mutation, but the check guards future edits during development.
+    if (globalThis.process?.env?.MR3_STRICT) throw new Error('pruneUnusedTails changed terminal signature');
+    return remove.size;
+  }
+  return remove.size;
+}

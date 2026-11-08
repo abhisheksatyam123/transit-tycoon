@@ -18,7 +18,7 @@ import { clearFootprint, pruneRoadIslands, joinRoadComponents, clearLinks, demol
 import { placeLandmarks } from './moscowLandmarks.js';
 import { planIndustries, namedSiteFootprint } from './moscowIndustry.js';
 import { recomputePopulation } from '../towns.js';
-import { cleanRail } from './moscowRail.js';
+import { cleanRail, pruneUnusedTails } from './moscowRail.js';
 import { cleanRoad } from './moscowRoad.js';
 import { replan } from '../movement.js';
 
@@ -224,6 +224,13 @@ export function buildMoscow(game, map) {
   if (!globalThis.process?.env?.NO_RAILCLEAN) {
     const c = cleanRail(state, L.rail);
     log.push(`rail: cleanRail removed ${c.removedEdges} edges, pruned ${c.prunedTiles} tiles, restored ${c.restored} dead ends, small cycles ${c.smallCyclesBefore}->${c.smallCyclesAfter}`);
+    // MR3: the 4 long tails verified unused over a 1-year audit (0 path visits, no
+    // stations) are pruned after cleanRail, whose terminal-consistency guard keeps
+    // station/depot/tunnel connectivity intact.
+    if (!globalThis.process?.env?.MR3_NO_TAILPRUNE) {
+      const t = pruneUnusedTails(state.map);
+      if (t) log.push(`rail: pruned ${t} tiles of 4 audited-unused long tails`);
+    }
   }
   if (!globalThis.process?.env?.NO_ROADCLEAN) {
     const r = cleanRoad(state);
