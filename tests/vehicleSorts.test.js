@@ -91,6 +91,7 @@ describe('build window power / tractive effort sorters', () => {
   test('the new sorters are listed', () => {
     const keys = BUY_SORTERS.map((s) => s[0]);
     expect(keys).toContain('power');
-    expect(keys).not.toContain('tractive');
+    expect(keys).toContain('tractive');
+    expect(keys).toContain('id');
   });
 });
