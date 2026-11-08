@@ -17,6 +17,7 @@ import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
 import { saveNewGameSetting } from '../newGamePrefs.js';
+import { logger, LEVELS } from '../logger.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -138,6 +139,45 @@ export function openSettings(app) {
           const ch = el('button.btn', { type: 'button', text: 'Cheats…', title: 'Cheats window (Ctrl+Alt+C)' });
           ch.addEventListener('click', () => app.open('cheats'));
           inner.push(el('div.set-row', null, ch, el('span.set-help.muted', { text: 'Money, change year, magic bulldozer. Marks the game as cheated. Hidden hotkey: Ctrl+Alt+C.' })));
+          // Logging (OPFS file log; default off) — enable/level + status inline
+          {
+            const logCheck = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
+            logCheck.addEventListener('change', () => { if (logCheck.checked) logger.enable(); else logger.disable(); });
+            const logLevelSel = /** @type {HTMLSelectElement} */ (el('select.input', { style: { width: 'auto' }, 'aria-label': 'Log level', title: 'Minimum level written to the log file' }));
+            for (const lv of ['debug', 'info', 'warn', 'error', 'off']) logLevelSel.append(el('option', { value: lv, text: lv }));
+            logLevelSel.addEventListener('change', () => logger.setLevel(logLevelSel.value));
+            const logStatus = el('span.muted.small', { text: '' });
+            const refreshLogStatus = () => {
+              const st = logger.status();
+              logStatus.textContent = st.enabled ? `enabled · ${st.level} · ${st.file} · buffered ${st.buffered} flushed ${st.flushed} · ${st.store}` : 'disabled';
+              if (document.activeElement !== logCheck) logCheck.checked = st.enabled;
+              if (document.activeElement !== logLevelSel) logLevelSel.value = st.level;
+            };
+            const logRow = el('div.set-row', null,
+              el('label.set-line', { title: 'Write warnings/errors (and debug when level=debug) to an OPFS file log instead of console. Also enable via ?log=1&logLevel=debug.' }, logCheck, el('span.set-label', { text: 'File logging' }), logLevelSel, logStatus));
+            rows.push({ item: { label: 'File logging', help: 'OPFS file log; also ?log=1&logLevel=debug', group: g.id }, row: logRow, pref: true, sync: refreshLogStatus });
+            inner.push(logRow);
+            const openRow = el('div.set-row', null,
+              el('button.btn.sm', { type: 'button', text: 'View log', title: 'Open the log file contents in a window' }),
+              el('span.set-help.muted', { text: 'Needs logging enabled. Shows the last 100 lines from the OPFS file.' }));
+            const noop = () => {};
+            rows.push({ item: { label: 'View log', help: '', group: g.id }, row: openRow, pref: true, sync: noop });
+            const viewBtn = openRow.querySelector('button');
+            viewBtn.addEventListener('click', async () => {
+              if (!logger.enabled) { logStatus.textContent = 'disabled — enable file logging first'; return; }
+              const lines = await logger.tail(100);
+              openRow.querySelector('button').disabled = true;
+              setTimeout(() => { openRow.querySelector('button').disabled = false; }, 0);
+              const w = app.wm.open('logger', { title: 'Log file', width: 560, build: (b2) => {
+                b2.append(el('p.muted.small', { text: `${logger.status().file} · ${lines.length} lines (newest last). Use __ttLog.read()/tail()/download() in console for full control.` }));
+                const pre = el('pre.mono', { style: 'white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;font-size:11px;line-height:1.4;' });
+                pre.textContent = lines.join('') || '(empty)';
+                b2.append(pre);
+              }});
+              w?.update?.();
+            });
+            inner.push(openRow);
+          }
         }
         for (const m of SETTING_META.filter((x) => x.group === g.id)) {
           const c = control(m);
