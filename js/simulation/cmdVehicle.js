@@ -456,9 +456,11 @@ export function resetLateness(ctx, id, opts = {}) {
   const v = findVehicle(ctx.state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
-  if (opts.dryRun) return { ok: true, cost: 0 };
-  delete v.lateDays;
-  return { ok: true, cost: 0 };
+  const members = opts.applyToGroup ? orderGroupMembers(ctx.state, v) : [v];
+  if (opts.dryRun) return { ok: true, cost: 0, count: members.length };
+  // delete is idempotent: members whose timetable hasn't started (no lateDays recorded) stay as-is.
+  members.forEach((w) => delete w.lateDays);
+  return { ok: true, cost: 0, count: members.length };
 }
 
 /** Make a vehicle's order list independent again (keeps the orders it has now). */

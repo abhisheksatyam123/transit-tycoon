@@ -143,3 +143,38 @@ describe('timetable fields', () => {
     expect(w.autofillLeft).toBe(1);
   });
 });
+
+describe('resetLateness group scope', () => {
+  function sharedSetup() {
+    const { g, L, v } = setup();
+    const c = g.cloneVehicle(v.id, { shareOrders: true }).vehicle;
+    const d = g.cloneVehicle(v.id, { shareOrders: true }).vehicle;
+    return { g, v, c, d };
+  }
+  test('single vehicle clears only itself by default', () => {
+    const { g, v, c } = sharedSetup();
+    v.lateDays = 2; c.lateDays = 3;
+    const r = g.resetLateness(v.id);
+    expect(r.ok).toBe(true); expect(r.count).toBe(1);
+    expect(v.lateDays).toBeUndefined(); expect(c.lateDays).toBe(3);
+  });
+  test('applyToGroup clears all shared members', () => {
+    const { g, v, c, d } = sharedSetup();
+    v.lateDays = 2; c.lateDays = 3; d.lateDays = 1;
+    const r = g.resetLateness(v.id, { applyToGroup: true });
+    expect(r.ok).toBe(true); expect(r.count).toBe(3);
+    expect(v.lateDays).toBeUndefined(); expect(c.lateDays).toBeUndefined(); expect(d.lateDays).toBeUndefined();
+  });
+  test('non-shared with applyToGroup clears just itself', () => {
+    const { g, v } = setup();
+    v.lateDays = 5;
+    const r = g.resetLateness(v.id, { applyToGroup: true });
+    expect(r.ok).toBe(true); expect(r.count).toBe(1);
+    expect(v.lateDays).toBeUndefined();
+  });
+  test('unknown vehicle error', () => {
+    const { g } = setup();
+    expect(g.resetLateness(999999).ok).toBe(false);
+    expect(g.resetLateness(999999, { applyToGroup: true }).ok).toBe(false);
+  });
+});

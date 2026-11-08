@@ -108,7 +108,7 @@ export function openOrders(app, id) {
         const v = app.findVehicle(id);
         if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill), { quiet: true, sound: 'click' });
       } });
-      const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear the recorded lateness', onclick: () => app.exec(app.game.resetLateness(id), { quiet: true, sound: 'click' }) });
+      const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear recorded lateness for this vehicle (and shared-order group)', onclick: (e) => { const v = app.findVehicle(id); const applyToGroup = (v && v.orderGroup != null) || (e && e.ctrlKey); app.exec(app.game.resetLateness(id, { applyToGroup }), { quiet: true, sound: 'click' }); } });
       const pickSel = el('select.input', { 'aria-label': 'Station to add', title: 'Pick a station this vehicle can use', style: { flex: '1', minWidth: '0' } });
       const pickBtn = el('button.btn', { type: 'button', text: 'Add', title: 'Append the selected station or depot to the orders', onclick: () => {
         const val = pickSel.value;
