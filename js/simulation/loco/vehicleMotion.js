@@ -74,10 +74,20 @@ export function landSpeedStep(v, model, targetTiles, grade = 0) {
   const w = Math.max(1, totalWeight(v));
   const drag = Math.trunc(mph) * Math.trunc(mph);
   const ebp = power * 2048 / w; // available force term (ebp units, before drag)
-  // grade = signed fraction of that force eaten by the slope (gradeFraction); negative = downhill assist
-  let adj = Math.min(ebp * (1 - grade) - drag, MAX_ACCEL_MPH);
+  // OL Vehicle2.cpp:193: the pitch term is added to ebp. Its kPitchLateralGravity values are
+  // sin(angle) * 256 * 256, so ebp += weight * sin(angle) * 256 (uphill is negative). The
+  // historical gradeMph input is a fraction of steepness*10, i.e. 10x the slope ratio, hence
+  // weight * grade * 256 / 10. Do not use a second 10x scale factor here.
+  const pitch = grade ? w * grade * PITCH_EBP_PER_GRADE : 0;
+  const preTickMph = mph;
+  let adj = Math.min(ebp - pitch - drag, MAX_ACCEL_MPH);
   mph += adj;
-  if (adj < 0 && mph >= BRAKE_FLOOR_MPH) mph = Math.max(mph, BRAKE_FLOOR_MPH);
+  // Vehicle2.cpp lines 258-264 use the pre-deceleration speed when deciding the 5 mph floor.
+  // On a stall incline this does not freeze a vehicle already above 5 mph; it retains the source floor.
+  if (adj < 0) {
+    if (grade && preTickMph >= BRAKE_FLOOR_MPH) mph = Math.max(mph, BRAKE_FLOOR_MPH);
+    else if (!grade && mph >= BRAKE_FLOOR_MPH) mph = Math.max(mph, BRAKE_FLOOR_MPH);
+  }
   return Math.max(0, Math.min(mph, target)) * k;
 }
 
@@ -96,20 +106,18 @@ export function airSpeedStep(v, targetTiles) {
 
 /** Gradient steepness in percent (OpenTTD slope_steepness: trains 3 %, road vehicles 7 %). */
 export const STEEPNESS_PCT = { train: 3, road: 7 };
-/**
- * Force eaten by a full incline, as a multiple of steepness fraction: a 3 % train climbing the whole
- * body loses 30 % of its available power term (speed ~ sqrt(0.7) of flat), a 7 % road vehicle 70 %.
- */
+/** gradeMph returns 10x the physical slope ratio (its historical fraction scale). */
 export const GRADE_FORCE_PER_FRACTION = 10;
-/** Downhill: gravity gives back this fraction of the uphill force (never above maxSpeed). */
+/** OL ebp per ton-slope grade: slope ratio is grade/GRADE_FORCE_PER_FRACTION and sin multiplies by 256. */
+export const PITCH_EBP_PER_GRADE = 256 / GRADE_FORCE_PER_FRACTION;
+/** Retained for compatibility; gradeMotion no longer attenuates downhill pitch. */
 export const DOWNHILL_FACTOR = 0.5;
 
 /**
- * Gradient fraction for one tick: signed share of the power term consumed by the slope.
- * Positive = uphill (slows), negative = downhill assist (small). Trains average the slope over their body
- * (v.history cells, up to 2 cells per wagon); other ground vehicles use the head segment.
- * Heavier vehicles lose more because the power term already scales with 1/weight. Pure; no allocation.
- * Heights: state.map.tiles[i].height (integer levels).
+ * Signed vehicle grade on a 10x scale: +10 means a 3%/7% uphill segment, -10 the same downhill segment.
+ * Positive = uphill (pitch term subtracts), negative = downhill assist. Trains average the slope over their body
+ * (v.history cells); other ground vehicles use the head segment. LandSpeedStep converts this 10x input into the
+ * OL pitch force with the correct scale. Pure; no allocation.
  */
 export function gradeMph(state, v) {
   const tiles = state.map.tiles, W = state.map.width;
@@ -134,6 +142,5 @@ export function gradeMph(state, v) {
   }
   if (!n) return 0;
   const pct = STEEPNESS_PCT[v.kind === 'train' ? 'train' : 'road'];
-  const frac = (pct / 100) * GRADE_FORCE_PER_FRACTION * (sum / n);
-  return frac > 0 ? frac : frac * DOWNHILL_FACTOR;
+  return (pct / 100) * GRADE_FORCE_PER_FRACTION * (sum / n);
 }

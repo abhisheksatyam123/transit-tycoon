@@ -47,7 +47,7 @@ export const DEFAULT_SETTINGS = {
   treeGrowth: false,
   /** autoslope (OpenTTD construction.autoslope): terraform under rail/road is allowed when every affected track stays on a valid slope (cmdTerraform.js). Off by default. */
   autoslope: false,
-  /** gradients: uphill slopes slow ground vehicles (weight * steepness), downhill gives a small bonus (vehicleMotion.gradeMph). Off by default: changes deterministic results. */
+  /** gradients: OL pitch force (Vehicle2.cpp:193): uphill slopes subtract weight*sin*256 ebp from the tractive term, downhill adds it (vehicleMotion.gradeMph / landSpeedStep); heavy trains on steep grades stall. Off by default: changes deterministic results. */
   gradients: false,
   /** trainAcceleration: 'original' (current TT model, default) | 'realistic' (OTTD curve speed limits + tractive effort / drag / slope acceleration, loco/trainRealistic.js). Changes results; off by default. */
   trainAcceleration: 'original',
