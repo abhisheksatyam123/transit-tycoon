@@ -284,7 +284,16 @@ async function main() {
     else app.toast('Continuing your autosaved game — New Game to start over', 'info');
   }
   else if (shouldShowTitle()) openTitleMenu(app); // plain boot: title menu (replaces the help popup)
-  else app.open('help');
+  else {
+    let seen = false;
+    try { seen = localStorage.getItem('tt-help-v1') === '1'; } catch { /* ignore */ }
+    if (seen) {
+      app.toast('Press H for help', 'info');
+    } else {
+      try { localStorage.setItem('tt-help-v1', '1'); } catch { /* ignore */ }
+      app.open('help');
+    }
+  }
 }
 
 /**
