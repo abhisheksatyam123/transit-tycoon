@@ -6,6 +6,7 @@
  */
 import { COSTS } from '../config/costs.js';
 import { COST_INDEX, inflateCost as inflate } from './loco/economy.js';
+import { MAX_LOAN } from './constants.js';
 import { getSetting } from './settings.js';
 
 /** Apply a difficulty percent (settings vehicleCostPercent / constructionCostPercent). 100 returns the amount untouched. */
@@ -44,4 +45,16 @@ export function runningCost(state, amount) {
 /** Inflated property upkeep amount. */
 export function upkeepCost(state, amount) {
   return inflateCost(state, COST_INDEX.property, amount);
+}
+
+/**
+ * Effective max loan (gap #52). OpenLoco scales maxLoan with inflation
+ * (CompanyManager.cpp:1191 ChangeLoan.cpp getInflationAdjustedCost(size,0,8)); TT keeps
+ * flat MAX_LOAN unless the setting is on. Default off -> hash/balance unchanged.
+ */
+export function effectiveMaxLoan(state) {
+  if (!getSetting(state, 'inflationAdjustsMaxLoan')) return MAX_LOAN;
+  // OL divisor formula works on base-1900 size units (div 8); TT MAX_LOAN is in start-year cmp,
+  // so scale by costScale (1.0 at start) instead — equivalent growth, correct units.
+  return inflateCost(state, COST_INDEX.general, MAX_LOAN);
 }

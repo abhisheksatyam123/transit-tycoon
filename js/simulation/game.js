@@ -401,7 +401,7 @@ export class Game {
   setTimetableStart(id, startTick, opts) { return vcmd.setTimetableStart(this.ctx, id, startTick, opts); }
   /** Spread the start dates of the shared-order group evenly over the timetable round (needs a complete timetable). */
   spreadTimetableStart(id, opts) { return vcmd.spreadTimetableStart(this.ctx, id, opts); }
-  borrow(amount) { return borrow(this.state.company, amount); }
+  borrow(amount) { return borrow(this.state.company, amount, this.state); }
   repay(amount) { return repay(this.state.company, amount); }
   /** Loan autopay (OpenLoco CompanyFlags::autopayLoan, CompanyWindow loan_autopay): on = repay from cash daily (companyManager.updateDaily). Default false (companyDefaults), so the default save and hash are unchanged. */
   setLoanAutopay(on) { const c = this.state.company; c.autopayLoan = !!on; return { ok: true, cost: 0, autopayLoan: !!on }; }

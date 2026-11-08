@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS = {
   inflation: true,
   /** loan interest rate in OpenLoco units (percent per year, charged monthly as loan*rate/1200; World/Company.cpp:724). Editor default 10 in OL; 5 here keeps existing games unchanged. */
   loanInterestRate: 5,
+  /** OpenLoco: max loan is inflation-adjusted (CompanyManager.cpp:1191, ChangeLoan.cpp getInflationAdjustedCost(ci 0, div 8)). Off keeps flat MAX_LOAN so current games/hash unchanged. */
+  inflationAdjustsMaxLoan: false,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,
   /** OpenTTD difficulty.vehicle_costs: percent scale on vehicle purchase prices and monthly running costs (prices.js vehiclePrice, loco/vehicle.js monthlyRunningCost). 100 = unchanged. */

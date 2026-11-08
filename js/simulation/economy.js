@@ -5,6 +5,7 @@ import { COSTS } from '../config/costs.js';
 import { noteExpenditure, companyDefaults } from './loco/company.js';
 import { START_MONEY, START_LOAN, MAX_LOAN, LOAN_STEP } from './constants.js';
 import { getSetting } from './settings.js';
+import { effectiveMaxLoan } from './prices.js';
 
 /** Ledger categories. */
 export const LEDGER_TYPES = ['construction', 'vehicles', 'running', 'income', 'interest', 'property'];
@@ -57,10 +58,12 @@ export function monthlyLoanInterest(state, loan) {
  * Borrow money in LOAN_STEP increments.
  * @returns {{ok:boolean,cost?:number,error?:string,loan?:number}}
  */
-export function borrow(company, amount = LOAN_STEP) {
+export function borrow(company, amount = LOAN_STEP, state = null) {
   const amt = Math.ceil(Math.max(0, amount) / LOAN_STEP) * LOAN_STEP;
   if (amt <= 0) return { ok: false, error: 'Invalid amount' };
-  if (company.loan + amt > company.maxLoan) return { ok: false, error: 'Maximum loan reached' };
+  // OL: max loan inflation-adjusted when inflationAdjustsMaxLoan; default off -> flat
+  const cap = (state && getSetting(state, 'inflationAdjustsMaxLoan')) ? effectiveMaxLoan(state) : company.maxLoan;
+  if (company.loan + amt > cap) return { ok: false, error: 'Maximum loan reached' };
   company.loan += amt;
   company.money += amt;
   return { ok: true, cost: 0, loan: company.loan };

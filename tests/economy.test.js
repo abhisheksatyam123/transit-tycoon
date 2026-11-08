@@ -35,3 +35,18 @@ describe('economy', () => {
     expect(c.ledger.current.income).toBe(0);
   });
 });
+
+describe('max loan inflation (gap #52)', () => {
+  test('default off: effectiveMaxLoan is flat MAX_LOAN', async () => {
+    const { effectiveMaxLoan } = await import('../js/simulation/prices.js');
+    const { MAX_LOAN } = await import('../js/simulation/constants.js');
+    const g = Game.create({ seed: 3, width: 64, height: 64 });
+    expect(effectiveMaxLoan(g.state)).toBe(MAX_LOAN);
+  });
+  test('on: effectiveMaxLoan scales with inflation (Ol CompanyManager 1191)', async () => {
+    const { effectiveMaxLoan } = await import('../js/simulation/prices.js');
+    const g = Game.create({ seed: 3, width: 64, height: 64, settings: { inflationAdjustsMaxLoan: true } });
+    // at game start costScale==1 so effective == MAX_LOAN
+    expect(effectiveMaxLoan(g.state)).toBe(300000);
+  });
+});
