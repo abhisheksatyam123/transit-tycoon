@@ -24,7 +24,7 @@ function airportDepotPart(b) {
 import { findTown, findStation } from './state.js';
 import { RIVAL_OWNED, companyById } from './owner.js';
 import { demolishRefusal, applyDemolishPenalty } from './townAuthority.js';
-import { magicBulldozer } from './cheats.js';
+import { magicBulldozer, crossingTunnelsAllowed } from './cheats.js';
 import { recomputeAllAcceptance } from './stations.js';
 import { removeHQ } from './cmdHQ.js';
 import { OBJECT_TYPES } from './cmdObject.js'; // T31: demolishing any HQ tile removes the whole HQ
@@ -69,7 +69,7 @@ export function planBridges(map, pts, maxLen = MAX_BRIDGE_LENGTH) {
  * their surface terrain.
  * @returns {{ok:true,inner:Set<number>,portals:Set<number>}|{ok:false,error:string}}
  */
-export function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH) {
+export function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH, opts = {}) {
   const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Tunnel needs at least one tile between the portals' };
@@ -91,7 +91,9 @@ export function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH)
     const t = tiles[k];
     if (t.terrain === 'water') return { ok: false, error: ERR.water };
     if (t.building) return { ok: false, error: 'Tunnel is blocked by a building' };
-    if (t.rail || t.road) return { ok: false, error: 'Tunnel is blocked by track or road' };
+    if (t.rail || t.road) {
+      if (!(opts.crossingTunnels && t.playerTunnel && t.tunnel)) return { ok: false, error: 'Tunnel is blocked by track or road' };
+    }
     if (t.height <= a.height) return { ok: false, error: 'Tunnel must run higher than its portals' };
     inner.add(pts[k].y * map.width + pts[k].x);
   }
@@ -143,7 +145,8 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
   if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
   const layer = opts.layer === 'road' ? 'road' : 'rail';
   const pts = linePath(x0, y0, x1, y1);
-  const plan = planTunnel(map, pts, layer, getSetting(state, 'maxTunnelLength'));
+  const allowCross = crossingTunnelsAllowed(state);
+  const plan = planTunnel(map, pts, layer, getSetting(state, 'maxTunnelLength'), { ...opts, crossingTunnels: allowCross });
   if (!plan.ok) return plan;
   const n = pts.length;
   const axis = pts[0].x === pts[1].x ? 'y' : 'x';
@@ -154,7 +157,7 @@ export function buildTunnel(ctx, x0, y0, x1, y1, opts = {}) {
     const p = pts[k];
     const i = p.y * map.width + p.x;
     const t = map.tiles[i];
-    const err = canAddBits(t, layer, bits);
+    const err = canAddBits(t, layer, bits, false, allowCross);
     if (err) return { ok: false, error: err };
     if (plan.inner.has(i)) { cost += COSTS[layer] + COSTS.tunnelRail + clearingCost(t); changed++; continue; }
     if ((t[layer] | bits) !== t[layer]) { cost += COSTS[layer] + clearingCost(t); changed++; }

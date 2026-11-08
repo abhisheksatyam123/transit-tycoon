@@ -246,7 +246,9 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
       nt.tram |= OPPOSITE[dir]; // the tram track next to it must open toward the depot too (else trams are lost)
     }
   }
-  state.depots.push(stampOwner(state, { id, kind, x, y, dir }, opts.owner ?? null));
+  const depot = stampOwner(state, { id, kind, x, y, dir }, opts.owner ?? null);
+  depot.builtDate = { year: state.date.year, month: state.date.month, day: state.date.day };
+  state.depots.push(depot);
   spend(companyById(state, opts.owner ?? null), 'construction', cost);
   return { ok: true, cost, depotId: id };
 }

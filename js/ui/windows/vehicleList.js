@@ -213,8 +213,10 @@ export function openVehicleList(app) {
       const bySel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Group by', title: 'Group the list into rows' },
         GROUP_BY.map(([k, l]) => el('option', { value: k, text: l })));
       bySel.onchange = () => { state.by = bySel.value; state.open.clear(); state.dir = 1; refresh(); };
+      const protectCb = el('input', { type: 'checkbox', title: 'Protect this group from autoreplace (OpenTTD GroupFlag::ReplaceProtection)', onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
+      const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: 'Protect this group from autoreplace' }, protectCb, el('span', { text: 'Protect from autoreplace' }));
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn);
+        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, protectLabel);
       // group-by dropdown (OpenTTD vehicle_gui.cpp GB_NONE / GB_SHARED_ORDERS / GB_GROUP). Grouped: the sort box sorts buckets.
       const sortKeyed = { sig: null };
       const sortOptions = (grouped) => {
@@ -331,6 +333,8 @@ export function openVehicleList(app) {
         deleteGroupBtn.disabled = !hasGroup;
         const selG = hasGroup ? groupList(app.game.state).find((x) => x.id === state.group) : null;
         livery.style.display = selG ? 'flex' : 'none';
+        protectCb.checked = !!(selG && selG.replaceProtect);
+        protectLabel.style.display = selG ? 'inline-flex' : 'none';
         if (selG) liveryRow(selG);
         if (!grouped) {
           setHead('veh');

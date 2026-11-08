@@ -43,13 +43,13 @@ export function objectError(tile) {
  * Check whether `bits` can be added to tile on `layer` ('rail'|'road').
  * @returns {string|null} error message or null when allowed
  */
-export function canAddBits(tile, layer, bits, deck = false) {
+export function canAddBits(tile, layer, bits, deck = false, crossingTunnels = false) {
   if (!tile) return ERR.bounds;
   if (objectBlocks(tile)) return ERR.object;
   if (tile.overBridge) return ERR.bridge;
   if (tile.terrain === 'water' && !deck) return ERR.water;
   // a tunnel's underground run takes no surface track; a portal only continues along its own axis
-  if (tile.playerTunnel && tile.tunnel && bits) return ERR.tunnel;
+  if (tile.playerTunnel && tile.tunnel && bits && !crossingTunnels) return ERR.tunnel;
   if (tile.playerTunnel && tile.tunnelPortal && (bits & ~AXIS_BITS[straightAxis(tile.rail | tile.road) || 'x'])) return ERR.tunnel;
   if (deck && tile.terrain !== 'water') return ERR.water;
   const b = tile.building;

@@ -29,7 +29,7 @@ export const FAST_FORWARD_SPEED = 4;
 const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'convertRoad', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'convertSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
-  'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
+  'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setGroupFlag', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'copyOrders', 'clearOrderBackup', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
   'setTimetableAutofill', 'resetLateness', 'renameStation', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',

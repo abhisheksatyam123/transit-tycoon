@@ -340,6 +340,7 @@ export class Game {
   deleteGroup(id, opts) { return gcmd.deleteGroup(this.ctx, id, opts); }
   /** Group livery: colour hex from COMPANY_COLOURS, or null = company colour (cmdGroup.js setGroupColour). */
   setGroupColour(id, colour, opts) { return gcmd.setGroupColour(this.ctx, id, colour, opts); }
+  setGroupFlag(id, flag, value, opts) { return gcmd.setGroupFlag(this.ctx, id, flag, value, opts); }
   /** Per-vehicle-type colour scheme: type 'rail'|'road'|'tram'|'air'|'ship', colour '#rrggbb' or null (cmdGroup.js setTypeColour). */
   setTypeColour(type, colour, opts) { return gcmd.setTypeColour(this.ctx, type, colour, opts); }
   /** Per-vehicle paint (OpenLoco kPaintBrush): '#rrggbb' or null = clear; overrides group/type/company colour. */

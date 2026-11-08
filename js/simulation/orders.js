@@ -293,8 +293,21 @@ function transferUnits(ctx, v, st, want, dest) {
   const held = load.feeder || 0;
   const feederOut = held && amount < load.amount ? Math.round((held * amount) / load.amount) : held;
   const credit = transferCredit(ctx.state, v, st, amount, feederOut);
+  // OpenLoco VehicleHead.cpp:3202-3210: cargo transfer merge enrouteAge
+  const transitDays = Math.floor((ctx.state.tick - load.sinceTick) / TICKS_PER_DAY);
+  const prevWaiting = waitingAmount(st, v.cargoId);
   // the packet keeps its feeder share and gains this leg's transfer credit (OpenTTD AddFeederShare(profit))
   const moved = addWaiting(st, v.cargoId, amount, load.sourceX, load.sourceY, load.sinceTick, MAX_WAITING, feederOut + credit, dest, undefined, true);
+  if (moved > 0) {
+    st.cargoAge = st.cargoAge || {};
+    if (prevWaiting > 0) {
+      const curAge = st.cargoAge[v.cargoId] || 0;
+      const totalUnits = prevWaiting + moved;
+      st.cargoAge[v.cargoId] = Math.min(255, Math.round((curAge * prevWaiting + transitDays * moved) / totalUnits));
+    } else {
+      st.cargoAge[v.cargoId] = Math.min(255, transitDays);
+    }
+  }
   if (credit) {
     v.profitThisYear = (v.profitThisYear || 0) + credit;
     v.transferCredits = (v.transferCredits || 0) + credit; // lazy: shown in the vehicle window, reset yearly

@@ -20,6 +20,7 @@ import { companyById } from './owner.js';
 import { formatMoney } from './currency.js';
 import { bridgeType as bridgeTypeOf } from '../config/bridges.js';
 import { nearestTown } from './state.js';
+import { formatDate } from './date.js';
 
 const KIND_ALIASES = { train: ['engine'], engine: ['engine'], wagon: ['wagon'], road: ['bus', 'truck', 'tram'], bus: ['bus'], truck: ['truck'], aircraft: ['aircraft'], air: ['aircraft'], ship: ['ship'] };
 
@@ -103,6 +104,7 @@ export function tileInfo(state, x, y, clear = null) {
       L.push(`${out.station.name} (${stationClass(b)})`);
       const so = out.station.ownerId != null ? ownerName(state, 'rival', out.station.ownerId, x, y) : state.company.name;
       L.push(`Station owner: ${so}`);
+      if (out.station.builtDate) L.push(`Built: ${formatDate(out.station.builtDate)}`);
       for (const c of Object.keys(out.station.cargo || {})) {
         const n = waitingAmount(out.station, c);
         if (n > 0) L.push(`Waiting: ${n} ${cargoName(c)} (rating ${out.station.rating[c] ?? '-'}%)`);
@@ -113,6 +115,7 @@ export function tileInfo(state, x, y, clear = null) {
   } else if (b && b.type === 'depot') {
     out.depot = findDepot(state, b.depotId);
     L.push(`${b.kind === 'rail' ? 'Rail' : 'Road'} depot`);
+    if (out.depot && out.depot.builtDate) L.push(`Built: ${formatDate(out.depot.builtDate)}`);
   }
   // typed player bridge (config/bridges.js): default bridges (no bridgeType) show nothing extra
   if (tile.bridgeType !== undefined) {

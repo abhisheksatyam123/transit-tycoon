@@ -105,6 +105,7 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
  */
 export function autorenewVehicle(ctx, v, opts = {}) {
   const { state } = ctx;
+  if (v.groupId != null) { const g=(state.company.groups||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return null; }
   if (v.state !== 'depot' && !opts.serviceVisit) return null;
   const ro = { keepRoute: !!opts.serviceVisit };
   const rules = state.company && state.company.autoreplace;
@@ -120,6 +121,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
 
 /** Is `v` eligible for mass autoreplace (rule for its model, or autorenew past max age)? */
 export function isAutoreplaceEligible(state, v) {
+  if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
   const rules = state.company && state.company.autoreplace;
   if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId) return true;
   return !!getSetting(state,'autorenew') && v.age>v.maxAge;

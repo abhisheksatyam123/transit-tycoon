@@ -65,7 +65,7 @@ export function magicBulldozer(state) {
  * cheated; turning it off deletes the key so a save stays clean. Keys: 'stationRating' (OpenTTD station_rating:
  * player stations rate 100%), 'noJetCrash' (OpenTTD no_jetcrash: jets at short-strip airports never crash by the 3276 rule).
  */
-export const CHEAT_FLAGS = ['stationRating', 'noJetCrash'];
+export const CHEAT_FLAGS = ['stationRating', 'noJetCrash', 'crossingTunnels'];
 
 /** Set a cheat flag (CHEAT_FLAGS). @returns {{ok:true,on:boolean}|{ok:false,error:string}} */
 export function setCheatFlag(state, key, on) {
@@ -94,3 +94,6 @@ export function noJetCrash(state) { return cheatFlag(state, 'noJetCrash'); }
 export function isCheated(state) {
   return !!(state && state.cheated);
 }
+
+/** OpenTTD crossing_tunnels cheat: tunnels may cross each other underground (cheat_type.h:30). */
+export function crossingTunnelsAllowed(state) { return cheatFlag(state, 'crossingTunnels'); }

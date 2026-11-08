@@ -110,6 +110,20 @@ export function addSharedVehiclesToGroup(ctx, vehicleId, groupId, opts = {}) {
  * Player-only (groups belong to the player company): a rival owner is refused.
  * @returns {{ok:true,cost:0}|{ok:false,error:string}}
  */
+export function setGroupFlag(ctx, id, flag, value, opts={}) {
+  const {state}=ctx;
+  if (((opts&&opts.owner)??null)!==null) return {ok:false,error:'Owned by a rival company'};
+  const g=findGroup(state,id);
+  if(!g) return {ok:false,error:'Unknown group'};
+  if(flag!=='replaceProtect'&&flag!=='replaceProtection') return {ok:false,error:'Unknown flag'};
+  if(opts.dryRun) return {ok:true,cost:0,flag,value:!!value};
+  if(value) g.replaceProtect=true; else delete g.replaceProtect;
+  return {ok:true,cost:0,flag,value:!!value};
+}
+export function groupHasFlag(g,flag){
+  if(flag==='replaceProtect'||flag==='replaceProtection') return !!(g&&g.replaceProtect);
+  return false;
+}
 export function setGroupColour(ctx, id, colour, opts = {}) {
   const { state } = ctx;
   if (((opts && opts.owner) ?? null) !== null) return { ok: false, error: 'Owned by a rival company' };
