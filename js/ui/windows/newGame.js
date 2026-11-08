@@ -9,6 +9,7 @@ import { mapgenOptions } from '../../simulation/game.js';
 import { greyscaleFromPixels, heightsForMap } from '../../simulation/heightmap.js';
 import { loadNewGameSettings } from '../newGamePrefs.js';
 import { COMPANY_COLOURS, DEFAULT_PLAYER_COLOUR } from '../../simulation/companyColour.js';
+import { logger } from '../logger.js';
 
 /**
  * Labeled form field.
@@ -32,7 +33,7 @@ async function loadScenarios() {
     const mod = await import('../../simulation/scenarios/index.js');
     if (Array.isArray(mod.SCENARIOS) && mod.SCENARIOS.length) return mod.SCENARIOS;
   } catch (err) {
-    console.info('Scenarios unavailable; using random world only', err);
+    if (!logger.info('newGame', 'Scenarios unavailable; using random world only', err)) console.info('Scenarios unavailable; using random world only', err);
   }
   return FALLBACK_SCENARIOS;
 }
@@ -143,7 +144,7 @@ export function openNewGame(app) {
           hm = { grey: greyscaleFromPixels(px, w, h, 4), w, h, name: f.name };
           hmInfo.textContent = `${f.name} (${w}×${h})`;
         } catch (err) {
-          console.warn('Heightmap unreadable', err);
+          if (!logger.warn('newGame', 'Heightmap unreadable', err)) console.warn('Heightmap unreadable', err);
           hm = null;
           hmInfo.textContent = 'could not read this image';
         }

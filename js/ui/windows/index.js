@@ -1,4 +1,5 @@
 /**
+import { logger } from '../logger.js';
  * Window registry: maps a window name to its module's open function.
  * Each window module exports `open<Name>(app, arg)` and returns the FloatingWindow.
  */
@@ -96,7 +97,7 @@ const REGISTRY = {
 export function openWindow(app, name, arg) {
   const fn = REGISTRY[name];
   if (!fn) {
-    console.warn('Unknown window', name);
+    if (!logger.warn('window', `Unknown window ${name}`)) console.warn('Unknown window', name);
     return null;
   }
   return fn(app, arg);
