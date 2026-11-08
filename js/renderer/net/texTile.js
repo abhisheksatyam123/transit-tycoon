@@ -37,8 +37,12 @@ function spritePixels(id) {
 export function clearNetTex() { pixCache.clear(); }
 
 /** Whether OpenGFX sprites needed for textured net tiles are available. */
+let _netTexReady = false, _netTexPack = undefined;
 export function netTexReady() {
-  return !!(packState.pack && spritePixels(RAIL_X) && spritePixels(roadSprite(5, true)) && spritePixels(roadSprite(5, false)));
+  if (packState.pack === _netTexPack) return _netTexReady;
+  _netTexPack = packState.pack;
+  _netTexReady = !!(packState.pack && spritePixels(RAIL_X) && spritePixels(roadSprite(5, true)) && spritePixels(roadSprite(5, false)));
+  return _netTexReady;
 }
 
 
@@ -295,8 +299,10 @@ function netTileSprite0(map, x, y, ogfx) {
   const b = paint(img.data, W, H, map, 'rail', x, y, ogfx);
   if (!a && !b) return null;
   tmpCtx.putImageData(img, 0, 0);
-  return makeSprite(TILE_W, TILE_H, TILE_W / 2, TILE_H / 2, (ctx) => {
+  const sp = makeSprite(TILE_W, TILE_H, TILE_W / 2, TILE_H / 2, (ctx) => {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(tmp, -TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
   });
+  sp.pixel = true; // nearest-scaled content; skip mip generation in blit/drawSloped
+  return sp;
 }

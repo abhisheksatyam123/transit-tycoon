@@ -48,9 +48,8 @@ export function netDrawsSurface(map, tile, x, y) {
 export function drawNetTile(ctx, map, x, y, sx, sy, heights) {
   if (!netActive()) return;
   const i = y * map.width + x;
-  const ogfx = packActive();
   { // straight road/rail texture (OpenGFX, or procedural) bent along the smooth centreline
-    const s = netTileSprite(map, x, y, ogfx && netTexReady());
+    const s = netTileSprite(map, x, y, packActive() && netTexReady());
     if (s) drawSloped(ctx, s, sx, sy, heights.tileCorners(x, y));
     return;
   }
