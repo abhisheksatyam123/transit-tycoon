@@ -3,7 +3,7 @@
  */
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from '../simulation/loco/vehicleMotion.js';
 import { formatMoney, formatSpeed, groupDigits } from '../simulation/currency.js';
-import { currentCurrency, currentSpeedUnit } from './units.js';
+import { currentCurrency, currentSpeedUnit, currentDateFormat } from './units.js';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -53,7 +53,15 @@ export function pct(v, isFrac = false) {
  */
 export function date(d) {
   if (!d) return '';
-  return `${d.day} ${MONTHS[d.month] || '?'} ${d.year}`;
+  const fmt = currentDateFormat();
+  const m = MONTHS[d.month] || '?';
+  if (fmt === 'mdy') return `${m} ${d.day} ${d.year}`;
+  if (fmt === 'ymd') {
+    const mm = String(d.month + 1).padStart(2, '0');
+    const dd = String(d.day).padStart(2, '0');
+    return `${d.year}-${mm}-${dd}`;
+  }
+  return `${d.day} ${m} ${d.year}`; // 'dmy' default
 }
 
 /**

@@ -220,3 +220,17 @@ export function renameWaypoint(ctx, id, name, opts = {}) {
   const others = state.stations.filter((s) => isWaypointRecord(s));
   return renameWith(st, name, others, 'A waypoint with this name already exists', opts);
 }
+
+/** Company manager face (OpenTTD CmdSetCompanyManagerFace): 16 styles, lazy `company.presidentFaceId`. */
+export const MAX_PRESIDENT_FACE_ID = 15;
+export function setCompanyManagerFace(ctx, faceId, opts = {}) {
+  const id = Math.round(Number(faceId) || 0);
+  if (id < 0 || id > MAX_PRESIDENT_FACE_ID) return { ok: false, error: 'Invalid face id' };
+  if (opts.dryRun) return { ok: true, cost: 0, faceId: id };
+  if (id === 0) { delete ctx.state.company.presidentFaceId; }
+  else { ctx.state.company.presidentFaceId = id; }
+  return { ok: true, cost: 0, faceId: id };
+}
+export function presidentFaceId(state) {
+  return (state && state.company && state.company.presidentFaceId) || 0;
+}

@@ -13,11 +13,11 @@ import { serviceDueNow } from './service.js';
  * Variables (OpenTTD OrderConditionVariable subset): load %, reliability %, max speed km/h, age years, service, always,
  * lifetime (OCV_REMAINING_LIFETIME: years until max age, may be negative), maxReliability (OCV_MAX_RELIABILITY: model max %).
  */
-export const COND_VARS = ['load', 'reliability', 'maxSpeed', 'age', 'service', 'always', 'lifetime', 'maxReliability'];
+export const COND_VARS = ['load', 'reliability', 'maxSpeed', 'age', 'service', 'always', 'lifetime', 'maxReliability', 'drivingBackwards'];
 /** Comparators (OpenTTD OrderConditionComparator): = != < <= > >=. */
 export const COND_CMPS = ['==', '!=', '<', '<=', '>', '>='];
 /** Boolean variables: only '==' with 1 (is true) / 0 (is false). */
-const BOOL_VARS = new Set(['service', 'always']);
+const BOOL_VARS = new Set(['service', 'always', 'drivingBackwards']);
 /** Largest value accepted for a numeric variable. */
 const MAX_VALUE = 100000;
 /** Variables whose value may be negative (remaining lifetime after max age). */
@@ -74,6 +74,7 @@ export function condOperand(state, v, variable) {
     // Model max reliability in percent (TT model.reliability 0..1; vehicles.js createVehicle baseReliability).
     case 'maxReliability': return Math.round((v.baseReliability ?? 0) * 100);
     case 'service': return serviceDueNow(state, v) ? 1 : 0;
+    case 'drivingBackwards': return (v.kind === 'train' && Boolean(v.flipped)) ? 1 : 0;
     case 'always': return 1;
     default: return 0;
   }
@@ -168,7 +169,7 @@ function fixSelfTargets(list) {
   });
 }
 
-const VAR_NAME = { load: 'load %', reliability: 'reliability %', maxSpeed: 'max speed km/h', age: 'age (years)', service: 'requires service', always: 'always', lifetime: 'remaining lifetime (years)', maxReliability: 'max reliability %' };
+const VAR_NAME = { load: 'load %', reliability: 'reliability %', maxSpeed: 'max speed km/h', age: 'age (years)', service: 'requires service', always: 'always', lifetime: 'remaining lifetime (years)', maxReliability: 'max reliability %', drivingBackwards: 'driving backwards' };
 const CMP_NAME = { '==': '=', '!=': '!=', '<': '<', '<=': '<=', '>': '>', '>=': '>=' };
 
 /** UI text of a condition, e.g. "Jump to order 3 if load % < 50" (bool vars: "if requires service is true"). */

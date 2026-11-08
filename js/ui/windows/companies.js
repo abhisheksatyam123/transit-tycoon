@@ -8,7 +8,7 @@ import { liveCompanyValue } from './graphs.js';
 import { playerSharesOf, sharePrice, shareBlock } from '../../simulation/shares.js';
 import { getSetting } from '../../simulation/settings.js';
 import { playerColourOf, COMPANY_COLOURS, setCompanyColour } from '../../simulation/companyColour.js';
-import { presidentDisplayName } from '../../simulation/cmdRename.js';
+import { presidentDisplayName, presidentFaceId, MAX_PRESIDENT_FACE_ID } from '../../simulation/cmdRename.js';
 import { openRename } from '../rename.js';
 
 /** Rows for the company window: the player first, then the rivals (pure, testable). */
@@ -28,6 +28,11 @@ export function companyRows(state) {
   }
   return rows;
 }
+
+
+export const FACE_SKIN = ['#f1c27d','#e0ac69','#c68642','#8d5524','#ffdbac','#f8d7b0','#e2b06a','#a66a2e'];
+export function faceAvatarSVG(faceId){ const id=((faceId||0)%16+16)%16; const hi=id%4, sk=id>>2, skin=FACE_SKIN[sk]; const hair=['#222','#6b4f2a','#b0b0b0','#d9a05b'][hi]; const glasses=hi>=2?' <circle cx="22" cy="24" r="5" fill="none" stroke="#111"/><circle cx="32" cy="24" r="5" fill="none" stroke="#111"/>':''; const tie=sk%2===0?' <path d="M27 36 l-3 8 7 6 7-6 -3-8 z" fill="#3366cc"/>':''; return `<svg viewBox="0 0 54 54" width="36" height="36" role="img" aria-label="President face ${id}"><circle cx="27" cy="27" r="26" fill="#dfe8f5"/><circle cx="27" cy="26" r="15" fill="${skin}"/><path d="M12 24 a15 15 0 0 1 30 0 l0 -4 a15 10 0 0 0 -30 0 z" fill="${hair}"/>${glasses}${tie}<circle cx="21" cy="25" r="1.8" fill="#111"/><circle cx="33" cy="25" r="1.8" fill="#111"/><path d="M21 33 q6 5 12 0" stroke="#111" fill="none"/></svg>`; }
+function presidentFaceRow(app, refresh){ const wrap=el('p.small.president-face'); wrap.innerHTML=''; const fid=presidentFaceId(app.game.state); const av=el('span.president-avatar'); av.innerHTML=faceAvatarSVG(fid); wrap.appendChild(av); wrap.appendChild(document.createTextNode(' President face '+fid+' ')); const picker=el('span.face-picker'); picker.style.display='none'; for(let i=0;i<=MAX_PRESIDENT_FACE_ID;i++){ const b=el('button.face-option',{type:'button',title:'Face '+i,'aria-label':'Face '+i, onclick:()=>{ const r=app.game.setCompanyManagerFace(i); if(!r.ok){app.toast(r.error,'error',true);return;} app.toast('Manager face: '+i,'good'); refresh(); }}); b.innerHTML=faceAvatarSVG(i); b.style.margin='2px'; b.style.padding='2px'; b.style.border=i===fid?'2px solid #007bff':'1px solid #ccc'; picker.appendChild(b); } wrap.appendChild(el('button.btn',{type:'button',text:'Change face…', onclick:()=>{ picker.style.display=picker.style.display==='none'?'block':'none'; }})); wrap.appendChild(picker); return wrap; }
 
 /** Buy 25% / Sell 25% buttons for a rival (disabled with the reason as tooltip, shares setting must be on). */
 function shareButtons(app, r) {
@@ -124,7 +129,7 @@ export function openCompanies(app) {
         const withShares = !!getSetting(app.game.state, 'shares');
         const cheated = !!app.game.state.cheated; // OpenTTD marks a cheated company (lazy state.cheated, cheats.js)
         scheme.update(); // cheap: rebuilds only when the scheme changed
-        const s = JSON.stringify(rows) + withShares + cheated + presidentDisplayName(app.game.state);
+        const s = JSON.stringify(rows) + withShares + cheated + presidentDisplayName(app.game.state) + presidentFaceId(app.game.state);
         if (s === sig) return;
         sig = s;
         clear(table);
@@ -149,6 +154,7 @@ export function openCompanies(app) {
         // President (OpenTTD CmdRenamePresident): lazy name, default label until renamed
         table.appendChild(el('p.small', null, el('span', { text: 'President: ' + presidentDisplayName(app.game.state) + ' ' }),
           el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'president') })));
+        table.appendChild(presidentFaceRow(app, () => { sig=''; }));
         if (cheated) table.appendChild(el('p.small.neg', { text: 'Cheated game: a cheat was used (Settings > Cheats).' }));
         table.appendChild(colourChooser(app));
       };

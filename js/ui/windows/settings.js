@@ -14,7 +14,7 @@ import { loadGamePrefs, setPauseOnNewGame } from '../gamePrefs.js';
 import { loadAutosavePrefs, setAutosaveInterval } from '../autosavePrefs.js';
 import { loadTransparency, setTransparency } from '../../renderer/transparency.js';
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
-import { loadUnits, setUnits } from '../units.js';
+import { loadUnits, setUnits, DATE_FORMATS } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
 import { saveNewGameSetting } from '../newGamePrefs.js';
 import { logger, LEVELS } from '../logger.js';
@@ -91,6 +91,7 @@ export function openSettings(app) {
             Object.values(CURRENCIES).map((c) => [c.id, c.name]), 'currency');
           unitSel('speed', 'Speed units', 'Vehicle speeds in km/h or mph. Display only.',
             Object.values(SPEED_UNITS).map((u) => [u.id, u.name]), 'speed');
+          unitSel('dateFormat', 'Date format', 'Date display order: Day-Month-Year, Month-Day-Year, or Year-Month-Day. Display only.', Object.entries(DATE_FORMATS).map(([k, v]) => [k, v]), 'dateFormat');
           // Accessibility (localStorage 'tt.a11y'): UI scale, high contrast, reduced motion. Applied at once.
           const scaleSel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...UI_SCALES.map((v) => el('option', { value: String(v), text: v + '%' }))));
           scaleSel.addEventListener('change', () => { setA11y({ uiScale: Number(scaleSel.value) }); applyA11y(); });

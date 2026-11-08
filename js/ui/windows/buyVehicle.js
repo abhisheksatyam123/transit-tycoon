@@ -14,6 +14,7 @@ import { cargoName } from '../cargo.js';
 import { chooseBuyDefaults } from '../buyDefaults.js';
 import { isEngineHidden, setEngineHidden } from '../../simulation/cmdEngineVisibility.js';
 import { engineDisplayName } from '../../simulation/cmdRename.js';
+import { modelTractiveKn } from '../../simulation/vehicleSpec.js';
 import { openRename } from '../rename.js';
 import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo } from '../buyFilter.js';
 
@@ -65,6 +66,8 @@ function stats(m) {
   if (m.capacity) parts.push(`cap ${num(m.capacity)}`);
   if (m.parts) parts.push(`${m.parts.length} parts`);
   if (m.power) parts.push(`${num(m.power)} hp`);
+  const te = modelTractiveKn(m);
+  if (te != null) parts.push(`${te} kN`);
   parts.push(`run ${money(m.running)}/yr`);
   if (m.reliability) parts.push(`rel ${Math.round(m.reliability * 100)}%`);
   parts.push(`since ${m.introYear}`);

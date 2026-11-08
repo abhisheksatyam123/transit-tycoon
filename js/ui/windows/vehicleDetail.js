@@ -52,7 +52,7 @@ export function openVehicleDetail(app, id) {
       const loadBar = bar(0);
       body.appendChild(loadBar);
       // OpenTTD VehicleDetailsWindow extra lines: only fields TT stores or derives from its models (vehicleSpec.js)
-      const specSet = kvGrid(body, ['Running cost (monthly)', 'Max. age', 'Weight', 'Power', 'Breakdowns (total)']);
+      const specSet = kvGrid(body, ['Running cost (monthly)', 'Max. age', 'Weight', 'Power', 'Tractive effort', 'Breakdowns (total)']);
       const consistBox = el('div.consist-list');
       body.appendChild(consistBox);
       let consistSig = '';
@@ -176,6 +176,7 @@ export function openVehicleDetail(app, id) {
         specSet['Max. age'](v.maxAge ? `${Math.round(v.maxAge / 365)} years` : '—');
         specSet['Weight'](`${num(specs.weightLoaded)} t loaded · ${num(specs.weightEmpty)} t empty`);
         specSet['Power'](specs.power ? `${num(specs.power)} hp` : '—');
+        specSet['Tractive effort'](specs.tractiveKn != null ? `${specs.tractiveKn} kN` : '—');
         specSet['Breakdowns (total)'](String(v.breakdowns || 0));
         if (v.kind === 'train') {
           const rows = consistRows(v);

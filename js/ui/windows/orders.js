@@ -15,13 +15,14 @@ import { unbunchBlockReason } from '../../simulation/unbunch.js';
 import { refitCargos } from '../../simulation/refit.js';
 import { COND_VARS, COND_CMPS, condText, deleteOrderAt, moveOrderTo, isCond } from '../../simulation/condOrders.js';
 
-const COND_VAR_LABEL = { load: 'Load %', reliability: 'Reliability %', maxSpeed: 'Max speed (km/h)', age: 'Age (years)', service: 'Requires service', always: 'Always', lifetime: 'Remaining lifetime (years)', maxReliability: 'Max reliability %' };
+const COND_VAR_LABEL = { load: 'Load %', reliability: 'Reliability %', maxSpeed: 'Max speed (km/h)', age: 'Age (years)', service: 'Requires service', always: 'Always', lifetime: 'Remaining lifetime (years)', maxReliability: 'Max reliability %', drivingBackwards: 'Driving backwards' };
 /** Help text per condition variable (select tooltip). */
 const COND_VAR_HELP = {
   load: 'Cargo load as a percent of capacity', reliability: 'Current reliability of the vehicle, percent',
   maxSpeed: 'Maximum speed of the model, km/h', age: 'Age in whole years', service: 'True when the vehicle needs servicing',
   always: 'Always true (unconditional jump)', lifetime: 'Whole years until the max age; negative once past it',
   maxReliability: 'Maximum reliability of the engine model, percent',
+  drivingBackwards: 'Skip when a train is driving backwards (reversed consist)',
 };
 import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
@@ -223,7 +224,7 @@ export function openOrders(app, id) {
       const condRow = () => el('div.order-row.cond', null,
         el('span.order-idx.mono'), el('span.name'),
         el('span.order-flags', null,
-          el('select.input', { title: 'Condition variable', 'aria-label': 'Condition variable', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.v = e.target.value; if (c.v === 'service' || c.v === 'always') { c.cmp = '=='; c.val = c.v === 'always' ? 1 : 1; } else if (c.cmp === undefined) c.cmp = '<'; }) },
+          el('select.input', { title: 'Condition variable', 'aria-label': 'Condition variable', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.v = e.target.value; if (c.v === 'service' || c.v === 'always' || c.v === 'drivingBackwards') { c.cmp = '=='; c.val = c.v === 'always' ? 1 : 1; } else if (c.cmp === undefined) c.cmp = '<'; }) },
             ...COND_VARS.map((x) => el('option', { value: x, text: COND_VAR_LABEL[x], title: COND_VAR_HELP[x] }))),
           el('select.input', { title: 'Comparator', 'aria-label': 'Comparator', onchange: (e) => condEdit(Number(e.target.dataset.i), (c) => { c.cmp = e.target.value; }) },
             ...COND_CMPS.map((x) => el('option', { value: x, text: x }))),
@@ -241,7 +242,7 @@ export function openOrders(app, id) {
       const updateCondRow = (row, it, v) => {
         const c = it.o.cond;
         const [varSel, cmpSel, valIn, truthSel, toSel] = Array.from(row.querySelectorAll('select, input'));
-        const boolVar = c.v === 'service' || c.v === 'always';
+        const boolVar = c.v === 'service' || c.v === 'always' || c.v === 'drivingBackwards';
         for (const x of row.querySelectorAll('select, input, button')) x.dataset.i = String(it.i);
         setText(row.children[0], String(it.i + 1));
         const cmpWanted = boolVar ? '==' : c.cmp;

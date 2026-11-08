@@ -37,7 +37,7 @@ import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import { expandTown, deleteTown, demolishIndustry } from './cmdTownEdit.js';
 import * as vcmd from './cmdVehicle.js';
-import { renameStation, renameVehicle, renameTown, setTownText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint } from './cmdRename.js';
+import { renameStation, renameVehicle, renameTown, setTownText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint, setCompanyManagerFace } from './cmdRename.js';
 import { setAirportClosed } from './cmdAirport.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
@@ -365,6 +365,7 @@ export class Game {
   renameEngine(modelId, name, opts) { return renameEngine(this.ctx, modelId, name, opts); }
   /** President rename, lazy company.presidentName; blank = reset. */
   renamePresident(name, opts) { return renamePresident(this.ctx, name, opts); }
+  setCompanyManagerFace(faceId, opts) { return setCompanyManagerFace(this.ctx, faceId, opts); }
   /** Map signs (cmdSign.js): place on a tile, edit by id (empty text deletes), delete by id. */
   placeSign(x, y, text, opts) { return placeSign(this.ctx, x, y, text, opts); }
   editSign(id, text, opts) { return editSign(this.ctx, id, text, opts); }
