@@ -584,3 +584,71 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
 }
 
 export { buildLandBridge, landBridgeCells } from './landBridges.js';
+
+/**
+ * Convert road <-> tram command (OpenTTD CMD_CONVERT_ROAD road_cmd.cpp:2482 CmdConvertRoad, lazy):
+ * Converts road (t.road) to tram (t.tram) or tram to road over a rectangle. Bits are preserved.
+ * Tiles already at target type or empty of both layers are skipped without cost.
+ * Level crossing: converting to tram is refused when the tile has rail (tram does not allow level crossings).
+ * Refuses on stations, depots, bridges, tunnels.
+ * Cost = RoadBuildCost(to) + RoadClearCost(from) per converted tile.
+ *
+ * @param {{state:any}} ctx
+ * @param {number} x0 @param {number} y0 @param {number} x1 @param {number} y1 rectangle corners (inclusive)
+ * @param {{dryRun?:boolean, to?: "road"|"tram"}} [opts]
+ * @returns {{ok:true,cost:number,tiles:number}|{ok:false,error:string}}
+ */
+export function convertRoad(ctx, x0, y0, x1, y1, opts = {}) {
+  const { state } = ctx;
+  const map = state.map;
+  if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
+  const to = opts.to === "road" ? "road" : "tram";
+  const from = to === "road" ? "tram" : "road";
+  const xa = Math.min(x0, x1), xb = Math.max(x0, x1), ya = Math.min(y0, y1), yb = Math.max(y0, y1);
+  const targets = [];
+  for (let y = ya; y <= yb; y++) {
+    for (let x = xa; x <= xb; x++) {
+      const idx = y * map.width + x;
+      const t = map.tiles[idx];
+      const hasFrom = !!t[from];
+      const hasTo = !!t[to];
+      if (!hasFrom || hasTo) continue;
+      // Refuse on stations, depots, bridges, tunnels
+      if (t.building && (t.building.type === "station" || t.building.type === "depot")) {
+        return { ok: false, error: t.building.type === "station" ? ERR.station : ERR.depot };
+      }
+      if (t.overBridge || t.playerBridge || t.bridgeDeck) {
+        return { ok: false, error: ERR.bridge };
+      }
+      if (t.tunnel || t.playerTunnel || t.tunnelPortal) {
+        return { ok: false, error: ERR.tunnel };
+      }
+      // Tram does not allow level crossings: converting a tile with rail to tram must be refused
+      if (to === "tram" && t.rail) {
+        return { ok: false, error: ERR.crossing };
+      }
+      targets.push(idx);
+    }
+  }
+  if (targets.length === 0) {
+    return { ok: false, error: to === "tram" ? "No road to convert to tram here" : "No tram to convert to road here" };
+  }
+  // Cost: build(to) + demolish(from) per tile
+  const buildCost = to === "tram" ? COSTS.tram : COSTS.road;
+  const demolishCost = COSTS.demolishTrack;
+  const perTileCost = buildCost + demolishCost;
+  const cost = constructionTotal(state, perTileCost * targets.length);
+  const money = checkMoney(state, cost);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost, tiles: targets.length };
+
+  for (const i of targets) {
+    const t = map.tiles[i];
+    t[to] = t[from];
+    t[from] = 0;
+    if (to === "tram") delete t.oneWay;
+    if (!t.owner) t.owner = "company";
+  }
+  spend(state.company, "construction", cost);
+  return { ok: true, cost, tiles: targets.length };
+}

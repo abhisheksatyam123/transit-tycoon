@@ -103,9 +103,12 @@ export function openVehicleDetail(app, id) {
         el('button.btn.danger', { type: 'button', text: 'Sell', title: 'Vehicle must be stopped in a depot', onclick: () => {
           if (app.exec(g().sellVehicle(id), { sound: 'click' })) win.close();
         } })));
+      const clearBackupBtn = el('button.btn', { type: 'button', text: 'Clear order backup', title: "Clear the stored order backup for this vehicle's depot", onclick: () => app.exec(g().clearOrderBackup(id), { sound: 'click' }) });
+      clearBackupBtn.hidden = true;
       body.appendChild(el('div.btn-row', null,
         el('button.btn', { type: 'button', text: 'Clone', title: 'Buy a copy of this vehicle in its depot (copies orders)', onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: false }), { sound: 'horn' }) }),
-        el('button.btn', { type: 'button', text: 'Clone (share orders)', title: "Buy a copy that shares this vehicle's order list", onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: true }), { sound: 'horn' }) })));
+        el('button.btn', { type: 'button', text: 'Clone (share orders)', title: "Buy a copy that shares this vehicle's order list", onclick: () => app.exec(g().cloneVehicle(id, { shareOrders: true }), { sound: 'horn' }) }),
+        clearBackupBtn));
       body.appendChild(el('div.btn-row', null, svcLabel, svcBtns));
       // vehicle group selector (OpenTTD group window): ungrouped or one of the company's groups
       const groupSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Vehicle group', title: 'Vehicle group' }));
@@ -212,6 +215,7 @@ export function openVehicleDetail(app, id) {
         followBtn.classList.toggle('active', app.followId === id);
         set['Timetable'](!hasTimetableOrders(v) ? 'No timetable'
           : v.lateDays == null ? 'On time' : v.lateDays > 0 ? `${v.lateDays} day${v.lateDays === 1 ? '' : 's'} late` : `${-v.lateDays} day${v.lateDays === -1 ? '' : 's'} early`);
+        clearBackupBtn.hidden = !(v.depotId != null && g().state.orderBackups && g().state.orderBackups[v.depotId] != null);
         set['Service interval'](v.serviceIntervalDays ? `every ${v.serviceIntervalDays} days` : 'Off');
         set['Last service'](v.serviceIntervalDays && v.lastServiceDay != null
           ? formatDate(dateFromDayNumber(v.lastServiceDay)) + (v.serviceDue || v.serviceTrip ? ' · due' : '') : '—');

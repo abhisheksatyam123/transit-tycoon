@@ -21,7 +21,7 @@ import { buildObject, estimateObject } from './cmdObject.js';
 import { industriesMonthStart } from './cargo.js';
 import { catchmentTiles, recomputeAllAcceptance } from './stations.js';
 import { getVehicleSegments } from './vehicles.js';
-import { buildLine, demolish } from './cmdTrack.js';
+import { buildLine, demolish, convertRoad } from './cmdTrack.js';
 import { convertRail } from './cmdElectrify.js';
 import { buildSignal, removeSignal, convertSignal } from './signals.js';
 import { buildSignalRun } from './signalRun.js';
@@ -56,6 +56,7 @@ import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setCompanyColour } from './companyColour.js';
 import { setAutoreplace } from './autoreplace.js';
+import { massAutoreplace } from './autorenew.js';
 import * as gcmd from './cmdGroup.js';
 
 
@@ -251,6 +252,8 @@ export class Game {
   demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
   /** Electrify (or with opts.unelectrify remove catenary from) every rail tile in a rectangle. opts.dryRun = price only. */
   convertRail(x0, y0, x1, y1, opts) { return convertRail(this.ctx, x0, y0, x1, y1, opts || {}); }
+  /** Convert road <-> tram over rectangle (OpenTTD CMD_CONVERT_ROAD). opts: { to: "road"|"tram", dryRun: boolean } */
+  convertRoad(x0, y0, x1, y1, opts) { return convertRoad(this.ctx, x0, y0, x1, y1, opts || {}); }
   /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
   /** Drag signals along a run of tiles (signalRun.js): build every opts.spacing tiles, or opts.remove all. */
@@ -381,10 +384,14 @@ export class Game {
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   copyOrders(targetId, sourceId, opts) { return vcmd.copyOrders(this.ctx, targetId, sourceId, opts); }
+  /** Clear the order backup for a vehicle's depot (OpenTTD). No-op if absent. */
+  clearOrderBackup(vehicleId, opts) { return vcmd.clearOrderBackup(this.ctx, vehicleId, opts); }
   /** Service interval in days for one vehicle (0 = off). */
   setServiceInterval(id, days, opts) { return vcmd.setServiceInterval(this.ctx, id, days, opts); }
   /** Autoreplace rule (T18b): replace model oldModelId with newModelId in depots (null clears). */
   setAutoreplace(oldModelId, newModelId, opts) { return setAutoreplace(this.state, oldModelId, newModelId, opts); }
+  /** Mass autoreplace (r27): replace every eligible vehicle inside a depot via autorenew/autoreplace path. */
+  massAutoreplace(depotId, opts) { return massAutoreplace(this.ctx, depotId, opts); }
   /** Stop mode of one order: 'non' (non-stop, default), 'all' (stop at all stations), 'via' (go via). */
   setOrderStop(id, index, stop, opts) { return vcmd.modifyOrder(this.ctx, id, index, { stop }, opts); }
   /** Train stop location of one station order: 'near' | 'middle' | 'far' (default). */

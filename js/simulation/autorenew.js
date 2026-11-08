@@ -117,3 +117,29 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
   return r.ok ? r.vehicle : null;
 }
+
+/** Is `v` eligible for mass autoreplace (rule for its model, or autorenew past max age)? */
+export function isAutoreplaceEligible(state, v) {
+  const rules = state.company && state.company.autoreplace;
+  if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId) return true;
+  return !!getSetting(state,'autorenew') && v.age>v.maxAge;
+}
+/**
+ * Mass autoreplace for a depot: apply autorenewVehicle to every eligible vehicle stopped inside it.
+ * Non-eligible (and unaffordable / failed) vehicles are skipped silently (aside from the usual news nag).
+ * @returns {{ok:true,replaced:number,skipped:number,cost:number}}
+ */
+export function massAutoreplace(ctx, depotId, opts={}) {
+  const {state}=ctx;
+  if (!state.depots.find((d)=>d.id===depotId)) return {ok:false,error:'No depot'};
+  const ids=state.vehicles.filter((v)=>v.depotId===depotId&&v.state==='depot').map((v)=>v.id);
+  let replaced=0,skipped=0,cost=0;
+  for (const id of ids) {
+    const v=state.vehicles.find((x)=>x.id===id);
+    if (!v||v.state!=='depot'||!isAutoreplaceEligible(state,v)) {skipped++;continue;}
+    const before=v.value||0;
+    const nv=autorenewVehicle(ctx,v);
+    if (nv) {replaced++; cost+=Math.max(0,(nv.value||0)-before);} else skipped++;
+  }
+  return {ok:true,replaced,skipped,cost};
+}

@@ -158,7 +158,9 @@ export function openOrders(app, id) {
       const totalLabel = el('div.muted.small.tt-total', { text: '' });
       const lateLine = el('div.small.tt-late', { text: '' });
       const ttRow = el('div.btn-row', null, el('span.small', { text: 'Start date: ' }), startIn, el('span.small', { text: ' days from now ' }), startLabel, spreadBtn);
-      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn, nearestBtn), pickRow, el('div.btn-row', null, coCopyBtn, coShareBtn), coPicker, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
+      const clearBackupBtn = el('button.btn.sm', { type: 'button', text: 'Clear order backup', title: 'Clear the stored order backup for this vehicle\'s depot (no-op if none)', onclick: () => app.exec(app.game.clearOrderBackup(id), { quiet: true, sound: 'click' }) });
+      clearBackupBtn.hidden = true;
+      body.append(list, el('div.btn-row', null, addBtn, startBtn, condBtn, nearestBtn), pickRow, el('div.btn-row', null, coCopyBtn, coShareBtn), coPicker, el('div.btn-row', null, sharedLabel, unshareBtn), el('div.btn-row', null, clearBackupBtn, autofillBtn, resetBtn), ttRow, totalLabel, lateLine, needs2, hint);
 
       /** Stop mode select (OpenTTD non-stop / stop at all / go via); only trains and road vehicles. */
       const stopSel = (it) => el('select.input', { title: 'Stop', 'aria-label': 'Stop', onchange: (e) => app.exec(app.game.setOrderStop(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
@@ -277,6 +279,7 @@ export function openOrders(app, id) {
         if (adding) setText(hint, 'Click a station on the map or in the Stations list (or use the picker above). Esc cancels.');
         else setText(hint, 'Add stations in the order the vehicle should visit them. "Full load" waits until full.');
         startBtn.hidden = !(v.state === 'depot' || v.state === 'stopped');
+        clearBackupBtn.hidden = !(v.depotId != null && app.game.state.orderBackups && app.game.state.orderBackups[v.depotId] != null);
         const n = sharers(app.game.state, v).length;
         sharedLabel.hidden = !n;
         unshareBtn.hidden = !n;
@@ -380,6 +383,7 @@ export function openOrders(app, id) {
             setText(w, warn ? '⚠ ' + warn : '');
             w.hidden = !warn;
             row.classList.toggle('current', it.i === v.orderIndex);
+            clearBackupBtn.hidden = !(v.depotId != null && app.game.state.orderBackups && app.game.state.orderBackups[v.depotId] != null);
             if (!isDepot) {
               const [loadSel, unloadSel] = /** @type {HTMLSelectElement[]} */ (Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"]')));
               if (loadSel.value !== loadModeOf(it.o)) loadSel.value = loadModeOf(it.o);

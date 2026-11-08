@@ -31,7 +31,7 @@ import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
-import { backupVehicleOrders, restoreVehicleOrders } from './orderBackup.js';
+import { backupVehicleOrders, restoreVehicleOrders, clearDepotBackup } from './orderBackup.js';
 
 /**
  * Buy a vehicle in a depot. spec = {modelId, wagonModelId?, wagons?, cargoId?}.
@@ -820,4 +820,32 @@ export function moveWagon(ctx, id, index, delta, opts = {}) {
   [list[index], list[to]] = [list[to], list[index]];
   setWagonList(ctx.state, v, list);
   return { ok: true, index: to };
+}
+
+
+/**
+ * Clear the order backup associated with a vehicle's depot (OpenTTD ClearOrderBackup).
+ * Deletes the depot's stored order backup lazily; no-op if absent. dryRun returns the
+ * would-be result without mutating state.
+ * @returns {{ok:true,cost:number,cleared:boolean}|{ok:false,error:string}}
+ */
+export function clearOrderBackup(ctx, vehicleId, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, vehicleId);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  // Clear vehicle-level backup if present (lazily), and/or the depot-keyed backup
+  // (state.orderBackups[depotId]) associated with this vehicle's depot. No-op if absent.
+  const hadV = v.backupOrders != null;
+  let did = v.depotId ?? null;
+  if (did == null && v.state === 'depot') {
+    const d = state.depots.find((x) => x.x === v.x && x.y === v.y);
+    if (d) did = d.id;
+  }
+  const hadD = did != null && state.orderBackups && state.orderBackups[did] != null;
+  if (!hadV && !hadD) return { ok: true, cost: 0, cleared: false };
+  if (opts.dryRun) return { ok: true, cost: 0, cleared: true };
+  if (hadV) delete v.backupOrders;
+  if (hadD) clearDepotBackup(state, did);
+  return { ok: true, cost: 0, cleared: true };
 }

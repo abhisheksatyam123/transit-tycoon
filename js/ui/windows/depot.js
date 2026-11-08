@@ -10,6 +10,7 @@ import { listOrEmpty } from './common.js';
 import { sortVehicles, VEHICLE_SORTS } from './vehicleList.js';
 import { openRename } from '../rename.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
+import { isAutoreplaceEligible } from '../../simulation/autorenew.js';
 
 /**
  * Consist editor strip (T19): one block per engine/wagon and +/- wagon buttons. Only for trains in a depot.
@@ -143,7 +144,12 @@ export function openDepot(app, id) {
           app.toast(`Sold ${res.sold} vehicle(s) for ${money(res.refund)}${res.failed ? ` · ${res.failed} could not be sold` : ''}`, res.failed ? 'error' : 'good');
         });
       } });
-      body.append(info, sortBar, list, el('div.btn-row', null, buy, rename, center, startAll, stopAll, sellAll));
+      const massReplace = el('button.btn', { type: 'button', text: 'Mass autoreplace', title: 'Replace every eligible vehicle inside this depot (autoreplace rule for its model, or autorenew past max age; others are skipped)', onclick: () => {
+        const r = app.game.massAutoreplace(id);
+        app.exec(r, { sound: 'click' });
+        if (r.ok) app.toast(`Mass autoreplace: replaced ${r.replaced} vehicle(s) for ${money(r.cost)}${r.skipped ? ` · ${r.skipped} skipped` : ''}`, r.replaced ? 'good' : 'info');
+      } });
+      body.append(info, sortBar, list, el('div.btn-row', null, buy, rename, center, startAll, stopAll, sellAll, massReplace));
       const refresh = () => {
         const d = app.findDepot(id);
         if (!d) { win.close(); return; }
@@ -151,6 +157,7 @@ export function openDepot(app, id) {
         const inside = app.game.state.vehicles.filter((v) => v.depotId === id && v.state === 'depot');
         setText(info, `${inside.length} vehicle(s) inside · ${d.name ? (d.kind === 'rail' ? 'Train depot' : d.kind === 'air' ? 'Hangar' : d.kind === 'ship' ? 'Ship depot' : 'Road vehicle depot') : depotDisplayName(d)} · (${d.x}, ${d.y})`);
         sellAll.disabled = !inside.length;
+        { const n = inside.filter((v) => isAutoreplaceEligible(app.game.state, v)).length; massReplace.disabled = !n; massReplace.title = n ? `Replace ${n} eligible vehicle(s) inside this depot` : 'No eligible vehicles inside this depot (need an autoreplace rule for their model, or autorenew past max age)'; }
         sellAll.title = inside.length ? 'Sell every vehicle stopped inside this depot (refund = current value)' : 'No vehicles inside this depot';
         listOrEmpty(list, sortVehicles(inside, state), (v) => v.id,
           (v) => el('div.consist-wrap', null,
