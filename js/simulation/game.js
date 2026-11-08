@@ -38,8 +38,9 @@ import { townAction, setTownRating, getTownRating } from './townAuthority.js';
 import { expandTown, deleteTown, demolishIndustry } from './cmdTownEdit.js';
 import * as vcmd from './cmdVehicle.js';
 import { renameStation, renameVehicle, renameTown, setTownText, setIndustryText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint, setCompanyManagerFace } from './cmdRename.js';
+import { setIndustryProduction } from './loco/industry.js';
 import { setAirportClosed } from './cmdAirport.js';
-import { placeSign, editSign, deleteSign } from './cmdSign.js';
+import { placeSign, editSign, deleteSign, moveSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
 import { findStation, findVehicle } from './state.js';
 import { notify } from './news.js';
@@ -352,6 +353,7 @@ export class Game {
   /** Town note text (lazy town.text; blank clears). */
   setTownText(id, text, opts) { return setTownText(this.ctx, id, text, opts); }
   setIndustryText(id, text, opts) { return setIndustryText(this.ctx, id, text, opts); }
+  setIndustryProduction(id, targets, opts) { return setIndustryProduction(this.ctx, id, targets, opts); }
   /** Depot rename (lazy name; blank = reset to "Depot at x,y"). */
   renameDepot(id, name, opts) { return renameDepot(this.ctx, id, name, opts); }
   /** Rename a rail/road waypoint (cmdRename.js renameWaypoint). */
@@ -376,6 +378,7 @@ export class Game {
   placeSign(x, y, text, opts) { return placeSign(this.ctx, x, y, text, opts); }
   editSign(id, text, opts) { return editSign(this.ctx, id, text, opts); }
   deleteSign(id, opts) { return deleteSign(this.ctx, id, opts); }
+  moveSign(id, x, y, opts) { return moveSign(this.ctx, id, x, y, opts); }
   /** Hide/unhide an engine in the build-vehicle list (cmdEngineVisibility.js; UI list only, still buyable). */
   setEngineHidden(modelId, hidden, opts) { return setEngineHidden(this.ctx, modelId, hidden, opts); }
   /** Clone a vehicle (same model/consist, copies orders; shareOrders joins its shared order list). */

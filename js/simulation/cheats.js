@@ -65,7 +65,7 @@ export function magicBulldozer(state) {
  * cheated; turning it off deletes the key so a save stays clean. Keys: 'stationRating' (OpenTTD station_rating:
  * player stations rate 100%), 'noJetCrash' (OpenTTD no_jetcrash: jets at short-strip airports never crash by the 3276 rule).
  */
-export const CHEAT_FLAGS = ['stationRating', 'noJetCrash', 'crossingTunnels'];
+export const CHEAT_FLAGS = ['stationRating', 'noJetCrash', 'crossingTunnels', 'setupProd'];
 
 /** Set a cheat flag (CHEAT_FLAGS). @returns {{ok:true,on:boolean}|{ok:false,error:string}} */
 export function setCheatFlag(state, key, on) {

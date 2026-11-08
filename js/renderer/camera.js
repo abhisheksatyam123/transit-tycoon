@@ -82,6 +82,18 @@ export class Camera {
    * @param {number} ty
    * @param {number} [h]
    */
+  /**
+   * Tile coordinate under the viewport centre (flat projection, clamped to map bounds).
+   * @returns {{x:number, y:number}}
+   */
+  centerTile() {
+    const f = screenToTileFloat(this.x, this.y);
+    return {
+      x: Math.max(0, Math.min(this.mapW - 1, Math.round(f.x))),
+      y: Math.max(0, Math.min(this.mapH - 1, Math.round(f.y))),
+    };
+  }
+
   centerOn(tx, ty, h = 0) {
     const p = tileToScreen(tx, ty, h);
     this.x = p.x;

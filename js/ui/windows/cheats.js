@@ -22,6 +22,7 @@ export function openCheats(app) {
       const ratingBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Station ratings fixed at 100%' }));
       const jetBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'No jet crash' }));
       const crossBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Crossing tunnels' }));
+      const prodBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Modify industry production' }));
       const status = el('p.muted.small', { text: '' });
       const cheatedLine = el('p.small', { text: '' });
 
@@ -32,6 +33,7 @@ export function openCheats(app) {
         ratingBox.checked = cheatFlag(s, 'stationRating');
         jetBox.checked = cheatFlag(s, 'noJetCrash');
         crossBox.checked = cheatFlag(s, 'crossingTunnels');
+        prodBox.checked = cheatFlag(s, 'setupProd');
         cheatedLine.textContent = isCheated(s) ? 'This game is marked as cheated.' : 'No cheat used in this game.';
       };
 
@@ -67,6 +69,11 @@ export function openCheats(app) {
         status.textContent = jetBox.checked ? 'Jets at short-strip airports will not crash.' : 'Jet crash rule back to normal.';
         refresh();
       });
+      prodBox.addEventListener('change', () => {
+        setCheatFlag(state(), 'setupProd', prodBox.checked);
+        status.textContent = prodBox.checked ? 'Modify industry production on: production targets can be edited.' : 'Modify industry production off.';
+        refresh();
+      });
       crossBox.addEventListener('change', () => {
         setCheatFlag(state(), 'crossingTunnels', crossBox.checked);
         status.textContent = crossBox.checked ? 'Tunnels may cross each other underground.' : 'Crossing tunnels off.';
@@ -95,6 +102,7 @@ export function openCheats(app) {
         el('div.set-row', null, el('label', { text: 'Year ' }), yearIn, setYear, yearMsg),
         el('div.set-row', null, el('label', null, bull, el('span', { text: ' Magic bulldozer' })), el('span.set-help.muted', { text: 'Demolish anything, incl. town buildings and industries.' })),
         el('div.set-row', null, el('label', null, ratingBox, el('span', { text: ' Station ratings 100%' })), el('span.set-help.muted', { text: 'Your stations always rate 100% (OpenTTD station_rating cheat).' })),
+        el('div.set-row', null, el('label', null, prodBox, el('span', { text: ' Modify industry production' })), el('span.set-help.muted', { text: 'Allow editing industry production targets (OpenTTD setup_prod cheat).' })),
         el('div.set-row', null, el('label', null, jetBox, el('span', { text: ' No jet crash' })), el('span.set-help.muted', { text: 'Jets landing at short-strip airports never crash (OpenTTD no_jetcrash).' })),
         el('div.set-row', null, el('label', null, crossBox, el('span', { text: ' Crossing tunnels' })), el('span.set-help.muted', { text: 'Allow tunnels to cross each other (OpenTTD crossing_tunnels).' })),
         el('div.set-row', null, excellentBtn, el('span.set-help.muted', { text: 'Your rating becomes Excellent (+1000) in all towns.' })),

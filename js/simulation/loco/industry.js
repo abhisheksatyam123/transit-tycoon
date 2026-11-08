@@ -292,3 +292,20 @@ export function pushIndustryHistory(ind, prod, date) {
   ind.hist.push(row);
   if (ind.hist.length > INDUSTRY_HISTORY_MONTHS) ind.hist.splice(0, ind.hist.length - INDUSTRY_HISTORY_MONTHS);
 }
+
+/**
+ * Set industry production targets (OpenTTD CmdIndustrySetProduction, industry_cmd.cpp:2846; command_type.h:266).
+ * Clamps each target to 0..255. dryRun only validates. By default also updates dailyProduction immediately.
+ */
+export function setIndustryProduction(ctx, id, targets, opts = {}) {
+  const ind = (ctx.state.industries || []).find((i) => i.id === id);
+  if (!ind) return { ok: false, error: 'Unknown industry' };
+  const p0 = Math.max(0, Math.min(255, Math.round(Number(targets && targets[0]) || 0)));
+  const p1 = Math.max(0, Math.min(255, Math.round(Number(targets && targets[1]) || 0)));
+  if (opts.dryRun) return { ok: true, cost: 0, targets: [p0, p1] };
+  if (!ind.dailyProductionTarget) ind.dailyProductionTarget = [0, 0];
+  if (!ind.dailyProduction) ind.dailyProduction = [0, 0];
+  ind.dailyProductionTarget = [p0, p1];
+  if (opts.immediate !== false) ind.dailyProduction = [p0, p1];
+  return { ok: true, cost: 0, targets: [p0, p1] };
+}

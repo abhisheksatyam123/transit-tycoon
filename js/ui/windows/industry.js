@@ -10,6 +10,7 @@ import { CARGO_BY_ID } from '../../config/cargos.js';
 import { drawChart, chronological } from './graphs.js';
 import { monthName } from '../format.js';
 import { MAX_INDUSTRY_TEXT_LENGTH } from '../../simulation/cmdRename.js';
+import { cheatFlag } from '../../simulation/cheats.js';
 
 /**
  * Production-history series for the industry graph (OTTD industry_gui production chart). Pure.
@@ -60,9 +61,32 @@ export function openIndustry(app, id) {
       const noteSave = el('button.btn', { type: 'button', text: 'Save note', onclick: () => { app.exec(app.game.setIndustryText(id, noteTa.value), { quiet: true }); noteTa.value = (app.findIndustry(id) || {}).text || ''; noteCount.textContent = `${noteTa.value.length} / ${MAX_INDUSTRY_TEXT_LENGTH}`; } });
       noteTa.addEventListener('input', () => { noteCount.textContent = `${noteTa.value.length} / ${MAX_INDUSTRY_TEXT_LENGTH}`; });
       body.append(heading('Note'), noteTa, noteCount, noteSave);
+      const prodSection = el('div.prod-cheat');
+      const prodTitle = heading('Production targets (cheat)');
+      const p0in = /** @type {HTMLInputElement} */ (el('input.input', { type: 'number', 'aria-label': 'Production target 0', min: '0', max: '255' }));
+      const p1in = /** @type {HTMLInputElement} */ (el('input.input', { type: 'number', 'aria-label': 'Production target 1', min: '0', max: '255' }));
+      const prodMsg = el('p.muted.small', { text: '' });
+      const prodApply = el('button.btn', { type: 'button', text: 'Set production', onclick: () => {
+        const r = app.game.setIndustryProduction(id, [Number(p0in.value), Number(p1in.value)]);
+        prodMsg.textContent = r.ok ? 'Production set to ' + r.targets.join(', ') : r.error;
+      } });
+      prodSection.append(prodTitle, el('div.set-row', null, el('label', { text: 'Target 0 ' }), p0in, el('label', { text: 'Target 1 ' }), p1in, prodApply), prodMsg);
+      prodSection.hidden = true;
+      body.appendChild(prodSection);
+      const syncProd = () => {
+        const ind2 = app.findIndustry(id);
+        if (!ind2) return;
+        const on = cheatFlag(app.game.state, 'setupProd');
+        prodSection.hidden = !on;
+        if (on && document.activeElement !== p0in && document.activeElement !== p1in) {
+          p0in.value = String((ind2.dailyProductionTarget || [0,0])[0] ?? 0);
+          p1in.value = String((ind2.dailyProductionTarget || [0,0])[1] ?? 0);
+        }
+      };
       body.appendChild(edit);
       let accDone = false;
       return () => {
+        syncProd();
         const ind = app.findIndustry(id);
         if (!ind) { win.close(); return; }
         win.setTitle(ind.name);

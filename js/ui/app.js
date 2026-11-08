@@ -26,13 +26,13 @@ import { logger } from './logger.js';
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 /** Speed while Tab is held (OpenTTD fast forward = the fastest speed). */
 export const FAST_FORWARD_SPEED = 4;
-export const ISSUE_COMMANDS = ['buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
+export const ISSUE_COMMANDS = ['setIndustryProduction', 'buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'convertRoad', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'convertSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setGroupFlag', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'unshareOrders', 'copyOrders', 'clearOrderBackup', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
-  'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setCompanyManagerFace', 'setAirportClosed', 'buildHQ', 'buildObject', 'setLoanAutopay',
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setCompanyManagerFace', 'setAirportClosed', 'moveSign', 'buildHQ', 'buildObject', 'setLoanAutopay',
   'expandTown', 'deleteTown', 'demolishIndustry'];
 
 /**
@@ -59,6 +59,10 @@ export class App {
    * @param {{game:any, renderer:import('../renderer/renderer.js').Renderer, minimap:any,
    *   windowsEl:HTMLElement, toastsEl:HTMLElement, GameClass:any}} o
    */
+  get camera() {
+    return this.renderer.camera;
+  }
+
   constructor(o) {
     this.game = o.game;
     watchIssueCommands(this.game);
@@ -85,6 +89,7 @@ export class App {
     this.subs = [];
     this.onMonth = () => {};
     this.subscribe();
+    if (typeof window !== 'undefined') window.__app = this;
   }
 
   /** Subscribe to game events (sounds, floating income, news). */

@@ -12,6 +12,7 @@ export const SETTING_GROUPS = [
   { id: 'economy', title: 'Economy', help: 'Money: inflation, cargo payments and subsidies.' },
   { id: 'environment', title: 'Environment', help: 'Trees and industries that grow or appear on the map.' },
   { id: 'companies', title: 'Companies', help: 'Policies for your company\'s vehicles.' },
+  { id: 'difficulty', title: 'Difficulty', help: 'Difficulty and rule options.' },
 ];
 
 /**
@@ -43,6 +44,7 @@ export const SETTING_META = [
   { key: 'townCouncilTolerance', group: 'companies', label: 'Town council tolerance', type: 'select',
     options: [['0', 'Normal (default)'], ['3', 'Permissive']],
     help: 'Local authority attitude (OpenTTD difficulty.town_council_tolerance). Normal: a town with a rating below 0 refuses your stations and demolition (current). Permissive: the local authority never refuses.' },
+  { key: 'allowTownBribe', group: 'difficulty', label: 'Allow bribing the town council', type: 'check', help: 'OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing is disabled.' },
   { key: 'feederPaymentShare', group: 'economy', label: 'Feeder payment share (%)', type: 'select',
     options: [['0', '0'], ['25', '25'], ['50', '50'], ['75', '75 (default)'], ['100', '100']],
     help: 'Percent of a transfer leg\'s income credited to the feeder vehicle at a transfer (OpenTTD economy.feeder_payment_share). Delivery still pays the full trip.' },
@@ -146,6 +148,7 @@ export const SETTING_META = [
   { key: 'economyType', group: 'economy', label: 'Economy type', type: 'select',
     options: [['openloco', 'Standard (OpenLoco)'], ['frozen', 'Frozen (OpenTTD)']],
     help: 'Industry production changes. Standard: industries randomly raise or lower production and may close (current). Frozen (OpenTTD Frozen): production never changes and industries never close; new industries still open.' },
+  { key: 'multipleIndustryPerTown', group: 'economy', label: 'Multiple industries of same type per town', type: 'check', help: 'OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in or near the same town. Off = each town only allows one industry of each type.' },
   { key: 'economyRecessions', group: 'economy', label: 'Recessions', type: 'check',
     help: 'The economy slumps now and then for about a year: industries and towns produce half the cargo and passengers. Off = no recessions.' },
   { key: 'aiCompanies', group: 'companies', label: 'AI competitors', type: 'select', newGame: true,

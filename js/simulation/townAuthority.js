@@ -194,9 +194,11 @@ export function actionList(state, town) {
     detail: excl ? `Exclusive rights for ${town.exclusiveMonths} more months` : `Exclusive rights for ${EXCLUSIVE_MONTHS} months (sole company: no rival is blocked)` });
   const bc = actionCost(state, 'bribe');
   const rating = townRating(town);
+  const bribeAllowed = getSetting(state, 'allowTownBribe') !== false;
   const bribeBlocked = town.unwantedMonths > 0 || rating >= RATING_BRIBE_MAXIMUM;
-  list.push({ id: 'bribe', label: 'Bribe the council', cost: bc, enabled: !bribeBlocked && money >= bc,
-    detail: town.unwantedMonths > 0 ? `Town is unwanted for ${town.unwantedMonths} more months`
+  list.push({ id: 'bribe', label: 'Bribe the council', cost: bc, enabled: bribeAllowed && !bribeBlocked && money >= bc,
+    detail: !bribeAllowed ? 'Bribing disabled in game settings'
+      : town.unwantedMonths > 0 ? `Town is unwanted for ${town.unwantedMonths} more months`
       : rating >= RATING_BRIBE_MAXIMUM ? 'Rating already maximal'
         : `Success: rating +${RATING_BRIBE_UP_STEP} (max ${RATING_BRIBE_MAXIMUM}); failure (1 in 14): rating drops to ${RATING_BRIBE_DOWN_TO}, unwanted ${BRIBE_UNWANTED_MONTHS} months` });
   const fc = actionCost(state, 'fundBuildings');
@@ -225,6 +227,7 @@ export function townAction(ctx, townId, actionId, opts = {}) {
   if (actionId === 'rights' && town.exclusiveMonths > 0) return { ok: false, error: `${town.name} exclusive rights are already bought` };
   // OpenTTD town_cmd.cpp GetMaskOfTownActions: an unwanted company (failed bribe) gets no town actions at all
   if (town.unwantedMonths > 0) return { ok: false, error: `${town.name} refuses to deal with you for ${town.unwantedMonths} more months` };
+  if (actionId === 'bribe' && getSetting(ctx.state, 'allowTownBribe') === false) return { ok: false, error: 'Bribing the town council is disabled in game settings' };
   if (actionId === 'bribe' && townRating(town) >= RATING_BRIBE_MAXIMUM) return { ok: false, error: `${town.name} rating is already maximal` };
   const money = checkMoney(state, entry.cost);
   if (money) return money;

@@ -65,6 +65,8 @@ export const DEFAULT_SETTINGS = {
   shares: false,
   /** T29 OpenTTD temperate bank (produces/accepts Valuables) placed in towns of 1200+ people by the map generator. Off by default. */
   extraIndustries: false,
+  /** OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in/near a town. Off = one of each type per town. */
+  multipleIndustryPerTown: false,
   /** OpenTTD construction.raw_industry_construction (settings_type.h:496): 'normal' funds raw industries at a site (default); 'none' blocks raw (primary) industries; 'prospect' prospects them at a random site with the type's chance (cmdFound.js). Processing industries are always fundable. */
   rawIndustryConstruction: 'normal',
   /** T29 OpenLoco farm fields: farms plant field tiles around themselves and production scales with them. Off by default. */
@@ -131,6 +133,8 @@ export const DEFAULT_SETTINGS = {
   maxTunnelLength: 16,
   /** OpenTTD difficulty.town_council_tolerance: 0 = normal (current TT authority rule), 3 = permissive (never refuses); townAuthority.js refuseBelow. */
   townCouncilTolerance: 0,
+  /** OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing disabled. */
+  allowTownBribe: true,
   /** OpenTTD economy.feeder_payment_share: percent of a transfer leg's income credited to the feeder (orders.js transferCredit). Default 75. */
   feederPaymentShare: 75,
   /** OpenTTD station.station_spread: max bounding-box side (tiles) of one player station (default 12 = STATION_SPREAD). */

@@ -85,3 +85,30 @@ export function deleteSign(ctx, id, opts = {}) {
   if (!state.signs.length) delete state.signs;
   return { ok: true, cost: 0, sign: null };
 }
+
+/**
+ * Move an existing sign to another tile (OpenTTD CmdMoveSign / misc_cmd.cpp:250).
+ * Free landmark operation.
+ * @param {object} ctx
+ * @param {number} id
+ * @param {number} x
+ * @param {number} y
+ * @param {object} [opts]
+ * @returns {{ok:true,cost:number,sign:object}|{ok:false,error:string}}
+ */
+export function moveSign(ctx, id, x, y, opts = {}) {
+  const { state } = ctx;
+  const sign = findSign(state, id);
+  if (!sign) return { ok: false, error: 'Unknown sign' };
+  const m = state.map;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= m.width || y >= m.height) {
+    return { ok: false, error: 'Site is outside the map' };
+  }
+  if (sign.x === x && sign.y === y) return { ok: true, cost: 0, sign };
+  const existing = signAt(state, x, y);
+  if (existing && existing !== sign) return { ok: false, error: 'Site already has a sign' };
+  if (opts.dryRun) return { ok: true, cost: 0, sign };
+  sign.x = x;
+  sign.y = y;
+  return { ok: true, cost: 0, sign };
+}

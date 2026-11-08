@@ -37,6 +37,16 @@ export function canPlaceIndustry(state, type, x, y, opts = {}) {
   // T29 bank (OpenTTD IndustryBehaviour::Town): must lie within EXTRA_TOWN_RADIUS of a town of 1200+ people
   const inTown = type.placement === 'inTown';
   if (inTown && !townQualifiesFor(state, type, x, y)) return false;
+  // OpenTTD economy.multiple_industry_per_town: by default only one industry
+  // of each type may sit within EXTRA_TOWN_RADIUS of the same town.
+  if ((type.placement === 'inTown' || type.placement === 'extraTown') && !getSetting(state, 'multipleIndustryPerTown')) {
+    for (const o of state.industries) {
+      if (o.typeId !== type.id) continue;
+      for (const t of state.towns) {
+        if (manhattan(t.x, t.y, x, y) <= EXTRA_TOWN_RADIUS && manhattan(t.x, t.y, o.x, o.y) <= EXTRA_TOWN_RADIUS) return false;
+      }
+    }
+  }
   if (!opts.ignoreSpacing) {
     for (const o of state.industries) {
       if (manhattan(o.x, o.y, x, y) < 9) return false;
@@ -68,7 +78,7 @@ export function placeExtraIndustries(state, rng) {
   for (const town of state.towns.slice()) {
     for (const type of EXTRA_INDUSTRY_TYPES) {
       if (type.placement !== 'inTown' || (town.population || 0) < (type.minTownPop || 0)) continue;
-      if (state.industries.some((i) => i.typeId === type.id && manhattan(i.x, i.y, town.x, town.y) <= EXTRA_TOWN_RADIUS)) continue;
+      if (!getSetting(state, 'multipleIndustryPerTown') && state.industries.some((i) => i.typeId === type.id && manhattan(i.x, i.y, town.x, town.y) <= EXTRA_TOWN_RADIUS)) continue;
       for (let attempt = 0; attempt < 60; attempt++) {
         const x = town.x + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
         const y = town.y + rng.int(-EXTRA_TOWN_RADIUS, EXTRA_TOWN_RADIUS);
