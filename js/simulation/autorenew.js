@@ -10,7 +10,7 @@
  */
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
-import { resolvePurchase, createVehicle } from './vehicles.js';
+import { resolvePurchase, createVehicle, effectiveMaxAge } from './vehicles.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -114,7 +114,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
-  if (!getSetting(state, 'autorenew') || !(v.age > v.maxAge)) return null;
+  if (!getSetting(state, 'autorenew') || !(v.age > effectiveMaxAge(state, v))) return null;
   const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
   return r.ok ? r.vehicle : null;
 }
@@ -124,7 +124,7 @@ export function isAutoreplaceEligible(state, v) {
   if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
   const rules = state.company && state.company.autoreplace;
   if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId) return true;
-  return !!getSetting(state,'autorenew') && v.age>v.maxAge;
+  return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v);
 }
 /**
  * Mass autoreplace for a depot: apply autorenewVehicle to every eligible vehicle stopped inside it.

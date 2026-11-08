@@ -97,3 +97,23 @@ export function isCheated(state) {
 
 /** OpenTTD crossing_tunnels cheat: tunnels may cross each other underground (cheat_type.h:30). */
 export function crossingTunnelsAllowed(state) { return cheatFlag(state, 'crossingTunnels'); }
+
+/**
+ * Switch company (OpenTTD cheat_type.h:20 _cheats.switch_company.value,
+ * company_cmd.cpp:123 CmdChangeCompanySetting): control a rival company instead of the
+ * player company. targetCompanyId null/0 = player company; otherwise must match a rival id.
+ * Lazy: state.activeCompanyId is set only by this cheat; state.cheated is marked.
+ */
+export function activeCompanyId(state) {
+  return (state && state.activeCompanyId) ?? 0;
+}
+export function switchCompany(state, targetCompanyId) {
+  const target = targetCompanyId || null;
+  if (target !== null) {
+    const rivals = (state && state.rivals) || [];
+    if (!rivals.some((r) => r.id === target)) return { ok: false, error: 'Unknown company' };
+  }
+  state.activeCompanyId = target;
+  markCheated(state);
+  return { ok: true, activeCompanyId: state.activeCompanyId };
+}

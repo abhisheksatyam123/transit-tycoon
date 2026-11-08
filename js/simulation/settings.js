@@ -36,6 +36,8 @@ export const DEFAULT_SETTINGS = {
   subsidyMonths: 12,
   /** OpenTTD vehicle.never_expire_vehicles: models never become obsolete (obsoleteYear is ignored for purchase). Off = unchanged. */
   neverExpireVehicles: false,
+  /** OpenTTD vehicle.extend_vehicle_life: extends the maximum operational lifetime of all vehicle models by N years (0..30). Default 0 = unchanged. */
+  extendVehicleLife: 0,
   /**
    * default service interval in days for NEW vehicles (0 = off). Only read when a vehicle is bought, so
    * the default can change without touching existing vehicles. Kept at 0 so existing games are unchanged.
@@ -141,6 +143,8 @@ export const DEFAULT_SETTINGS = {
   stationSpread: 12,
   /** OpenTTD vehicle.max_train_length: most wagons in a player train (default 12 = MAX_WAGONS). */
   maxTrainWagons: 12,
+  /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
+  autosaveInterval: 'off',
 };
 
 /** Read a setting (state.settings value or the default). */

@@ -68,3 +68,17 @@ export function autosaveLabel(slot) {
   const i = AUTOSAVE_SLOTS.indexOf(slot);
   return i < 0 ? slot : `Autosave ${i + 1}`;
 }
+
+/**
+ * Real-time autosave interval (OpenTTD gui.autosave_interval game setting, state.settings.autosaveInterval).
+ * Maps the setting value to milliseconds, or 0 for off.
+ * @param {string} v
+ * @returns {number}
+ */
+export function autosaveIntervalMs(v) {
+  if (v === '1min') return 60000;
+  if (v === '5min') return 300000;
+  if (v === '10min') return 600000;
+  if (v === '15min') return 900000;
+  return 0;
+}

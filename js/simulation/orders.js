@@ -54,7 +54,8 @@ export const STOP_MODES = ['non', 'all', 'via'];
  * Train stop location (OpenTTD OrderStopLocation, order_type.h): 'near' = near end, 'middle', 'far' = far end.
  * Lazy: absent = 'far' (the default, OTTD FarEnd); only train station orders keep it (routing.js trainStopPath).
  */
-export const STOP_AT = ['near', 'middle', 'far'];
+export const STOP_LOCATIONS = ['near', 'middle', 'far'];
+export const STOP_AT = STOP_LOCATIONS;
 
 /** Stop mode of an order ('non' when absent). */
 export function stopMode(order) {
@@ -102,8 +103,9 @@ export function orderFlagText(o) {
   if (o.full) parts.push('full load');
   if (o.load === 'fullAny') parts.push('full load any');
   if (o.load === 'none') parts.push('no loading');
-  if (o.stopAt === 'near') parts.push('stop at near end');
-  else if (o.stopAt === 'middle') parts.push('stop in middle');
+  const stopLoc = o.stopLocation ?? o.stopAt;
+  if (stopLoc === 'near') parts.push('stop at near end');
+  else if (stopLoc === 'middle') parts.push('stop in middle');
   if (o.stop === 'all') parts.push('stop at all stations');
   else if (o.stop === 'via') parts.push('go via');
   if (o.unload === 'all') parts.push('unload all');
@@ -720,10 +722,17 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
     if (o.maxSpeed > 0) entry.maxSpeed = Math.round(o.maxSpeed);
     if (stop !== undefined) entry.stop = stop;
-    if (o.stopAt !== undefined && o.stopAt !== 'far') {
-      if (!STOP_AT.includes(o.stopAt)) return { ok: false, error: `Unknown stop location ${o.stopAt}` };
+    const stopLocation = o.stopLocation !== undefined ? o.stopLocation : o.stopAt;
+    if (stopLocation !== undefined) {
+      if (!STOP_LOCATIONS.includes(stopLocation)) return { ok: false, error: `Unknown stop location ${stopLocation}` };
       if (kind !== 'rail' || waypoint) return { ok: false, error: 'Only trains choose a stop location on the platform' };
-      entry.stopAt = o.stopAt;
+      // OTTD order stop location: store non-default values; keep stopAt and stopLocation in sync
+      if (stopLocation !== 'near') {
+        entry.stopLocation = stopLocation;
+      }
+      if (stopLocation !== 'far') {
+        entry.stopAt = stopLocation;
+      }
     }
     out.push(entry);
   }

@@ -23,6 +23,7 @@ export const SETTING_GROUPS = [
 export const SETTING_META = [
   { key: 'levelCrossings', group: 'construction', label: 'Level crossing barriers', type: 'check',
     help: 'A level crossing is barred while a train is on it or about to enter it: road vehicles and cars stop before the barriers and go on when the train has passed. Trains never wait for road traffic. Off = crossings are always open.' },
+  { key: 'extendVehicleLife', group: 'vehicles', label: 'Extend vehicle life', type: 'select', options: [['0', '0 years (default)'], ['5', '+5 years'], ['10', '+10 years'], ['15', '+15 years'], ['20', '+20 years'], ['30', '+30 years']], help: 'OpenTTD vehicle.extend_vehicle_life: extends the maximum operational lifetime of all vehicle models by N years.' },
   { key: 'vehicleCollisions', group: 'vehicles', label: 'Vehicle collisions', type: 'check',
     help: 'Trains that meet head-on (or cross paths) on the same tile both crash, and a train entering a barred level crossing destroys a road vehicle on it; passengers die and the news reports it. Use signals to keep trains apart. Off = trains pass through each other.' },
   { key: 'tramCurveCap', group: 'vehicles', label: 'Tram curve speed cap', type: 'check',
@@ -176,6 +177,7 @@ export const SETTING_META = [
     help: 'Towns build houses of their period: 1950s cottages and terraces, then 1960s+ office blocks and flats, 1970s+ tower blocks. Old houses are rebuilt as newer types. Off = the classic house mix.' },
   { key: 'largeHouses', group: 'environment', label: 'Large houses (2x1, 2x2)', type: 'check', newGame: true,
     help: 'Towns sometimes build multi-tile houses (1x2 and 2x2, OpenTTD style) on free flat land inside the town. Off = 1x1 houses only.' },
+  { key: 'autosaveInterval', group: 'interface', label: 'Autosave interval', type: 'select', options: [['off', 'Off (default)'], ['1min', 'Every 1 minute'], ['5min', 'Every 5 minutes'], ['10min', 'Every 10 minutes'], ['15min', 'Every 15 minutes']], help: 'OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background.' },
 ];
 
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */

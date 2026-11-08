@@ -5,8 +5,11 @@
 import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
 import { notify } from './news.js';
 import { getSetting } from './settings.js';
+import { effectiveMaxAge } from './vehicles.js'; // re-exported for callers (extendVehicleLife)
+
 
 export { BREAKDOWN_DAYS } from './loco/vehicle.js';
+export { effectiveMaxAge };
 
 /**
  * Yearly: profit rollover, depreciation, new model news for `year`.

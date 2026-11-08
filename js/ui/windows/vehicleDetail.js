@@ -4,6 +4,7 @@
 import { el, setText, bar, setBar } from '../dom.js';
 import { money, num, speed } from '../format.js';
 import { condText } from '../../simulation/condOrders.js';
+import { effectiveMaxAge } from '../../simulation/vehicles.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { cargoName, cargoColor } from '../cargo.js';
 import { kvGrid } from './common.js';
@@ -173,7 +174,7 @@ export function openVehicleDetail(app, id) {
         const model = vehicleModel(v);
         const specs = vehicleSpecs(v, model);
         specSet['Running cost (monthly)'](money(monthlyRunningCost(v, g().state)));
-        specSet['Max. age'](v.maxAge ? `${Math.round(v.maxAge / 365)} years` : '—');
+        specSet['Max. age'](v.maxAge ? `${Math.round(effectiveMaxAge(g().state, v) / 365)} years` : '—');
         specSet['Weight'](`${num(specs.weightLoaded)} t loaded · ${num(specs.weightEmpty)} t empty`);
         specSet['Power'](specs.power ? `${num(specs.power)} hp` : '—');
         specSet['Tractive effort'](specs.tractiveKn != null ? `${specs.tractiveKn} kN` : '—');

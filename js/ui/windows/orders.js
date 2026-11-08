@@ -35,7 +35,7 @@ const LOAD_OPTIONS = [['normal', 'Normal load'], ['full', 'Full load'], ['fullAn
 const UNLOAD_OPTIONS = [['normal', 'Normal unload'], ['all', 'Unload all'], ['transfer', 'Transfer'], ['none', 'No unloading']];
 const STOP_OPTIONS = [['non', 'Non-stop'], ['all', 'Stop at all stations'], ['via', 'Go via']];
 /** Train stop location on the platform (OpenTTD OrderStopLocation): far end is the default. */
-const STOP_AT_OPTIONS = [['far', 'Far end'], ['middle', 'Middle'], ['near', 'Near end']];
+const STOP_AT_OPTIONS = [['near', 'Near end'], ['middle', 'Middle'], ['far', 'Far end']];
 
 /** Order row text, OpenTTD style: "Go non-stop to X" / "Go to X" (stop all) / "Go via X". */
 export function orderVerb(o) {
@@ -168,9 +168,9 @@ export function openOrders(app, id) {
         ...STOP_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
       /** Train stop location select (OpenTTD order stop location); shown for train station orders only. */
       const stopAtSel = (it) => {
-        const s = el('select.input', { title: 'Stop location on the platform', 'aria-label': 'Stop location', onchange: (e) => app.exec(app.game.setOrderStopAt(id, it.i, e.target.value), { quiet: true, sound: 'click' }) },
+        const s = el('select.input', { title: 'Stop location on the platform', 'aria-label': 'Stop location', onchange: (e) => app.exec(app.game.modifyOrder(id, it.i, { stopLocation: e.target.value }), { quiet: true, sound: 'click' }) },
           ...STOP_AT_OPTIONS.map(([val, label]) => el('option', { value: val, text: label })));
-        s.value = it.o.stopAt || 'far';
+        s.value = it.o.stopLocation || it.o.stopAt || 'far';
         return s;
       };
       /** Depots this vehicle can be sent to (same kind, company's own; aircraft use the airport checks). */

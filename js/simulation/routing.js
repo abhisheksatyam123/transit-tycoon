@@ -122,7 +122,7 @@ function extendAlongPlatform(state, path) {
  */
 function trainStopPath(state, v, path) {
   const order = v.orders && v.orders[v.orderIndex];
-  const stopAt = order && order.stopAt;
+  const stopAt = order && (order.stopLocation !== undefined ? order.stopLocation : (order.stopAt !== undefined ? order.stopAt : undefined));
   if (stopAt !== 'near' && stopAt !== 'middle') return extendAlongPlatform(state, path);
   if (path.length < 2) return path;
   const { map } = state;

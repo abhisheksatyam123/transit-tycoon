@@ -202,6 +202,22 @@ export function createVehicle(state, depot, template, cost) {
   return v;
 }
 
+/**
+ * OpenTTD vehicle.extend_vehicle_life: effective maximum age (days) for a vehicle or model.
+ * Base is `maxAge` in days (vehicles carry it; models may carry years in `maxAge`).
+ * Falls back to 20 years as OpenTTD default when absent. Adds setting (years 0..30).
+ */
+export function effectiveMaxAge(state, model) {
+  const raw = model ? (model.maxAge ?? 20) : 20;
+  const baseDays = raw < 100 ? raw * 365 : raw;
+  return baseDays + Number(getSetting(state, 'extendVehicleLife') || 0) * 365;
+}
+
+/** Is a vehicle past its effective maximum age? */
+export function isVehicleOld(state, v) {
+  return (v.age || 0) > effectiveMaxAge(state, v);
+}
+
 /** Model record of a vehicle. */
 export function vehicleModel(v) {
   return MODEL_BY_ID[v.modelId];

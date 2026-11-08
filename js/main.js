@@ -6,6 +6,7 @@
 import { TOWN_LAYOUT_MODES } from './simulation/towns.js';
 import { HOTKEY_ACTIONS, shortcutTable, effectiveKeys, currentOverrides, onHotkeysChanged } from './ui/hotkeys.js';
 import { Game } from './simulation/game.js';
+import { getSetting } from './simulation/settings.js';
 import { Renderer } from './renderer/renderer.js';
 import { Minimap } from './renderer/minimap.js';
 import { setCargoColors } from './renderer/sprites/vehicles.js';
@@ -18,7 +19,7 @@ import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
 import { updateCostReadout } from './ui/costReadout.js';
 import { saveToSlotAsync, saveToSlot, loadSlotData, slotMeta } from './ui/storage.js';
-import { AUTOSAVE_SLOTS, advanceAutosaveCounter, loadAutosavePrefs, pickAutosaveSlot } from './ui/autosavePrefs.js';
+import { AUTOSAVE_SLOTS, advanceAutosaveCounter, autosaveIntervalMs, loadAutosavePrefs, pickAutosaveSlot } from './ui/autosavePrefs.js';
 import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
 import { TOOL_BUTTONS } from './ui/toolbar.js';
@@ -85,6 +86,9 @@ const SLOW_SAVE_INTERVAL = 12;
 let monthsSinceSave = 0;
 /** A month ended since the Continue slot was written (pause / hidden tab save it). */
 let dirty = false;
+/** Real-time autosave (OpenTTD gui.autosave_interval game setting): last trigger time (ms). */
+let lastAutosaveMs = Date.now();
+
 
 /**
  * Timed autosave into the rotating ring (auto-1..3, oldest overwritten). Compression runs in a worker;
@@ -266,6 +270,18 @@ async function main() {
       updateCostReadout(app); // T43 construction cost readout (no-op unless a build tool previews)
       minimap.draw(now);
       if (renderer.showLinks) syncLinkLegend(renderer); // legend follows the minimap rect each frame
+      // OpenTTD gui.autosave_interval: real-time periodic save to 'autosave' slot (game setting)
+      {
+        const iv = autosaveIntervalMs(getSetting(app.game && app.game.state, 'autosaveInterval'));
+        if (iv > 0 && !autosaveBusy && app.game && !app.game.state.editor && !modalOpen()) {
+          const nowMs = Date.now();
+          if (nowMs - lastAutosaveMs >= iv) {
+            lastAutosaveMs = nowMs;
+            autosaveBusy = true;
+            saveToSlotAsync('autosave', app.game).finally(() => { autosaveBusy = false; });
+          }
+        }
+      }
       if (now - lastStatus > STATUS_REFRESH_MS) { statusbar.update(); lastStatus = now; }
       if (now - lastWin > WINDOW_REFRESH_MS) { app.wm.updateAll(); lastWin = now; }
       if (now - lastSel > 1000) { app.refreshSelectionCatchment(); lastSel = now; }

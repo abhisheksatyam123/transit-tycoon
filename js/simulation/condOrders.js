@@ -6,7 +6,7 @@
  * cmp '==' with val 1 (is true) or 0 (is false).
  */
 import { cargoSlices, advanceOrder } from './orders.js';
-import { vehicleModel } from './vehicles.js';
+import { vehicleModel, effectiveMaxAge } from './vehicles.js';
 import { serviceDueNow } from './service.js';
 
 /**
@@ -70,7 +70,7 @@ export function condOperand(state, v, variable) {
     case 'maxSpeed': { const m = vehicleModel(v); return m ? m.speed : 0; }
     case 'age': return Math.floor((v.age || 0) / 365);
     // OpenTTD: (max_age - age) / DAYS_IN_LEAP_YEAR, C division truncates toward zero (negative once past max age).
-    case 'lifetime': return Math.trunc(((v.maxAge || 0) - (v.age || 0)) / 365) || 0; // || 0: no -0
+    case 'lifetime': return Math.trunc((effectiveMaxAge(state, v) - (v.age || 0)) / 365) || 0; // || 0: no -0 (extendVehicleLife via effectiveMaxAge)
     // Model max reliability in percent (TT model.reliability 0..1; vehicles.js createVehicle baseReliability).
     case 'maxReliability': return Math.round((v.baseReliability ?? 0) * 100);
     case 'service': return serviceDueNow(state, v) ? 1 : 0;

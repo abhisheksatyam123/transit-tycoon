@@ -13,13 +13,18 @@ export function companyOf(state, entity) {
     const r = companyById(state, entity.ownerId);
     if (r) return r;
   }
+  if (state && state.activeCompanyId != null) {
+    const r = companyById(state, state.activeCompanyId);
+    if (r) return r;
+  }
   return state.company;
 }
 
 /** Company record for an owner id (null/undefined = player); null when the rival does not exist. */
 export function companyById(state, ownerId) {
-  if (ownerId == null) return state.company;
-  return (state.rivals || []).find((r) => r.id === ownerId) || null;
+  const id = ownerId ?? (state && state.activeCompanyId);
+  if (id == null) return state.company;
+  return (state.rivals || []).find((r) => r.id === id) || null;
 }
 
 /** True when `opts.owner` (null = player) does not own `entity`: a command must refuse it. */

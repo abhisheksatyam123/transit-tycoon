@@ -119,8 +119,11 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
   if (stop !== 'non') orders[index].stop = stop;
   if (o.waitDays > 0) orders[index].waitDays = o.waitDays;
   if (o.travelDays > 0) orders[index].travelDays = o.travelDays;
-  const stopAt = flags.stopAt !== undefined ? flags.stopAt : o.stopAt;
-  if (stopAt !== undefined && stopAt !== 'far') orders[index].stopAt = stopAt;
+  const stopLoc = flags.stopLocation !== undefined ? flags.stopLocation : (flags.stopAt !== undefined ? flags.stopAt : (o.stopLocation !== undefined ? o.stopLocation : o.stopAt));
+  if (stopLoc !== undefined) {
+    if (stopLoc !== 'near') orders[index].stopLocation = stopLoc;
+    if (stopLoc !== 'far') orders[index].stopAt = stopLoc;
+  }
   if (o.maxSpeed > 0) orders[index].maxSpeed = o.maxSpeed;
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;

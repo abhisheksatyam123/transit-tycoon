@@ -5,7 +5,7 @@
  */
 import { el } from '../dom.js';
 import { money } from '../format.js';
-import { moneyCheat, changeYearCheat, setMagicBulldozer, magicBulldozer, isCheated, MONEY_CHEAT_AMOUNT, setCheatFlag, cheatFlag } from '../../simulation/cheats.js';
+import { moneyCheat, changeYearCheat, setMagicBulldozer, magicBulldozer, isCheated, MONEY_CHEAT_AMOUNT, setCheatFlag, cheatFlag, activeCompanyId } from '../../simulation/cheats.js';
 
 /** @param {import('../app.js').App} app */
 export function openCheats(app) {
@@ -25,6 +25,22 @@ export function openCheats(app) {
       const prodBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', 'aria-label': 'Modify industry production' }));
       const status = el('p.muted.small', { text: '' });
       const cheatedLine = el('p.small', { text: '' });
+      const switchSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Switch company' }));
+      const rebuildSwitch = () => {
+        const rivals = state().rivals || [];
+        switchSel.replaceChildren(...[
+          Object.assign(el('option', { value: '0', text: 'Company 1 (Player)' }), { }),
+          ...rivals.map((r) => Object.assign(el('option', { value: String(r.id), text: `Rival ${r.id}: ${r.name || 'Competitor'}` }), {})),
+        ]);
+        switchSel.value = String(activeCompanyId(state()) || 0);
+      };
+      switchSel.addEventListener('change', () => {
+        const id = Number(switchSel.value) || 0;
+        const r = app.game.switchCompany(id || null);
+        status.textContent = r.ok ? (id ? 'Now controlling company ' + id + '.' : 'Back to player company.') : r.error;
+        app.wm.updateAll();
+        refresh();
+      });
 
       const refresh = () => {
         const s = state();
@@ -35,6 +51,7 @@ export function openCheats(app) {
         crossBox.checked = cheatFlag(s, 'crossingTunnels');
         prodBox.checked = cheatFlag(s, 'setupProd');
         cheatedLine.textContent = isCheated(s) ? 'This game is marked as cheated.' : 'No cheat used in this game.';
+        rebuildSwitch();
       };
 
       const plus = el('button.btn', { type: 'button', text: '+ ' + money(MONEY_CHEAT_AMOUNT), title: 'Add 10,000,000 to the company bank balance' });
@@ -100,6 +117,7 @@ export function openCheats(app) {
         note,
         el('div.set-row', null, plus, moneyLine),
         el('div.set-row', null, el('label', { text: 'Year ' }), yearIn, setYear, yearMsg),
+        el('div.set-row', null, el('label', { text: 'Switch company ' }), switchSel, el('span.set-help.muted', { text: 'Control a rival company (OpenTTD switch_company cheat).' })),
         el('div.set-row', null, el('label', null, bull, el('span', { text: ' Magic bulldozer' })), el('span.set-help.muted', { text: 'Demolish anything, incl. town buildings and industries.' })),
         el('div.set-row', null, el('label', null, ratingBox, el('span', { text: ' Station ratings 100%' })), el('span.set-help.muted', { text: 'Your stations always rate 100% (OpenTTD station_rating cheat).' })),
         el('div.set-row', null, el('label', null, prodBox, el('span', { text: ' Modify industry production' })), el('span.set-help.muted', { text: 'Allow editing industry production targets (OpenTTD setup_prod cheat).' })),
