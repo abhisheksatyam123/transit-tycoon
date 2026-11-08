@@ -170,7 +170,11 @@ export class GroundCache {
   stepJob(job, deadline) {
     const m = this.map, ctx = job.ctx, order = job.order;
     setSpriteLod(job.scale);
-    do {
+    // always paint >=1 tile (so a job makes progress), but yield before starting the next if the
+    // frame budget is exhausted — a single complex net tile (texTile.paint) can take 100ms+, and
+    // the old post-tile check let that overshoot create >100ms startup frames on Moscow.
+    while (job.k < order.length) {
+      if (job.k > 0 && performance.now() >= deadline) break;
       const x = order[job.k], y = order[job.k + 1];
       job.k += 2;
       const tile = m.tiles[y * m.width + x];
@@ -180,7 +184,7 @@ export class GroundCache {
       drawTransport(ctx, tile, sx, sy, c, m, x, y);
       drawNetTile(ctx, m, x, y, sx, sy, this.heights);
       if (tile.tram) drawTramOverlay(ctx, tile, sx, sy, c);
-    } while (job.k < order.length && performance.now() < deadline);
+    }
     return job.k >= order.length;
   }
 
