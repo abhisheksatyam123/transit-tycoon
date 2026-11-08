@@ -1,4 +1,6 @@
 
+import { modelTractiveKn } from '../simulation/vehicleSpec.js';
+
 /**
  * Build-vehicle window helpers (OpenTTD build_vehicle_gui.cpp: cargo filter ~:487 and the sorter list
  * ~:107). Pure (no DOM) so the filter and sorter can be unit-tested. The sort choice is a UI preference
@@ -17,9 +19,10 @@ export const BUY_SORTERS = [
   ['capacity', 'Capacity', (m) => Number(m.capacity) || 0],
   ['running', 'Running cost', (m) => Number(m.running) || 0],
   ['intro', 'Intro date', (m) => Number(m.introYear) || 0],
-  // OpenTTD build_vehicle_gui.cpp:425-432 power (engine-only; a list holding non-engines sorts by name instead).
-  // No tractive-effort key: TT's TE formula has no per-engine input (vehicleSpec.js), so it would not order anything.
+  // OpenTTD build_vehicle_gui.cpp:425-432: power / tractive effort (engine-only, name fallback otherwise).
   ['power', 'Power', (m) => Number(m.power) || 0, true],
+  ['tractive', 'Tractive effort', (m) => modelTractiveKn(m) || 0, true],
+  ['id', 'Engine ID', (m) => String(m.id || '')],
 ];
 
 /** @returns {{key:string, dir:1|-1}} the remembered sort (default: list order, ascending). */

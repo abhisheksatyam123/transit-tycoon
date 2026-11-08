@@ -73,6 +73,7 @@ export const WINDOW_BUTTONS = [
   ['towns', 'Towns', 'towns', 'T'],
   ['stations', 'Stations', 'stations', 'B'],
   ['depots', 'Depots', 'depots', ''],
+  ['waypoints', 'Waypoints', 'waypoint', ''],
   ['map', 'Map', 'map', 'P'],
   ['graphs', 'Graphs', 'graphs', 'E'],
   ['cargoRates', 'Payment rates', 'graphs', ''],
@@ -107,7 +108,7 @@ export const TOOL_GROUPS = [
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
-  ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:industries', 'win:signs', 'win:map', 'win:metro']],
+  ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:waypoints', 'win:industries', 'win:signs', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
   ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];

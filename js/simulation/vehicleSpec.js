@@ -15,13 +15,18 @@ import { ENGINE_TONNES, GROUND_ACCELERATION, TRACTIVE_EFFORT } from './loco/trai
  * @param {any} model engine model (MODEL_BY_ID entry)
  * @returns {{weightLoaded:number, weightEmpty:number, power:number|null, tractiveKn:number|null}}
  */
+export function modelTractiveKn(model) {
+  const power = model && model.power ? model.power : null;
+  return power ? Math.round(ENGINE_TONNES * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256 / 100) / 10 : null;
+}
+
 export function vehicleSpecs(v, model) {
   const cargo = v.load ? v.load.amount || 0 : 0;
   const weightLoaded = totalWeight(v);
   const weightEmpty = weightLoaded - cargo;
   const power = model && model.power ? model.power : null;
   const isTrain = v.kind === 'train';
-  const tractiveKn = isTrain && power ? Math.round(ENGINE_TONNES * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256 / 100) / 10 : null;
+  const tractiveKn = isTrain ? modelTractiveKn(model) : null;
   return { weightLoaded, weightEmpty, power, tractiveKn };
 }
 

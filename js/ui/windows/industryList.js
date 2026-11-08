@@ -6,7 +6,7 @@ import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty } from './common.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
-import { sortIndustries, INDUSTRY_SORTS, makeSortMemo, sumMap, transportedPct, filterByName } from './listSort.js';
+import { sortIndustries, INDUSTRY_SORTS, makeSortMemo, sumMap, transportedPct, filterIndustries } from './listSort.js';
 import { sortControls, nameSearch } from './sortControls.js';
 
 /**
@@ -25,7 +25,7 @@ export function openIndustryList(app) {
       const search = nameSearch(state, 'Search industries by name', () => app.wm.updateAll());
       body.append(controls.bar, search, list);
       return () => {
-        const inds = filterByName(memo(app.game.state.industries, `${state.sort}:${state.dir}`), state.query, (i) => i.name || '');
+        const inds = filterIndustries(memo(app.game.state.industries, `${state.sort}:${state.dir}`), state.query);
         listOrEmpty(list, inds, (i) => i.id,
           (i) => el('button.list-row', { type: 'button', title: 'Click: details · Double-click: center view',
             onclick: () => app.open('industry', i.id), ondblclick: () => app.centerOn(i.x + 1, i.y + 1) },

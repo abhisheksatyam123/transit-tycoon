@@ -108,6 +108,39 @@ export function filterByName(items, query, nameOf) {
 }
 
 /**
+ * Towns: filtered by a case-insensitive substring of the name.
+ * Pure: returns a new array (or input array if query is empty).
+ * @param {{id:number,name?:string}[]} towns
+ * @param {string} query
+ * @returns {{id:number,name?:string}[]}
+ */
+export function filterTowns(towns, query) {
+  return filterByName(towns, query, (t) => t.name || '');
+}
+
+/**
+ * Industries: filtered by a case-insensitive substring of the name.
+ * Pure: returns a new array (or input array if query is empty).
+ * @param {object[]} industries
+ * @param {string} query
+ * @returns {object[]}
+ */
+export function filterIndustries(industries, query) {
+  return filterByName(industries, query, (i) => i.name || '');
+}
+
+/**
+ * Stations: filtered by a case-insensitive substring of the name.
+ * Pure: returns a new array (or input array if query is empty).
+ * @param {object[]} stations
+ * @param {string} query
+ * @returns {object[]}
+ */
+export function filterStations(stations, query) {
+  return filterByName(stations, query, (s) => s.name || '');
+}
+
+/**
  * Signs: filtered by a case-insensitive substring of the text, then sorted by text.
  * @param {{id:number,text?:string}[]} signs
  * @param {{filter?:string, dir?:number}} [opts]

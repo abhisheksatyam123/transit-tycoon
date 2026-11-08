@@ -68,3 +68,14 @@ describe('real vehicle models', () => {
     expect(ids(sortModels(engines, 'cost', -1))).toEqual(['eng_comet', 'eng_puffer']);
   });
 });
+  test('sorts by power, tractive effort and engine ID', () => {
+    const E = [
+      { id: 'eng_b', name: 'B', kind: 'engine', power: 2600 },
+      { id: 'eng_a', name: 'A', kind: 'engine', power: 600 },
+      { id: 'eng_c', name: 'C', kind: 'engine', power: 1800 },
+    ];
+    expect(ids(sortModels(E, 'power', -1))).toEqual(['eng_b', 'eng_c', 'eng_a']);
+    expect(ids(sortModels(E, 'id', 1))).toEqual(['eng_a', 'eng_b', 'eng_c']);
+    // TE is constant per powered engine in vehicleSpec.js, so order falls back to input order
+    expect(ids(sortModels(E, 'tractive', -1))).toEqual(['eng_b', 'eng_a', 'eng_c']);
+  });

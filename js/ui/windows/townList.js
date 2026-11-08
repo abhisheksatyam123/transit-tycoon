@@ -5,7 +5,7 @@
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty } from './common.js';
-import { sortTowns, TOWN_SORTS, makeSortMemo, filterByName } from './listSort.js';
+import { sortTowns, TOWN_SORTS, makeSortMemo, filterTowns } from './listSort.js';
 import { sortControls, nameSearch } from './sortControls.js';
 import { townRating } from '../../simulation/townAuthority.js';
 
@@ -28,7 +28,7 @@ export function openTownList(app) {
         const towns = app.game.state.towns;
         let pop = 0;
         for (const t of towns) pop += t.population;
-        const sorted = filterByName(memo(towns, `${state.sort}:${state.dir}`), state.query, (t) => t.name || '');
+        const sorted = filterTowns(memo(towns, `${state.sort}:${state.dir}`), state.query);
         setText(total, `${sorted.length === towns.length ? '' : `${sorted.length} of `}${towns.length} towns · total population ${num(pop)}`);
         listOrEmpty(list, sorted, (t) => t.id,
           (t) => el('button.list-row', { type: 'button', title: 'Click: details · Double-click: center view',

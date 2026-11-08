@@ -1,6 +1,6 @@
 /** Name search (OpenTTD QueryString filter) and depot vehicle sort helpers (pure, no DOM). */
 import { test, expect, describe } from 'bun:test';
-import { matchesName, filterByName } from '../js/ui/windows/listSort.js';
+import { matchesName, filterByName, filterTowns, filterIndustries, filterStations } from '../js/ui/windows/listSort.js';
 import { sortStations } from '../js/ui/windows/stationList.js';
 import { sortVehicles } from '../js/ui/windows/vehicleList.js';
 
@@ -82,5 +82,33 @@ describe('depot vehicle sort (shared with vehicle list)', () => {
     const before = V.map((v) => v.id);
     expect(sortVehicles(V, { sort: 'age', dir: 1 }).map((v) => v.id)).toEqual([2, 1, 3]);
     expect(V.map((v) => v.id)).toEqual(before);
+  });
+});
+
+describe('filterTowns, filterIndustries, filterStations', () => {
+  const towns = [{ id: 1, name: 'Springfield' }, { id: 2, name: 'Shelbyville' }, { id: 3, name: 'Capital City' }];
+  const industries = [{ id: 10, name: 'Coal Mine' }, { id: 20, name: 'Power Station' }, { id: 30, name: 'Iron Ore Mine' }];
+  const stations = [{ id: 100, name: 'Central Station' }, { id: 200, name: 'North Valley' }, { id: 300, name: 'Grand Central' }];
+
+  test('filterTowns filters case-insensitively and returns all when query is empty', () => {
+    expect(filterTowns(towns, 'field').map((t) => t.id)).toEqual([1]);
+    expect(filterTowns(towns, 'S').map((t) => t.id)).toEqual([1, 2]);
+    expect(filterTowns(towns, '')).toBe(towns);
+    expect(filterTowns(towns, '  ')).toBe(towns);
+    expect(filterTowns(towns, 'none')).toEqual([]);
+  });
+
+  test('filterIndustries filters case-insensitively and returns all when query is empty', () => {
+    expect(filterIndustries(industries, 'MINE').map((i) => i.id)).toEqual([10, 30]);
+    expect(filterIndustries(industries, 'power').map((i) => i.id)).toEqual([20]);
+    expect(filterIndustries(industries, '')).toBe(industries);
+    expect(filterIndustries(industries, 'zzz')).toEqual([]);
+  });
+
+  test('filterStations filters case-insensitively and returns all when query is empty', () => {
+    expect(filterStations(stations, 'central').map((s) => s.id)).toEqual([100, 300]);
+    expect(filterStations(stations, 'NORTH').map((s) => s.id)).toEqual([200]);
+    expect(filterStations(stations, '')).toBe(stations);
+    expect(filterStations(stations, 'xyz')).toEqual([]);
   });
 });

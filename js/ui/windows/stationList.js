@@ -7,9 +7,10 @@
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty, packetTotal } from './common.js';
-import { matchesName } from './listSort.js';
+import { matchesName, filterStations } from './listSort.js';
 import { nameSearch } from './sortControls.js';
 import { appendOrder } from '../tools/addOrder.js';
+import { isWaypointRecord } from '../../simulation/cmdRename.js';
 
 /** Sort keys offered in the dropdown / header buttons. */
 export const STATION_SORTS = [
@@ -63,7 +64,8 @@ export function hasFacility(st, facility) {
  */
 export function sortStations(stations, opts = {}) {
   const { sort = 'name', dir = 1, filter = 'all', query = '' } = opts;
-  const list = stations.filter((st) => (filter === 'all' || hasFacility(st, filter)) && matchesName(st.name, query));
+  const facList = filter === 'all' ? stations : stations.filter((st) => hasFacility(st, filter));
+  const list = filterStations(facList, query);
   const val = (st) => {
     if (sort === 'waiting') return stationStats(st).waiting;
     if (sort === 'rating') return stationStats(st).maxRating ?? -1;
@@ -121,7 +123,7 @@ export function openStationList(app) {
         sortSel.value = state.sort;
         filterSel.value = state.filter;
         setText(dirBtn, state.dir < 0 ? '▼' : '▲');
-        const all = app.game.state.stations.filter((st) => st.ownerId == null); // player stations only (gap #25)
+        const all = app.game.state.stations.filter((st) => st.ownerId == null && !isWaypointRecord(st)); // player stations only (gap #25), exclude waypoints
         const stations = sortStations(all, state);
         let waiting = 0;
         for (const st of all) waiting += stationStats(st).waiting;
