@@ -14,7 +14,7 @@ const TAXI_TILES = 20 * AIR_MPH_TO_TILES_PER_TICK;
 
 /** OL VehicleHead.cpp:2858-2866: broken-down ships target 5 mph. */
 const BROKEN_SHIP_MPH = 5;
-import { curveSpeedLimitKmh, roadCurveTargetTiles, realisticTrainSpeedStep } from './loco/trainRealistic.js';
+import { curveSpeedLimitKmh, roadCurveTargetTiles, tramCurveTargetTiles, realisticTrainSpeedStep } from './loco/trainRealistic.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { bridgeType } from '../config/bridges.js';
 import { connected } from './network.js';
@@ -357,7 +357,7 @@ function move(ctx, v) {
         v.speed = landSpeedStep(v, vehicleModel(v), target, grade);
       }
     } else {
-      if (v.kind === 'road') maxTiles = Math.min(maxTiles, roadCurveTargetTiles(v, v.maxSpeed));
+      if (v.kind === 'road') maxTiles = Math.min(maxTiles, v.roadType === 'tram' && getSetting(state, 'tramCurveCap') ? tramCurveTargetTiles(v, v.maxSpeed) : roadCurveTargetTiles(v, v.maxSpeed));
       v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
     if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, maxTiles); // OTTD 512 vs 256

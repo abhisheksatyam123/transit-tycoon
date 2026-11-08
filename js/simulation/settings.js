@@ -55,6 +55,8 @@ export const DEFAULT_SETTINGS = {
   trainAcceleration: 'original',
   /** roadOvertaking: OpenTTD road vehicle overtaking (roadOvertake.js): a faster road vehicle passes a slower one on a straight plain road when the opposite lane is free. Trams never. Off by default: changes results. */
   roadOvertaking: false,
+  /** tramCurveCap: OpenTTD tram corner speed limits (GetCurveSpeedLimit via RoadVeh tram): trams take corners at capped speed instead of the OpenLoco road fraction. Off = trams use the road curve fraction like buses/trucks. */
+  tramCurveCap: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
   enginePreview: false,
   /** shares: OpenTTD company shares (4 x 25%) in rival companies; the 4th share takes the company over (shares.js). Off by default. */

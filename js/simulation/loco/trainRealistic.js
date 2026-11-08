@@ -86,6 +86,25 @@ export function roadCurveFraction(v) {
  * Current movement.js applies this through Math.min(maxTiles, roadCurveTargetTiles(...)), so earlier
  * order/bridge/breakdown caps are preserved.
  */
+/**
+ * Tram corner speed limit (km/h) behind the `tramCurveCap` setting, from OpenTTD
+ * GetCurveSpeedLimit. In OpenTTD a tram (RoadVeh::TramSpeed) never reaches its model top speed in
+ * a corner: a 90 degree corner caps it at 61 km/h (CURVE_LIMIT_90) and consecutive 45 degree
+ * corners at the spacing formula (curveSpeedLimitKmh), while the default road fraction would
+ * allow effectively uncapped speed on a tram (buses/trucks keep the OpenLoco road fraction).
+ * Returns NO_LIMIT (Infinity) on a straight path or an S-bend. Pure apart from the curve cache.
+ */
+export function tramCurveLimitKmh(v) {
+  return curveSpeedLimitKmh(v);
+}
+
+/** Tram corner target in tiles per tick: min(road curve target, tram curve limit). */
+export function tramCurveTargetTiles(v, roadMaxTiles) {
+  const road = roadCurveTargetTiles(v, roadMaxTiles);
+  const lim = curveSpeedLimitKmh(v) * KMH_TO_TILES_PER_TICK;
+  return lim < road ? lim : road;
+}
+
 export function roadCurveTargetTiles(v, roadMaxTiles) {
   return Math.max(roadMaxTiles * roadCurveFraction(v), ROAD_CURVE_MIN_MPH * MPH_TO_TILES_PER_TICK) + 1 * MPH_TO_TILES_PER_TICK;
 }

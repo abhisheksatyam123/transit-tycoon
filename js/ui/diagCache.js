@@ -31,8 +31,9 @@ function loadModule() {
 export function countIssues(issues) {
   const out = { error: 0, warn: 0, info: 0, byCategory: /** @type {Record<string,number>} */ ({}) };
   for (const i of issues) {
-    if (i.severity in out) out[i.severity]++;
-    out.byCategory[i.category] = (out.byCategory[i.category] || 0) + 1;
+    const n = typeof i.count === 'number' && i.count > 0 ? i.count : 1;
+    if (i.severity in out) out[i.severity] += n;
+    out.byCategory[i.category] = (out.byCategory[i.category] || 0) + n;
   }
   return out;
 }
@@ -85,6 +86,7 @@ function runScan(game) {
   let issues = null, error = null;
   try {
     issues = mod.runDiagnostics(game) || [];
+    if (typeof mod.dedupIssues === 'function') issues = mod.dedupIssues(issues);
   } catch (err) {
     error = 'Diagnostics failed: ' + (err && err.message ? err.message : String(err));
   }
@@ -132,6 +134,7 @@ function cacheError(game, err) {
 
 /** Store issues as the cache (same shape as runScan). */
 function publish(game, issues) {
+  if (mod && typeof mod.dedupIssues === 'function') issues = mod.dedupIssues(issues);
   let summary = null;
   try {
     summary = typeof mod.summarizeIssues === 'function' ? mod.summarizeIssues(issues) : countIssues(issues);

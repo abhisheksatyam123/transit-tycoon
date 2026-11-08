@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
-import { runDiagnostics, summarizeIssues } from '../js/simulation/diagnostics.js';
+import { runDiagnostics, summarizeIssues, dedupIssues } from '../js/simulation/diagnostics.js';
 import { getTile } from '../js/simulation/map.js';
 
 describe('diagnostics', () => {
@@ -45,4 +45,29 @@ describe('diagnostics', () => {
     });
     expect(summarizeIssues([])).toEqual({ error: 0, warn: 0, info: 0, byCategory: {} });
   });
+
+
+  test('dedupIssues merges same family+station and preserves count/focus', () => {
+    const issues = [
+      { id: 'station-waiting:7:coal', severity: 'warn', category: 'station', message: 'a', stationId: 7, x: 10, y: 11 },
+      { id: 'station-waiting:7:wood', severity: 'warn', category: 'station', message: 'b', stationId: 7 },
+      { id: 'station-waiting:8:coal', severity: 'warn', category: 'station', message: 'c', stationId: 8, x: 20, y: 21 },
+    ];
+    const d = dedupIssues(issues);
+    expect(d.length).toBe(2);
+    const st7 = d.find((i) => i.stationId === 7);
+    expect(st7.count).toBe(2);
+    expect(st7.x).toBe(10);
+    expect(st7.y).toBe(11);
+    expect(summarizeIssues(d)).toEqual({ error: 0, warn: 3, info: 0, byCategory: { station: 3 } });
+  });
+
+  test('summarizeIssues counts issue.count', () => {
+    const issues = [
+      { severity: 'warn', category: 'network', count: 5 },
+      { severity: 'info', category: 'town' },
+    ];
+    expect(summarizeIssues(issues)).toEqual({ error: 0, warn: 5, info: 1, byCategory: { network: 5, town: 1 } });
+  });
+
 });

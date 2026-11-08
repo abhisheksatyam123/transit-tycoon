@@ -80,11 +80,14 @@ export function openIssues(app) {
         if (!shown.length) { list.append(el('div.empty', { text: issues.length ? 'No issues match this filter' : r.scanning ? 'No issues found so far' : 'No issues found' })); return; }
         for (const i of shown.slice(0, 300)) {
           const clickable = typeof i.x === 'number' || typeof i.vehicleId === 'number' || typeof i.stationId === 'number' || typeof i.townId === 'number';
+          const n = typeof i.count === 'number' && i.count > 1 ? i.count : 0;
           list.append(el('button.list-row.issue-row', {
-            type: 'button', disabled: !clickable, title: clickable ? 'Click to locate' : '',
+            type: 'button', disabled: !clickable, title: clickable ? (n ? `Click to locate (×${n})` : 'Click to locate') : '',
             onclick: () => focusIssue(app, i),
           }, el('span.sev-dot', { style: { background: SEV_COLOR[i.severity] || '#94a3b8' } }),
-          el('span.cat.mono', { text: i.category }), el('span.name', { text: i.message })));
+          el('span.cat.mono', { text: i.category }),
+          ...(n ? [el('span.chip', { text: `×${n}`, title: `${n} similar issues`, style: { marginLeft: '4px', opacity: '0.85' } })] : []),
+          el('span.name', { text: i.message })));
         }
         if (shown.length > 300) list.append(el('div.muted.small', { text: `…and ${shown.length - 300} more` }));
       };

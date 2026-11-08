@@ -24,6 +24,8 @@ export const SETTING_META = [
     help: 'A level crossing is barred while a train is on it or about to enter it: road vehicles and cars stop before the barriers and go on when the train has passed. Trains never wait for road traffic. Off = crossings are always open.' },
   { key: 'vehicleCollisions', group: 'vehicles', label: 'Vehicle collisions', type: 'check',
     help: 'Trains that meet head-on (or cross paths) on the same tile both crash, and a train entering a barred level crossing destroys a road vehicle on it; passengers die and the news reports it. Use signals to keep trains apart. Off = trains pass through each other.' },
+  { key: 'tramCurveCap', group: 'vehicles', label: 'Tram curve speed cap', type: 'check',
+    help: 'Trams slow to OpenTTD corner limits on curves (61 km/h for a square corner, 88 km/h for tight 45-degree corners). Off = trams use the road curve fraction like buses and trucks.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'maxBridgeLength', group: 'construction', label: 'Max bridge length (tiles)', type: 'select',
