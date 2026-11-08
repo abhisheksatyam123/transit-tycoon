@@ -36,6 +36,7 @@ import { openCheats } from './cheats.js';
 import { openHallOfFame } from './hallOfFame.js';
 import { openSubsidies } from './subsidies.js';
 import { openObjective } from './objective.js';
+import { openStoryBook } from './storyBook.js';
 import { openGraphs, openCargoRates } from './graphs.js';
 import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
@@ -81,6 +82,7 @@ const REGISTRY = {
   cheats: openCheats,
   subsidies: openSubsidies,
   objective: openObjective,
+  storyBook: openStoryBook,
   graphs: openGraphs,
   cargoRates: openCargoRates,
   map: openMap,

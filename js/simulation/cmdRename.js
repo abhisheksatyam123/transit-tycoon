@@ -13,6 +13,7 @@ import { ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 
 export const MAX_NAME_LENGTH = 32;
+export const MAX_TOWN_TEXT_LENGTH = 320;
 
 /**
  * Validate and normalise a requested name.
@@ -66,6 +67,27 @@ export function renameTown(ctx, id, name, opts = {}) {
   const t = findTown(state, id);
   if (!t) return { ok: false, error: 'Unknown town' };
   return renameWith(t, name, state.towns, 'A town with this name already exists', opts);
+}
+
+/**
+ * Set a town's free-text note (lazy `town.text`, absent unless used). Trimmed; an empty (blank) text
+ * clears the note (field deleted). Longer input is truncated to MAX_TOWN_TEXT_LENGTH code points.
+ * No control characters (mirrors validateName). No uniqueness rule. No sim logic reads this field.
+ */
+export function setTownText(ctx, id, text, opts = {}) {
+  const { state } = ctx;
+  const t = findTown(state, id);
+  if (!t) return { ok: false, error: 'Unknown town' };
+  if (typeof text !== 'string') return { ok: false, error: 'Text must be text' };
+  const trimmed = text.trim();
+  if (!trimmed) {
+    if (!opts.dryRun) delete t.text;
+    return { ok: true, cost: 0, text: '' };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) return { ok: false, error: 'Text contains control characters' };
+  const truncated = [...trimmed].slice(0, MAX_TOWN_TEXT_LENGTH).join('');
+  if (!opts.dryRun) t.text = truncated;
+  return { ok: true, cost: 0, text: truncated };
 }
 
 /** Rename the company (no uniqueness rule: single company). */

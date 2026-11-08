@@ -82,6 +82,7 @@ export const WINDOW_BUTTONS = [
   ['news', 'News', 'news', 'N'],
   ['traffic', 'Traffic', 'traffic', 'X'],
   ['goals', 'Goals', 'goals', 'O'],
+  ['storyBook', 'Story', 'news', ''],
   ['extraViewport', 'Extra viewport', 'extra', ''],
   ['subsidies', 'Subsidies', 'subsidies', ''],
   ['metro', 'Metro', 'metro', 'U'],
@@ -109,7 +110,7 @@ export const TOOL_GROUPS = [
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:waypoints', 'win:industries', 'win:signs', 'win:map', 'win:metro']],
-  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
+  ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:storyBook', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
   ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
 ];
 

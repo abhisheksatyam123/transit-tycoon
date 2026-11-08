@@ -37,7 +37,7 @@ import { buildCanal, buildLock } from './cmdCanal.js';
 import { townAction } from './townAuthority.js';
 import { expandTown, deleteTown, demolishIndustry } from './cmdTownEdit.js';
 import * as vcmd from './cmdVehicle.js';
-import { renameStation, renameVehicle, renameTown, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint } from './cmdRename.js';
+import { renameStation, renameVehicle, renameTown, setTownText, renameCompany, renameDepot, renameEngine, renamePresident, renameWaypoint } from './cmdRename.js';
 import { setAirportClosed } from './cmdAirport.js';
 import { placeSign, editSign, deleteSign } from './cmdSign.js';
 import { setEngineHidden } from './cmdEngineVisibility.js';
@@ -347,6 +347,8 @@ export class Game {
   addVehicleToGroup(vehicleId, groupId, opts) { return gcmd.addVehicleToGroup(this.ctx, vehicleId, groupId, opts); }
   addSharedVehiclesToGroup(vehicleId, groupId, opts) { return gcmd.addSharedVehiclesToGroup(this.ctx, vehicleId, groupId, opts); }
   renameTown(id, name, opts) { return renameTown(this.ctx, id, name, opts); }
+  /** Town note text (lazy town.text; blank clears). */
+  setTownText(id, text, opts) { return setTownText(this.ctx, id, text, opts); }
   /** Depot rename (lazy name; blank = reset to "Depot at x,y"). */
   renameDepot(id, name, opts) { return renameDepot(this.ctx, id, name, opts); }
   /** Rename a rail/road waypoint (cmdRename.js renameWaypoint). */

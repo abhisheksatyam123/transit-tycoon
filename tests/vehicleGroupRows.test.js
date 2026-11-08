@@ -3,10 +3,10 @@ import { test, expect, describe } from 'bun:test';
 import { bucketVehicles, sortBuckets, GROUP_BY, BUCKET_SORTS } from '../js/ui/vehicleGroupRows.js';
 
 const V = [
-  { id: 1, name: 'Bus A', orderGroup: 7, groupId: 2, profitThisYear: 100 },
-  { id: 2, name: 'Bus B', orderGroup: 7, groupId: null, profitThisYear: 300 },
-  { id: 3, name: 'Truck', orderGroup: null, groupId: 2, profitThisYear: -50 },
-  { id: 4, name: 'Bus C', orderGroup: 7, groupId: 2, profitThisYear: 200 },
+  { id: 1, name: 'Bus A', orderGroup: 7, groupId: 2, profitThisYear: 100, wagons: 2 },
+  { id: 2, name: 'Bus B', orderGroup: 7, groupId: null, profitThisYear: 300, wagons: 5 },
+  { id: 3, name: 'Truck', orderGroup: null, groupId: 2, profitThisYear: -50, wagons: 1 },
+  { id: 4, name: 'Bus C', orderGroup: 7, groupId: 2, profitThisYear: 200, wagons: 3 },
   { id: 5, name: 'Solo', orderGroup: null, groupId: null, profitThisYear: 0 },
 ];
 const G = [{ id: 2, name: 'Ferries' }];
@@ -14,7 +14,7 @@ const G = [{ id: 2, name: 'Ferries' }];
 describe('vehicle group rows', () => {
   test('group-by modes are offered', () => {
     expect(GROUP_BY.map((g) => g[0])).toEqual(['none', 'shared', 'group']);
-    expect(BUCKET_SORTS.map((s) => s[0])).toEqual(['count', 'total', 'avg']);
+    expect(BUCKET_SORTS.map((s) => s[0])).toEqual(['count', 'total', 'avg', 'length']);
   });
   test('none yields no buckets', () => {
     expect(bucketVehicles(V, { by: 'none', groups: G })).toEqual([]);
@@ -60,6 +60,13 @@ describe('vehicle group rows', () => {
     expect(keys('total', 1)).toEqual(['v:3', 'v:5', 'o:7']);
     expect(keys('avg', 1)).toEqual(['v:3', 'v:5', 'o:7']);
     expect(keys('avg', -1)).toEqual(['o:7', 'v:5', 'v:3']);
+  });
+  test('bucket length sums wagon counts (VehicleGroupLengthSorter)', () => {
+    const b = bucketVehicles(V, { by: 'shared' }); // o:7: 2+5+3=10, v:3: 1, v:5: 0
+    expect(b.map((x) => x.length)).toEqual([10, 1, 0]);
+    expect(sortBuckets(b, { sort: 'length', dir: -1 }).map((x) => x.key)).toEqual(['o:7', 'v:3', 'v:5']);
+    expect(sortBuckets(b, { sort: 'length', dir: 1 }).map((x) => x.key)).toEqual(['v:5', 'v:3', 'o:7']);
+    expect(sortBuckets(bucketVehicles([{ id: 9, name: 'X', orderGroup: 1 }], { by: 'shared' }), { sort: 'length', dir: 1 })[0].length).toBe(0);
   });
   test('sortBuckets does not mutate its input', () => {
     const b = bucketVehicles(V, { by: 'shared' });

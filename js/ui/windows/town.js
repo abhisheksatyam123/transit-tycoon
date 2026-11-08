@@ -10,6 +10,7 @@ import { monthName } from '../format.js';
 import { openRename } from '../rename.js';
 import { actionList, ratingTitle, townRating } from '../../simulation/townAuthority.js';
 import { isArctic, snowLineOf, isTropic, tropicZoneAt } from '../../simulation/climate.js';
+import { MAX_TOWN_TEXT_LENGTH } from '../../simulation/cmdRename.js';
 
 /**
  * Population-history series for the town graph (pure). `hist` is town.hist (monthly population, oldest first);
@@ -45,6 +46,14 @@ export function openTown(app, id) {
         const t = app.findTown(id);
         if (t) app.centerOn(t.x, t.y);
       } }), el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'town', id) })));
+      body.appendChild(heading('Note'));
+      const noteTa = el('textarea', { rows: '3', maxlength: String(MAX_TOWN_TEXT_LENGTH), style: 'width:100%;box-sizing:border-box;', 'aria-label': 'Town note' });
+      const noteCount = el('div.muted.small', { text: '0 / ' + MAX_TOWN_TEXT_LENGTH });
+      const noteSave = el('button.btn', { type: 'button', text: 'Save note', onclick: () => { app.exec(app.game.setTownText(id, noteTa.value), { quiet: true }); noteTa.value = (app.findTown(id) || {}).text || ''; noteCount.textContent = `${noteTa.value.length} / ${MAX_TOWN_TEXT_LENGTH}`; } });
+      noteTa.addEventListener('input', () => { noteCount.textContent = `${noteTa.value.length} / ${MAX_TOWN_TEXT_LENGTH}`; });
+      body.appendChild(noteTa);
+      body.appendChild(noteCount);
+      body.appendChild(noteSave);
       // scenario editor only (OpenLoco TownWindow: expand / delete buttons shown in editor/sandbox)
       const edit = el('div.btn-row', null,
         el('button.btn', { type: 'button', text: 'Expand town', onclick: () => {
@@ -71,6 +80,7 @@ export function openTown(app, id) {
         const t = app.findTown(id);
         if (!t) { win.close(); return; }
         win.setTitle(t.name);
+        if (document.activeElement !== noteTa && noteTa.value !== (t.text || '')) { noteTa.value = t.text || ''; noteCount.textContent = `${noteTa.value.length} / ${MAX_TOWN_TEXT_LENGTH}`; }
         edit.hidden = !app.game.state.editor;
         set['Population'](num(t.population));
         const hist = t.hist || [];

@@ -9,7 +9,7 @@
 export const GROUP_BY = [['none', 'None'], ['shared', 'Shared orders'], ['group', 'Group']];
 
 /** Bucket sort keys: [key, label]. */
-export const BUCKET_SORTS = [['count', 'Count'], ['total', 'Total profit this year'], ['avg', 'Average profit this year']];
+export const BUCKET_SORTS = [['count', 'Count'], ['total', 'Total profit this year'], ['avg', 'Average profit this year'], ['length', 'Total length']];
 
 /** Bucket key of a vehicle for a group-by mode (null for 'none': no buckets). */
 function bucketKeyOf(v, by) {
@@ -24,7 +24,7 @@ function bucketKeyOf(v, by) {
  * group: one bucket per group; label = group name, 'Ungrouped' for no group (groups must be the company group list).
  * @param {any[]} vehicles
  * @param {{by?: string, groups?: {id:number,name:string}[]}} [opts]
- * @returns {{key:string, label:string, vehicles:any[], count:number, total:number, avg:number}[]}
+ * @returns {{key:string, label:string, vehicles:any[], count:number, total:number, avg:number, length:number}[]}
  */
 export function bucketVehicles(vehicles, opts = {}) {
   const { by = 'none', groups = [] } = opts;
@@ -36,12 +36,13 @@ export function bucketVehicles(vehicles, opts = {}) {
     const key = bucketKeyOf(v, by);
     let b = map.get(key);
     if (!b) {
-      b = { key, label: '', vehicles: [], count: 0, total: 0, avg: 0 };
+      b = { key, label: '', vehicles: [], count: 0, total: 0, avg: 0, length: 0 };
       map.set(key, b);
     }
     b.vehicles.push(v);
     b.count++;
     b.total += Number(v.profitThisYear) || 0;
+    b.length += Number(v.wagons) || 0;
   }
   for (const b of map.values()) {
     if (by === 'shared') {
@@ -57,7 +58,7 @@ export function bucketVehicles(vehicles, opts = {}) {
 }
 
 /**
- * Sort buckets by count / total / avg profit (dir 1 ascending, -1 descending). Ties keep first-seen order.
+ * Sort buckets by count / total / avg profit / total wagon length (dir 1 ascending, -1 descending). Ties keep first-seen order.
  * Returns a new array.
  * @param {ReturnType<typeof bucketVehicles>} buckets
  * @param {{sort?: string, dir?: number}} [opts]
@@ -65,7 +66,7 @@ export function bucketVehicles(vehicles, opts = {}) {
 export function sortBuckets(buckets, opts = {}) {
   const { sort = 'total', dir = 1 } = opts;
   const sign = dir < 0 ? -1 : 1;
-  const k = sort === 'count' ? 'count' : sort === 'avg' ? 'avg' : 'total';
+  const k = sort === 'count' ? 'count' : sort === 'avg' ? 'avg' : sort === 'length' ? 'length' : 'total';
   return buckets
     .map((b, i) => ({ b, i }))
     .sort((x, y) => ((x.b[k] - y.b[k]) * sign) || (x.i - y.i))
