@@ -7,6 +7,7 @@
 import { Game } from '../simulation/game.js';
 import { MAP_DEFAULTS } from '../simulation/constants.js';
 import { loadMoscowData, loadMoscowDataFor } from '../simulation/scenarios/moscowRegistry.js';
+import { logger } from './logger.js';
 
 export const SNAPSHOT_PATH = 'assets/scenarios/moscow-day0.json';
 export const SNAPSHOT_META_PATH = 'assets/scenarios/moscow-day0.meta.json';
@@ -47,7 +48,7 @@ export async function createGameFast(opts, GameClass = Game) {
         if (game.state.scenario === 'moscow') return game;
       }
     } catch (err) {
-      console.warn('Moscow snapshot unavailable; building the scenario instead', err);
+      if (!logger.warn('scenario', 'Moscow snapshot unavailable; building the scenario instead', err)) console.warn('Moscow snapshot unavailable; building the scenario instead', err);
     }
   }
   return GameClass.create(opts);

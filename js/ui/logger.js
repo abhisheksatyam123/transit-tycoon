@@ -144,7 +144,7 @@ export function defaultStore() {
 /* Logger singleton                                                    */
 /* ------------------------------------------------------------------ */
 
-class FileLogger {
+export class FileLogger {
   constructor() {
     this.store = defaultStore();
     this.enabled = false;
@@ -266,9 +266,7 @@ class FileLogger {
   /** Download the current log file (browser only; no-op in Node). */
   download() {
     if (typeof document === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
-    const text = [...(this.buffer)][0] !== undefined ? this.buffer.join('') : '';
-    const lines = this.buffer.join('');
-    const blob = new Blob([lines], { type: 'text/plain' });
+    const blob = new Blob([this.buffer.join('')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = this.currentFile();

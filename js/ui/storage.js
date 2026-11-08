@@ -5,6 +5,7 @@
 
 import { compress, decompress } from './lz.js';
 import { beginSaveHold, endSaveHold } from '../simulation/saveHold.js';
+import { logger } from './logger.js';
 
 const PREFIX = 'tt.save.';
 const ZPREFIX = 'Z1:';
@@ -99,7 +100,7 @@ export function saveToSlotAsync(slot, game, stats) {
         .then(() => { endSaveHold(); post({ op: 'end', id }); }, (err) => {
           endSaveHold();
           packWaiters.delete(id);
-          console.warn('streamed save failed; saving synchronously', err);
+          if (!logger.warn('storage', 'streamed save failed; saving synchronously', err)) console.warn('streamed save failed; saving synchronously', err);
           resolve(saveToSlot(slot, game));
         });
     } catch (err) {

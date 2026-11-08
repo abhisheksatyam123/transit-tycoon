@@ -21,6 +21,7 @@ import { nextLastNews } from './lastNews.js';
 import { currentCurrency } from './units.js';
 import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js';
 import { loadGamePrefs } from './gamePrefs.js';
+import { logger } from './logger.js';
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 /** Speed while Tab is held (OpenTTD fast forward = the fastest speed). */
@@ -203,7 +204,7 @@ export class App {
       this.toast(fromEditor ? 'Scenario loaded: play mode, fresh company' : 'Game loaded', 'good');
       return true;
     } catch (err) {
-      console.warn('Load failed', err);
+      if (!logger.warn('app', 'Load failed', err)) console.warn('Load failed', err);
       this.toast('Could not load save: ' + (err && err.message ? err.message : 'invalid data'), 'error');
       play('error');
       return false;

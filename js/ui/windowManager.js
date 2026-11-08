@@ -5,6 +5,7 @@
  * (so scroll positions and focused inputs survive).
  */
 import { el } from './dom.js';
+import { logger } from './logger.js';
 
 /**
  * @typedef {Object} WindowSpec
@@ -163,7 +164,7 @@ export class WindowManager {
     try {
       w.update();
     } catch (err) {
-      console.warn(`Window ${w.id} update failed; closing`, err);
+      if (!logger.warn('window', `Window ${w.id} update failed; closing`, err)) console.warn(`Window ${w.id} update failed; closing`, err);
       this.close(w.id);
     }
   }

@@ -9,6 +9,7 @@ import { INDUSTRY_BY_ID } from '../../config/industries.js';
 /** Sort keys: [key, label]. */
 export const TOWN_SORTS = [['name', 'Name'], ['population', 'Population'], ['rating', 'Rating']];
 export const INDUSTRY_SORTS = [['name', 'Name'], ['type', 'Type'], ['production', 'Production'], ['transported', 'Transported %']];
+export const DEPOT_SORTS = [['name', 'Name'], ['kind', 'Type'], ['inside', 'Inside'], ['town', 'Town']];
 
 /** Case-insensitive, numeric-aware name compare. */
 function nameCmp(a, b) {
@@ -63,6 +64,21 @@ export function sortIndustries(industries, opts = {}) {
   else if (sort === 'transported') cmp = (a, b) => transportedPct(a) - transportedPct(b);
   else cmp = (a, b) => nameCmp(a.name, b.name);
   return sortBy(industries, cmp, dir);
+}
+
+/**
+ * Depots sorted by name / kind / vehicles inside / nearest town.
+ * @param {object[]} depots
+ * @param {{sort?:string, dir?:number}} [opts]
+ */
+export function sortDepots(depots, opts = {}) {
+  const { sort = 'name', dir = 1 } = opts;
+  let cmp;
+  if (sort === 'kind') cmp = (a, b) => nameCmp(a.kindLabel || a.kind, b.kindLabel || b.kind) || nameCmp(a.name, b.name);
+  else if (sort === 'inside') cmp = (a, b) => (a.inside || 0) - (b.inside || 0);
+  else if (sort === 'town') cmp = (a, b) => nameCmp(a.town, b.town) || nameCmp(a.name, b.name);
+  else cmp = (a, b) => nameCmp(a.name, b.name);
+  return sortBy(depots, cmp, dir);
 }
 
 /**

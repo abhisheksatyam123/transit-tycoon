@@ -1,6 +1,7 @@
 /**
  * Entry point: creates/loads the Game, wires renderer, minimap, UI and the game loop.
- * The only global is `window.__game` (debug handle to the current Game instance).
+ * Globals: `window.__game` (debug handle to the current Game instance) and
+ * `window.__ttLog` (file logger handle; see docs/logger.md).
  */
 import { TOWN_LAYOUT_MODES } from './simulation/towns.js';
 import { HOTKEY_ACTIONS, shortcutTable, effectiveKeys, currentOverrides, onHotkeysChanged } from './ui/hotkeys.js';
@@ -27,6 +28,7 @@ import { initPack, togglePack } from './renderer/pack/index.js';
 import { openTitleMenu, titleMenuOpen } from './ui/titleMenu.js';
 import { screenshotCanvas } from './ui/screenshot.js';
 import { renderExtras } from './ui/extraViewport.js';
+import { initLogger, logger } from './ui/logger.js';
 
 const WINDOW_REFRESH_MS = 250;
 const STATUS_REFRESH_MS = 200;
@@ -61,7 +63,7 @@ async function initialGame() {
     try {
       return { game: await Game.deserializeAsync(data), restored: true, scenario: false };
     } catch (err) {
-      console.warn('Autosave could not be loaded; starting a new game', err);
+      if (!logger.warn('boot', 'Autosave could not be loaded; starting a new game', err)) console.warn('Autosave could not be loaded; starting a new game', err);
     }
   }
   // ?climate=arctic|tropic|toyland: a random map of that climate (opt-in; default games keep the temperate climate)
@@ -253,7 +255,7 @@ async function main() {
     getGame: () => app.game,
     getSpeed: () => app.effectiveSpeed(),
     onError: (err) => {
-      console.error('Simulation error', err);
+      if (!logger.error('simulation', 'Simulation error', err)) console.error('Simulation error', err);
       app.toast('Simulation error: ' + (err && err.message ? err.message : err), 'error');
     },
     frame(dt, now) {
@@ -324,7 +326,8 @@ function maybeOpenGoals(app, game) {
   else markDismissed();
 }
 
+initLogger();
 main().catch((err) => {
-  console.error('Boot failed', err);
+  if (!logger.error('boot', 'Boot failed', err)) console.error('Boot failed', err);
   document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f88;padding:12px">Boot failed: ' + String(err && err.message ? err.message : err) + '</pre>');
 });

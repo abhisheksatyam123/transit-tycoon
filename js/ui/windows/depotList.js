@@ -5,6 +5,8 @@
  */
 import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
+import { sortDepots, DEPOT_SORTS, makeSortMemo, filterByName } from './listSort.js';
+import { sortControls, nameSearch } from './sortControls.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 
 /** Display labels per depot kind. */
@@ -50,6 +52,7 @@ export function depotRows(state) {
  * @param {import('../app.js').App} app
  */
 export function openDepotList(app) {
+  const state = { sort: 'name', dir: 1, query: '' };
   return app.wm.open('depots', {
     title: 'Depots',
     width: 340,
@@ -60,9 +63,12 @@ export function openDepotList(app) {
         el('span', { text: 'Depot' }), el('span', { text: 'Nearest town' }),
         el('span', { text: 'Inside' }), el('span', { text: 'Total' }), el('span', { text: '' }));
       const list = el('div.list.scroll.table');
-      body.append(summary, head, list);
+      const memo = makeSortMemo((xs) => sortDepots(xs, state), (r) => [r.name || '', r.kindLabel || r.kind, r.inside || 0, r.town || '']);
+      const controls = sortControls(DEPOT_SORTS, state, () => app.wm.updateAll());
+      const search = nameSearch(state, 'Search depots by name', () => app.wm.updateAll());
+      body.append(controls.bar, search, summary, head, list);
       const refresh = () => {
-        const rows = depotRows(app.game.state);
+        const rows = filterByName(memo(depotRows(app.game.state), `${state.sort}:${state.dir}`), state.query, (r) => r.name || '');
         const inside = rows.reduce((s, r) => s + r.inside, 0);
         setText(summary, `${rows.length} depot(s) · ${inside} vehicle(s) inside`);
         listOrEmpty(list, rows, (r) => r.id,
