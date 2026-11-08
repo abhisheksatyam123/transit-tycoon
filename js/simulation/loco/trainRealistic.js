@@ -17,7 +17,7 @@
  * Per tick: O(1), no allocation. Consist mass/power/TE/drag are cached on v.motionCache (recomputed only
  * when model, wagons or cargo change); the curve limit is cached per pathIndex in v.curvePath/curveIdx/curveLimit.
  */
-import { KMH_TO_TILES_PER_TICK, totalWeight, totalPower, landSpeedStep } from './vehicleMotion.js';
+import { KMH_TO_TILES_PER_TICK, MPH_TO_TILES_PER_TICK, totalWeight, totalPower, landSpeedStep } from './vehicleMotion.js';
 
 /** OpenTTD GROUND_ACCELERATION (vehicle_type.h:19), N per tonne. */
 export const GROUND_ACCELERATION = 9800;
@@ -37,6 +37,58 @@ export const CURVE_LIMIT_90 = 61;        // train_cmd.cpp: 90 degree -> 61
 export const CURVE_LIMIT_45_CLOSE = 88;  // train_cmd.cpp: 45 degree corners closer than VEHICLE_LENGTH -> 88
 
 const NO_LIMIT = Infinity;
+
+/**
+ * OpenLoco road curve speed fraction. Vehicle1::updateRoad uses
+ * max(12 mph, roadMaxSpeed * curveSpeedFraction + 1 mph). The road table has
+ * leftCurveVerySmall/rightCurveVerySmall = 0x0CCD/0xFFFF,
+ * leftCurveSmall/rightCurveSmall = 0x199A/0xFFFF, and turnaround = 0x0CCD/0xFFFF.
+ *
+ * The original lookup is keyed by roadId = (res >> 3) & 0xF, where the low nibble encodes the road
+ * track type: 0 straight, 1/2 very-small curve, 3/4 small curve, 5/6 slope, 7/8 steep slope, and
+ * 9 turnaround. Transit Tycoon does not expose that piece ID, so the curve class is recovered
+ * geometrically from the TT tile path.
+ */
+export const ROAD_CURVE_FRACTION_VERY_SMALL = 0x0CCD / 0xFFFF; // ~0.05
+/** OpenLoco small road curve speed fraction (0x199A/0xFFFF, ~0.10). */
+export const ROAD_CURVE_FRACTION_SMALL = 0x199A / 0xFFFF;
+/** OpenLoco minimum road curve speed, in mph. */
+export const ROAD_CURVE_MIN_MPH = 12;
+
+/**
+ * OpenLoco road curve speed fraction for a road path. The look-ahead must stay O(1), so only the
+ * first <=CURVE_LOOKAHEAD_TILES vertices are inspected. TT paths use cardinal and diagonal steps;
+ * a 45-degree turn is the small curve, and 90/270-degree turns are the very-small curve. A straight
+ * through-move and transitions between diagonals are 0 degrees and therefore uncapped. A U-turn
+ * has nearest=4 and is also classified as the very-small curve, matching roadId 9.
+ */
+export function roadCurveFraction(v) {
+  const pth = v?.path;
+  if (!pth || v.pathIndex < 0 || v.pathIndex + 2 >= pth.length) return 1;
+  let min = 1;
+  const end = Math.min(pth.length - 2, v.pathIndex + CURVE_LOOKAHEAD_TILES);
+  for (let i = v.pathIndex + 1; i <= end; i++) {
+    const a = pth[i - 1], b = pth[i], c = pth[i + 1];
+    const d1x = b.x - a.x, d1y = b.y - a.y;
+    const d2x = c.x - b.x, d2y = c.y - b.y;
+    const dot = d1x * d2x + d1y * d2y;
+    if (dot > 0 && (d1x * d2y - d1y * d2x) === 0) continue;
+    const nearest = Math.round(Math.atan2(Math.abs(d1x * d2y - d1y * d2x), dot) / (Math.PI / 4));
+    if (nearest === 0) continue;
+    min = Math.min(min, nearest >= 2 ? ROAD_CURVE_FRACTION_VERY_SMALL : ROAD_CURVE_FRACTION_SMALL);
+  }
+  return min;
+}
+
+/**
+ * Road curve target in tiles per tick (OpenLoco Vehicle1::updateRoad):
+ *   max(fraction * roadMaxSpeed, 12 mph) + 1 mph
+ * Current movement.js applies this through Math.min(maxTiles, roadCurveTargetTiles(...)), so earlier
+ * order/bridge/breakdown caps are preserved.
+ */
+export function roadCurveTargetTiles(v, roadMaxTiles) {
+  return Math.max(roadMaxTiles * roadCurveFraction(v), ROAD_CURVE_MIN_MPH * MPH_TO_TILES_PER_TICK) + 1 * MPH_TO_TILES_PER_TICK;
+}
 
 /**
  * Corner speed limit (km/h) from the path ahead (OpenTTD GetCurveSpeedLimit, path form). Pure apart from

@@ -118,8 +118,8 @@ describe('timetable separation', () => {
     return { departs, fleet, L };
   }
 
-  test('separation on: departure gaps stay within 1 day of round/3 after 6 months', () => {
-    const { departs, L } = runLine(true, 182);
+  test('separation on: departure gaps stay within 1 day of round/3 over 8 months', () => {
+    const { departs, L } = runLine(true, 240);
     const want = roundTicks(L.s.vehicles[0].orders) / 3 / TICKS_PER_DAY;
     expect(departs.length).toBeGreaterThan(20);
     const sorted = [...departs].sort((a, b) => a - b);

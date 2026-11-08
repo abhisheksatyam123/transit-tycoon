@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'bun:test';
 import { DEFAULT_SETTINGS } from '../js/simulation/settings.js';
-import { curveSpeedLimitKmh, realisticTrainSpeedStep, consistMotion, CURVE_LIMIT_90, CURVE_LIMIT_45_CLOSE } from '../js/simulation/loco/trainRealistic.js';
-import { landSpeedStep, targetSpeedTiles, KMH_TO_TILES_PER_TICK } from '../js/simulation/loco/vehicleMotion.js';
+import { curveSpeedLimitKmh, roadCurveFraction, roadCurveTargetTiles, realisticTrainSpeedStep, consistMotion, CURVE_LIMIT_90, CURVE_LIMIT_45_CLOSE } from '../js/simulation/loco/trainRealistic.js';
+import { landSpeedStep, targetSpeedTiles, KMH_TO_TILES_PER_TICK, MPH_TO_TILES_PER_TICK } from '../js/simulation/loco/vehicleMotion.js';
 import { flatGame } from './helpers.js';
 import { vehicleTick } from '../js/simulation/movement.js';
 
@@ -85,6 +85,28 @@ describe('trainAcceleration', () => {
       expect(s).toBe(ref);
     }
     expect(KMH_TO_TILES_PER_TICK).toBeGreaterThan(0);
+  });
+
+  test("road curve cap: OpenLoco Vehicle1::updateRoad (fraction + 1 mph, 12 mph floor)", () => {
+    const p = (pts) => pts.map(([x, y]) => ({ x, y }));
+    const maxTiles = 100 * MPH_TO_TILES_PER_TICK;
+    const base = { kind: 'road', pathIndex: 1 };
+    // Cardinal 90-degree turn is the very-small curve (0x0CCD/0xFFFF).
+    const v90 = { ...base, path: p([[10, 10], [11, 10], [12, 10], [12, 11], [12, 12]]), maxSpeed: maxTiles };
+    expect(roadCurveFraction(v90)).toBeCloseTo(0x0CCD / 0xFFFF);
+    // Cardinal-to-diagonal 45-degree turn is the small curve (0x199A/0xFFFF).
+    const v45 = { ...base, path: p([[10, 10], [11, 10], [12, 10], [13, 11], [14, 12]]), maxSpeed: maxTiles };
+    expect(roadCurveFraction(v45)).toBeCloseTo(0x199A / 0xFFFF);
+    // Target = max(fraction * roadMaxSpeed, 12 mph) + 1 mph.
+    const expected90 = Math.max(maxTiles * (0x0CCD / 0xFFFF), 12 * MPH_TO_TILES_PER_TICK) + 1 * MPH_TO_TILES_PER_TICK;
+    expect(roadCurveTargetTiles(v90, maxTiles)).toBeCloseTo(expected90);
+    // 12 mph floor: a slow vehicle stays at 13 mph-including-the-plus-one, rather than below it.
+    const slowMax = 5 * MPH_TO_TILES_PER_TICK;
+    expect(roadCurveTargetTiles(v90, slowMax)).toBeCloseTo(13 * MPH_TO_TILES_PER_TICK);
+    // Straight road has no curve fraction.
+    const straight = { ...base, path: p([[10, 10], [11, 10], [12, 10], [13, 10]]), maxSpeed: maxTiles };
+    expect(roadCurveFraction(straight)).toBe(1);
+    expect(roadCurveTargetTiles(straight, maxTiles)).toBeGreaterThan(maxTiles);
   });
 
   test('train on a tight curve is slower than on a straight in default acceleration mode', () => {

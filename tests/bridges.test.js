@@ -159,9 +159,11 @@ describe('player bridges (T7)', () => {
     const sA = g.state.stations[g.state.stations.length - 2], sB = g.state.stations[g.state.stations.length - 1];
     expect(g.setOrders(r.vehicle.id, [{ stationId: sA.id, full: false }, { stationId: sB.id, full: false }]).ok).toBe(true);
     expect(g.startVehicle(r.vehicle.id).ok).toBe(true);
+    // Step tick-by-tick: at full road speed the bus crosses the 5-tile bridge deck within a single
+    // 96-tick day, so daily checkpoint samples can straddle it without ever landing inside x=36..40.
     let crossed = false;
-    for (let d = 0; d < 60 && !crossed; d++) {
-      g.stepDays(1);
+    for (let i = 0; i < 20000 && !crossed; i++) {
+      g.step();
       for (const seg of g.getVehicleSegments(r.vehicle)) {
         if (seg && seg.x >= 36 && seg.x <= 40) { crossed = true; break; }
       }
