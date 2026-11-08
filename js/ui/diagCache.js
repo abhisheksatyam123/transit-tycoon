@@ -92,7 +92,7 @@ function runScan(game) {
   if (issues) {
     try {
       summary = typeof mod.summarizeIssues === 'function' ? mod.summarizeIssues(issues) : countIssues(issues);
-    } catch { summary = countIssues(issues); }
+    } catch { summary = countIssues(issues); /* detailed scan failed: fall back to issue count */ }
   }
   cache = { game, at: Date.now(), month: monthKey(game), issues, error, summary, available: true };
   dirty = false;

@@ -53,7 +53,7 @@ export function openTraffic(app) {
       const get = () => {
         const g = app.game;
         if (!g || typeof g.trafficStats !== 'function') return null;
-        try { return g.trafficStats(); } catch { return null; }
+        try { return g.trafficStats(); } catch { return null; } /* stats unavailable: window shows empty state */
       };
       const kpiLabels = ['Active cars', 'Trips today', 'Trips total', 'Failed today', 'Failed total', 'Aborted (stuck)', 'Suppressed (no room)', 'Avg speed', 'Avg trip (days)', 'Congested tiles'];
       const set = kvGrid(body, kpiLabels);

@@ -155,7 +155,7 @@ function themeColor(name, fallback) {
   try {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return v || fallback;
-  } catch { return fallback; }
+  } catch { return fallback; /* data unavailable: caller renders its fallback */ }
 }
 
 /**

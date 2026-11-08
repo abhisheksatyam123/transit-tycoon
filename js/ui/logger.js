@@ -54,7 +54,7 @@ function safeJson(v) {
   try {
     const s = JSON.stringify(v);
     return s === undefined ? '' : ' ' + s;
-  } catch { return ' [unserialisable]'; }
+  } catch { return ' [unserialisable]'; /* log line must never throw */ }
 }
 
 /** Build one log line. Pure (tested). */
