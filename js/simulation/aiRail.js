@@ -15,12 +15,15 @@ import { DIRS, OPPOSITE } from './constants.js';
 import { straightAxis } from './network.js';
 import { objectBlocks } from './trackRules.js';
 import { buildLine } from './cmdTrack.js';
+import { buildSignalRun } from './signalRun.js';
 import { buildRailStation, buildDepot } from './cmdStation.js';
 import { buyVehicle, setOrders, startVehicle } from './cmdVehicle.js';
 import { listModels } from './queries.js';
 import { pathOk } from './shapes.js';
 import { pushNews } from './news.js';
 
+/** Rival signalling: block signals on the line every this many track tiles (OTTD signal density autofill). */
+export const RIVAL_SIGNAL_SPACING = 4;
 /** Rail route distance window (manhattan tiles, industry centre to centre). */
 export const RAIL_MIN_DIST = 20;
 export const RAIL_MAX_DIST = 60;
@@ -67,6 +70,7 @@ export function railRoutesOf(r) {
 /** Cash a rival needs before a rail route: twice the estimated route cost (track, 2 stations, depot, train). */
 export function railRouteBudget(dist, engine, wagon) {
   const est = dist * 1.4 * COSTS.rail + 2 * STATION_LEN * COSTS.railStation + COSTS.depotRail
+    + Math.ceil(dist / RIVAL_SIGNAL_SPACING) * (COSTS.signal || 0)
     + engine.cost + RAIL_WAGONS * wagon.cost;
   return 2 * est;
 }
@@ -329,6 +333,8 @@ export function buildRailRoute(ctx, r) {
   if (!stA.ok || !stB.ok) return false;
   const line = buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner });
   if (!line.ok) return false;
+  // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (run stops at stations).
+  buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
   const depot = placeRailDepot(ctx, path, owner);
   if (!depot) return false;
   const A = findStation(state, stA.stationId), B = findStation(state, stB.stationId);

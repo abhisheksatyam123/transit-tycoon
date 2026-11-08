@@ -14,6 +14,7 @@ import { COSTS } from '../config/costs.js';
 import { straightAxis, connectedNeighbours } from './network.js';
 import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
+import { companyById } from './owner.js';
 import { ERR, checkMoney, coordsOk } from './trackRules.js';
 
 /** Derived block data per map: { blockOf: Int32Array (-1 = signal or no rail), bounded: Set<id>, count }. */
@@ -55,12 +56,14 @@ export function buildSignal(ctx, x, y, opts = {}) {
   const type = opts.type || 'block';
   if (!SIGNAL_KINDS.includes(type)) return { ok: false, error: 'Unknown signal type' };
   const cost = constructionTotal(state, COSTS.signal);
-  const money = checkMoney(state, cost);
+  const payee = companyById(state, opts.owner ?? null);
+  if (opts.owner != null && !payee) return { ok: false, error: 'Unknown company' };
+  const money = checkMoney(state, cost, payee || state.company);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost, tiles: 1 };
   state.map.tiles[y * state.map.width + x].signal = type === 'block' ? 1 : { type, dir: signalDefaultDir(state, x, y, opts.dir) };
   invalidateBlocks(state);
-  spend(state.company, 'construction', cost);
+  spend(payee || state.company, 'construction', cost);
   return { ok: true, cost, tiles: 1 };
 }
 

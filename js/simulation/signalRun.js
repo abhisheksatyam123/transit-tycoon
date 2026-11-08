@@ -58,7 +58,7 @@ export function buildSignalRun(ctx, tiles, opts = {}) {
   if (!plan.positions.length) {
     return { ok: false, error: plan.stopped ? plan.stopped.error : 'No signal position on this run' };
   }
-  return runEach(ctx, plan.positions, (p, o) => buildSignal(ctx, p.x, p.y, { ...o, type: opts.type || 'block' }), opts);
+  return runEach(ctx, plan.positions, (p, o) => buildSignal(ctx, p.x, p.y, { ...o, owner: opts.owner, type: opts.type || 'block' }), opts);
 }
 
 /** Price (dry run) every tile first; commit only if the total is affordable. */
