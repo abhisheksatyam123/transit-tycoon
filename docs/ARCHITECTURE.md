@@ -33,7 +33,7 @@ transit-tycoon/
     traffic trafficTrips (private cars: spawn, routes, congestion)
     diagnostics diagIssue diagChecksMap diagChecksEntities (issue detector, read-only)
     Command/sim modules receive ctx = {state, emit}.
-  js/openloco/             ported OpenLoco (MIT) track & road code: piece tables, connection math, chain walk (see js/openloco/README.md)
+  js/openloco/             (deleted 2026-11-08, gap #24: dead shadow engine, 0 production imports; archived scratchpad/archive/js-openloco-6f54b04.tar.gz; ruby net radii come from js/renderer/net/locoPieces.js)
   js/renderer/               isometric canvas: iso, camera, palette, groundCache, heights, slope, particles, minimap, renderer
     layers/   terrain transport objects overlays traffic (cars + congestion heatmap)
     sprites/  canvas shapes terrain transport houses buildings industries vehicles (procedural, cached)
@@ -130,7 +130,7 @@ quarterly/yearly company updates, then CompanyManager daily), then TileManager, 
 VehicleManager, StationManager and CompanyManager ticks. Managers live in `js/simulation/loco/*Manager.js` with
 helpers `station.js`, `industry.js`, `town.js`, `vehicle.js`, `company.js`, `economy.js` (cargo payment:
 `calculateDeliveredCargoPayment`). UI runs 40 ticks/s (`ui/loop.js` BASE_TPS). OpenLoco map elements / tile manager /
-track connections are ported in `js/openloco/map/` (see js/openloco/README.md).
+locoPieces.js centreline radii used by js/renderer/net/fit.js (see scratchpad/archive/js-openloco-6f54b04.tar.gz for deleted js/openloco/).
 
 ## Gameplay rules
 - Cargo: PASS, MAIL, COAL, WOOD, OIL, GRAI, LVST, IORE, STEL, GOOD.
