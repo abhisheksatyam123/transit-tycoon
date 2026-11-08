@@ -5,7 +5,7 @@
  * Serve the dist/ folder as the site root (static host or `bun tools/serve-dist.js`).
  * Dev path is unchanged: `bun server.js` still serves the unbundled js/ modules.
  *
- * Usage: bun tools/build-web.js [--out dist]
+ * Usage: bun tools/build-web.js [--out dist] [--base /subpath/ | env BASE_PATH]
  */
 import { rmSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -13,6 +13,12 @@ import { join, relative } from 'node:path';
 const ROOT = join(import.meta.dir, '..');
 const outArg = process.argv.indexOf('--out');
 const OUT = join(ROOT, outArg > 0 ? process.argv[outArg + 1] : 'dist');
+
+const baseArg = process.argv.indexOf('--base');
+let basePath = baseArg > 0 ? process.argv[baseArg + 1] : (process.env.BASE_PATH || '');
+if (basePath && !basePath.endsWith('/')) {
+  basePath += '/';
+}
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(join(OUT, 'js'), { recursive: true });
@@ -39,6 +45,8 @@ const entryRel = relative(OUT, entry.path).split('\\').join('/');
 
 // index.html: the dev page loads js/main.js as a module; the build loads the bundled entry and preloads the
 // split chunks and the first-frame assets (the OpenGFX atlas + its manifest) so they download in parallel.
+// If basePath is specified (e.g. '/transit-tycoon/'), insert <base href="..."> for subpath hosting.
+const baseTag = basePath ? `  <base href="${basePath}">\n` : '';
 const preloads = [
   ...chunks.map((c) => `  <link rel="modulepreload" href="${c}">`),
   '  <link rel="preload" href="assets/opengfx/manifest.json" as="fetch" type="application/json" crossorigin>',
@@ -46,7 +54,8 @@ const preloads = [
 ].join('\n');
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
   .replace('<script type="module" src="js/main.js"></script>', `<script type="module" src="${entryRel}"></script>`)
-  .replace('</head>', `${preloads}\n</head>`);
+  .replace('</head>', `${preloads}\n</head>`)
+  .replace('<head>', `<head>\n${baseTag}`.replace('\n\n', '\n'));
 writeFileSync(join(OUT, 'index.html'), html);
 
 cpSync(join(ROOT, 'css'), join(OUT, 'css'), { recursive: true });
@@ -55,4 +64,4 @@ cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
 let bytes = 0;
 const walk = (d) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? walk(p) : (bytes += statSync(p).size); } };
 walk(OUT);
-console.log(`built ${relative(ROOT, OUT)}/: entry ${entryRel}, ${chunks.length} chunks, ${(bytes / 1048576).toFixed(1)} MB total`);
+console.log(`built ${relative(ROOT, OUT)}/: entry ${entryRel}, ${chunks.length} chunks, ${(bytes / 1048576).toFixed(1)} MB total${basePath ? ` (base: ${basePath})` : ''}`);

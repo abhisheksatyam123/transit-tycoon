@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "bun server.js",
     "build:web": "bun tools/build-web.js",
+    "check:dist": "bun tools/check-dist.js",
     "test": "bun test",
     "check": "bun tools/check-imports.js",
     "simulate": "bun tools/simulate-city.js",

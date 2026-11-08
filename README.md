@@ -21,18 +21,18 @@ No build step and no runtime dependencies: the browser loads native ES modules f
 
 ## Publish the web build (static hosting)
 The dev path (`bun run dev`, native ES modules from `js/`) is unchanged and is what the tests and e2e use.
-For a fast cold load, publish a bundled build instead:
+For production deployments and fast cold loads, build the bundled static site:
 
 ```sh
 bun run build:web        # -> dist/: bundled + minified js (code-split), index.html, css/, assets/
+bun run check:dist       # validate dist/ integrity, manifest, and bundle entry points
 bun run serve:dist       # optional local check on http://localhost:5174 (PORT=xxxx)
 ```
 
-`dist/` is git-ignored and built on demand. Upload the **contents** of `dist/` to any static host that serves
-files at the site root (GitHub Pages, Netlify, Cloudflare Pages, an nginx `root`). Serve `.js` as
-`text/javascript`, and enable gzip or brotli on `.js`, `.css`, `.json` and `.png`. Assets are relative
-URLs, so the site can live under a sub-path such as `https://user.github.io/transit-tycoon/`.
-The save worker is bundled too (`js/saveWorker.js` next to `js/main.js`).
+`dist/` is git-ignored and built on demand. Upload the **contents** of `dist/` to any static host (GitHub Pages, Netlify, Cloudflare Pages, Nginx, Caddy).
+- **Subpath hosting**: For hosting under a subpath (e.g. `https://<user>.github.io/<repo>/`), run `bun run build:web --base /<repo>/` or `BASE_PATH=/<repo>/ bun run build:web`.
+- **MIME & compression**: Serve `.js` as `text/javascript`, and enable gzip/brotli on `.js`, `.css`, `.json`, and `.html`.
+- See [`docs/DEPLOY.md`](docs/DEPLOY.md) for full static deployment instructions, Nginx/Caddy configs, and caching recommendations.
 
 ## How to play
 1. Open **Help** in the toolbar for the in-game tutorial.
