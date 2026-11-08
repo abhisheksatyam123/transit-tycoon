@@ -99,6 +99,19 @@ function add(set, file, list) {
   add('locks', 'sprites/png/infrastructure/locks_normal.gimp.png', r);
 }
 
+// presignals (extra-signals.pnml PRE_SIGNAL block, lines 3-7): light-{entry,exit,combo}.png × tmpl_signals_file(10,50)
+// = 3×16 frames (dir pairs red/green). Rects are the template tmpl_signals_file from sprite_templates.pnml
+// line 169 (x offsets 0..450, each 20x30 xo=-9 yo=-28); y is 50 in extra-signals.pnml.
+// (British-side block + German right-side semaphore variants in the same file are guarded by
+// `if ((traffic_side == TRAFFIC_SIDE_RIGHT))` so the light-* pre-signals are side-agnostic here.)
+{
+  const offs = [0, 30, 60, 90, 120, 150, 180, 210, 300, 330, 240, 270, 360, 390, 420, 450];
+  const ff = offs.map((x) => ({ x: x + 10, y: 50, w: 20, h: 30, xo: -9, yo: -28 }));
+  for (const kind of ['entry', 'exit', 'combo']) {
+    add(`presignal_${kind}`, `sprites/png/infrastructure/signals/light-${kind}.png`, ff);
+  }
+}
+
 // tram overlay (extra-tram-tracks.pnml ottd_tramway2 starts at TRAMWAY_BASE+2, so SPR_TRAMWAY_OVERLAY (base+4) is rect 2; rects 2..20 = overlay 0..18)
 {
   const body = block(text('sprites/extra/extra-tram-tracks.pnml'), /replacenew ottd_tramway2\(/);

@@ -16,8 +16,8 @@
  * the base pack, so they stay procedural. When the pack is off they also stay procedural.
  */
 import { HALF_H } from '../iso.js';
-import { packActive } from '../pack/state.js';
-import { blitPack } from '../pack/draw.js';
+import { packActive, packState } from '../pack/state.js';
+import { blitPack, blitPackFrom } from '../pack/draw.js';
 
 /**
  * OpenGFX electric light signal sprite id for a (dir, red) pair. PURE (unit-tested).
@@ -45,9 +45,27 @@ export function signalSpriteId(dir, red) {
  * pre-signal (entry/exit/combo: extra set 5088+, not in the base pack).
  */
 export function drawSignalSprite(ctx, sx, sy, red = false, type = 'block', dir = 0) {
-  if (type === 'entry' || type === 'exit' || type === 'combo') return false;
+  if (type === 'entry' || type === 'exit' || type === 'combo') {
+    // pre-signals live in the EXTRA pack (presignal_{entry,exit,combo}.0..15), not base. Frame = dir axis pair + red/green.
+    if (!packActive() || !packState.extra) return false;
+    const frame = presignalFrame(dir, red);
+    return blitPackFrom(packState.extra, ctx, `presignal_${type}.${frame}`, sx, sy - HALF_H);
+  }
   if (!packActive()) return false;
   return blitPack(ctx, String(signalSpriteId(dir, red)), sx, sy - HALF_H);
+}
+
+/** Frame index for presignal sprites (same direction-pair order as signalSpriteId, frames 0..15). PURE. */
+export function presignalFrame(dir, red) {
+  const c = red ? 0 : 1;
+  // axis pairs only: E(2) e-w pair at 8, W(8) w-e at 10, N(1) n-s at 14, S(4) s-n at 12 (tmpl_signal order)
+  switch (dir) {
+    case 2: return 8 + c; // E: e-w (frames 8/9)
+    case 8: return 10 + c; // W: w-e (10/11)
+    case 1: return 14 + c; // N: n-s (14/15)
+    case 4: return 12 + c; // S: s-n (12/13)
+    default: return 8 + c; // two-way
+  }
 }
 
 /**
