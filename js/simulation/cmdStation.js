@@ -247,7 +247,7 @@ export function buildDepot(ctx, x, y, kind, dir, opts = {}) {
     }
   }
   const depot = stampOwner(state, { id, kind, x, y, dir }, opts.owner ?? null);
-  depot.builtDate = { year: state.date.year, month: state.date.month, day: state.date.day };
+  if (!state.scenario || state.tick > 0) depot.builtDate = { year: state.date.year, month: state.date.month, day: state.date.day };
   state.depots.push(depot);
   spend(companyById(state, opts.owner ?? null), 'construction', cost);
   return { ok: true, cost, depotId: id };

@@ -21,7 +21,8 @@ export function createStation(state, x, y) {
     kinds: { rail: false, bus: false, truck: false }, tiles: [],
     cargo: {}, rating: {}, lastPickup: {}, accepts: {},
     lastSpeed: 0, arrived: { train: false, road: false },
-    builtDate: { year: state.date.year, month: state.date.month, day: state.date.day },
+    // lazy builtDate (omitted during frozen Moscow day-0 setup)
+    ...((!state.scenario || state.tick > 0) && { builtDate: { year: state.date.year, month: state.date.month, day: state.date.day } }),
   };
   state.stations.push(st);
   return st;
