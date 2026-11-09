@@ -1,11 +1,12 @@
 /**
- * Cheats (OpenTTD cheat_gui.cpp / cheat_type.h, subset): money +10M, change year (clamped like
- * ClickChangeDateCheat, cheat_gui.cpp:104-108), magic bulldozer (road_cmd.cpp:276, town_cmd.cpp:702, industry_cmd.cpp:504).
+ * Cheats (OpenTTD cheat_gui.cpp / cheat_type.h, OpenLoco Cheat.cpp subset):
+ * money +10M, change year, magic bulldozer, clear loan/debt, acquire company.
  * Build while paused is always allowed in TT (no pause gate in trackRules / placement), so it needs no toggle.
  * `state.cheated` is lazy: it is set only when a cheat is used, and the company window shows it (OpenTTD marks
  * the company as having cheated). `state.cheats` (lazy) holds the magic bulldozer toggle.
  */
 import { companyById } from './owner.js';
+import { transferRival } from './aiCompanies.js';
 
 /** OpenTTD MoneyCheat step: the cheat window's money button adds 10,000,000 (cheat_gui.cpp _money_cheat_amount). */
 export const MONEY_CHEAT_AMOUNT = 10000000;
@@ -17,7 +18,7 @@ export const CHEAT_MAX_YEAR = 5000000;
 function markCheated(state) { state.cheated = true; }
 
 /**
- * Add money to the player's company (OpenTTD CmdMoneyCheat: the amount is added to the bank balance).
+ * Add money to the player's company (OpenTTD CmdMoneyCheat / OpenLoco Cheat::addCash).
  * @returns {{ok:true,money:number}|{ok:false,error:string}}
  */
 export function moneyCheat(state, amount = MONEY_CHEAT_AMOUNT) {
@@ -30,7 +31,36 @@ export function moneyCheat(state, amount = MONEY_CHEAT_AMOUNT) {
 }
 
 /**
- * Change the calendar year (OpenTTD ClickChangeDateCheat): clamped to the valid range, same-year is a no-op,
+ * Clear the company loan/debt to 0 (OpenLoco CheatCommand::clearLoan).
+ * @returns {{ok:true,loan:number}|{ok:false,error:string}}
+ */
+export function clearDebtCheat(state) {
+  const c = companyById(state, null);
+  if (!c) return { ok: false, error: 'No company' };
+  c.loan = 0;
+  markCheated(state);
+  return { ok: true, loan: 0 };
+}
+
+/**
+ * Acquire all assets of a rival company for free (OpenLoco CheatCommand::acquireAssets).
+ * Takes over vehicles, stations, depots, HQ, cash and transfers ownership of rival tracks/roads, then closes the rival.
+ * @param {{state:any}} ctx
+ * @param {number} rivalId
+ * @returns {{ok:true,acquired:number}|{ok:false,error:string}}
+ */
+export function acquireCompanyCheat(ctx, rivalId) {
+  const state = ctx.state;
+  if (rivalId == null || !Number.isFinite(rivalId)) return { ok: false, error: 'Invalid company id' };
+  const r = (state.rivals || []).find((q) => q.id === rivalId);
+  if (!r || r.bankrupt) return { ok: false, error: 'No such company' };
+  transferRival(ctx, r);
+  markCheated(state);
+  return { ok: true, acquired: rivalId };
+}
+
+/**
+ * Change the calendar year (OpenTTD ClickChangeDateCheat / OpenLoco CheatCommand::modifyDate): clamped to the valid range, same-year is a no-op,
  * month and day are kept.
  * @returns {{ok:true,year:number,clamped:boolean}|{ok:false,error:string}}
  */

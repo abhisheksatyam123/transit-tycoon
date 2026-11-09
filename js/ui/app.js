@@ -32,7 +32,7 @@ export const ISSUE_COMMANDS = ['setIndustryProduction', 'buildRail', 'buildTunne
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setGroupFlag', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
   'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
   'sellWagon', 'moveWagon', 'reorderWagon', 'unshareOrders', 'copyOrders', 'clearOrderBackup', 'setServiceInterval', 'setAutoreplace', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
-  'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'setCompanyManagerFace', 'setAirportClosed', 'moveSign', 'buildHQ', 'buildObject', 'setLoanAutopay',
+  'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'renameCompany', 'setCompanyManagerFace', 'setAirportClosed', 'moveSign', 'buildHQ', 'buildObject', 'setLoanAutopay',
   'expandTown', 'deleteTown', 'demolishIndustry'];
 
 /**

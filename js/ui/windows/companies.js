@@ -151,7 +151,9 @@ export function openCompanies(app) {
             withShares ? el('td', null, r.player ? null : shareButtons(app, r)) : null));
         }
         table.appendChild(tbl);
-        // President (OpenTTD CmdRenamePresident): lazy name, default label until renamed
+        // Company and President rename (OpenTTD CmdRenameCompany / CmdRenamePresident)
+        table.appendChild(el('p.small', null, el('span', { text: 'Company: ' + (app.game.state.company.name || 'Player') + ' ' }),
+          el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'company') })));
         table.appendChild(el('p.small', null, el('span', { text: 'President: ' + presidentDisplayName(app.game.state) + ' ' }),
           el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'president') })));
         table.appendChild(presidentFaceRow(app, () => { sig=''; }));

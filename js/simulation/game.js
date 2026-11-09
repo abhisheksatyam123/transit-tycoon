@@ -56,7 +56,7 @@ import { setSetting, getSetting, DEFAULT_SETTINGS } from './settings.js';
 import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setCompanyColour } from './companyColour.js';
-import { switchCompany as switchCompanyCheat, activeCompanyId as activeCompanyIdOf } from './cheats.js';
+import { switchCompany as switchCompanyCheat, activeCompanyId as activeCompanyIdOf, moneyCheat, clearDebtCheat, acquireCompanyCheat } from './cheats.js';
 import { setAutoreplace } from './autoreplace.js';
 import { massAutoreplace } from './autorenew.js';
 import * as gcmd from './cmdGroup.js';
@@ -211,6 +211,9 @@ export class Game {
   /** Goal progress for the UI: scenario objectives, or the random-world tutorial list (created on first call). */
   switchCompany(targetCompanyId) { return switchCompanyCheat(this.ctx.state, targetCompanyId); }
   get activeCompanyId() { return activeCompanyIdOf(this.ctx.state); }
+  addCash(amount) { return moneyCheat(this.ctx.state, amount); }
+  clearDebt() { return clearDebtCheat(this.ctx.state); }
+  acquireCompany(rivalId) { return acquireCompanyCheat(this.ctx, rivalId); }
   goals() { return this.state.scenario ? goalSnapshot(this.state) : randomGoalSnapshot(this.ctx); }
 
   /** Scenario editor: leave editor mode and start the company (see scenarioEditor.js). */
