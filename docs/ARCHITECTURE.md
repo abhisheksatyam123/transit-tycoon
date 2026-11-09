@@ -200,11 +200,16 @@ locoPieces.js centreline radii used by js/renderer/net/fit.js (see scratchpad/ar
 - `simulation/blocking.js`: per-tick occupancy index `ctx.occupancy` (tile key -> vehicles covering it, body cells = `history`; road vehicles index head + previous tile). Built by `loco/vehicleManager.js` tick before any vehicle moves, re-synced per vehicle after its move (`syncOccupancy`), cleared at tick end. Derived only: never serialized; saved games rebuild it. O(1) lookup per vehicle per tick.
 - Rules: a vehicle holds at its tile boundary when the next tile holds a same-direction vehicle (trains and road vehicles; oncoming road traffic passes; a road stop tile blocks both ways since it is one bay). A vehicle loading at a stop blocks the bay. Vehicles spawned on the same depot tile leave in id order.
 - Deadlock safety net (`movement.js` hold/turnAround): a vehicle blocked by a moving vehicle for `BLOCK_TIMEOUT_TICKS` (3 days) turns around (trains reverse via `flipTrain`, road vehicles back up one tile) and then waits another full timeout (cooldown). A vehicle queued behind a loading vehicle never turns around. A road vehicle held at a busy bay tries a free stop tile of its order first. Cycles (vehicles waiting on each other, e.g. two trains whose bodies overlap each other's next tile) are broken after half a day: the lowest id in the `blockedBy` cycle passes through (`breaksCycle`).
-- Stage 2 block signals (`simulation/signals.js`, opt-in): `tile.signal = 1` on a straight plain rail tile (lazy field; tool "Signal", toolbar only). Blocks = rail flood fill split at signal tiles (derived, WeakMap cache, `invalidateBlocks()` on rail/signal/station/demolish changes, never saved); a block is guarded when a signal bounds it. A train stepping from outside into a guarded block is held while another train has a body cell in it (`movement.signalBlocker`, per-tick block -> trains index in blocking.js). Unsignalled track keeps stage-1 rules (head-on trains pass), so Moscow/old saves are unchanged. Not done: path/one-way/pre-signals, reservations, red lamp state.
+- Stage 2 block signals (`simulation/signals.js`, opt-in): `tile.signal = 1` on a straight plain rail tile (lazy field; tool "Signal", toolbar only). Blocks = rail flood fill split at signal tiles (derived, WeakMap cache, `invalidateBlocks()` on rail/signal/station/demolish changes, never saved); a block is guarded when a signal bounds it. A train stepping from outside into a guarded block is held while another train has a body cell in it (`movement.signalBlocker`, per-tick block -> trains index in blocking.js). Unsignalled track keeps stage-1 rules (head-on trains pass), so Moscow/old saves are unchanged.
+- Stage 3 typed signals & track reservation (`simulation/pathSignals.js`, opt-in):
+  - One-way block signals (`type: 'oneway', dir`): trains pass only in direction `dir`.
+  - Path signals (`type: 'path', dir`): trains reserve the planned route up to the next signal/station/depot (`state.resv`, `v.resv`). Non-conflicting trains safely share junction blocks.
+  - Pre-signals (`type: 'entry' | 'exit' | 'combo', dir`): entry signals hold until the exit block ahead is clear; combo signals chain across intermediate blocks.
+  - Signal rendering (`renderer/layers/signals.js`): data-driven OpenGFX signal sprites (`SIGNAL_SPRITES`) with lamp states.
 
-## Not yet implemented (future work)
-- Path signals / route reservation. Queueing (stage 1) and opt-in block signals (stage 2) are done.
-- Slopes affecting track building (slopes are render-only), bridges and tunnels; ships and aircraft; AI competitors; multiplayer.
+## Future work / out of scope
+- Slopes affecting track building: slopes are render-only by design (protects determinism and existing scenarios); terraforming autoslope is supported (`cmdTerraform.js`).
+- Real-time multiplayer networking.
 
 ## Airports & aircraft (T30)
 - Config: `js/config/aircraft.js` `AIRCRAFT_MODELS` (kind `'aircraft'`, `shape` prop|jet|widebody, cargos PASS+MAIL).
