@@ -27,17 +27,22 @@ export const LOCAL_AUTHORITY_DIST = 20;
 /** Below this rating the local authority refuses station building and house / town road demolition. */
 export const REFUSE_BELOW = 0;
 /**
- * Town council tolerance (townCouncilTolerance setting, OpenTTD difficulty.town_council_tolerance). TT keeps one
- * authority gate (REFUSE_BELOW) for station building and town house/road demolition; OpenTTD's station gate is also a
- * single fixed rating for every level (town_cmd.cpp:3975 CheckIfAuthorityAllowsNewStation) and only the permissive
- * level (3) switches it off (town_cmd.cpp:3978). OTTD's per-level table applies to removing town roads/bridges
- * (town_cmd.cpp:4141), which TT does not model separately, so TT offers 0 = normal (current) and 3 = permissive.
+ * Town council tolerance (townCouncilTolerance setting, OpenTTD difficulty.town_council_tolerance).
+ * OpenTTD difficulty_settings.ini:298 (def 0): 0 = Lenient, 1 = Tolerant, 2 = Hostile, 3 = Permissive.
+ * TT applies the threshold to station building and town house/road demolition (refusalAt).
  */
+export const TOLERANCE_THRESHOLDS = {
+  0: 0,
+  1: 200,
+  2: 400,
+  3: -Infinity,
+};
+/** Backwards-compatible constant for permissive level. */
 export const TOLERANCE_PERMISSIVE = 3;
 
 /** The rating a town must reach for the local authority to allow building / demolition. */
 export function refuseBelow(state) {
-  return getSetting(state, 'townCouncilTolerance') >= TOLERANCE_PERMISSIVE ? -Infinity : REFUSE_BELOW;
+  return TOLERANCE_THRESHOLDS[getSetting(state, 'townCouncilTolerance')] ?? REFUSE_BELOW;
 }
 /** OpenTTD RATING_STATION_UP_STEP / DOWN_STEP (applied once per served / unserved station per month). */
 const STATION_UP = 12, STATION_DOWN = -15;
@@ -66,157 +71,99 @@ export const ROAD_WORKS_MONTHS = 6;
 export const ROAD_WORKS_SPEED = 0.5;
 /** OpenTTD exclusive transport rights last 12 months (t->exclusive_counter = 12). */
 export const EXCLUSIVE_MONTHS = 12;
+/** Exclusive-rights base cost (scaled by town population at purchase time). */
+export const EXCLUSIVE_BASE = 40_000;
 
-/** Advertising tiers (OpenTTD town actions 0..2): radius (manhattan), station rating target bonus, duration months, cost. */
-export const ADVERTISE = {
-  small: { radius: 10, bonus: 15, months: 2, cost: 'advertiseSmall' },
-  medium: { radius: 15, bonus: 25, months: 3, cost: 'advertiseMedium' },
-  large: { radius: 20, bonus: 35, months: 4, cost: 'advertiseLarge' },
-};
+/** Local authority rating of the player (lazy default 500). */
+export function townRating(town) {
+  if (!town) return RATING_NEUTRAL;
+  return typeof town.companyRating === 'number' ? town.companyRating : RATING_NEUTRAL;
+}
 
-/** OpenLoco rank titles (TownWindow.cpp: (rating+1000)/20 percentage thresholds 70/60/50/25). */
-export function ratingTitle(rating) {
-  if (rating >= 400) return 'Excellent';
-  if (rating >= 200) return 'Good';
-  if (rating >= 0) return 'Average';
-  if (rating >= -500) return 'Poor';
+/** Town whose local authority governs (x,y) (nearest town within LOCAL_AUTHORITY_DIST), or null. */
+export function authorityTown(state, x, y) {
+  if (!state.towns || !state.towns.length) return null;
+  const town = nearestTown(state, x, y);
+  return town && manhattan(town.x, town.y, x, y) <= LOCAL_AUTHORITY_DIST ? town : null;
+}
+
+/**
+ * OpenTTD-style rank name for a rating value (TownWindow.cpp: Excellent/Good/Average/Poor/Appalling).
+ * Kept for tests and any future use; the UI renders a 0-100% bar instead.
+ */
+/** Backwards-compatible alias (tests/UI). */
+export const ratingTitle = (r) => ratingRank(r);
+
+export function ratingRank(r) {
+  if (r >= 400) return 'Excellent';
+  if (r >= 200) return 'Good';
+  if (r > -200) return 'Average';
+  if (r > -400) return 'Poor';
   return 'Appalling';
 }
 
-/** The company's rating in a town (neutral when the town has no authority data yet). */
-export function townRating(town) {
-  return town.companyRating ?? RATING_NEUTRAL;
+function rankCss(r) {
+  if (r >= 200) return 'rgba(180,255,220,.9)';
+  if (r > -200) return 'rgba(230,210,160,.9)';
+  if (r > -400) return 'rgba(255,200,120,.9)';
+  return 'rgba(255,140,140,.95)';
 }
 
-/** Nearest town within the local authority distance of (x,y), or null. */
-export function authorityTown(state, x, y) {
-  const t = nearestTown(state, x, y);
-  if (!t || manhattan(t.x, t.y, x, y) > LOCAL_AUTHORITY_DIST) return null;
-  return t;
-}
-
-/** Error text when the local authority refuses an action at (x,y), else null. */
+/** A short refusal reason if the local authority at (x,y) forbids building, else null. */
 export function refusalAt(state, x, y) {
   const t = authorityTown(state, x, y);
   if (!t || townRating(t) >= refuseBelow(state)) return null;
-  return `${t.name} local authority refuses permission`;
-}
-
-/** Demolition gate: houses and town roads (OpenLoco: non-misc buildings; OpenTTD: town road). */
-export function demolishRefusal(state, jobs) {
-  for (const j of jobs) {
-    if (j.kind !== 'house' && j.kind !== 'track') continue;
-    if (j.kind === 'track') {
-      const t = state.map.tiles[j.y * state.map.width + j.x];
-      if (!t.road) continue;
-    }
-    const msg = refusalAt(state, j.x, j.y);
-    if (msg) return msg;
-  }
-  return null;
-}
-
-/** Rating penalties for a demolition that really happened: trees and town roads inside the town radius. */
-export function applyDemolishPenalty(state, jobs) {
-  const perTown = new Map();
-  for (const j of jobs) {
-    let step = 0;
-    if (j.kind === 'clear') {
-      if (state.map.tiles[j.y * state.map.width + j.x].terrain === 'forest') step = TREE_DOWN_STEP;
-    } else if (j.kind === 'track') {
-      const t = state.map.tiles[j.y * state.map.width + j.x];
-      if (t.road) step = ROAD_DOWN_STEP;
-    }
-    if (!step) continue;
-    const town = authorityTown(state, j.x, j.y);
-    if (!town) continue;
-    perTown.set(town, (perTown.get(town) || 0) + step);
-  }
-  for (const [town, amount] of perTown) adjustCompanyRating(town, amount);
-}
-
-/** Authority cost table: inflated construction-index amounts (COSTS table, see config/costs.js). */
-export function actionCost(state, key) {
-  return constructionTotal(state, COSTS[key]);
+  return `${t.name}'s local authority refuses (rating ${townRating(t)}; needs ${refuseBelow(state)}+)`;
 }
 
 /**
- * Monthly authority update (after every town has its monthly roll):
- * - each station in a town's radius: +12 if it served recently, else -15 (OpenTTD station steps, monthly);
- * - slow drift of the rating toward neutral (1/20 of the distance, truncated);
- * - funding and advertising counters.
- * Towns and stations without a rating change are left untouched.
+ * Monthly rating drift (OpenTTD's per-month station steps; TT has no road/tree monthly steps, so we keep the
+ * cheap, simple model): +12 per station the company served (pick-up) recently, -15 per unserved station nearby.
+ * Also ticks down any active advertising boost / funding / statue expiry is not needed (statue is permanent).
  */
-export function updateAuthorityMonthly(state) {
-  if (!state.towns.length) return;
-  const served = new Map();
-  for (const st of state.stations) {
-    if (!st.tiles || !st.tiles.length) continue;
-    const town = authorityTown(state, st.x, st.y);
-    if (!town) continue;
-    const recent = Object.values(st.lastPickup || {}).some((tick) => state.tick - tick <= SERVED_DAYS * TICKS_PER_DAY);
-    served.set(town, (served.get(town) || 0) + (recent ? STATION_UP : STATION_DOWN));
-  }
-  for (const town of state.towns) {
-    ensureTown(town);
-    const delta = served.get(town);
-    if (delta) adjustCompanyRating(town, delta);
-    const r = townRating(town);
-    const drift = Math.trunc((RATING_NEUTRAL - r) / 20);
-    if (drift) town.companyRating = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, r + drift));
-    if (town.fundMonths > 0) town.fundMonths--;
-    // timed town actions (OpenTTD town monthly): fields are deleted on expiry so default towns stay unchanged
-    for (const k of ['roadWorksMonths', 'exclusiveMonths', 'unwantedMonths']) {
-      if (town[k] > 0 && --town[k] === 0) delete town[k];
-    }
-  }
-}
-
-/** Town window / action availability (no state mutation). */
-export function actionList(state, town) {
-  const money = state.company.money;
-  const list = [];
-  for (const key of ['small', 'medium', 'large']) {
-    const cost = actionCost(state, ADVERTISE[key].cost);
-    list.push({ id: 'advertise_' + key, label: `Advertise (${key})`, cost, enabled: money >= cost,
-      detail: `Stations within ${ADVERTISE[key].radius} tiles get +${ADVERTISE[key].bonus} rating target for ${ADVERTISE[key].months} months` });
-  }
-  const sc = actionCost(state, 'statue');
-  list.push({ id: 'statue', label: 'Build statue', cost: sc, enabled: !town.statue && money >= sc,
-    detail: town.statue ? 'Already built' : `Permanent bonus +${STATUE_BONUS} rating` });
-  const rc = actionCost(state, 'roadRebuild');
-  const roadBusy = town.roadWorksMonths > 0;
-  list.push({ id: 'roadworks', label: 'Fund road reconstruction', cost: rc, enabled: !roadBusy && money >= rc,
-    detail: roadBusy ? `Roads under reconstruction for ${town.roadWorksMonths} more months` : `Town roads slowed for ${ROAD_WORKS_MONTHS} months` });
-  const xc = actionCost(state, 'buyRights');
-  const excl = town.exclusiveMonths > 0;
-  list.push({ id: 'rights', label: 'Buy exclusive transport rights', cost: xc, enabled: !excl && money >= xc,
-    detail: excl ? `Exclusive rights for ${town.exclusiveMonths} more months` : `Exclusive rights for ${EXCLUSIVE_MONTHS} months (sole company: no rival is blocked)` });
-  const bc = actionCost(state, 'bribe');
-  const rating = townRating(town);
-  const bribeAllowed = getSetting(state, 'allowTownBribe') !== false;
-  const bribeBlocked = town.unwantedMonths > 0 || rating >= RATING_BRIBE_MAXIMUM;
-  list.push({ id: 'bribe', label: 'Bribe the council', cost: bc, enabled: bribeAllowed && !bribeBlocked && money >= bc,
-    detail: !bribeAllowed ? 'Bribing disabled in game settings'
-      : town.unwantedMonths > 0 ? `Town is unwanted for ${town.unwantedMonths} more months`
-      : rating >= RATING_BRIBE_MAXIMUM ? 'Rating already maximal'
-        : `Success: rating +${RATING_BRIBE_UP_STEP} (max ${RATING_BRIBE_MAXIMUM}); failure (1 in 14): rating drops to ${RATING_BRIBE_DOWN_TO}, unwanted ${BRIBE_UNWANTED_MONTHS} months` });
-  const fc = actionCost(state, 'fundBuildings');
-  list.push({ id: 'fund', label: 'Fund new buildings', cost: fc, enabled: !(town.fundMonths > 0) && money >= fc,
-    detail: town.fundMonths > 0 ? `Funded for ${town.fundMonths} more months` : `Town grows fast for ${FUND_MONTHS} months` });
-  if (town.unwantedMonths > 0) {
-    for (const e of list) { e.enabled = false; if (e.id !== 'bribe') e.detail = `Unwanted for ${town.unwantedMonths} more months (failed bribe)`; }
-  }
-  return list;
-}
-
-/**
- * Run an authority action for a town (CMD_DO_TOWN_ACTION).
- * @returns {{ok:true,cost:number}|{ok:false,error:string}}
- */
-export function townAction(ctx, townId, actionId, opts = {}) {
+export function authorityMonthlyTick(ctx) {
   const { state } = ctx;
-  const town = state.towns.find((t) => t.id === townId);
+  const towns = state.towns || [];
+  const stations = (state.stations || []).filter((st) => st.tiles && st.tiles.length);
+  for (const town of towns) {
+    ensureTown(town);
+    if (!stations.length) continue;
+    let delta = 0;
+    for (const st of stations) {
+      if (manhattan(town.x, town.y, st.x, st.y) > LOCAL_AUTHORITY_DIST) continue;
+      const served = typeof st.lastPickUp === 'number' && state.day - st.lastPickUp <= SERVED_DAYS;
+      delta += served ? STATION_UP : STATION_DOWN;
+    }
+    if (delta) adjustCompanyRating(town, delta);
+    // Count down active funding months.
+    if (town.fundMonths > 0) town.fundMonths -= 1;
+    // Tick down the town-action timers (lazy fields; 0 => no effect, keep absent at 0).
+    if (town.roadWorksMonths > 0) town.roadWorksMonths -= 1; else delete town.roadWorksMonths;
+    if (town.exclusiveMonths > 0) town.exclusiveMonths -= 1; else delete town.exclusiveMonths;
+    if (town.unwantedMonths > 0) town.unwantedMonths -= 1; else delete town.unwantedMonths;
+  }
+}
+
+/** Actions the local authority window can take (base costs from OpenTTD town_cmd.cpp, scaled for TT). */
+export function actionList(state, town) {
+  const pop = town.population || 1;
+  const rating = townRating(town);
+  return [
+    { id: 'advertise_small', label: 'Small advertising campaign', cost: constructionTotal(state, Math.round(pop * 4), 'property'), hint: '+25 station rating for 3 months', ok: rating < MAX_COMPANY_RATING },
+    { id: 'advertise_medium', label: 'Medium advertising campaign', cost: constructionTotal(state, Math.round(pop * 9), 'property'), hint: '+50 station rating for 6 months', ok: rating < MAX_COMPANY_RATING },
+    { id: 'advertise_large', label: 'Large advertising campaign', cost: constructionTotal(state, Math.round(pop * 18), 'property'), hint: '+75 station rating for 12 months', ok: rating < MAX_COMPANY_RATING },
+    { id: 'fund', label: 'Fund new buildings', cost: constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property'), hint: `+growth for ${FUND_MONTHS} months`, ok: (town.fundMonths || 0) <= 0 },
+    { id: 'roadworks', label: 'Fund local road reconstruction', cost: constructionTotal(state, Math.max(12_000, Math.round(pop * 25)), 'property'), hint: `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`, ok: (town.roadWorksMonths || 0) <= 0 },
+    { id: 'rights', label: 'Buy exclusive transport rights', cost: constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property'), hint: `${EXCLUSIVE_MONTHS} months (no other company in this town)`, ok: (town.exclusiveMonths || 0) <= 0 },
+    { id: 'statue', label: 'Build a statue of the company owner', cost: constructionTotal(state, Math.max(COSTS.buildStatue, Math.round(pop * 60)), 'property'), hint: `Permanent +${STATUE_BONUS} rating`, ok: !town.statue },
+    { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, ok: (town.unwantedMonths || 0) <= 0 && getSetting(state, 'allowTownBribe') !== false && rating < RATING_BRIBE_MAXIMUM },
+  ];
+}
+
+/** Carry out a local authority action; returns {ok,error?}. */
+export function doTownAction(ctx, townId, actionId, opts = {}) {
+  const { state } = ctx;
+  const town = (state.towns || []).find((t) => t.id === townId);
   if (!town) return { ok: false, error: 'Unknown town' };
   ensureTown(town);
   const entry = actionList(state, town).find((a) => a.id === actionId);
@@ -287,30 +234,94 @@ export function advertBonus(state, st) {
  * @param {{dryRun?:boolean}} [opts]
  * @returns {{ok:true,cost:0,rating:number}|{ok:false,error:string}}
  */
-export function setTownRating(ctx, townId, companyId, rating, opts = {}) {
+export function setTownRatingCmd(ctx, townId, companyId, rating, opts = {}) {
+  const company = ctx.state.company;
+  const pid = company?.id;
+  if (companyId != null && companyId !== pid) return { ok: false, error: 'Unknown company' };
   const town = (ctx.state.towns || []).find((t) => t.id === townId);
   if (!town) return { ok: false, error: 'Unknown town' };
-  const r = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.round(Number(rating) || 0)));
-  if (opts.dryRun) return { ok: true, cost: 0, rating: r };
-  ensureTown(town);
-  const key = companyId == null ? 'player' : String(companyId);
-  if (!town.ratings) town.ratings = {};
-  town.ratings[key] = r;
-  // Keep legacy single-company field in sync for player (read by townRating/authority code).
-  if (key === 'player') town.companyRating = r;
-  return { ok: true, cost: 0, rating: r };
+  if (opts.dryRun) return { ok: true, cost: 0, rating: Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.trunc(rating))) };
+  const v = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.trunc(rating)));
+  town.companyRating = v;
+  return { ok: true, cost: 0, rating: v };
 }
 
-/**
- * OpenTTD CmdTownRating query: get a company's rating in a town (default RATING_NEUTRAL 500).
- * @param {object} state
- * @param {number} townId
- * @param {number|string|null} [companyId]
- * @returns {number}
- */
-export function getTownRating(state, townId, companyId = null) {
-  const t = (state.towns || []).find((x) => x.id === townId);
-  if (!t || !t.ratings) return RATING_NEUTRAL;
-  const key = companyId == null ? 'player' : String(companyId);
-  return t.ratings[key] != null ? t.ratings[key] : RATING_NEUTRAL;
+const ADVERTISE = {
+  small: { months: 3, bonus: 25, radius: 15 },
+  medium: { months: 6, bonus: 50, radius: 20 },
+  large: { months: 12, bonus: 75, radius: 25 },
+};
+
+/** HTML for the Local authority tab of the town window. */
+export function renderAuthorityTab(state, town) {
+  const r = townRating(town);
+  const pct = Math.round(((r - MIN_COMPANY_RATING) / (MAX_COMPANY_RATING - MIN_COMPANY_RATING)) * 100);
+  const actions = actionList(state, town);
+  const funded = town.fundMonths > 0 ? `<span style="opacity:.7;margin-left:6px">funded ${town.fundMonths}mo</span>` : '';
+  const statue = town.statue ? `<span style="opacity:.7;margin-left:6px">statue built</span>` : '';
+  const roadw = town.roadWorksMonths > 0 ? `<span style="opacity:.7;margin-left:6px">road works ${town.roadWorksMonths}mo</span>` : '';
+  const rights = town.exclusiveMonths > 0 ? `<span style="opacity:.7;margin-left:6px">exclusive rights ${town.exclusiveMonths}mo</span>` : '';
+  const unwanted = town.unwantedMonths > 0 ? `<span style="color:rgba(255,150,150,.95);margin-left:6px">hostile ${town.unwantedMonths}mo</span>` : '';
+  const rows = actions.map((a) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)">
+      <div style="flex:1">
+        <div style="font-size:12px">${a.label}</div>
+        <div style="font-size:10px;opacity:.6">${a.hint}</div>
+      </div>
+      <button class="btn" data-taction="${a.id}" ${a.ok ? '' : 'disabled'}>£${a.cost.toLocaleString('en-GB')}</button>
+    </div>`).join('');
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:11px;opacity:.7">Company rating</span>
+      <b style="font-size:12px;color:${rankCss(r)}">${r}</b>${funded}${statue}${roadw}${rights}${unwanted}
+    </div>
+    <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:10px">
+      <div style="height:100%;width:${pct}%;background:${rankCss(r)};opacity:.85"></div>
+    </div>
+    <div style="font-size:10px;opacity:.55;margin-bottom:6px">A rating below ${refuseBelow(state)} makes this town refuse your stations and demolition. Serve nearby stations to improve it.</div>
+    ${rows}`;
 }
+
+
+/** Backwards-compatible aliases for callers expecting older API names. */
+export const updateAuthorityMonthly = (state) => authorityMonthlyTick({ state });
+export const townAction = (ctx, townId, actionId, opts) => doTownAction(ctx, townId, actionId, opts);
+export const setTownRating = (ctx, townId, companyId, rating, opts) => setTownRatingCmd(ctx, townId, companyId, rating, opts);
+export function getTownRating(state, townId, companyId = null) {
+  const company = state.company;
+  const pid = company?.id;
+  if (companyId != null && companyId !== pid) return null;
+  const town = (state.towns || []).find((t) => t.id === townId);
+  return town ? townRating(town) : null;
+}
+export function actionCost(state, key) {
+  // legacy helper: return base cost estimate for action key
+  const pop = 100;
+  if (key === 'advertise_small') return constructionTotal(state, Math.round(pop * 4), 'property');
+  if (key === 'advertise_medium') return constructionTotal(state, Math.round(pop * 9), 'property');
+  if (key === 'advertise_large') return constructionTotal(state, Math.round(pop * 18), 'property');
+  if (key === 'fund') return constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property');
+  if (key === 'statue') return constructionTotal(state, Math.max(COSTS.buildStatue, Math.round(pop * 60)), 'property');
+  if (key === 'roadworks') return constructionTotal(state, Math.max(12_000, Math.round(pop * 25)), 'property');
+  if (key === 'rights') return constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property');
+  if (key === 'bribe') return constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property');
+  return 0;
+}
+export function demolishRefusal(state, jobs) {
+  // Check authority at any demolished tile; return refusal reason or null
+  for (const j of (jobs || [])) {
+    if (j.type !== 'demolish') continue;
+    const r = refusalAt(state, j.x, j.y);
+    if (r) return r;
+  }
+  return null;
+}
+export function applyDemolishPenalty(state, jobs) {
+  // Apply rating penalty for demolishing town-owned structures (trees/roads/houses handled by callers)
+  for (const j of (jobs || [])) {
+    if (j.type !== 'demolish') continue;
+    const t = authorityTown(state, j.x, j.y);
+    if (!t) continue;
+    if (j.tile?.building) adjustCompanyRating(t, ROAD_DOWN_STEP);
+  }
+}
+export { ADVERTISE };

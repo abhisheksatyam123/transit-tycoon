@@ -8,9 +8,9 @@ import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { spend } from './economy.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
-import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
+import { createStation, adjacentStation, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findTown, nearestTown } from './state.js';
-import { removeStationTile, removeDepot } from './cmdStation.js';
+import { removeStationTile, removeDepot, spreadLimit } from './cmdStation.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 import { findStation } from './state.js';
 import { clearHouseAt } from './largeHouses.js';
@@ -53,7 +53,12 @@ export function buildAirport(ctx, x, y, opts = {}) {
   cost = constructionTotal(state, cost);
   const money = checkMoney(state, cost, payee || state.company);
   if (money) return money;
-  const existing = adjacentStation(state, tiles);
+  let existing = adjacentStation(state, tiles);
+  if (opts.joinStationId != null) {
+    const joined = findStation(state, opts.joinStationId);
+    if (!joined || !spreadOk(joined, tiles, spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
+    existing = joined;
+  } else if (existing && !spreadOk(existing, tiles, spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
   if (existing && ownerMismatch(existing, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null, depotId: null };
   for (const p of houses) {

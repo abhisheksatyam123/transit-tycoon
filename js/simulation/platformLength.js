@@ -22,6 +22,11 @@ export function trainLengthTiles(v) {
   return ((v.wagons || 0) + 1) * SEGMENT_SPACING;
 }
 
+/** Maximum allowed train length in tiles from settings (OpenTTD vehicle.max_train_length). */
+export function maxTrainLengthTiles(state) {
+  return getSetting(state, 'maxTrainLength');
+}
+
 /**
  * Length in tiles of the rail platform run of station `st` that contains tile (x,y): contiguous station
  * tiles of the same station and axis. 0 when (x,y) is not a rail tile of that station.

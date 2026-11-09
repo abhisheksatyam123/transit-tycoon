@@ -13,8 +13,10 @@ describe('stationSpread and maxTrainWagons settings', () => {
     expect(STATION_SPREAD).toBe(12);
     expect(MAX_WAGONS).toBe(12);
     const g = flatGame();
+    expect(DEFAULT_SETTINGS.maxTrainLength).toBe(7);
     expect(getSetting(g.state, 'stationSpread')).toBe(12);
     expect(getSetting(g.state, 'maxTrainWagons')).toBe(12);
+    expect(getSetting(g.state, 'maxTrainLength')).toBe(7);
   });
 
   test('spread 16 allows a join refused at the default 12', () => {
@@ -41,6 +43,7 @@ describe('stationSpread and maxTrainWagons settings', () => {
 
     const g = flatGame();
     setSetting(g.state, 'maxTrainWagons', 20);
+    setSetting(g.state, 'maxTrainLength', 20);
     const L = coalLine(g);
     const r = g.buyVehicle(L.depotId, { modelId: 'eng_puffer', wagonModelId: 'wag_hopper', wagons: 20, cargoId: 'COAL' });
     expect(r.ok).toBe(true);
@@ -52,6 +55,8 @@ describe('stationSpread and maxTrainWagons settings', () => {
   test('addWagons extends a train to 20 with the setting, refused beyond it', () => {
     const g = flatGame();
     setSetting(g.state, 'maxTrainWagons', 20);
+    setSetting(g.state, 'maxTrainLength', 20);
+    setSetting(g.state, 'maxTrainLength', 20);
     const L = coalLine(g);
     const r = g.buyVehicle(L.depotId, { modelId: 'eng_puffer', wagonModelId: 'wag_hopper', wagons: 2, cargoId: 'COAL' });
     expect(r.ok).toBe(true);
@@ -64,6 +69,7 @@ describe('stationSpread and maxTrainWagons settings', () => {
   test('24 wagons: a 20-wagon train steps without error', () => {
     const g = flatGame();
     setSetting(g.state, 'maxTrainWagons', 24);
+    setSetting(g.state, 'maxTrainLength', 20);
     const L = coalLine(g);
     const r = g.buyVehicle(L.depotId, { modelId: 'eng_puffer', wagonModelId: 'wag_hopper', wagons: 20, cargoId: 'COAL' });
     expect(r.ok).toBe(true);

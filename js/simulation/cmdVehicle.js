@@ -25,7 +25,7 @@ import { applyServiceInterval, MAX_SERVICE_INTERVAL } from './service.js';
 import { dayNumber } from './date.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { refitCargos, refitCore } from './refit.js';
-import { DIRS } from './constants.js';
+import { DIRS, SEGMENT_SPACING } from './constants.js';
 import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
@@ -58,7 +58,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };
   }
-  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'));
+  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'), getSetting(state, 'maxTrainLength'));
   if (!r.ok) return r;
   const limit = vehicleLimitError(state, vehicleKindOfModel(r.template.model), opts.owner ?? null);
   if (limit) return { ok: false, error: limit };
@@ -692,6 +692,7 @@ export function addWagons(ctx, id, n, opts = {}) {
   const { v, wagon, unit } = c;
   const maxWagons = getSetting(state, 'maxTrainWagons');
   if (v.wagons + n > maxWagons) return { ok: false, error: `A train can have at most ${maxWagons} wagons` };
+  if (((v.wagons + n + 1) * SEGMENT_SPACING) > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
   if (v.cargoId && !wagon.cargos.includes(v.cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${v.cargoId}` };
   const cost = unit * n;
   const capacity = wagon.capacity * (v.wagons + n);
@@ -772,6 +773,7 @@ export function addWagonModel(ctx, id, modelId, opts = {}) {
   const list = wagonList(v);
   const maxWagons = getSetting(state, 'maxTrainWagons');
   if (list.length >= maxWagons) return { ok: false, error: `A train can have at most ${maxWagons} wagons` };
+  if (((list.length + 1 + 1) * SEGMENT_SPACING) > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
   const cost = wagonUnitPrice(state, modelId);
   const money = checkMoney(state, cost);
   if (money) return money;

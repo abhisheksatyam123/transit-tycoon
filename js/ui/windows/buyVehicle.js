@@ -7,7 +7,7 @@
  * and sort Default the lists are exactly the old ones, so the smart default selection is unchanged.
  */
 import { el, setText, clear } from '../dom.js';
-import { longestPlatform } from '../../simulation/platformLength.js';
+import { longestPlatform, maxTrainLengthTiles } from '../../simulation/platformLength.js';
 import { getSetting } from '../../simulation/settings.js';
 import { money, num, kmhText } from '../format.js';
 import { cargoName } from '../cargo.js';
@@ -168,8 +168,11 @@ export function openBuyVehicle(app, depotId) {
         fillModels(engineSel, primaryList(sortList(engines)), g.state);
         wagonSel = /** @type {HTMLSelectElement} */ (el('select.input'));
         fillModels(wagonSel, visibleCarriers(), g.state);
-        countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: String(getSetting(g.state, 'maxTrainWagons')), value: '4' }));
-        countOut = el('span.mono', { text: '4' });
+        const lengthLimitWagons = Math.max(0, Math.floor((maxTrainLengthTiles(g.state) / 0.5) - 1 + 1e-9));
+        const maxWagonsLimit = Math.min(getSetting(g.state, 'maxTrainWagons'), lengthLimitWagons);
+        const defaultWagons = Math.min(4, Math.max(1, maxWagonsLimit));
+        countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: String(Math.max(1, maxWagonsLimit)), value: String(defaultWagons) }));
+        countOut = el('span.mono', { text: String(defaultWagons) });
         body.append(...controls, field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,
           field('Wagons', el('span.range-wrap', null, countIn, countOut)), field('Cargo', cargoSel));
       } else {

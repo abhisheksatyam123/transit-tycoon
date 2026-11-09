@@ -133,7 +133,7 @@ export const DEFAULT_SETTINGS = {
   maxBridgeLength: 12,
   /** OpenTTD construction.max_tunnel_length: longest player tunnel in tiles, portals included (default 16 = MAX_TUNNEL_LENGTH). */
   maxTunnelLength: 16,
-  /** OpenTTD difficulty.town_council_tolerance: 0 = normal (current TT authority rule), 3 = permissive (never refuses); townAuthority.js refuseBelow. */
+  /** OpenTTD difficulty.town_council_tolerance (difficulty_settings.ini:298, def 0): 0 Lenient, 1 Tolerant, 2 Hostile, 3 Permissive; townAuthority.js refuseBelow. */
   townCouncilTolerance: 0,
   /** OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing disabled. */
   allowTownBribe: true,
@@ -143,6 +143,8 @@ export const DEFAULT_SETTINGS = {
   stationSpread: 12,
   /** OpenTTD vehicle.max_train_length: most wagons in a player train (default 12 = MAX_WAGONS). */
   maxTrainWagons: 12,
+  /** OpenTTD vehicle.max_train_length: max train length in tiles (def 7 tiles, min 1, max 64). */
+  maxTrainLength: 7,
   /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
   autosaveInterval: 'off',
 };

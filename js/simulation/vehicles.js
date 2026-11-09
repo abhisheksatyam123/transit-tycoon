@@ -83,7 +83,7 @@ function classOf(model) {
  * @param {number} year current year
  * @returns {{ok:true,cost:number,template:object}|{ok:false,error:string}}
  */
-export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagons = MAX_WAGONS) {
+export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null) {
   const model = MODEL_BY_ID[spec && spec.modelId];
   if (!model || model.kind === 'wagon') return { ok: false, error: 'Unknown vehicle model' };
   if (model.introYear > year) return { ok: false, error: 'Model not yet available' };
@@ -95,9 +95,10 @@ export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagon
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
   if (isTrain) {
-    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running, neverExpire, maxWagons);
+    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running, neverExpire, maxWagons, maxTrainLength);
     wagons = spec.wagons === undefined ? 3 : Math.floor(spec.wagons);
     if (!(wagons >= 0 && wagons <= maxWagons)) return { ok: false, error: `Wagons must be 0..${maxWagons}` };
+    if (maxTrainLength != null && ((wagons + 1) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
     if (wagons > 0) {
       let wagon = spec.wagonModelId ? MODEL_BY_ID[spec.wagonModelId] : null;
       if (!wagon && spec.cargoId) wagon = Object.values(MODEL_BY_ID).find((m) => m.kind === 'wagon' && m.cargos.includes(spec.cargoId));
@@ -123,7 +124,7 @@ export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagon
  * Mixed consist (spec.consist = [{modelId, cargoId?}] per wagon, engine excluded): every wagon is checked like a
  * single-model purchase; the template carries the list so createVehicle can set v.consist.
  */
-function resolveMixed(model, list, year, cost, running, neverExpire = false, maxWagons = MAX_WAGONS) {
+function resolveMixed(model, list, year, cost, running, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null) {
   const consist = [];
   for (const w of list) {
     const wagon = MODEL_BY_ID[w && w.modelId];
@@ -137,6 +138,7 @@ function resolveMixed(model, list, year, cost, running, neverExpire = false, max
     running += wagon.running;
   }
   if (consist.length > maxWagons) return { ok: false, error: `Wagons must be 0..${maxWagons}` };
+  if (maxTrainLength != null && ((consist.length + 1) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
   const capacity = consist.reduce((s, w) => s + MODEL_BY_ID[w.modelId].capacity, 0);
   const uniform = consist.every((w) => w.modelId === consist[0].modelId && w.cargoId === consist[0].cargoId);
   const first = consist[0] || {};

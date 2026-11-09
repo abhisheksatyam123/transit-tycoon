@@ -11,7 +11,9 @@ import { SHIP_COSTS } from '../config/ships.js';
 import { spend } from './economy.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
-import { createStation, adjacentStation, refreshKinds, recomputeAcceptance } from './stations.js';
+import { createStation, adjacentStation, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
+import { spreadLimit } from './cmdStation.js';
+import { findStation } from './state.js';
 import { allocId } from './state.js';
 import { getTile } from './map.js';
 import { shipPassable } from './shipPath.js';
@@ -71,6 +73,11 @@ export function buildDock(ctx, x, y, opts = {}) {
   if (money) return money;
   let existing = adjacentStation(state, [{ x, y }]);
   if (existing && existing.tiles.some((p) => p.kind === 'buoy')) existing = null;
+  if (opts.joinStationId != null) {
+    const joined = findStation(state, opts.joinStationId);
+    if (!joined || !spreadOk(joined, [{ x, y }], spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
+    existing = joined;
+  } else if (existing && !spreadOk(existing, [{ x, y }], spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
   if (existing && ownerMismatch(existing, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
