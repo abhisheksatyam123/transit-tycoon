@@ -55,8 +55,8 @@ function updateConsistStrip(strip, app, v) {
     const b = el('span.consist-block.wagon', { text: 'W', title });
     b.dataset.index = String(i);
     b.style.background = cargoColor(w.cargoId);
-    const toLeft = el('button.btn.sm.wagon-move', { type: 'button', text: '◀', title: 'Move wagon towards the engine', onclick: () => app.exec(g.moveWagon(v.id, i, -1), { sound: 'click' }) });
-    const toRight = el('button.btn.sm.wagon-move', { type: 'button', text: '▶', title: 'Move wagon away from the engine', onclick: () => app.exec(g.moveWagon(v.id, i, 1), { sound: 'click' }) });
+    const toLeft = el('button.btn.sm.wagon-move', { type: 'button', text: '◀', title: 'Move car earlier (towards engine)', onclick: () => app.exec(g.reorderWagon(v.id, i, i - 1), { sound: 'click' }) });
+    const toRight = el('button.btn.sm.wagon-move', { type: 'button', text: '▶', title: 'Move car later (away from engine)', onclick: () => app.exec(g.reorderWagon(v.id, i, i + 1), { sound: 'click' }) });
     const sell = el('button.btn.sm.danger.wagon-sell', { type: 'button', text: '×', title: `Sell this ${title}`, onclick: () => app.exec(g.sellWagon(v.id, i), { sound: 'click' }) });
     blocks.appendChild(el('span.wagon-cell', null, toLeft, b, toRight, sell));
   });

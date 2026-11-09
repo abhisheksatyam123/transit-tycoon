@@ -829,6 +829,27 @@ export function moveWagon(ctx, id, index, delta, opts = {}) {
   return { ok: true, index: to };
 }
 
+/**
+ * Reorder a wagon within a train's consist (OpenTTD CMD_MoveRailVehicle, simplified to within-consist).
+ * Moves the wagon at fromIndex to toIndex (0 = closest to engine). The train must be stopped in a depot.
+ * Lazy: only mutates the wagon order (consist/list fields) via setWagonList; old saves with no consist are fine.
+ * @returns {{ok:true,fromIndex:number,toIndex:number,wagons:number}|{ok:false,error:string}}
+ */
+export function reorderWagon(ctx, id, fromIndex, toIndex, opts = {}) {
+  const c = trainInDepot(ctx, id, opts);
+  if (!c.ok) return c;
+  const { v } = c;
+  const list = wagonList(v);
+  if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= list.length) return { ok: false, error: 'No such wagon' };
+  if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= list.length) return { ok: false, error: 'Invalid target position' };
+  if (fromIndex === toIndex) return { ok: true, fromIndex, toIndex, wagons: list.length, cost: 0 };
+  if (opts.dryRun) return { ok: true, fromIndex, toIndex, wagons: list.length, cost: 0 };
+  const [w] = list.splice(fromIndex, 1);
+  list.splice(toIndex, 0, w);
+  setWagonList(ctx.state, v, list);
+  return { ok: true, fromIndex, toIndex, wagons: v.wagons, cost: 0 };
+}
+
 
 /**
  * Clear the order backup associated with a vehicle's depot (OpenTTD ClearOrderBackup).

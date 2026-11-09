@@ -48,26 +48,22 @@ function scatterHash(x, y, k) {
 }
 
 /**
- * Forest group around (cx,cy): OTTD PlaceTreeGroupAroundTile in spirit. `count` attempts, each picking a
- * tile inside `radius` (circle) and planting it plus its free 4-neighbours.
+ * Forest group around (cx,cy): ports OTTD tree_cmd.cpp PlaceTreeGroupAroundTile (radius 5/count 5 small,
+ * 12/12 large). Each of `count` attempts picks an offset by the OTTD quasi-normal distribution (sum of
+ * 4 bytes scaled to radius), so plants cluster near the clicked tile; exactly one tree per attempt, no
+ * neighbour halo. Deterministic in (cx,cy,k) so estimate == commit.
  * @returns {{x:number,y:number}[]} candidate tiles (may repeat; the caller dedupes and checks terrain)
  */
-function forestCandidates(map, cx, cy, mode) {
-  const { radius, count } = FOREST_GROUP[mode];
+export function forestCandidates(map, cx, cy, mode) {
+  const { radius, count } = FOREST_GROUP[mode] || FOREST_GROUP.forestSmall;
   const out = [];
   for (let k = 0; k < count; k++) {
     const h = scatterHash(cx, cy, k);
-    const dx = (h % (2 * radius + 1)) - radius;
-    const dy = (Math.floor(h / (2 * radius + 1)) % (2 * radius + 1)) - radius;
-    if (dx * dx + dy * dy > radius * radius) continue;
-    const x = cx + dx, y = cy + dy;
+    const byte = (s) => (h >>> s) & 0xff;
+    const mkcoord = () => ((byte(0) + byte(8) + byte(16) + byte(24)) * radius / 512 | 0) - radius;
+    const x = cx + mkcoord(), y = cy + mkcoord();
     if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
     out.push({ x, y });
-    for (const [ex, ey] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      if ((h >>> 8) % 3 === 0) continue; // about two thirds of the attempts also seed their 4 neighbours
-      const nx = x + ex, ny = y + ey;
-      if (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height) out.push({ x: nx, y: ny });
-    }
   }
   return out;
 }

@@ -397,6 +397,8 @@ export class Game {
   sellWagon(id, index, opts) { return vcmd.sellWagon(this.ctx, id, index, opts); }
   /** Mixed consists: move the wagon at `index` one place (delta -1 towards the engine, +1 away). */
   moveWagon(id, index, delta, opts) { return vcmd.moveWagon(this.ctx, id, index, delta, opts); }
+  /** Reorder a wagon within a train consist (OpenTTD CMD_MoveRailVehicle, simplified): move fromIndex to toIndex. */
+  reorderWagon(id, fromIndex, toIndex, opts) { return vcmd.reorderWagon(this.ctx, id, fromIndex, toIndex, opts); }
   /** Leave the shared order list (keeps the current orders). */
   unshareOrders(id, opts) { return vcmd.unshareOrders(this.ctx, id, opts); }
   copyOrders(targetId, sourceId, opts) { return vcmd.copyOrders(this.ctx, targetId, sourceId, opts); }
