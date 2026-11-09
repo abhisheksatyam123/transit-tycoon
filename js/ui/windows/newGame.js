@@ -101,6 +101,8 @@ export function openNewGame(app) {
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
       const eras = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'default', text: 'Off (default)' }), el('option', { value: 'on', text: 'On' })));
+      const traffic = /** @type {HTMLSelectElement} */ (el('select.input', null,
+        el('option', { value: 'on', text: 'On (default)' }), el('option', { value: 'off', text: 'Off' })));
       const largeHouses = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox', checked: !!remembered.largeHouses, 'aria-label': 'Large houses' }));
       // Initial values follow the remembered Settings-window choices (carried over on start)
       extra.value = remembered.extraIndustries ? 'on' : 'default';
@@ -154,7 +156,7 @@ export function openNewGame(app) {
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
-        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('AI competitors', ai), field('Company colour', colourSel),
+        field('Extra industries', extra), field('Farm fields', farms), field('Building eras', eras), field('Town traffic', traffic), field('AI competitors', ai), field('Company colour', colourSel),
         el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth), field('Variety distribution', mgVariety),
         field('Town density', mgTowns), field('Town roads', mgLayout), field('Industry density', mgInd),
@@ -196,6 +198,7 @@ export function openNewGame(app) {
         else if (remembered.farmFields) settings.farmFields = false;
         if (eras.value === 'on') settings.buildingEras = true; // gap #31b opt-in
         else if (remembered.buildingEras) settings.buildingEras = false;
+        if (traffic.value === 'off') settings.townTraffic = false; // explicit off at new-game; default on unchanged
         if (largeHouses.checked) settings.largeHouses = true; // remembered via Settings; unticking overrides a remembered on
         else if (remembered.largeHouses) settings.largeHouses = false;
         if (Number(ai.value) > 0) settings.aiCompanies = Number(ai.value); // gap #25: only when > 0
