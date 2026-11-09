@@ -16,7 +16,7 @@ test('every DEFAULT_SETTINGS key appears in exactly one group', () => {
 });
 
 test('group metadata is complete and unique', () => {
-  expect(SETTING_GROUPS.map((g) => g.id)).toEqual(['interface', 'construction', 'vehicles', 'economy', 'environment', 'companies']);
+  expect(SETTING_GROUPS.map((g) => g.id)).toEqual(['interface', 'construction', 'vehicles', 'economy', 'environment', 'companies', 'difficulty']);
   expect(new Set(SETTING_GROUPS.map((g) => g.id)).size).toBe(SETTING_GROUPS.length);
   for (const g of SETTING_GROUPS) {
     expect(g.title.length).toBeGreaterThan(0);
