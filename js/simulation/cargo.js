@@ -8,6 +8,7 @@ import { addWaiting } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
 import { manhattan, findStation } from './state.js';
 import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
+import { getSetting } from './settings.js';
 
 /** Days of the month on which a production chunk is distributed. */
 export const DISTRIBUTION_DAYS = [1, 8, 15, 22];
@@ -84,14 +85,21 @@ export function industriesMonthStart(state, _rng) {
  */
 export function distributeTownCargo(state, rng, coverage) {
   const { map } = state;
+  // OpenTTD economy.town_cargo_scale (percent, def 100): applied after the original rng draws so the
+  // default path (100) is unchanged in both rng consumption and rounding.
+  const scale = Number(getSetting(state, 'townCargoScale'));
   for (const town of state.towns) {
     for (const h of town.houses) {
       const i = h.y * map.width + h.x;
       const t = map.tiles[i];
       if (!t.building || t.building.type !== 'house') continue;
       const pop = HOUSE_POP[t.building.level];
-      const pass = Math.round((pop / 12) * rng.range(0.5, 1.5));
-      const mail = rng.chance(0.5) ? Math.round((pop / 30) * rng.range(0.5, 1.5)) : 0;
+      let pass = Math.round((pop / 12) * rng.range(0.5, 1.5));
+      let mail = rng.chance(0.5) ? Math.round((pop / 30) * rng.range(0.5, 1.5)) : 0;
+      if (Number.isFinite(scale) && scale !== 100) {
+        pass = Math.max(0, Math.round((pass * scale) / 100));
+        mail = Math.max(0, Math.round((mail * scale) / 100));
+      }
       town.passengersThisMonth += pass;
       town.mailThisMonth += mail;
       if (!coverage.has(i)) continue;

@@ -163,6 +163,10 @@ export function updateDaily(game, ind) {
   ensureIndustryState(ind, state);
   const type = INDUSTRY_BY_ID[ind.typeId];
   const req = requiredCargos(type), prod = producedCargos(type);
+  // OpenTTD economy.industry_cargo_scale (percent, def 100): scales production. 100 is the exact old path
+  // (no extra rounding), so default games keep their world hash.
+  const scale = Number(getSetting(state, 'industryCargoScale'));
+  const scaled = (n) => (Number.isFinite(scale) && scale !== 100 ? Math.round((n * scale) / 100) : n);
 
   // received cargo -> output (requiresAllCargo is false: all inputs are summed)
   let amountToProduce = 0;
@@ -171,7 +175,7 @@ export function updateDaily(game, ind) {
     ind.receivedDaily[i] = 0;
   }
   if (amountToProduce !== 0) {
-    const eighths = Math.round(amountToProduce * 8 * CONVERSION_RATIO);
+    const eighths = scaled(Math.round(amountToProduce * 8 * CONVERSION_RATIO));
     for (let i = 0; i < prod.length; i++) ind.outputBuffer[i] = u16(ind.outputBuffer[i] + eighths);
   }
   for (let i = 0; i < 3; i++) ind.receivedDaily[i] -= Math.floor(u16(ind.receivedDaily[i] + 15) / 16);
@@ -181,7 +185,7 @@ export function updateDaily(game, ind) {
     const target = Math.floor((ind.dailyProductionTarget[i] * ind.productionRate) / 256);
     if (target < ind.dailyProduction[i]) ind.dailyProduction[i]--;
     else if (target > ind.dailyProduction[i]) ind.dailyProduction[i]++;
-    ind.outputBuffer[i] = u16(ind.dailyProduction[i] + ind.outputBuffer[i]);
+    ind.outputBuffer[i] = u16(scaled(ind.dailyProduction[i]) + ind.outputBuffer[i]);
     if (ind.outputBuffer[i] >= 8) {
       let qty = Math.min(Math.floor(ind.outputBuffer[i] / 8), 255);
       ind.outputBuffer[i] -= qty * 8;

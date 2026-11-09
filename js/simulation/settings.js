@@ -127,6 +127,14 @@ export const DEFAULT_SETTINGS = {
   planeSpeedFactor: 1,
   /** town growth rate (OpenTTD economy.town_growth_rate): 'none' | 'slow' | 'normal' | 'fast' | 'veryfast'. 'normal' = current growth. */
   townGrowthRate: 'normal',
+  /** OpenTTD economy.allow_town_roads (def true): towns may extend/build their road network as they grow. Off = towns never build roads (houses still grow along existing roads). */
+  allowTownRoads: true,
+  /** OpenTTD economy.place_houses (def true): towns may construct new houses as they grow. Off = existing houses only (population stays put, roads may still grow). */
+  placeHouses: true,
+  /** OpenTTD economy.town_cargo_scale (percent 0..500, def 100): scales passengers and mail produced by town houses each production chunk. 100 = current. */
+  townCargoScale: 100,
+  /** OpenTTD economy.industry_cargo_scale (percent 0..500, def 100): scales cargo produced by industries each day. 100 = current. */
+  industryCargoScale: 100,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
   roadSide: 'right',
   /** OpenTTD construction.max_bridge_length: longest player bridge in tiles, heads included (default 12 = trackRules MAX_BRIDGE_LENGTH). */

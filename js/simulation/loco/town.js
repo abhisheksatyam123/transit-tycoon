@@ -61,14 +61,14 @@ export function recalculateSize(town) {
  * growForTick per town tick (unchanged). 'none' never grows; 'slow' grows on half the town ticks (rng);
  * 'fast' and 'veryfast' run growForTick 2 and 4 times. Non-normal modes draw rng only when set.
  */
-export function growForRate(game, town) {
+export function growForRate(game, town, opts) {
   const rate = getSetting(game.state, 'townGrowthRate');
-  if (rate === 'normal' || rate === undefined) return growForTick(game, town);
+  if (rate === 'normal' || rate === undefined) return growForTick(game, town, opts);
   if (rate === 'none') return false;
-  if (rate === 'slow') return game.rng.chance(0.5) ? growForTick(game, town) : false;
+  if (rate === 'slow') return game.rng.chance(0.5) ? growForTick(game, town, opts) : false;
   const n = rate === 'veryfast' ? 4 : 2;
   let grew = false;
-  for (let i = 0; i < n; i++) if (growForTick(game, town)) grew = true;
+  for (let i = 0; i < n; i++) if (growForTick(game, town, opts)) grew = true;
   return grew;
 }
 
@@ -77,7 +77,12 @@ export function tickTown(game, town) {
   ensureTown(town);
   recalculateSize(town);
   // sub-arctic (opt-in): a town centred above the snow line grows only if it got food last month (climate.js)
-  const grew = townGrowthAllowed(game.state, town) && tropicGrowthAllowed(game.state, town) ? growForRate(game, town) : false;
+  // OpenTTD economy.allow_town_roads / place_houses: default true = the exact previous call path (no rng change)
+  const opts = {
+    allowTownRoads: getSetting(game.state, 'allowTownRoads') !== false,
+    placeHouses: getSetting(game.state, 'placeHouses') !== false,
+  };
+  const grew = townGrowthAllowed(game.state, town) && tropicGrowthAllowed(game.state, town) ? growForRate(game, town, opts) : false;
   if (grew) {
     recomputePopulation(game.state, town);
     recalculateSize(town);

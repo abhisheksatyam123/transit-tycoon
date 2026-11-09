@@ -371,13 +371,29 @@ export function growTown(game, town, { buildInitialRoadFlag = true, constructBui
   return changed || town.houses.length !== housesBefore;
 }
 
-/** The per-tick grow-call schedule of Town::tick. Returns true if anything grew. */
-export function growForTick(game, town) {
+/**
+ * The per-tick grow-call schedule of Town::tick. Returns true if anything grew.
+ * opts (OpenTTD economy.allow_town_roads / place_houses, both default true): when a flag is false the
+ * matching growth action is skipped. Passing both true (the default) is byte-identical to the old call path,
+ * so world hashes and RNG streams are unchanged.
+ * @param {{allowTownRoads?:boolean, placeHouses?:boolean}} [opts]
+ */
+export function growForTick(game, town, opts = {}) {
   const per = BUILD_SPEED_TO_GROWTH_PER_TICK[town.buildSpeed] ?? 0;
+  const noHouses = opts.placeHouses === false;
+  const noRoads = opts.allowTownRoads === false;
   if (per === 0 || (per === 1 && (game.rng.int(0, 65535) & 7))) {
-    return growTown(game, town, { constructBuildings: false, allowRoadExpansion: false, allowRoadBranching: false });
+    return growTown(game, town, {
+      constructBuildings: false,
+      allowRoadExpansion: false,
+      allowRoadBranching: false,
+      buildInitialRoadFlag: !noRoads,
+    });
   }
+  const gopts = noHouses || noRoads
+    ? { constructBuildings: !noHouses, allowRoadExpansion: !noRoads, allowRoadBranching: !noRoads, buildInitialRoadFlag: !noRoads }
+    : undefined;
   let grew = false;
-  for (let c = 0; c < per; c++) if (growTown(game, town)) grew = true;
+  for (let c = 0; c < per; c++) if (growTown(game, town, gopts)) grew = true;
   return grew;
 }
