@@ -16,7 +16,7 @@ import { isEngineHidden, setEngineHidden } from '../../simulation/cmdEngineVisib
 import { engineDisplayName } from '../../simulation/cmdRename.js';
 import { modelTractiveKn } from '../../simulation/vehicleSpec.js';
 import { openRename } from '../rename.js';
-import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo } from '../buyFilter.js';
+import { BUY_SORTERS, BUY_FILTER_ALL, loadBuySort, saveBuySort, sortModels, cargoFilterOptions, filterModelsByCargo, defaultWagonCount } from '../buyFilter.js';
 
 /**
  * Fill a <select> of models (keeps the current value when that model is still listed).
@@ -170,7 +170,8 @@ export function openBuyVehicle(app, depotId) {
         fillModels(wagonSel, visibleCarriers(), g.state);
         const lengthLimitWagons = Math.max(0, Math.floor((maxTrainLengthTiles(g.state) / 0.5) - 1 + 1e-9));
         const maxWagonsLimit = Math.min(getSetting(g.state, 'maxTrainWagons'), lengthLimitWagons);
-        const defaultWagons = Math.min(4, Math.max(1, maxWagonsLimit));
+        // OpenTTD vehicle.freight_trains: default wagon count for a freight train; 0 = automatic (4)
+        const defaultWagons = defaultWagonCount(g.state, maxWagonsLimit, getSetting);
         countIn = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '1', max: String(Math.max(1, maxWagonsLimit)), value: String(defaultWagons) }));
         countOut = el('span.mono', { text: String(defaultWagons) });
         body.append(...controls, field('Engine', engineSel), statA, field('Wagon', wagonSel), statB,

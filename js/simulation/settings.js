@@ -135,6 +135,10 @@ export const DEFAULT_SETTINGS = {
   townCargoScale: 100,
   /** OpenTTD economy.industry_cargo_scale (percent 0..500, def 100): scales cargo produced by industries each day. 100 = current. */
   industryCargoScale: 100,
+  /** OpenTTD order.no_servicing_if_no_breakdowns (def true): with vehicle breakdowns disabled, vehicles skip mandatory depot servicing. false = service anyway. */
+  noServicingIfNoBreakdowns: true,
+  /** OpenTTD vehicle.freight_trains: default number of wagons when buying a freight train (0 = automatic, the current 4). */
+  freightTrainWagons: 0,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
   roadSide: 'right',
   /** OpenTTD construction.max_bridge_length: longest player bridge in tiles, heads included (default 12 = trackRules MAX_BRIDGE_LENGTH). */

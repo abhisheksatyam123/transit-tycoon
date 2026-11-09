@@ -68,8 +68,11 @@ export function vehicleDaily(ctx, v, rng, year) {
   }
   v.age++;
   // service interval (OpenTTD NeedsServicing): once due, the vehicle services at the nearest depot after its current stop
-  if (v.serviceIntervalDays && !v.serviceDue && !v.serviceTrip && ctx && ctx.state
-      && getSetting(ctx.state, 'breakdowns') !== 'none'
+  // OpenTTD order.no_servicing_if_no_breakdowns (default true): no service trips when breakdowns are off
+  const skipService = !!ctx && !!ctx.state
+    && getSetting(ctx.state, 'breakdowns') === 'none'
+    && getSetting(ctx.state, 'noServicingIfNoBreakdowns') !== false;
+  if (v.serviceIntervalDays && !v.serviceDue && !v.serviceTrip && ctx && ctx.state && !skipService
       && dayNumber(ctx.state.date) - (v.lastServiceDay ?? 0) >= v.serviceIntervalDays) v.serviceDue = true;
   if (v.age === v.maxAge) notify(ctx, `${v.name} is getting old and should be replaced.`, 'bad', v.tx, v.ty, 'advice');
   if (v.reliability === 0) return;

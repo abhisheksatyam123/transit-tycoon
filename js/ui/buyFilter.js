@@ -88,3 +88,18 @@ export function filterModelsByCargo(models, cargo) {
   if (!cargo) return models.slice();
   return models.filter((m) => ((m && m.cargos) || []).includes(cargo));
 }
+
+/**
+ * Default wagon count shown when buying a train (OpenTTD vehicle.freight_trains).
+ * `freightTrainWagons` (game setting, 0 = automatic) pre-fills a freight consist; automatic keeps the
+ * historic 4. Clamped to the current maxTrainWagons / train-length limit by the caller.
+ * @param {object} state
+ * @param {number} maxLimit highest wagon count the current train-length setting allows
+ * @param {(s:object,key:string)=>any} getSetting settings reader (injected to keep this module pure)
+ * @returns {number} wagon count, at least 1 and never above maxLimit
+ */
+export function defaultWagonCount(state, maxLimit, getSetting) {
+  const want = Number(getSetting(state, 'freightTrainWagons')) || 0;
+  const base = want > 0 ? want : 4;
+  return Math.min(Math.max(1, base), Math.max(1, maxLimit));
+}
