@@ -97,8 +97,8 @@ export const ratingTitle = (r) => ratingRank(r);
 export function ratingRank(r) {
   if (r >= 400) return 'Excellent';
   if (r >= 200) return 'Good';
-  if (r > -200) return 'Average';
-  if (r > -400) return 'Poor';
+  if (r >= 0) return 'Average';
+  if (r >= -500) return 'Poor';
   return 'Appalling';
 }
 
@@ -127,20 +127,31 @@ export function authorityMonthlyTick(ctx) {
   const stations = (state.stations || []).filter((st) => st.tiles && st.tiles.length);
   for (const town of towns) {
     ensureTown(town);
-    if (!stations.length) continue;
-    let delta = 0;
-    for (const st of stations) {
-      if (manhattan(town.x, town.y, st.x, st.y) > LOCAL_AUTHORITY_DIST) continue;
-      const served = typeof st.lastPickUp === 'number' && state.day - st.lastPickUp <= SERVED_DAYS;
-      delta += served ? STATION_UP : STATION_DOWN;
+    if (stations.length) {
+      let delta = 0;
+      for (const st of stations) {
+        if (manhattan(town.x, town.y, st.x, st.y) > LOCAL_AUTHORITY_DIST) continue;
+        // lastPickup is {CARGO: tick} in this codebase; some callers/tests set tick values.
+        let lastTick = null;
+        if (st.lastPickup && typeof st.lastPickup === 'object') {
+          let best = -1; for (const v of Object.values(st.lastPickup)) if (typeof v === 'number' && v > best) best = v;
+          if (best >= 0) lastTick = best;
+        }
+        if (lastTick == null && typeof st.lastPickUp === 'number') lastTick = st.lastPickUp; // alt spelling/day units
+        const served = typeof lastTick === 'number' && (state.tick - lastTick) <= SERVED_DAYS * TICKS_PER_DAY;
+        delta += served ? STATION_UP : STATION_DOWN;
+      }
+      if (delta) adjustCompanyRating(town, delta);
     }
-    if (delta) adjustCompanyRating(town, delta);
-    // Count down active funding months.
+    // Count down active funding/timers every month regardless of stations.
     if (town.fundMonths > 0) town.fundMonths -= 1;
     // Tick down the town-action timers (lazy fields; 0 => no effect, keep absent at 0).
-    if (town.roadWorksMonths > 0) town.roadWorksMonths -= 1; else delete town.roadWorksMonths;
-    if (town.exclusiveMonths > 0) town.exclusiveMonths -= 1; else delete town.exclusiveMonths;
-    if (town.unwantedMonths > 0) town.unwantedMonths -= 1; else delete town.unwantedMonths;
+    if (town.roadWorksMonths > 0) town.roadWorksMonths -= 1;
+    if (town.exclusiveMonths > 0) town.exclusiveMonths -= 1;
+    if (town.unwantedMonths > 0) town.unwantedMonths -= 1;
+    if (!town.roadWorksMonths) delete town.roadWorksMonths;
+    if (!town.exclusiveMonths) delete town.exclusiveMonths;
+    if (!town.unwantedMonths) delete town.unwantedMonths;
   }
 }
 
@@ -148,15 +159,21 @@ export function authorityMonthlyTick(ctx) {
 export function actionList(state, town) {
   const pop = town.population || 1;
   const rating = townRating(town);
+  const unwanted = (town.unwantedMonths || 0) > 0;
+  const bribeAllowed = getSetting(state, 'allowTownBribe') !== false;
+  const bribeOk = !unwanted && bribeAllowed && rating < RATING_BRIBE_MAXIMUM;
+  const bribeDetail = !bribeAllowed ? 'Bribing disabled in game settings' : `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`;
+  const blocked = (ok) => unwanted ? false : ok;
+  const blockedDetail = (ok, detail) => unwanted ? 'The town will not deal with this company' : detail;
   return [
-    { id: 'advertise_small', label: 'Small advertising campaign', cost: constructionTotal(state, Math.round(pop * 4), 'property'), hint: '+25 station rating for 3 months', ok: rating < MAX_COMPANY_RATING },
-    { id: 'advertise_medium', label: 'Medium advertising campaign', cost: constructionTotal(state, Math.round(pop * 9), 'property'), hint: '+50 station rating for 6 months', ok: rating < MAX_COMPANY_RATING },
-    { id: 'advertise_large', label: 'Large advertising campaign', cost: constructionTotal(state, Math.round(pop * 18), 'property'), hint: '+75 station rating for 12 months', ok: rating < MAX_COMPANY_RATING },
-    { id: 'fund', label: 'Fund new buildings', cost: constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property'), hint: `+growth for ${FUND_MONTHS} months`, ok: (town.fundMonths || 0) <= 0 },
-    { id: 'roadworks', label: 'Fund local road reconstruction', cost: constructionTotal(state, Math.max(12_000, Math.round(pop * 25)), 'property'), hint: `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`, ok: (town.roadWorksMonths || 0) <= 0 },
-    { id: 'rights', label: 'Buy exclusive transport rights', cost: constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property'), hint: `${EXCLUSIVE_MONTHS} months (no other company in this town)`, ok: (town.exclusiveMonths || 0) <= 0 },
-    { id: 'statue', label: 'Build a statue of the company owner', cost: constructionTotal(state, Math.max(COSTS.buildStatue, Math.round(pop * 60)), 'property'), hint: `Permanent +${STATUE_BONUS} rating`, ok: !town.statue },
-    { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, ok: (town.unwantedMonths || 0) <= 0 && getSetting(state, 'allowTownBribe') !== false && rating < RATING_BRIBE_MAXIMUM },
+    { id: 'advertise_small', label: 'Small advertising campaign', cost: constructionTotal(state, Math.round(pop * 4), 'property'), hint: '+25 station rating for 3 months', detail: '+25 station rating for 3 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
+    { id: 'advertise_medium', label: 'Medium advertising campaign', cost: constructionTotal(state, Math.round(pop * 9), 'property'), hint: '+50 station rating for 6 months', detail: '+50 station rating for 6 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
+    { id: 'advertise_large', label: 'Large advertising campaign', cost: constructionTotal(state, Math.round(pop * 18), 'property'), hint: '+75 station rating for 12 months', detail: '+75 station rating for 12 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
+    { id: 'fund', label: 'Fund new buildings', cost: constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property'), hint: `+growth for ${FUND_MONTHS} months`, detail: blockedDetail((town.fundMonths || 0) <= 0, (town.fundMonths || 0) > 0 ? `Active, ${town.fundMonths} more months` : `+growth for ${FUND_MONTHS} months`), ok: blocked((town.fundMonths || 0) <= 0), enabled: blocked((town.fundMonths || 0) <= 0) },
+    { id: 'roadworks', label: 'Fund local road reconstruction', cost: constructionTotal(state, Math.max(COSTS.roadRebuild, Math.round(pop * 25)), 'property'), hint: `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`, detail: blockedDetail((town.roadWorksMonths || 0) <= 0, (town.roadWorksMonths || 0) > 0 ? `Active, ${town.roadWorksMonths} more months` : `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`), ok: blocked((town.roadWorksMonths || 0) <= 0), enabled: blocked((town.roadWorksMonths || 0) <= 0) },
+    { id: 'rights', label: 'Buy exclusive transport rights', cost: constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property'), hint: `${EXCLUSIVE_MONTHS} months (no other company in this town)`, detail: blockedDetail((town.exclusiveMonths || 0) <= 0, (town.exclusiveMonths || 0) > 0 ? `Active, ${town.exclusiveMonths} more months` : `${EXCLUSIVE_MONTHS} months (no other company in this town)`), ok: blocked((town.exclusiveMonths || 0) <= 0), enabled: blocked((town.exclusiveMonths || 0) <= 0) },
+    { id: 'statue', label: 'Build a statue of the company owner', cost: constructionTotal(state, Math.max((COSTS.buildStatue ?? 45000), Math.round(pop * 60)), 'property'), hint: `Permanent +${STATUE_BONUS} rating`, detail: blockedDetail(!town.statue, town.statue ? 'Already built' : `Permanent +${STATUE_BONUS} rating`), ok: blocked(!town.statue), enabled: blocked(!town.statue) },
+    { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, detail: bribeDetail, ok: bribeOk, enabled: bribeOk },
   ];
 }
 
@@ -225,8 +242,14 @@ export function advertBonus(state, st) {
   return b && state.tick < b.until ? b.amount : 0;
 }
 
+function ratingKey(companyId) {
+  if (companyId == null) return 'player';
+  return String(companyId);
+}
+
 /**
  * OpenTTD CmdTownRating: set a company's rating in a town (clamped to [-1000, 1000]).
+ * Supports per-company ratings via t.ratings map (K4); player also mirrored to companyRating for compat.
  * @param {object} ctx game context (needs state.towns)
  * @param {number} townId
  * @param {number|string|null} companyId null/undefined => player
@@ -235,14 +258,14 @@ export function advertBonus(state, st) {
  * @returns {{ok:true,cost:0,rating:number}|{ok:false,error:string}}
  */
 export function setTownRatingCmd(ctx, townId, companyId, rating, opts = {}) {
-  const company = ctx.state.company;
-  const pid = company?.id;
-  if (companyId != null && companyId !== pid) return { ok: false, error: 'Unknown company' };
   const town = (ctx.state.towns || []).find((t) => t.id === townId);
   if (!town) return { ok: false, error: 'Unknown town' };
-  if (opts.dryRun) return { ok: true, cost: 0, rating: Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.trunc(rating))) };
-  const v = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.trunc(rating)));
-  town.companyRating = v;
+  const v = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.round(rating)));
+  if (opts.dryRun) return { ok: true, cost: 0, rating: v };
+  const key = ratingKey(companyId);
+  if (!town.ratings || typeof town.ratings !== 'object') town.ratings = {};
+  town.ratings[key] = v;
+  if (key === 'player') town.companyRating = v;
   return { ok: true, cost: 0, rating: v };
 }
 
@@ -287,11 +310,12 @@ export const updateAuthorityMonthly = (state) => authorityMonthlyTick({ state })
 export const townAction = (ctx, townId, actionId, opts) => doTownAction(ctx, townId, actionId, opts);
 export const setTownRating = (ctx, townId, companyId, rating, opts) => setTownRatingCmd(ctx, townId, companyId, rating, opts);
 export function getTownRating(state, townId, companyId = null) {
-  const company = state.company;
-  const pid = company?.id;
-  if (companyId != null && companyId !== pid) return null;
   const town = (state.towns || []).find((t) => t.id === townId);
-  return town ? townRating(town) : null;
+  if (!town) return RATING_NEUTRAL;
+  const key = ratingKey(companyId);
+  if (town.ratings && typeof town.ratings[key] === 'number') return town.ratings[key];
+  if (key === 'player') return townRating(town);
+  return RATING_NEUTRAL;
 }
 export function actionCost(state, key) {
   // legacy helper: return base cost estimate for action key
@@ -300,8 +324,8 @@ export function actionCost(state, key) {
   if (key === 'advertise_medium') return constructionTotal(state, Math.round(pop * 9), 'property');
   if (key === 'advertise_large') return constructionTotal(state, Math.round(pop * 18), 'property');
   if (key === 'fund') return constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property');
-  if (key === 'statue') return constructionTotal(state, Math.max(COSTS.buildStatue, Math.round(pop * 60)), 'property');
-  if (key === 'roadworks') return constructionTotal(state, Math.max(12_000, Math.round(pop * 25)), 'property');
+  if (key === 'statue') return constructionTotal(state, Math.max((COSTS.buildStatue ?? 45000), Math.round(pop * 60)), 'property');
+  if (key === 'roadworks') return constructionTotal(state, Math.max(COSTS.roadRebuild, Math.round(pop * 25)), 'property');
   if (key === 'rights') return constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property');
   if (key === 'bribe') return constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property');
   return 0;
@@ -309,19 +333,18 @@ export function actionCost(state, key) {
 export function demolishRefusal(state, jobs) {
   // Check authority at any demolished tile; return refusal reason or null
   for (const j of (jobs || [])) {
-    if (j.type !== 'demolish') continue;
     const r = refusalAt(state, j.x, j.y);
     if (r) return r;
   }
   return null;
 }
 export function applyDemolishPenalty(state, jobs) {
-  // Apply rating penalty for demolishing town-owned structures (trees/roads/houses handled by callers)
+  // Apply rating penalty for demolishing structures near a town (OpenTTD: tree -35, road edge -18).
   for (const j of (jobs || [])) {
-    if (j.type !== 'demolish') continue;
     const t = authorityTown(state, j.x, j.y);
     if (!t) continue;
-    if (j.tile?.building) adjustCompanyRating(t, ROAD_DOWN_STEP);
+    if (j.kind === 'clear') adjustCompanyRating(t, TREE_DOWN_STEP);
+    else if (j.kind === 'track' || j.kind === 'house' || j.tile?.building) adjustCompanyRating(t, ROAD_DOWN_STEP);
   }
 }
 export { ADVERTISE };
