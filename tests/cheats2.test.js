@@ -27,7 +27,7 @@ describe('cheats2: flags are lazy, default off', () => {
 
   test('unknown flag is refused', () => {
     expect(setCheatFlag(flatGame(3).state, 'bogus', true).ok).toBe(false);
-    expect(CHEAT_FLAGS).toEqual(['stationRating', 'noJetCrash', 'crossingTunnels']);
+    expect(CHEAT_FLAGS).toEqual(['stationRating', 'noJetCrash', 'crossingTunnels', 'setupProd']);
   });
 
   test('cheat buttons are not hotkeys or tool buttons (window-only cheats)', () => {
