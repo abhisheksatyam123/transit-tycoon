@@ -8,6 +8,7 @@
  * Usage: bun tools/build-web.js [--out dist] [--base /subpath/ | env BASE_PATH]
  */
 import { rmSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 
 const ROOT = join(import.meta.dir, '..');
@@ -60,6 +61,11 @@ writeFileSync(join(OUT, 'index.html'), html);
 
 cpSync(join(ROOT, 'css'), join(OUT, 'css'), { recursive: true });
 cpSync(join(ROOT, 'assets'), join(OUT, 'assets'), { recursive: true });
+
+// Build stamp for hosting checks (`/healthz`): which commit and when this dist/ was produced.
+let commit = '';
+try { commit = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { commit = 'unknown'; }
+writeFileSync(join(OUT, 'build.json'), JSON.stringify({ commit, builtAt: new Date().toISOString(), base: basePath || '/' }, null, 2) + '\n');
 
 let bytes = 0;
 const walk = (d) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? walk(p) : (bytes += statSync(p).size); } };

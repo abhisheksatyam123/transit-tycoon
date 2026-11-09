@@ -407,3 +407,23 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
 }
 /* scenario editor banner (js/ui/windows/scenarioEditor.js) */
 .editor-banner { position: fixed; bottom: calc(var(--status-h, 32px) + 10px); left: 12px; z-index: 50; padding: 4px 12px; border-radius: 6px; background: rgba(120, 53, 15, 0.92); color: #fde68a; font-size: 12px; font-weight: 600; pointer-events: none; }
+
+/* ---- touch targets: coarse pointers only (desktop/fine-pointer look is unchanged) ----
+   Toolbar buttons, flyout rows and the minimap toggle reach >= 44 CSS px (WCAG 2.5.5 / Material guideline).
+   `.tb-btn.tb-btn` doubles the selector so it beats the density rules (#toolbar.tb-fit-N .tb-btn).
+   Phones: 44 px buttons don't fit fitToolbar's 2-4 row wrap at 390 px width, so the toolbar stays one
+   horizontally scrolling row (tb-fit-3) with a faded right edge; tablets/landscape still wrap onto rows
+   (fitToolbar adds WRAP_ROW_TOUCH to its row budget for coarse pointers). */
+@media (pointer: coarse) {
+  #toolbar { padding-top: 5px; padding-bottom: 5px; touch-action: pan-x; scrollbar-width: none; }
+  #toolbar .tb-btn.tb-btn { min-width: 44px; height: 44px; padding: 2px 4px; }
+  #toolbar.tb-fit-3, #toolbar.tb-fit-3 .tb-group { gap: 4px; }
+  /* a single 44 px row cannot hold every tool on a phone: fade the cut-off edge until scrolled to the end */
+  #toolbar::-webkit-scrollbar { display: none; }
+  #toolbar[data-scroll="more"] {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+  }
+  .tb-fly-item { min-height: 44px; padding: 8px; }
+  #minimap-toggle { height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px; line-height: 42px; margin-bottom: 4px; }
+}

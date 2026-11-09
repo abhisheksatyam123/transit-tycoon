@@ -34,6 +34,32 @@ bun run serve:dist       # optional local check on http://localhost:5174 (PORT=x
 - **MIME & compression**: Serve `.js` as `text/javascript`, and enable gzip/brotli on `.js`, `.css`, `.json`, and `.html`.
 - See [`docs/DEPLOY.md`](docs/DEPLOY.md) for full static deployment instructions, Nginx/Caddy configs, and caching recommendations.
 
+## Host it on your Tailscale network
+The bundled build can be served straight to your tailnet (WireGuard-encrypted, no public exposure):
+
+```sh
+bun run build:web        # refresh dist/ when the source changed
+sh tools/host.sh start   # serve dist/ on http://<tailscale-ip>:8080
+sh tools/host.sh status  # pid, tailnet URL
+sh tools/host.sh logs    # last lines of the host log
+sh tools/host.sh stop
+sh tools/host.sh install # optional: systemd --user service, starts on boot (linger enabled)
+```
+
+`tools/host.sh` binds to this host's Tailscale IPv4 (`TT_HOST=<ip>`), so only tailnet devices can reach it
+(`PORT` defaults to 8080; `BUILD=1 sh tools/host.sh start` rebuilds first). Open `http://<magicdns-name>:8080`
+from any device on the tailnet. The host answers `GET /healthz` with `{ok, build:{commit,builtAt}, uptimeS}`,
+and `bun run host:check` validates the live site (200s, gzip, ETag/304, immutable chunks, atlas assets).
+For HTTPS with a real `*.ts.net` certificate, proxy through Tailscale:
+
+```sh
+TT_HOST=127.0.0.1 sh tools/host.sh restart      # bind loopback so tailscaled can proxy
+sudo tailscale serve --bg 8080                  # https://<host>.<tailnet>.ts.net/
+```
+
+`tailscale serve` needs root once (`sudo tailscale set --operator=$USER` avoids that later) and HTTPS
+certificates enabled in the tailnet admin console. See [`docs/DEPLOY.md`](docs/DEPLOY.md#tailscale--lan-hosting).
+
 ## How to play
 1. Open **Help** in the toolbar for the in-game tutorial.
 2. Find a Coal Mine and a Power Station (Industries window or the minimap).

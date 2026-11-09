@@ -451,9 +451,11 @@ export function createToolbar(root, app) {
   };
   refresh();
   setInterval(applyAirAvailability, 1000); // cheap; picks up the year change within a second
-  fitToolbar(root);
-  if (typeof ResizeObserver === 'function') new ResizeObserver(() => fitToolbar(root)).observe(root);
-  else window.addEventListener('resize', () => fitToolbar(root));
+  const refit = () => { fitToolbar(root); scrollHint(root); };
+  refit();
+  root.addEventListener('scroll', () => scrollHint(root), { passive: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(refit).observe(root);
+  else window.addEventListener('resize', refit);
   retitle();
   return { refresh, toggleSound };
 }
@@ -464,6 +466,10 @@ const FIT_LEVELS = ['tb-fit-0', 'tb-fit-1', 'tb-fit-2', 'tb-fit-3'];
 const WRAP_LEVEL = 'tb-fit-4';
 /** Height of one wrapped toolbar row in px (button 34 + row gap 3). */
 const WRAP_ROW_PX = 37;
+/** Extra row height when CSS sizes buttons for touch (pointer: coarse -> 44 px + gap). */
+const WRAP_ROW_TOUCH = 10;
+/** Media query matching coarse (touch) pointers; the CSS touch-target block uses the same query. */
+const COARSE = '(pointer: coarse)';
 
 /**
  * Pick the roomiest toolbar density whose content fits the width (labels, small labels, icons, tight icons),
@@ -474,6 +480,8 @@ const WRAP_ROW_PX = 37;
  */
 function fitToolbar(root) {
   const all = [...FIT_LEVELS, WRAP_LEVEL];
+  const coarse = typeof matchMedia === 'function' && matchMedia(COARSE).matches;
+  const rowPx = WRAP_ROW_PX + (coarse ? WRAP_ROW_TOUCH : 0);
   for (const cls of FIT_LEVELS) {
     root.classList.remove(...all, 'tb-flat');
     root.classList.add(cls);
@@ -482,7 +490,7 @@ function fitToolbar(root) {
   const h = window.innerHeight || 800;
   const maxRows = h < 500 ? 2 : h < 700 ? 2 : h < 800 ? 3 : 4; // phone landscape (h<500): 2 rows, not a scrolled row
   if (maxRows < 2) return;
-  const fits = () => root.scrollHeight <= maxRows * WRAP_ROW_PX + 8 && root.scrollWidth <= root.clientWidth + 1;
+  const fits = () => root.scrollHeight <= maxRows * rowPx + 8 && root.scrollWidth <= root.clientWidth + 1;
   root.classList.remove(...all, 'tb-flat');
   root.classList.add(WRAP_LEVEL);
   if (fits()) return;
@@ -490,4 +498,15 @@ function fitToolbar(root) {
   if (fits()) return;
   root.classList.remove(WRAP_LEVEL, 'tb-flat');
   root.classList.add('tb-fit-3');
+}
+
+/**
+ * Mark the toolbar when it scrolls horizontally and is not at its right end, so the CSS can fade the
+ * cut-off edge (touch targets are 44 px wide, which does not fit every button on a phone).
+ * @param {HTMLElement} root
+ */
+function scrollHint(root) {
+  const over = root.scrollWidth > root.clientWidth + 1;
+  const atEnd = root.scrollLeft + root.clientWidth >= root.scrollWidth - 2;
+  root.dataset.scroll = over && !atEnd ? 'more' : '';
 }

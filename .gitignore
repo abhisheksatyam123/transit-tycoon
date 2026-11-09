@@ -5,3 +5,4 @@ node_modules/
 tools/lm3d/.blocked.json
 scratchpad/
 dist/
+.host/

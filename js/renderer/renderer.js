@@ -32,6 +32,7 @@ import { setSpriteLod } from './sprites/canvas.js';
 import { invalidateNet } from './net/index.js';
 import { GroundCache } from './groundCache.js';
 import { setArcticClimate } from './pack/arctic.js';
+import { ensureClimatePack } from './pack/index.js';
 import { setTropicClimate } from './pack/tropic.js';
 import { setToylandClimate, toylandState, drawToylandIndustryGround } from './pack/toyland.js';
 import { industryAnimState } from './pack/industries.js';
@@ -134,6 +135,8 @@ export class Renderer {
     setTropicClimate(isTropic(game.state), m);
     // toyland climate (opt-in): toyland ground, trees and houses; other games leave it off
     setToylandClimate(isToyland(game.state), m);
+    // the climate's own ground pack (arctic / tropic / toyland) loads on demand; temperate loads none
+    ensureClimatePack(isArctic(game.state) ? 'arctic' : isTropic(game.state) ? 'tropic' : isToyland(game.state) ? 'toyland' : null);
     this.carBuckets = [];
     for (let i = 0; i < m.width + m.height; i++) { this.buckets.push([]); this.carBuckets.push([]); }
   }

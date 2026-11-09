@@ -129,3 +129,48 @@ example.com {
 
 ### GitHub Pages / Cloudflare Pages / Netlify
 Upload or deploy the contents of `dist/` directly. No backend or runtime container is required.
+
+---
+
+## Tailscale / LAN hosting
+
+Tailscale gives every device a stable `100.x.y.z` address (and a `*.ts.net` MagicDNS name) over WireGuard,
+so a laptop can host the game for phones, tablets and other machines without opening a public port.
+
+### Zero-config: `tools/host.sh`
+```sh
+bun run build:web            # or BUILD=1 sh tools/host.sh start
+sh tools/host.sh start       # serves dist/ bound to this host's Tailscale IPv4, PORT=8080
+sh tools/host.sh status      # prints pid + http://<tailscale-ip>:8080 + tailnet DNS name
+sh tools/host.sh logs
+sh tools/host.sh stop
+sh tools/host.sh install     # systemd --user unit 'transit-tycoon-host' (Restart=on-failure, starts on boot)
+sh tools/host.sh uninstall
+```
+- Binding: `TT_HOST` env (default: `tailscale ip -4`; falls back to `0.0.0.0` when Tailscale is down).
+  Binding the tailnet address keeps the site off the LAN and off `localhost`.
+- Runtime files (pid + log) live in `.host/` (git-ignored). `dist/` is rebuilt only when missing, or with `BUILD=1`.
+- `install` requires user systemd; this host has `Linger=yes`, so the unit also starts at boot without a login.
+- Health check: `curl -fsS http://<tailscale-ip>:8080/` must return 200; `bun run check:dist` validates the bundle.
+
+### HTTPS on the tailnet (`tailscale serve`)
+Tailscale can terminate TLS with a real `*.ts.net` certificate (no self-signed warnings on mobile):
+```sh
+TT_HOST=127.0.0.1 PORT=8080 sh tools/host.sh restart   # loopback: tailscaled proxies from localhost
+sudo tailscale serve --bg 8080                         # https://<host>.<tailnet>.ts.net/
+sudo tailscale serve status                            # or: tailscale serve status (after set --operator)
+sudo tailscale serve --bg=false                        # turn the proxy off
+```
+Requirements: HTTPS certificates enabled for the tailnet (admin console -> DNS), and root for `tailscale serve`
+the first time; `sudo tailscale set --operator=$USER` lets your user manage serve/funnel without sudo afterwards.
+Do **not** use `tailscale funnel` unless you intend to make the game publicly reachable on the internet.
+
+### Firewall and address notes
+- Tailscale traffic arrives on the `tailscale0` interface; no router port-forwarding or ufw rule is needed for
+  tailnet peers (ufw already allows the interface if Tailscale's install script added it; otherwise
+  `sudo ufw allow in on tailscale0`).
+- The MagicDNS name is stable (`abhi.tail786840.ts.net` on this host); the `100.x` address is stable too unless
+  the node is removed and re-added.
+- Devices must be on the same tailnet and have Tailscale running; `tailscale status` shows them as online.
+- For a plain LAN (no Tailscale), `TT_HOST=0.0.0.0 PORT=8080 sh tools/host.sh start` exposes the build to the
+  local network instead; combine with the host firewall as needed.

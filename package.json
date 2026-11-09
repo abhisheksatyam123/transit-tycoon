@@ -13,6 +13,10 @@
     "simulate": "bun tools/simulate-city.js",
     "simulate:moscow": "bun tools/simulate-city.js --scenario moscow --years 1",
     "snapshot:moscow": "bun tools/moscow/snapshot.js",
-    "serve:dist": "bun tools/serve-dist.js"
+    "serve:dist": "bun tools/serve-dist.js",
+    "host": "sh tools/host.sh start",
+    "host:status": "sh tools/host.sh status",
+    "host:stop": "sh tools/host.sh stop",
+    "host:check": "bun tools/check-host.js"
   }
 }
