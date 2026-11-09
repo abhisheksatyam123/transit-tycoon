@@ -8,10 +8,7 @@
  * is SPR_ORIGINAL_SIGNALS_BASE=1275). Frames are (direction pair, [red, green]):
  *   ne-sw 1275/1276, sw-ne 1277/1278, se-nw 1279/1280, nw-se 1281/1282,
  *   e-w 1283/1284, w-e 1285/1286, s-n 1287/1288, n-s 1289/1290.
- * Track tiles in TT are axis-aligned only, so only the four axis pairs are used. dirAway maps:
- *   E(2)->e-w, W(8)->w-e, N(1)->s-n, S(4)->n-s ... wait, by the pair label: N->n-s? Careful:
- *   the pair name is "from-to" of the facing axis. Facing is unobservable in TT; we map by
- *   movement label E->e-w, W->w-e, S->s-n, N->n-s.
+ * Track tiles in TT are axis-aligned only, so only the four axis pairs are used.
  * Pre-signals (entry/exit/combo) live in extra sets 5088+ (extra-signals.pnml) which are not in
  * the base pack, so they stay procedural. When the pack is off they also stay procedural.
  */
@@ -20,23 +17,51 @@ import { packActive, packState } from '../pack/state.js';
 import { blitPack, blitPackFrom } from '../pack/draw.js';
 
 /**
+ * Data-driven signal sprite lookup (base OpenGFX electric light signals 1275..1290).
+ * Each dir bit maps to {red, green} sprite ids for the axis pair used in TT.
+ * dir: 0 (two-way block, axis-neutral) or 1=N, 2=E, 4=S, 8=W (TT DIRS bits).
+ * Preserves prior axis mapping: E->e-w, W->w-e, N->n-s, S->s-n, default->e-w.
+ */
+export const SIGNAL_SPRITES = {
+  0: { red: 1283, green: 1284 }, // two-way block (axis-neutral e-w)
+  1: { red: 1289, green: 1290 }, // N: n-s
+  2: { red: 1283, green: 1284 }, // E: e-w
+  4: { red: 1287, green: 1288 }, // S: s-n
+  8: { red: 1285, green: 1286 }, // W: w-e
+};
+
+/**
+ * Resolve the base-pack sprite id for a block/oneway/path signal. PURE (unit-tested).
+ * Data-driven via SIGNAL_SPRITES; unknown dirs fall back to the axis-neutral pair.
+ * @param {number} dir TT DIRS bit (0,1,2,4,8)
+ * @param {boolean} red true=reserved/red lamp, false=green/free
+ * @returns {number} OpenGFX sprite id
+ */
+export function resolveSignalSprite(dir, red) {
+  const pair = SIGNAL_SPRITES[dir] || SIGNAL_SPRITES[0];
+  return red ? pair.red : pair.green;
+}
+
+/**
  * OpenGFX electric light signal sprite id for a (dir, red) pair. PURE (unit-tested).
+ * Backward-compatible wrapper over resolveSignalSprite / SIGNAL_SPRITES.
  * dir: 0 (two-way block, no direction) or 1=N, 2=E, 4=S, 8=W (TT DIRS bits).
  * red=true reserved (red lamp), false green (free).
  */
 export function signalSpriteId(dir, red) {
-  // axis pairs only (diagonals need curves, impossible here):
-  //   x-axis (E/W track): E -> e-w (1283/1284), W -> w-e (1285/1286)
-  //   y-axis (N/S track): N -> n-s (1289/1290), S -> s-n (1287/1288)
-  // dir===0: pick the axis-neutral e-w pair.
-  const c = red ? 0 : 1; // frame offset inside the pair: red=even, green=odd
-  switch (dir) {
-    case 2: return 1283 + c; // E: e-w
-    case 8: return 1285 + c; // W: w-e
-    case 1: return 1289 + c; // N: n-s
-    case 4: return 1287 + c; // S: s-n
-    default: return 1283 + c; // two-way block
-  }
+  return resolveSignalSprite(dir, red);
+}
+
+/**
+ * Build the extra-pack sprite key for a pre-signal (entry/exit/combo). PURE (unit-tested).
+ * Pre-signals live in EXTRA pack as `presignal_{type}.{frame}` (frames 0..15).
+ * @param {'entry'|'exit'|'combo'} type
+ * @param {number} dir TT DIRS bit
+ * @param {boolean} red
+ * @returns {string} sprite key
+ */
+export function presignalSpriteKey(type, dir, red) {
+  return `presignal_${type}.${presignalFrame(dir, red)}`;
 }
 
 /**
@@ -48,11 +73,10 @@ export function drawSignalSprite(ctx, sx, sy, red = false, type = 'block', dir =
   if (type === 'entry' || type === 'exit' || type === 'combo') {
     // pre-signals live in the EXTRA pack (presignal_{entry,exit,combo}.0..15), not base. Frame = dir axis pair + red/green.
     if (!packActive() || !packState.extra) return false;
-    const frame = presignalFrame(dir, red);
-    return blitPackFrom(packState.extra, ctx, `presignal_${type}.${frame}`, sx, sy - HALF_H);
+    return blitPackFrom(packState.extra, ctx, presignalSpriteKey(type, dir, red), sx, sy - HALF_H);
   }
   if (!packActive()) return false;
-  return blitPack(ctx, String(signalSpriteId(dir, red)), sx, sy - HALF_H);
+  return blitPack(ctx, String(resolveSignalSprite(dir, red)), sx, sy - HALF_H);
 }
 
 /** Frame index for presignal sprites (same direction-pair order as signalSpriteId, frames 0..15). PURE. */
@@ -90,12 +114,12 @@ export function drawSignalPost(ctx, sx, sy, red = false, type = 'block', dir = 0
   }
   if (type === 'path') {
     // path signal (T3c): tall post with two lamps, both lit red when the route ahead is reserved
-    ctx.strokeStyle = '#111827'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(px, base); ctx.lineTo(px, top + 4); ctx.stroke();
-    ctx.fillStyle = '#111827'; ctx.fillRect(px - 3.5, top - 4, 7, 9);
-    ctx.fillStyle = red ? '#ef4444' : '#22c55e';
-    ctx.beginPath(); ctx.arc(px, top - 1, 2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(px, top + 3, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#111827'; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(px, base); ctx.lineTo(px, top + 2); ctx.stroke();
+    ctx.fillStyle = '#111827'; ctx.fillRect(px - 3.5, top - 6, 7, 13);
+    const lamp = (y) => { ctx.fillStyle = red ? '#ef4444' : '#22c55e'; ctx.beginPath(); ctx.arc(px, y, 2.2, 0, Math.PI * 2); ctx.fill(); };
+    lamp(top - 2); lamp(top + 3.5);
     drawDirArrow(ctx, sx, sy, dir, '#60a5fa');
     return;
   }
