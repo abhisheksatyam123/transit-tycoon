@@ -49,6 +49,8 @@ export const DEFAULT_SETTINGS = {
   platformLength: false,
   /** OpenTTD order.station_length_loading_penalty (def true in OpenTTD; TT default off = unchanged): a train longer than its platform takes longer to load (platformLength.js loadingTicksFor). */
   stationLengthLoadingPenalty: false,
+  /** OpenTTD order.gradual_loading (def true in OpenTTD; TT default off = one-step loading): vehicles load in cycles of their load amount per part (gradualLoad.js). */
+  gradualLoading: false,
   /** pathCosts: OpenTTD YAPF-like rail pathfinder costs (slopes, curves, station bypass, occupied blocks, red signals). Off by default: preserves determinism. */
   pathCosts: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */

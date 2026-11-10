@@ -27,6 +27,7 @@ import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { updatePlatFit, loadingTicksFor } from './platformLength.js';
+import { gradualLoadingOn, loadAmountFor, gradualWaitTicks, plainParts } from './gradualLoad.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
 export const FEEDER_PAYMENT_SHARE = 75;
@@ -532,6 +533,39 @@ export function loadCargo(ctx, v, st) {
   return got;
 }
 
+/**
+ * Gradual loading cycle (order.gradual_loading, gradualLoad.js). Each cargo-carrying part takes at most its load
+ * amount: the allowance is loadAmountFor x parts (mixed consist: per cargo slice, its wagons).
+ * @returns {{got:number, filled:boolean, held:boolean}} filled = a slice reached its allowance (keep cycling);
+ *   held = improved load gave a slice to an earlier arrival (keep cycling while it loads).
+ */
+export function loadCargoCycle(ctx, v, st) {
+  const cyc = { limit: 0, got: 0, filled: false, held: false };
+  if (!v.consist) {
+    cyc.limit = loadAmountFor(v, v.cargoId) * plainParts(v);
+    cyc.got = v.platFit != null ? inPlatform(v, () => loadSlice(ctx, v, st, cyc)) : loadSlice(ctx, v, st, cyc);
+    return cyc;
+  }
+  for (const s of cycleSlices(v)) {
+    cyc.limit = loadAmountFor(v, s.cargoId) * s.parts;
+    cyc.got += inSlice(v, s.cargoId, s.capacity, () => loadSlice(ctx, v, st, cyc));
+  }
+  return cyc;
+}
+
+/** Mixed consist: cargo slices with the number of cargo-carrying wagons of each (inside the platform when cut). */
+function cycleSlices(v) {
+  const out = [];
+  const list = v.platFit != null ? v.consist.slice(0, v.platFit) : v.consist;
+  for (const w of list) {
+    const cap = MODEL_BY_ID[w.modelId] ? MODEL_BY_ID[w.modelId].capacity : 0;
+    if (!(cap > 0)) continue;
+    const s = out.find((x) => x.cargoId === w.cargoId);
+    if (s) { s.parts++; s.capacity += cap; } else out.push({ cargoId: w.cargoId, parts: 1, capacity: cap });
+  }
+  return out;
+}
+
 /** typeAgeMap key of a vehicle: rail (engine), bus, tram, truck (other road), aircraft, ship. */
 function pickupAgeType(v) {
   if (v.kind === 'train') return 'rail';
@@ -561,7 +595,12 @@ function outrankedAtStation(state, v, st) {
   return false;
 }
 
-function loadSlice(ctx, v, st) {
+/**
+ * Load one cargo slice of v at st. `cyc` (gradual loading cycle, see loadCargoCycle) caps the take at
+ * cyc.limit and records whether the take reached that allowance (cyc.filled) or was held back by improved
+ * load (cyc.held). Absent = the whole room, as before.
+ */
+function loadSlice(ctx, v, st, cyc) {
   const { state } = ctx;
   if (!v.cargoId || v.capacity <= 0) return 0;
   const model = vehicleModel(v);
@@ -572,10 +611,16 @@ function loadSlice(ctx, v, st) {
   if (waitingAmount(st, v.cargoId) <= 0) return 0;
   // cargodist: only parcels whose next hop is the vehicle's next stop (or with no route known)
   const cd = cdApplies(state, v.cargoId);
-  if (!cd && getSetting(state, 'improvedLoad') && outrankedAtStation(state, v, st)) return 0; // an earlier arrival is loading this cargo
+  if (!cd && getSetting(state, 'improvedLoad') && outrankedAtStation(state, v, st)) { // an earlier arrival is loading this cargo
+    if (cyc) cyc.held = true;
+    return 0;
+  }
+  const allowance = cyc ? Math.min(room, cyc.limit) : room;
+  if (allowance <= 0) return 0;
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
-  const got = takeWaiting(st, v.cargoId, room, pred, state.tick);
+  const got = takeWaiting(st, v.cargoId, allowance, pred, state.tick);
   if (got.amount <= 0) return 0;
+  if (cyc && got.amount >= allowance) cyc.filled = true;
   if (st.ownerId != null) st.pickedUp = 1; // rival stations only (player stations never use it); OL StationFlags::flag_7 (VehicleHead.cpp:3464): lifts the rival rating override
   recordCarrier(st, v.cargoId, model ? model.speed : 0, v.age || 0);
   const l = v.load;
@@ -645,24 +690,35 @@ export function loadingTick(ctx, v) {
   const order = effectiveOrder(v);
   // no loading when told so, and no reloading of cargo just dropped here (transfer / unload all)
   const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
-  if (!order || (order.load !== 'none' && !dropped)) loadCargo(ctx, v, st);
+  let cyc = null;
+  if (!order || (order.load !== 'none' && !dropped)) {
+    if (gradualLoadingOn(state)) cyc = loadCargoCycle(ctx, v, st);
+    else loadCargo(ctx, v, st);
+  }
+  // gradual loading: keep cycling while a part filled its allowance or improved load holds it back
+  if (cyc && (cyc.filled || cyc.held)) {
+    v.loadingTicks = gradualCycleWait(state, v, st);
+    return false;
+  }
+  // a cycle that moved cargo waits one gradual cycle before the next try; otherwise the usual retry
+  const retry = cyc && cyc.got > 0 ? gradualCycleWait(state, v, st) : FULL_LOAD_RETRY;
   const fullMode = order && (order.full || order.load === 'fullAny');
   if (fullMode && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
     && order.stationId === st.id && !(order.load === 'fullAny' ? isFullAny(v) : isFull(v)) && distinctOrderStations(v) >= 2) {
-    v.loadingTicks = FULL_LOAD_RETRY;
+    v.loadingTicks = retry;
     return false;
   }
   // timetable: hold until the minimum wait since arrival has passed
   if (order && order.waitDays > 0 && v.arriveTick != null
     && state.tick - v.arriveTick < order.waitDays * TICKS_PER_DAY) {
-    v.loadingTicks = FULL_LOAD_RETRY;
+    v.loadingTicks = retry;
     return false;
   }
   // timetable start date and separation: hold until the departure slot (lazy; absent = no hold)
   if (order && !v.intermediate && (v.ttStart != null || v.orderGroup != null)) {
     const hold = departureHoldUntil(state, v, v.orderIndex % v.orders.length);
     if (hold != null && state.tick < hold) {
-      v.loadingTicks = FULL_LOAD_RETRY;
+      v.loadingTicks = retry;
       return false;
     }
   }
@@ -670,6 +726,11 @@ export function loadingTick(ctx, v) {
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)
   return true;
+}
+
+/** Wait before the next gradual cycle (OpenTTD wait per class, with the station length penalty). */
+function gradualCycleWait(state, v, st) {
+  return loadingTicksFor(state, v, st, gradualWaitTicks(v));
 }
 
 /** Bookkeeping when a vehicle leaves its stop: autofill waiting time, autofill round, departure tick. */
