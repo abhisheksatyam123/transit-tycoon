@@ -195,6 +195,14 @@ export const DEFAULT_SETTINGS = {
   maxTrainLength: 7,
   /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
   autosaveInterval: 'off',
+  /** OpenTTD economy.exclusive_rights (economy_settings.ini, def true): town action 'Buy exclusive transport rights' is available. Off = the action is not offered and is refused (town_cmd.cpp TownActionBuyRights). TT default true = current. */
+  exclusiveRights: true,
+  /** OpenTTD construction.road_stop_on_town_road (world_settings.ini, def true): road stops may be built on town-owned road tiles. Off = refused (station_cmd.cpp). TT default true = current. */
+  roadStopOnTownRoad: true,
+  /** OpenTTD company.engine_renew_months (company_settings.ini, def 6): extra months past max age before autorenew (vehicle.cpp NeedsAutorenewing, 30 days each). TT default 0 = renew exactly past max age (current). */
+  engineRenewMonths: 0,
+  /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default 0 = only the purchase cost is checked (current). */
+  engineRenewMoney: 0,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */

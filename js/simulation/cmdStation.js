@@ -162,6 +162,8 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (objectError(t)) return { ok: false, error: objectError(t) };
   if (t.building) return { ok: false, error: ERR[t.building.type] || 'Tile occupied' };
   if (t.rail) return { ok: false, error: ERR.track };
+  // OpenTTD construction.road_stop_on_town_road (station_cmd.cpp, def true): town roads are t.owner 'town' (as cmdOneWay.js); off = no bus/truck stop on them
+  if (kind !== 'tram' && t.road && t.owner === 'town' && getSetting(state, 'roadStopOnTownRoad') === false) return { ok: false, error: 'Drive-through stops cannot be built on town roads (game settings)' };
   let axis;
   if (kind === 'tram') {
     // tram stop: straight tram track only (trams stop there; buses do not); no road bits are added

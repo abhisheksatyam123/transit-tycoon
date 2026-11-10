@@ -21,6 +21,14 @@ import { dayNumber } from './date.js';
 const NAG_DAYS = 30;
 
 /**
+ * OpenTTD company.engine_renew_months (def 6; vehicle.cpp NeedsAutorenewing: age - max_age < months*30 is not old enough).
+ * TT default 0 = renew exactly when past max age (current). Returns extra days past max age before renewal.
+ */
+function renewDelayDays(state) {
+  return (Number(getSetting(state, 'engineRenewMonths')) || 0) * 30;
+}
+
+/**
  * Replace `v` (stopped in a depot) with a new vehicle of model `newModelId`.
  * @returns {{ok:true,vehicle:object,cost:number}|{ok:false,error:string}}
  */
@@ -47,7 +55,9 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);
-  if (checkMoney(state, diff, companyOf(state, v))) {
+  // OpenTTD company.engine_renew_money (def 100000; vehicle.cpp NeedsServicing): the company must hold this much. TT default 0 = off (current)
+  const renewMoney = Number(getSetting(state, 'engineRenewMoney')) || 0;
+  if (checkMoney(state, diff, companyOf(state, v)) || (renewMoney > 0 && checkMoney(state, renewMoney, companyOf(state, v)))) {
     const last = v.autoreplaceNagDay;
     if (last == null || dayNumber(state.date) - last >= NAG_DAYS) {
       v.autoreplaceNagDay = dayNumber(state.date);
@@ -114,7 +124,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
-  if (!getSetting(state, 'autorenew') || !(v.age > effectiveMaxAge(state, v))) return null;
+  if (!getSetting(state, 'autorenew') || !(v.age > effectiveMaxAge(state, v) + renewDelayDays(state))) return null;
   const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
   return r.ok ? r.vehicle : null;
 }
@@ -124,7 +134,7 @@ export function isAutoreplaceEligible(state, v) {
   if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
   const rules = state.company && state.company.autoreplace;
   if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId) return true;
-  return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v);
+  return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
 /**
  * Mass autoreplace for a depot: apply autorenewVehicle to every eligible vehicle stopped inside it.

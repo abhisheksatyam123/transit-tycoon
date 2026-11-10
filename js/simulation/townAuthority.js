@@ -172,7 +172,7 @@ export function actionList(state, town) {
   const bribeDetail = !bribeAllowed ? 'Bribing disabled in game settings' : `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`;
   const blocked = (ok) => unwanted ? false : ok;
   const blockedDetail = (ok, detail) => unwanted ? 'The town will not deal with this company' : detail;
-  return [
+  const list = [
     { id: 'advertise_small', label: 'Small advertising campaign', cost: constructionTotal(state, Math.round(pop * 4), 'property'), hint: '+25 station rating for 3 months', detail: '+25 station rating for 3 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
     { id: 'advertise_medium', label: 'Medium advertising campaign', cost: constructionTotal(state, Math.round(pop * 9), 'property'), hint: '+50 station rating for 6 months', detail: '+50 station rating for 6 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
     { id: 'advertise_large', label: 'Large advertising campaign', cost: constructionTotal(state, Math.round(pop * 18), 'property'), hint: '+75 station rating for 12 months', detail: '+75 station rating for 12 months', ok: blocked(rating < MAX_COMPANY_RATING), enabled: blocked(rating < MAX_COMPANY_RATING) },
@@ -182,6 +182,8 @@ export function actionList(state, town) {
     { id: 'statue', label: 'Build a statue of the company owner', cost: constructionTotal(state, Math.max((COSTS.buildStatue ?? 45000), Math.round(pop * 60)), 'property'), hint: `Permanent +${STATUE_BONUS} rating`, detail: blockedDetail(!town.statue, town.statue ? 'Already built' : `Permanent +${STATUE_BONUS} rating`), ok: blocked(!town.statue), enabled: blocked(!town.statue) },
     { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, detail: bribeDetail, ok: bribeOk, enabled: bribeOk },
   ];
+  // OpenTTD economy.exclusive_rights (def true): off = the rights action is not offered (town_cmd.cpp GetMaskOfTownActions)
+  return getSetting(state, 'exclusiveRights') === false ? list.filter((a) => a.id !== 'rights') : list;
 }
 
 /** Carry out a local authority action; returns {ok,error?}. */
@@ -190,6 +192,8 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
   const town = (state.towns || []).find((t) => t.id === townId);
   if (!town) return { ok: false, error: 'Unknown town' };
   ensureTown(town);
+  // OpenTTD economy.exclusive_rights: refused when the setting is off (town_cmd.cpp TownActionBuyRights)
+  if (actionId === 'rights' && getSetting(state, 'exclusiveRights') === false) return { ok: false, error: 'Exclusive transport rights are disabled in game settings' };
   const entry = actionList(state, town).find((a) => a.id === actionId);
   if (!entry) return { ok: false, error: 'Unknown town action' };
   if (actionId === 'statue' && town.statue) return { ok: false, error: `${town.name} already has a statue` };
