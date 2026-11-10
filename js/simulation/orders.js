@@ -540,6 +540,27 @@ function pickupAgeType(v) {
   return v.roadType === 'bus' ? 'bus' : v.roadType === 'tram' ? 'tram' : 'truck';
 }
 
+/**
+ * OpenTTD order.improved_load (economy.cpp ReserveConsist): cargo at a station goes to the vehicles that arrived
+ * first. Simplified in TT: a vehicle yields this loading step while another vehicle at the same station, loading
+ * the same cargo, arrived earlier (ties by vehicle id) and still has room and wants to load. Cargodist parcels are
+ * not ranked. Vehicles without an arrival stamp (saved before the setting was on) rank last.
+ */
+function outrankedAtStation(state, v, st) {
+  const mine = v.atStationSince ?? Infinity;
+  for (const w of state.vehicles) {
+    if (w === v || w.state !== 'loading' || w.atStationId !== st.id || w.cargoId !== v.cargoId) continue;
+    if (!(w.capacity - (w.load ? w.load.amount : 0) > 0)) continue;
+    const rw = w.atStationSince ?? Infinity;
+    if (!(rw < mine || (rw === mine && w.id < v.id))) continue;
+    const o = effectiveOrder(w);
+    const dropped = o && (o.unload === 'transfer' || o.unload === 'all');
+    if (o && (o.load === 'none' || dropped)) continue; // this one does not load here
+    return true;
+  }
+  return false;
+}
+
 function loadSlice(ctx, v, st) {
   const { state } = ctx;
   if (!v.cargoId || v.capacity <= 0) return 0;
@@ -551,6 +572,7 @@ function loadSlice(ctx, v, st) {
   if (waitingAmount(st, v.cargoId) <= 0) return 0;
   // cargodist: only parcels whose next hop is the vehicle's next stop (or with no route known)
   const cd = cdApplies(state, v.cargoId);
+  if (!cd && getSetting(state, 'improvedLoad') && outrankedAtStation(state, v, st)) return 0; // an earlier arrival is loading this cargo
   const pred = cd ? loadFilter(state, st, v.cargoId, vehicleNextStop(v)) : undefined;
   const got = takeWaiting(st, v.cargoId, room, pred, state.tick);
   if (got.amount <= 0) return 0;
@@ -584,6 +606,7 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
   v.state = 'loading';
   v.speed = 0;
   v.atStationId = st.id;
+  if (getSetting(state, 'improvedLoad')) v.atStationSince = state.tick; // improved load: arrival order (absent when off)
   if (intermediate) v.intermediate = true; // stop 'all': an intermediate stop, the order does not advance on departure
   else delete v.intermediate;
   updatePlatFit(state, v, st); // platformLength setting: wagons that fit the platform (absent when all fit)

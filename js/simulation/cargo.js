@@ -4,7 +4,7 @@
  */
 import { MAX_WAITING } from './constants.js';
 import { HOUSE_POP } from './towns.js';
-import { addWaiting } from './stations.js';
+import { addWaiting, acceptsFromSource } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
 import { manhattan, findStation } from './state.js';
 import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
@@ -32,7 +32,7 @@ export function servingStations(state, coverage, tileIdxs, cargoId, sx, sy) {
   const list = [];
   for (const id of ids) {
     const st = findStation(state, id);
-    if (st && st.lastPickup[cargoId] !== undefined) list.push(st);
+    if (st && acceptsFromSource(state, st, cargoId)) list.push(st);
   }
   list.sort((a, b) => (b.rating[cargoId] ?? 0) - (a.rating[cargoId] ?? 0)
     || manhattan(a.x, a.y, sx, sy) - manhattan(b.x, b.y, sx, sy) || a.id - b.id);

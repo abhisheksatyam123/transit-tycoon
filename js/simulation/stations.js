@@ -253,6 +253,16 @@ export function takeWaiting(st, cargoId, amount, pred, tick) {
 }
 
 /**
+ * Whether a station may take cargo from a producer (industry output or town passengers/mail).
+ * OpenTTD order.selectgoods (on by default): only after a vehicle has tried to load this cargo there.
+ * Off: every station takes it. Default on = the previous behaviour (lastPickup set).
+ */
+export function acceptsFromSource(state, st, cargoId) {
+  if (getSetting(state, 'selectGoods') === false) return true;
+  return st.lastPickup[cargoId] !== undefined;
+}
+
+/**
  * Mark that a vehicle tried to load cargo at the station (enables production delivery).
  */
 export function markPickup(state, st, cargoId, speedKmh) {

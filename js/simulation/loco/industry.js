@@ -15,7 +15,7 @@
  *  per-industry PRNG is replaced by game.rng; monthly history graphs are not kept.
  */
 import { INDUSTRY_BY_ID, CONVERSION_RATIO } from '../../config/industries.js';
-import { addWaiting } from '../stations.js';
+import { addWaiting, acceptsFromSource } from '../stations.js';
 
 /**
  * Station cargo rating on OpenLoco's 0..200 scale (StationCargoStats.rating, used raw by
@@ -113,7 +113,7 @@ export function updateProducedCargoStats(state, ind) {
     const cargo = prod[c];
     if (cargo) {
       for (const st of inRange) {
-        if (st.lastPickup[cargo] === undefined) continue; // acceptedFromProducer: a vehicle has loaded this cargo here
+        if (!acceptsFromSource(state, st, cargo)) continue; // acceptedFromProducer: a vehicle has loaded this cargo here (selectgoods)
         const rating = stationRating200(st, cargo);
         for (let index = 0; index < MAX_STATIONS; index++) {
           if (stations[index] === null || ratings[index] <= rating) { // insertion sort, dropping the last entry

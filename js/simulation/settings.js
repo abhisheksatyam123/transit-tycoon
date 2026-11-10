@@ -161,6 +161,10 @@ export const DEFAULT_SETTINGS = {
   maxTunnelLength: 16,
   /** OpenTTD station.distant_join_stations (game_settings.ini, def true): Ctrl+click may join a station that is not next to the new one. */
   distantJoinStations: true,
+  /** OpenTTD order.selectgoods (station_cmd.cpp:3991, 4583; def true): industries and towns deliver only to stations a vehicle has tried to load at. Off = every station in range takes cargo. */
+  selectGoods: true,
+  /** OpenTTD order.improved_load (economy.cpp ReserveConsist; def true in OpenTTD). TT default off = current greedy loading. On = among vehicles loading the same cargo at a station, the earliest arrival is served first. */
+  improvedLoad: false,
   /** OpenTTD difficulty.town_council_tolerance (difficulty_settings.ini:298, def 0): 0 Lenient, 1 Tolerant, 2 Hostile, 3 Permissive; townAuthority.js refuseBelow. */
   townCouncilTolerance: 0,
   /** OpenTTD economy.dist_local_authority (economy_settings.ini, def 20, min 5): manhattan radius (tiles) of a town's local authority. authorityTown / refusalAt / monthly rating use it. */
