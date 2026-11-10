@@ -38,8 +38,11 @@ describe('save format', () => {
   });
 
   test('loads the previous compact scenario format (defaults omitted)', () => {
-    const back = parseState(toLegacy(state));
-    expect(JSON.stringify(back.map.tiles)).toBe(JSON.stringify(state.map.tiles));
+    // Smaller 64x64 random map: the compact-format property does not depend on the 384x384 Moscow tiles,
+    // and stringifying/parsing those dominated this test's run time.
+    const small = Game.create({ seed: 2, width: 64, height: 64, townCount: 3, industryCount: 4 }).state;
+    const back = parseState(toLegacy(small));
+    expect(JSON.stringify(back.map.tiles)).toBe(JSON.stringify(small.map.tiles));
   });
 
   test('loads the classic (random world) format', () => {

@@ -14,7 +14,8 @@ export function tick(game) {
 
 /**
  * StationManager::updateDaily: per station updateCargo (ratings, decay, ageing).
- * (noTilesTimeout / town company-rating adjustment: not applicable, see station.js.)
+ * noTilesTimeout is not applicable (TT deletes empty stations at once, see station.js). The town
+ * company-rating adjustment is in loco/townManager.js updateDaily (ratingAdjusted + adjustCompanyRating).
  */
 export function updateDaily(game) {
   for (const st of game.state.stations) updateCargo(game, st);

@@ -10,9 +10,11 @@
  *  - vehicleSpeed / vehicleAge -> st.carrier[cargoId] (km/h, 256-day units): the last carrier's max speed and age,
  *    averaged (old+new)>>1 over pickups (VehicleHead.cpp:3466-3478, see stations.js recordCarrier).
  *  - quantity -> sum of packet amounts (waitingAmount); decay removes cargo via takeWaiting.
- *  - Not ported (no TT counterpart): company/town rating bonus, noTilesTimeout (TT deletes empty stations
- *    at once), cargo density/ viewport, station flags 7/8 (player always owns stations), statue/HQ bonus
- *    (not part of this OpenLoco version's cargo rating).
+ *  - StationManager::updateDaily's company/town rating bonus is not here: it lives in loco/townManager.js
+ *    updateDaily (st.rating200 >= 100 -> town.ratingAdjusted -> adjustCompanyRating(town, 1), lines ~54-67).
+ *  - Not ported (no TT counterpart): noTilesTimeout (TT deletes empty stations at once), cargo density/
+ *    viewport, station flags 7/8 (player always owns stations), statue/HQ bonus (not part of this OpenLoco
+ *    version's cargo rating).
  */
 import { waitingAmount, takeWaiting, recomputeAcceptance } from '../stations.js';
 import { stationRatingFixed } from '../cheats.js';
