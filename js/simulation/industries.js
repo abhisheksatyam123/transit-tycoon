@@ -216,8 +216,15 @@ export function placeIndustry(state, typeId, x, y) {
  * Generate ~count industries covering all types (round-robin, shuffled order).
  */
 /** TY2: the primary/processing industry set of a game: toyland games get the toyland set only, others INDUSTRY_TYPES. */
+/** Raw (primary) industry type: takes no input cargo (OpenTTD IndustrySpec::IsRawIndustry). */
+export function isRawIndustryType(t) {
+  return !(t.accepts && t.accepts.length);
+}
+
+/** Industry types available for generation and monthly spawns. spawnPrimaryIndustryOnly keeps raw types only (default: all). */
 export function industryTypesFor(state) {
-  return isToyland(state) ? TOYLAND_INDUSTRY_TYPES : INDUSTRY_TYPES;
+  const base = isToyland(state) ? TOYLAND_INDUSTRY_TYPES : INDUSTRY_TYPES;
+  return getSetting(state, 'spawnPrimaryIndustryOnly') ? base.filter(isRawIndustryType) : base;
 }
 
 export function generateIndustries(state, rng, count) {
@@ -225,6 +232,7 @@ export function generateIndustries(state, rng, count) {
   const order = [];
   while (order.length < count) {
     const batch = industryTypesFor(state).map((t) => t.id);
+    if (!batch.length) break; // no type allowed (e.g. primary-only with no raw type): avoid an endless loop
     for (let i = batch.length - 1; i > 0; i--) {
       const j = rng.int(0, i);
       [batch[i], batch[j]] = [batch[j], batch[i]];

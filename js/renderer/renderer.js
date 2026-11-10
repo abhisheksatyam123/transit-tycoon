@@ -333,6 +333,7 @@ export class Renderer {
     const map = state.map;
     setPoseMap(map);
     roadSideSign.value = getSetting(state, 'roadSide') === 'left' ? -1 : 1; // once per frame (road driving side)
+    this.vfx.smokeAmount = Number(getSetting(state, 'smokeAmount')) || 0; // OTTD smoke_amount (render-only)
     setOverlayHeights(this.heights); // module-level: another renderer may have set its own
     const W = map.width;
     const tiles = map.tiles;

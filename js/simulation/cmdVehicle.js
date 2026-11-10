@@ -11,7 +11,7 @@ import { getSetting } from './settings.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField, isDepotOrder } from './orders.js';
-import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack } from './routing.js';
+import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack, canFlipTrain } from './routing.js';
 import { RAIL_TYPES } from '../config/railTypes.js';
 
 /** Track type of a rail depot: its own tile's trk (set when built onto monorail/maglev track). */
@@ -506,6 +506,9 @@ export function reverseVehicle(ctx, id, opts = {}) {
   if (v.kind !== 'train') return { ok: false, error: 'Only trains can be reversed' };
   if (v.state === 'depot') return { ok: false, error: 'Vehicle is in a depot' };
   if (v.state === 'loading') return { ok: false, error: 'Wait until the train has finished loading' };
+  if (!canFlipTrain(ctx.state, v)) {
+    return { ok: false, error: getSetting(ctx.state, 'trainFlipReverse') === 'none' ? 'Trains cannot reverse (difficulty setting)' : 'Trains can only reverse at the end of a line' };
+  }
   if (opts.dryRun) return { ok: true, cost: 0 };
   flipTrain(v);
   v.speed = 0;

@@ -159,6 +159,24 @@ function trainStopPath(state, v, path) {
  * Reverse a train's consist in place: its rear becomes its head (sets v.flipped).
  * Returns the new head tile.
  */
+/**
+ * May this train turn around now? (OpenTTD difficulty.train_flip_reverse_allowed.) 'all' (default): always.
+ * 'endOfLine': only when the train's tile has a single rail link (a dead end). 'none': never.
+ * Road vehicles and non-trains are never restricted.
+ */
+export function canFlipTrain(state, v) {
+  if (v.kind !== 'train') return true;
+  const mode = getSetting(state, 'trainFlipReverse');
+  if (mode !== 'endOfLine' && mode !== 'none') return true;
+  if (mode === 'none') return false;
+  const W = state.map.width;
+  const t = state.map.tiles[v.ty * W + v.tx];
+  if (!t) return false;
+  let links = 0;
+  for (const d of DIRS) if (t.rail & d.bit) links++;
+  return links === 1;
+}
+
 export function flipTrain(v) {
   const k = Math.min(Math.ceil(v.wagons * 0.5), v.history.length - 1);
   if (k <= 0) { v.flipped = !v.flipped; return v.history[0]; }
@@ -175,8 +193,9 @@ export function flipTrain(v) {
  * @returns {{x:number,y:number}[]|null}
  */
 /** True when a train's locomotive is electric: it may only use electrified rail (pathfinder opts.electric). */
-export function needsElectric(v) {
+export function needsElectric(v, state) {
   if (v.kind !== 'train') return false;
+  if (state && getSetting(state, 'disableElrails')) return false; // OpenTTD disable_elrails: no catenary requirement
   const m = MODEL_BY_ID[v.modelId];
   return !!m && m.traction === 'electric';
 }
@@ -190,7 +209,7 @@ export function trainTrack(v) {
 
 export function findVehiclePath(state, v, goals) {
   if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals);
-  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
+  if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v, state), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
   if (!goals.length) return null;
   let best = goals[0];
   for (const g of goals) if (manhattan(v.tx, v.ty, g.x, g.y) < manhattan(v.tx, v.ty, best.x, best.y)) best = g;
@@ -212,7 +231,7 @@ export function planRoute(state, v, goals) {
     // the route leads back the way we came: reverse the consist and plan from the rear
     const saved = { history: v.history, flipped: v.flipped, tx: v.tx, ty: v.ty };
     const head = flipTrain(v);
-    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
+    const alt = findPath(state.map, head, goals, layer, { electric: needsElectric(v, state), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
     if (alt) path = alt;
     else Object.assign(v, saved);
   }

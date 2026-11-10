@@ -36,6 +36,8 @@ export class VehicleFx {
     /** @type {Map<number, {state:string, frame:number}>} last seen state per vehicle id */
     this.seen = new Map();
     this.budget = EMIT_BUDGET;
+    /** vehicle.smoke_amount (0 none, 1 half, 2 normal); set once per frame by the renderer. */
+    this.smokeAmount = 2;
     this.tiles = null;
     this.W = 0;
     this.frame = 0;
@@ -74,10 +76,11 @@ export class VehicleFx {
       }
       this.seen.set(v.id, { state: v.state, frame: this.frame });
     }
-    if (!fxOn || !smokeOn || this.budget <= 0 || loadA11y().reduceMotion) return;
+    if (!fxOn || !smokeOn || this.budget <= 0 || this.smokeAmount === 0 || loadA11y().reduceMotion) return;
     const model = MODEL_BY_ID[v.modelId];
     const moving = s._run && v.speed > 0;
-    const r = smoke.rnd();
+    // smoke_amount 1 = half the emission chance (r doubled before the thresholds below); 2 = normal
+    const r = this.smokeAmount === 1 ? smoke.rnd() * 2 : smoke.rnd();
     if (v.state === 'broken') { // breakdown: black smoke
       if (r < 0.7) this.emit(smoke, px, py - (s.part === 'loco' ? 14 : 8), 3, KIND_DARK, 2.2);
       return;

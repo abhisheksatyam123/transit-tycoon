@@ -37,7 +37,7 @@ export function modelAvailable(state, model, ownerId = null) {
     && ALL_VEHICLE_MODELS.some((m) => m.optIn === 'toyland' && m.kind === model.kind && purchasable(m, state.date.year, getSetting(state, 'neverExpireVehicles')))) return false;
   if (!model || !model.optIn) return true;
   if (model.optIn === 'articulated') return !!state && getSetting(state, 'articulatedRV') === true; // articulated road vehicles
-  if (model.optIn === 'electric') return !!state && hasElectrifiedTrack(state);
+  if (model.optIn === 'electric') return !!state && (getSetting(state, 'disableElrails') === true || hasElectrifiedTrack(state)); // disable_elrails: no catenary needed
   if (model.optIn === 'mono' || model.optIn === 'maglev') return !!state && hasTrackType(state, model.railType); // monorail / maglev trains
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
   if (model.optIn === 'tropic') return isTropic(state); // TP sub-tropical water tankers

@@ -67,6 +67,14 @@ export const DEFAULT_SETTINGS = {
   shares: false,
   /** T29 OpenTTD temperate bank (produces/accepts Valuables) placed in towns of 1200+ people by the map generator. Off by default. */
   extraIndustries: false,
+  /** OpenTTD economy.spawn_primary_industry_only (economy_settings.ini, def false): new and generated industries are raw (primary) types only; processing industries are not created. Existing industries are kept. */
+  spawnPrimaryIndustryOnly: false,
+  /** OpenTTD vehicle.disable_elrails (game_settings.ini, def false): electric engines may run on non-electrified track (the electrify requirement is dropped). Off = electric engines need catenary (current). */
+  disableElrails: false,
+  /** OpenTTD difficulty.train_flip_reverse_allowed (def 'all'): 'all' = trains may turn around anywhere; 'endOfLine' = only where the track ends (one rail link); 'none' = trains never turn around (they wait). Applies to the reverse command and to blocked-train turnarounds. */
+  trainFlipReverse: 'all',
+  /** OpenTTD vehicle.smoke_amount (def 2): 0 = no vehicle smoke, 1 = half as much (chance halved), 2 = normal. Render-only (renderer/vehicleFx.js); no effect on simulation. */
+  smokeAmount: 2,
   /** OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in/near a town. Off = one of each type per town. */
   multipleIndustryPerTown: false,
   /** OpenTTD construction.raw_industry_construction (settings_type.h:496): 'normal' funds raw industries at a site (default); 'none' blocks raw (primary) industries; 'prospect' prospects them at a random site with the type's chance (cmdFound.js). Processing industries are always fundable. */

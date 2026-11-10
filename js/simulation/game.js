@@ -162,7 +162,7 @@ export class Game {
       return game;
     }
     // T29 opt-in settings must be set before generation (they change what the generator places)
-    for (const k of ['extraIndustries', 'farmFields', 'buildingEras']) if (o.settings && o.settings[k]) setSetting(state, k, true);
+    for (const k of ['extraIndustries', 'farmFields', 'buildingEras', 'spawnPrimaryIndustryOnly']) if (o.settings && o.settings[k]) setSetting(state, k, true);
     // T34 map generator options: stored only when non-default so default saves are unchanged
     const mg = mapgenOptions(o.mapgen);
     if (Object.keys(mg).length) state.mapgen = mg;

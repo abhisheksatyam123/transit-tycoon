@@ -20,7 +20,7 @@ import { bridgeType } from '../config/bridges.js';
 import { connected } from './network.js';
 import { findStation, findDepot } from './state.js';
 import { historyNeeded, vehicleModel } from './vehicles.js';
-import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain } from './routing.js';
+import { layerOf, stopKindOk, orderGoals, depotGoals, planRoute, findVehiclePath, flipTrain, canFlipTrain } from './routing.js';
 import { altitudeAt, isRunwayCentre } from './aircraft.js';
 import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
@@ -499,6 +499,7 @@ function tryFreeBay(ctx, v) {
 export function turnAround(ctx, v) {
   clearBlock(v); // blockedTicks restarts from 0, so the next turnaround waits a full timeout too (cooldown)
   if (v.kind === 'train') {
+    if (!canFlipTrain(ctx.state, v)) return; // difficulty trainFlipReverse: this train may not turn here; it keeps waiting
     flipTrain(v);
     v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0;
     replan(ctx, v);
