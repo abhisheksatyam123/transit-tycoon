@@ -131,6 +131,8 @@ export const SETTING_META = [
     help: 'OpenTTD order.improved_load (simplified): when several vehicles load the same cargo at a station, the one that arrived first is served first. Off = all loading vehicles share the cargo (default).' },
   { key: 'selectGoods', group: 'economy', label: 'Stations select goods', type: 'check',
     help: 'OpenTTD order.selectgoods: industries and towns deliver only to stations where a vehicle has tried to load that cargo. Off = every station in range takes it.' },
+  { key: 'stationLengthLoadingPenalty', group: 'vehicles', label: 'Long trains load slower', type: 'check',
+    help: 'OpenTTD order.station_length_loading_penalty: a train longer than its platform takes longer to load and unload (about 4x for one tile of overhang). Off = stop time does not depend on train length (default).' },
   { key: 'freightTrainWagons', group: 'vehicles', label: 'Default freight wagons', type: 'number', min: 0, max: 12,
     help: 'OpenTTD vehicle.freight_trains: wagons pre-filled when buying a freight train (0 = automatic, currently 4).' },
   { key: 'cargoAgeInVehicle', group: 'economy', label: 'Cargo aging in vehicles', type: 'check',

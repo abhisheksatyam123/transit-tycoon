@@ -62,6 +62,24 @@ export function stationMaxPlatform(state, st) {
   return best;
 }
 
+/**
+ * OpenTTD order.station_length_loading_penalty (economy.cpp UpdateLoadUnloadTicks): a train longer than its
+ * platform waits longer per stop. Overhang in OpenTTD length units (8 per vehicle, 16 per tile): ticks <<= 1,
+ * then ticks += overhang * ticks / 8. Whole train length counts (not only the wagons inside). TT applies it to
+ * the fixed stop time. Off, not a train, or no rail platform at the stop: base unchanged.
+ * @returns {number} loading ticks (>= 1)
+ */
+export function loadingTicksFor(state, v, st, base) {
+  if (!getSetting(state, 'stationLengthLoadingPenalty') || v.kind !== 'train') return base;
+  const plat = platformRun(state, st, v.tx, v.ty);
+  if (plat <= 0) return base;
+  const overhang = Math.round((trainLengthTiles(v) - plat) * 16);
+  if (overhang <= 0) return base;
+  let t = base * 2;
+  t += Math.floor((overhang * t) / 8);
+  return Math.max(1, t);
+}
+
 /** Wagons (of `wagons`) that fit in a platform of `platTiles` tiles; the engine takes the first vehicle slot. */
 export function wagonsFitting(wagons, platTiles) {
   const vehicles = Math.floor(platTiles / SEGMENT_SPACING + 1e-9);

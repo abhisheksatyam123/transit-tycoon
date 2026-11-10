@@ -26,7 +26,7 @@ import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
 import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
 import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
-import { updatePlatFit } from './platformLength.js';
+import { updatePlatFit, loadingTicksFor } from './platformLength.js';
 
 /** OpenTTD feeder_payment_share (economy setting default 75%): share of a transfer leg's net income credited to the feeder. */
 export const FEEDER_PAYMENT_SHARE = 75;
@@ -611,7 +611,7 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
   else delete v.intermediate;
   updatePlatFit(state, v, st); // platformLength setting: wagons that fit the platform (absent when all fit)
   unload(ctx, v, st);
-  v.loadingTicks = LOAD_TICKS;
+  v.loadingTicks = loadingTicksFor(state, v, st, LOAD_TICKS); // station_length_loading_penalty (off = LOAD_TICKS)
   if (!intermediate) recordArrival(ctx, v, currentOrder(v));
 }
 
