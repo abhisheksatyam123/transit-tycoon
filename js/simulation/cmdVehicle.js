@@ -160,6 +160,7 @@ export function skipToOrder(ctx, id, index, opts = {}) {
   if (v.state === 'loading') {
     v.state = 'running';
     v.loadingTicks = 0;
+    delete v.unloadPending; // gradual unloading of the stop is abandoned
     replan(ctx, v);
   } else if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) {
     replan(ctx, v);

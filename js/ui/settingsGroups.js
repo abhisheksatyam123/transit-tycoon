@@ -134,7 +134,7 @@ export const SETTING_META = [
   { key: 'stationLengthLoadingPenalty', group: 'vehicles', label: 'Long trains load slower', type: 'check',
     help: 'OpenTTD order.station_length_loading_penalty: a train longer than its platform takes longer to load and unload (about 4x for one tile of overhang). Off = stop time does not depend on train length (default).' },
   { key: 'gradualLoading', group: 'vehicles', label: 'Gradual loading', type: 'check',
-    help: 'OpenTTD order.gradual_loading: vehicles load in slices (5 units per wagon or bus per cycle, 10 ship, 20 aircraft, air mail a quarter), with a wait between slices. Off = one step (default).' },
+    help: 'OpenTTD order.gradual_loading: vehicles load and unload in slices (5 units per wagon or bus per cycle, 10 ship, 20 aircraft, air mail a quarter), with a wait between slices, each slice paid as delivered. Off = one step (default).' },
   { key: 'freightTrainWagons', group: 'vehicles', label: 'Default freight wagons', type: 'number', min: 0, max: 12,
     help: 'OpenTTD vehicle.freight_trains: wagons pre-filled when buying a freight train (0 = automatic, currently 4).' },
   { key: 'cargoAgeInVehicle', group: 'economy', label: 'Cargo aging in vehicles', type: 'check',

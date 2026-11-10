@@ -1,6 +1,6 @@
 # order.gradual_loading: how OpenTTD does it, and how to port it to TT
 
-Status: research only (no code). Date 2026-11-10. Default-preserving port recommended (opt-in, default off).
+Status: implemented (Round AA, `gradualLoading`, opt-in, default off). Date 2026-11-10. See "Implemented" at the end for the decisions and the deviations.
 
 ## Sources (checked online, 2026-11-10)
 - Upstream `src/economy.cpp` (OpenTTD master, raw GitHub): `GetLoadAmount` (1299-1335), unload cap (1670), load cap (1779), wait table and stop rule (1840-1860), station-length penalty `UpdateLoadUnloadTicks` (1593-1607).
@@ -44,3 +44,20 @@ Tests to add: default off is unchanged (hash e66b684174510b6b); a 4-wagon coal t
 1. Phase 1 only (loading), or phases 1+2 now?
 2. Default: keep off (recommended, as with the other loading options), or on (OpenTTD default, changes the world hash and saves' timing)?
 3. Use OpenTTD's wait values converted to TT ticks (recommended), or keep TT's 40-tick stop time as the cycle wait?
+
+## Implemented (Round AA)
+- Setting `gradualLoading` (default off). Code: `js/simulation/gradualLoad.js` (load amounts, waits, part counts), `js/simulation/orders.js` (`loadCargoCycle`, `unloadCargoCycle`, `cutLoad`, `loadingTick`), `arriveAtStation` (sets `unloadPending` instead of unloading in one step).
+- Loading: per cycle each cargo-carrying part takes at most its load amount (mixed consist: per cargo slice, its wagons; platform cut respected). A cycle that fills an allowance keeps cycling; a short cycle departs (unless full load or a timetable hold).
+- Unloading: per cycle each part unloads at most its allowance; each slice is delivered and paid as it goes (cargodist destinations and feeder credit are cut in step). Cargo the station does not accept stays aboard and the vehicle departs.
+- Waits: OpenTTD 40/20/10/20 ticks converted to TT ticks (x96/74): 52/26/13/26. Station length penalty applies to each wait.
+- Tests: `tests/gradualLoading.test.js` (11), `tests/gradualUnloading.test.js` (8). Mixed consist, cargodist cut and improved-load hold are covered.
+- Whole-game check (500 days, coal line, 4 wagons): off 30 trips / 27785; on 29 trips / 28334; no vehicle stuck beyond the mine's full-load wait.
+
+Deviations (documented, not hidden):
+1. After a short cycle, TT departs at once; OpenTTD waits one more gradual wait before the stop ends.
+2. The first slice waits the normal stop time (LOAD_TICKS = 40 TT ticks), not OpenTTD's 40 OpenTTD ticks, so arrival timing is as before.
+3. Cargo multiplier (NoDefaultCargoMultiplier) and NewGRF load-amount callbacks are not modelled (base table only).
+4. Air mail is any aircraft carrying cargo MAIL (OpenTTD: non-normal aircraft).
+5. Payment per slice uses the days since loading at that slice, so slices delivered later earn a little less time-wise (OpenTTD does the same).
+6. Improved load in a cycle: a held vehicle keeps cycling until the earlier arrival leaves the cargo or it can load.
+

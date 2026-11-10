@@ -534,6 +534,74 @@ export function loadCargo(ctx, v, st) {
 }
 
 /**
+ * Run fn with only `keep` units of the packet visible: cargodist destinations and feeder credit are cut in step,
+ * the rest stays aboard afterwards (as inPlatform does for the wagons outside the platform).
+ * @returns {number} units fn removed from the cut (delivered or transferred)
+ */
+function cutLoad(v, keep, fn) {
+  const load = v.load;
+  const total = load.amount;
+  if (keep >= total) { fn(); return total - load.amount; }
+  const outside = total - keep;
+  let outDests = null;
+  if (load.dests) {
+    outDests = {};
+    let left = keep;
+    for (const k of Object.keys(load.dests)) {
+      const inK = Math.min(load.dests[k] || 0, left);
+      left -= inK;
+      outDests[k] = (load.dests[k] || 0) - inK;
+      load.dests[k] = inK;
+    }
+  }
+  const feeder = load.feeder || 0;
+  const feederOut = feeder ? feeder - Math.round((feeder * keep) / total) : 0;
+  if (feeder) load.feeder = feeder - feederOut;
+  const from = load.fromStationId;
+  let removed = 0;
+  load.amount = keep;
+  try { fn(); } finally {
+    removed = keep - load.amount;
+    load.amount += outside;
+    if (outDests) {
+      const cur = load.dests || {};
+      for (const k of Object.keys(outDests)) if (outDests[k] > 0) cur[k] = (cur[k] || 0) + outDests[k];
+      if (Object.keys(cur).length) load.dests = cur; else delete load.dests;
+    }
+    if (feederOut) { load.feeder = (load.feeder || 0) + feederOut; if (!load.feeder) delete load.feeder; }
+    if (load.amount > 0 && !load.fromStationId) load.fromStationId = from;
+  }
+  return removed;
+}
+
+/** One gradual unloading cycle at st: at most the allowance (loadAmountFor x parts) is unloaded. */
+function cutUnload(ctx, v, st, budget) {
+  if (!(budget > 0) || !(v.load.amount > 0) || !v.cargoId) return { took: 0, filled: false };
+  const took = cutLoad(v, budget, () => unloadSlice(ctx, v, st));
+  // filled: the cycle used its whole allowance and cargo is still aboard (more may be unloadable)
+  return { took, filled: took >= budget && v.load.amount > 0 };
+}
+
+/**
+ * Gradual unloading cycle (order.gradual_loading, OpenTTD economy.cpp LoadUnloadVehicle: amount_unloaded =
+ * min(count, load amount)). Each part unloads at most its allowance; each slice is delivered and paid as it goes.
+ * @returns {{took:number, filled:boolean}} filled = the cycle used its whole allowance (unload again).
+ */
+export function unloadCargoCycle(ctx, v, st) {
+  if (!v.consist) {
+    const budget = loadAmountFor(v, v.cargoId) * plainParts(v);
+    return v.platFit != null ? inPlatform(v, () => cutUnload(ctx, v, st, budget)) : cutUnload(ctx, v, st, budget);
+  }
+  const out = { took: 0, filled: false };
+  for (const s of cycleSlices(v)) {
+    const r = inSlice(v, s.cargoId, s.capacity, () => cutUnload(ctx, v, st, loadAmountFor(v, s.cargoId) * s.parts));
+    out.took += r.took;
+    out.filled = out.filled || r.filled;
+  }
+  return out;
+}
+
+/**
  * Gradual loading cycle (order.gradual_loading, gradualLoad.js). Each cargo-carrying part takes at most its load
  * amount: the allowance is loadAmountFor x parts (mixed consist: per cargo slice, its wagons).
  * @returns {{got:number, filled:boolean, held:boolean}} filled = a slice reached its allowance (keep cycling);
@@ -655,7 +723,8 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
   if (intermediate) v.intermediate = true; // stop 'all': an intermediate stop, the order does not advance on departure
   else delete v.intermediate;
   updatePlatFit(state, v, st); // platformLength setting: wagons that fit the platform (absent when all fit)
-  unload(ctx, v, st);
+  if (gradualLoadingOn(state)) v.unloadPending = true; // gradual loading: unloaded in cycles by loadingTick
+  else unload(ctx, v, st);
   v.loadingTicks = loadingTicksFor(state, v, st, LOAD_TICKS); // station_length_loading_penalty (off = LOAD_TICKS)
   if (!intermediate) recordArrival(ctx, v, currentOrder(v));
 }
@@ -690,18 +759,29 @@ export function loadingTick(ctx, v) {
   const order = effectiveOrder(v);
   // no loading when told so, and no reloading of cargo just dropped here (transfer / unload all)
   const dropped = order && (order.unload === 'transfer' || order.unload === 'all');
+  let unl = null;
+  if (v.unloadPending) {
+    if (gradualLoadingOn(state)) {
+      unl = unloadCargoCycle(ctx, v, st);
+      if (!unl.filled) delete v.unloadPending; // this stop's unloading is done
+    } else { // the setting was switched off during the stop: finish the unload in one step
+      delete v.unloadPending;
+      unload(ctx, v, st);
+    }
+  }
   let cyc = null;
   if (!order || (order.load !== 'none' && !dropped)) {
     if (gradualLoadingOn(state)) cyc = loadCargoCycle(ctx, v, st);
     else loadCargo(ctx, v, st);
   }
   // gradual loading: keep cycling while a part filled its allowance or improved load holds it back
-  if (cyc && (cyc.filled || cyc.held)) {
+  if ((unl && unl.filled) || (cyc && (cyc.filled || cyc.held))) {
     v.loadingTicks = gradualCycleWait(state, v, st);
     return false;
   }
   // a cycle that moved cargo waits one gradual cycle before the next try; otherwise the usual retry
-  const retry = cyc && cyc.got > 0 ? gradualCycleWait(state, v, st) : FULL_LOAD_RETRY;
+  const moved = (unl && unl.took > 0) || (cyc && cyc.got > 0);
+  const retry = moved ? gradualCycleWait(state, v, st) : FULL_LOAD_RETRY;
   const fullMode = order && (order.full || order.load === 'fullAny');
   if (fullMode && order.load !== 'none' && order.unload !== 'transfer' && order.unload !== 'all'
     && order.stationId === st.id && !(order.load === 'fullAny' ? isFullAny(v) : isFull(v)) && distinctOrderStations(v) >= 2) {
