@@ -166,6 +166,10 @@ export function generateTowns(state, rng, count) {
   const used = new Set();
   const margin = 6;
   let minDist = Math.max(12, Math.floor(Math.min(map.width, map.height) / 4));
+  // OpenTTD economy.town_min_distance (IsCloseToTown, town_cmd.cpp:373): an explicit value is a hard minimum,
+  // so the automatic relaxation below does not apply. 0 (default) = the automatic spacing, unchanged.
+  const explicitMin = Math.floor(Number(getSetting(state, 'townMinDistance')) || 0);
+  if (explicitMin > 0) minDist = Math.max(1, explicitMin);
   // OpenTTD larger_towns: every `every`-th town is a city, with a random phase (town_cmd.cpp:2441). 0 draws nothing.
   const every = Math.max(0, Math.floor(Number(getSetting(state, 'largerTowns')) || 0));
   const phase = every ? rng.int(0, every - 1) : 0;
@@ -173,7 +177,7 @@ export function generateTowns(state, rng, count) {
   for (let n = 0; n < count; n++) {
     let site = null;
     for (let attempt = 0; attempt < 600 && !site; attempt++) {
-      if (attempt > 0 && attempt % 150 === 0) minDist = Math.max(6, minDist - 3);
+      if (!explicitMin && attempt > 0 && attempt % 150 === 0) minDist = Math.max(6, minDist - 3);
       const x = rng.int(margin, map.width - 1 - margin), y = rng.int(margin, map.height - 1 - margin);
       if (!townSpotOk(state, x, y, minDist)) continue;
       site = { x, y };

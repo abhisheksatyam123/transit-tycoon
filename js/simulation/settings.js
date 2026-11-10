@@ -77,6 +77,8 @@ export const DEFAULT_SETTINGS = {
   smokeAmount: 2,
   /** OpenTTD economy.larger_towns (town_cmd.cpp:2441, def 0): every Nth generated town is a city (random phase). 0 = no cities (no draws). */
   largerTowns: 0,
+  /** OpenTTD economy.town_min_distance (town_cmd.cpp:373): minimum Manhattan distance between generated towns. 0 = automatic spacing (towns.js). */
+  townMinDistance: 0,
   /** OpenTTD economy.initial_city_size (town_cmd.cpp:2063, def 2): layout size multiplier for city towns at generation (normal towns 1-3, capped at 6). */
   initialCitySize: 2,
   /** OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in/near a town. Off = one of each type per town. */
