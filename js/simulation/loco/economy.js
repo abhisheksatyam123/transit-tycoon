@@ -104,6 +104,8 @@ export function calculateDeliveredCargoPayment(state, cargoId, numUnits, distanc
   const o = cargoPaymentParams(cargoId);
   if (!o || !(numUnits > 0) || !(distance > 0)) return 0;
   numDays = Math.max(0, Math.floor(numDays));
+  const agingRate = getSetting(state, 'cargoAgingRate');
+  if (agingRate !== 100) numDays = Math.round((numDays * agingRate) / 100); // economy.cpp:966 scales the transit periods
   let percent = o.paymentFactor * 65536; // payment factor shifted by 16 for integer maths
   const reduce = (p) => { percent = Math.max(0, percent - o.paymentFactor * p); };
   const nonPremiumDays = numDays - o.premiumDays;

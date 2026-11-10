@@ -4,6 +4,7 @@
 import { AXIS_BITS } from './constants.js';
 import { straightAxis } from './network.js';
 import { COSTS } from '../config/costs.js';
+import { infiniteMoney } from './settings.js';
 
 /** Error messages shared by commands. */
 export const ERR = {
@@ -119,6 +120,6 @@ export function coordsOk(map, ...coords) {
  */
 export function checkMoney(state, cost, company = state.company) {
   if (state.editor) return null; // scenario editor is free (scenarioEditor.js)
-  if (cost > company.money) return { ok: false, error: ERR.money };
+  if (!infiniteMoney(state) && cost > company.money) return { ok: false, error: ERR.money };
   return null;
 }

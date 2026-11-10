@@ -1,8 +1,12 @@
 /**
  * Order progression and station loading / unloading.
  */
+import { getTile } from './map.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { getSetting } from './settings.js';
+import { servicePerformed } from './service.js';
+import { isHelicopter, airportTypeId } from './airportTypes.js';
+import { HELI_PAD_TYPES } from './airportGround.js';
 import { earn } from './economy.js';
 import { calculateDeliveredCargoPayment } from './loco/economy.js';
 import { recordDelivery } from './loco/company.js';
@@ -723,6 +727,7 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
   if (intermediate) v.intermediate = true; // stop 'all': an intermediate stop, the order does not advance on departure
   else delete v.intermediate;
   updatePlatFit(state, v, st); // platformLength setting: wagons that fit the platform (absent when all fit)
+  if (getSetting(state, 'serviceAtHelipad') && onHelipad(state, v)) servicePerformed(state, v); // order.serviceathelipad
   if (gradualLoadingOn(state)) v.unloadPending = true; // gradual loading: unloaded in cycles by loadingTick
   else unload(ctx, v, st);
   v.loadingTicks = loadingTicksFor(state, v, st, LOAD_TICKS); // station_length_loading_penalty (off = LOAD_TICKS)
@@ -806,6 +811,13 @@ export function loadingTick(ctx, v) {
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)
   return true;
+}
+
+/** A helicopter standing on a helipad of a heliport-type airport (OpenTTD serviceathelipad, aircraft_cmd.cpp:1583). */
+function onHelipad(state, v) {
+  if (!isHelicopter(v) || v.tx == null) return false;
+  const b = getTile(state.map, v.tx, v.ty).building;
+  return !!b && b.type === 'station' && b.part === 'helipad' && HELI_PAD_TYPES.has(airportTypeId(b));
 }
 
 /** Wait before the next gradual cycle (OpenTTD wait per class, with the station length penalty). */

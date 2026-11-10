@@ -17,6 +17,7 @@ import { infrastructureMaintenance } from '../infrastructure.js';
 import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest } from '../economy.js';
 import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
+import { infiniteMoney } from '../settings.js';
 import { failObjective } from '../objective.js';
 import { stopVehicle } from '../cmdVehicle.js';
 import * as VehicleManager from './vehicleManager.js';
@@ -93,7 +94,7 @@ export function updateMonthly1(game) {
 
   // bankruptcy: 3 / 6 months warnings, 9 months declared
   if (!c.bankrupt) {
-    if (c.money < 0) {
+    if (c.money < 0 && !infiniteMoney(s)) {
       c.numMonthsInTheRed++;
       if (c.numMonthsInTheRed === BANKRUPT_MONTHS) declareBankrupt(game, c);
       else if (c.numMonthsInTheRed === 3) notify(game.ctx, `${c.name} has been in debt for 3 months! Bankruptcy in 6 months unless the balance recovers.`, 'bad', undefined, undefined, 'company');

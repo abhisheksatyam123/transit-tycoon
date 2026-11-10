@@ -151,6 +151,7 @@ function commitIndustry(ctx, typeId, x, y, opts) {
  * @returns {{ok:true,cost:number,town?:object}|{ok:false,error:string}}
  */
 export function foundTown(ctx, x, y, opts = {}) {
+  if (getSetting(ctx.state, 'townFounding') === 'forbidden') return { ok: false, error: 'Founding new towns is forbidden in these settings' };
   return commitTown(ctx, x, y, opts);
 }
 

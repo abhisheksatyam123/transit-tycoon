@@ -51,6 +51,14 @@ export const DEFAULT_SETTINGS = {
   stationLengthLoadingPenalty: false,
   /** OpenTTD order.gradual_loading (def true in OpenTTD; TT default off = one-step loading): vehicles load in cycles of their load amount per part (gradualLoad.js). */
   gradualLoading: false,
+  /** OpenTTD difficulty.infinite_money (def false): companies can always pay; affordability and bankruptcy checks are skipped (settings.js infiniteMoney). */
+  infiniteMoney: false,
+  /** OpenTTD economy.cargo_aging_rate (percent, def 100): scales the transit days used for cargo payment (economy.cpp GetTransportedGoodsIncome). */
+  cargoAgingRate: 100,
+  /** OpenTTD order.serviceathelipad (def true in OpenTTD; TT default off = current behaviour): a helicopter stopped on a helipad is serviced. */
+  serviceAtHelipad: false,
+  /** OpenTTD economy.found_town (def Forbidden in OpenTTD; TT default 'allowed' = current behaviour): 'forbidden' refuses new towns. */
+  townFounding: 'allowed',
   /** pathCosts: OpenTTD YAPF-like rail pathfinder costs (slopes, curves, station bypass, occupied blocks, red signals). Off by default: preserves determinism. */
   pathCosts: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */
@@ -188,6 +196,11 @@ export const DEFAULT_SETTINGS = {
   /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
   autosaveInterval: 'off',
 };
+
+/** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */
+export function infiniteMoney(state) {
+  return getSetting(state, 'infiniteMoney') === true;
+}
 
 /** Read a setting (state.settings value or the default). */
 export function getSetting(state, key) {
