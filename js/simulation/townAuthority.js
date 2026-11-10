@@ -24,6 +24,12 @@ import { ensureTown, adjustCompanyRating, MIN_COMPANY_RATING, MAX_COMPANY_RATING
 export const RATING_NEUTRAL = 500;
 /** dist_local_authority (OpenTTD default 20): stations/roads/trees within this manhattan distance belong to the town. */
 export const LOCAL_AUTHORITY_DIST = 20;
+
+/** Local authority radius (tiles) for this game: settings.distLocalAuthority (OpenTTD dist_local_authority, min 5). Default = LOCAL_AUTHORITY_DIST. */
+export function localAuthorityDist(state) {
+  const v = getSetting(state, 'distLocalAuthority');
+  return Number.isFinite(v) ? Math.max(5, v) : LOCAL_AUTHORITY_DIST;
+}
 /** Below this rating the local authority refuses station building and house / town road demolition. */
 export const REFUSE_BELOW = 0;
 /**
@@ -84,7 +90,7 @@ export function townRating(town) {
 export function authorityTown(state, x, y) {
   if (!state.towns || !state.towns.length) return null;
   const town = nearestTown(state, x, y);
-  return town && manhattan(town.x, town.y, x, y) <= LOCAL_AUTHORITY_DIST ? town : null;
+  return town && manhattan(town.x, town.y, x, y) <= localAuthorityDist(state) ? town : null;
 }
 
 /**
@@ -125,12 +131,13 @@ export function authorityMonthlyTick(ctx) {
   const { state } = ctx;
   const towns = state.towns || [];
   const stations = (state.stations || []).filter((st) => st.tiles && st.tiles.length);
+  const dist = localAuthorityDist(state);
   for (const town of towns) {
     ensureTown(town);
     if (stations.length) {
       let delta = 0;
       for (const st of stations) {
-        if (manhattan(town.x, town.y, st.x, st.y) > LOCAL_AUTHORITY_DIST) continue;
+        if (manhattan(town.x, town.y, st.x, st.y) > dist) continue;
         // lastPickup is {CARGO: tick} in this codebase; some callers/tests set tick values.
         let lastTick = null;
         if (st.lastPickup && typeof st.lastPickup === 'object') {

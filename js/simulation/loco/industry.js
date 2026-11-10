@@ -226,6 +226,41 @@ export function isMonthlyProductionClosing(rng, state, ind) {
 }
 
 /**
+ * OpenTTD economy.type 'smooth' (ChangeIndustryProduction, industry_cmd.cpp:2943-2990), primary industries.
+ * Per produced cargo: 1 in 22 chance per month to move its rate by max(10..59 % of the rate, 1); direction is up with
+ * chance 1/3 when last month's transported share is <=60 %, 2/3 when <=80 %, else 5/6. Rates stay in 1..100 (TT scale).
+ * The industry closes when every produced rate is at the minimum (1). No draws when the industry has no produced cargo.
+ * @returns {{changed:boolean, pct:number, up:boolean, close:boolean}} pct = largest absolute rate change in percent; up = its direction
+ */
+export function smoothMonthlyChange(rng, ind, type) {
+  const prod = producedCargos(type);
+  const out = { changed: false, pct: 0, up: false, close: false };
+  if (!prod.length) return out;
+  let closeit = true;
+  for (let c = 0; c < prod.length; c++) {
+    const old = ind.dailyProductionTarget[c];
+    if (!(old > 0)) continue; // no output on this slot: nothing to move (never raised from 0)
+    let nw = old;
+    if (rng.int(0, 21) === 0) {
+      const pct = ind.percentTransportedPrev[c];
+      const up = pct <= 60 ? rng.int(0, 2) === 0 : pct <= 80 ? rng.int(0, 2) !== 0 : rng.int(0, 5) !== 0;
+      nw = old + (up ? 1 : -1) * Math.max(Math.floor(((rng.int(0, 49) + 10) * old) / 256), 1);
+    }
+    nw = Math.max(1, Math.min(100, nw));
+    if (nw === old && old > 1) { closeit = false; continue; } // OpenTTD: a steady rate above the minimum keeps the industry open
+    if (nw !== old) {
+      out.changed = true;
+      const p = Math.abs(Math.round(((nw - old) * 100) / old));
+      if (p > out.pct) { out.pct = p; out.up = nw > old; }
+      ind.dailyProductionTarget[c] = nw;
+    }
+    if (nw > 1) closeit = false;
+  }
+  out.close = closeit;
+  return out;
+}
+
+/**
  * Industry::updateMonthly (the closure removal itself is done by the manager).
  * @returns {'remove'|null}
  */
@@ -240,7 +275,19 @@ export function updateMonthly(game, ind, notify) {
   const at = (text, kind, cat) => notify && notify(text, kind, ind.x + (ind.w >> 1), ind.y + (ind.h >> 1), cat);
   // EF economyType 'frozen' (OpenTTD ET_FROZEN, industry_cmd.cpp:2926): no production changes and no closures; no draws.
   const frozen = getSetting(state, 'economyType') === 'frozen';
-  if (!frozen && !ind.closingDown && primary) {
+  const smooth = !frozen && getSetting(state, 'economyType') === 'smooth';
+  if (smooth && !ind.closingDown && primary) {
+    const sm = smoothMonthlyChange(rng, ind, type);
+    if (sm.changed && sm.pct >= 10) {
+      at(`Production at ${ind.name} has ${sm.up ? 'increased' : 'decreased'}.`, sm.up ? 'good' : 'bad', 'production');
+    }
+    if (sm.changed) hasEvent = true;
+    if (sm.close) {
+      ind.closingDown = true;
+      ind.dailyProductionTarget = [0, 0];
+      at(`${ind.name} is going to close down.`, 'bad', 'industryClose');
+    }
+  } else if (!frozen && !ind.closingDown && primary) {
     if (isMonthlyProductionUp(rng, ind)) {
       ind.dailyProductionTarget[0] = Math.min(100, ind.dailyProductionTarget[0] * 2);
       ind.dailyProductionTarget[1] = Math.min(100, ind.dailyProductionTarget[1] * 2);

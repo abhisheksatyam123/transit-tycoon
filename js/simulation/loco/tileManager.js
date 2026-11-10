@@ -22,6 +22,7 @@ import { buildCoverage } from '../stations.js';
 import { HOUSE_POP } from '../towns.js';
 import { updateDaily as townUpdateDaily } from './townManager.js';
 import { recessionHalve } from '../recession.js';
+import { getSetting } from '../settings.js';
 
 const TILE_TICKS_PER_MONTH = (30.4 * 96) / 256;
 const REMOVE_AGE = 40;
@@ -49,6 +50,8 @@ function getCoverage(state) {
     sig = (sig * 31 + st.tiles.length) >>> 0;
     for (const t of st.tiles) sig = (sig * 31 + t.x * 997 + t.y * 13 + (t.radius ?? 0)) >>> 0;
   }
+  // modifiedCatchment changes every radius: fold it into the signature so a live toggle rebuilds the index
+  sig = (sig * 31 + (getSetting(state, 'modifiedCatchment') ? 1 : 0)) >>> 0;
   const c = coverageCache.get(state);
   if (c && c.sig === sig) return c.cov;
   const cov = buildCoverage(state);

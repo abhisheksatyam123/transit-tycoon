@@ -57,7 +57,11 @@ export function refreshKinds(st) {
  * kind base plus style bonus; anything else falls back to CATCHMENT or 3.
  * @returns {number}
  */
+/** OpenTTD CA_UNMODIFIED (station.modified_catchment off): radius of every station tile. */
+export const CATCHMENT_UNMODIFIED = 4;
+
 export function catchRadius(state, t) {
+  if (!getSetting(state, 'modifiedCatchment')) return CATCHMENT_UNMODIFIED;
   const r = t.radius ?? tileRadius(t);
   if (r !== undefined) return r;
   if (t.kind === 'airport') {

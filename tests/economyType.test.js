@@ -31,7 +31,7 @@ describe('economyType setting', () => {
     expect(DEFAULT_SETTINGS.economyType).toBe('openloco');
     const g = Game.create(opts({}));
     expect(getSetting(g.state, 'economyType')).toBe('openloco');
-    expect(SETTING_META.find((m) => m.key === 'economyType').options.map((o) => o[0])).toEqual(['openloco', 'frozen']);
+    expect(SETTING_META.find((m) => m.key === 'economyType').options.map((o) => o[0])).toEqual(['openloco', 'smooth', 'frozen']);
   });
 
   test('frozen: production targets and closing flags never change over 3 simulated years', () => {

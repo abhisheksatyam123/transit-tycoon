@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS = {
   /** articulatedRV: articulated buses / lorries / trams (config ARTIC_VEHICLE_MODELS, articulated.js). Off = not offered. */
   articulatedRV: false,
   /** economy recessions (OpenTTD fluct): cargo and passengers halved for ~a year, every 1-3 years. Off by default. */
-  /** EF economy type (OpenTTD economy.type, economy_settings.ini:197): 'openloco' = current TT/OpenLoco monthly production up/down and closures (default); 'frozen' = OpenTTD Frozen (ChangeIndustryProduction early return, industry_cmd.cpp:2926): no production changes and no closures; new industries still appear. */
+  /** EF economy type (OpenTTD economy.type, economy_settings.ini:197): 'openloco' = current TT/OpenLoco monthly production up/down and closures (default); 'frozen' = OpenTTD Frozen (ChangeIndustryProduction early return, industry_cmd.cpp:2926): no production changes and no closures; new industries still appear; 'smooth' = OpenTTD Smooth (industry_cmd.cpp:2943, loco/industry.js smoothMonthlyChange): small monthly % changes and closure at minimum. */
   economyType: 'openloco',
   economyRecessions: false,
   /** disasters (OpenTTD difficulty.disasters): a zeppelin crashes on an airport runway and blocks landings for a while; a small UFO destroys a road vehicle. Off by default. */
@@ -147,12 +147,16 @@ export const DEFAULT_SETTINGS = {
   maxTunnelLength: 16,
   /** OpenTTD difficulty.town_council_tolerance (difficulty_settings.ini:298, def 0): 0 Lenient, 1 Tolerant, 2 Hostile, 3 Permissive; townAuthority.js refuseBelow. */
   townCouncilTolerance: 0,
+  /** OpenTTD economy.dist_local_authority (economy_settings.ini, def 20, min 5): manhattan radius (tiles) of a town's local authority. authorityTown / refusalAt / monthly rating use it. */
+  distLocalAuthority: 20,
   /** OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing disabled. */
   allowTownBribe: true,
   /** OpenTTD economy.feeder_payment_share: percent of a transfer leg's income credited to the feeder (orders.js transferCredit). Default 75. */
   feederPaymentShare: 75,
   /** OpenTTD station.station_spread: max bounding-box side (tiles) of one player station (default 12 = STATION_SPREAD). */
   stationSpread: 12,
+  /** OpenTTD station.modified_catchment (game_settings.ini, def true): true = per-type catchment radius per tile (current TT). false = OpenTTD CA_UNMODIFIED: every station tile catches radius 4. */
+  modifiedCatchment: true,
   /** OpenTTD vehicle.max_train_length: most wagons in a player train (default 12 = MAX_WAGONS). */
   maxTrainWagons: 12,
   /** OpenTTD vehicle.max_train_length: max train length in tiles (def 7 tiles, min 1, max 64). */
