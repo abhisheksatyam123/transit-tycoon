@@ -1,12 +1,11 @@
 /**
  * Stations: creation/merge, catchment, coverage index, acceptance and ratings.
  */
-import { CATCHMENT, ACCEPT_THRESHOLD, TICKS_PER_DAY, DIRS } from './constants.js';
+import { CATCHMENT, ACCEPT_THRESHOLD, DIRS } from './constants.js';
 import { tileRadius } from '../config/stationTypes.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { allocId, findStation } from './state.js';
 import { stationName } from './naming.js';
-import { advertBonus } from './townAuthority.js';
 import { getSetting } from './settings.js';
 import { isToyland } from './climate.js';
 import { inBounds } from './map.js';
@@ -251,27 +250,6 @@ export function takeWaiting(st, cargoId, amount, pred, tick) {
   if (feeder) out.feeder = feeder;
   if (anyDest) out.dests = dests;
   return out;
-}
-
-/**
- * Daily rating update for every cargo that has been picked up at the station.
- */
-export function updateRatings(state, st) {
-  for (const cargoId of Object.keys(st.lastPickup)) {
-    const days = (state.tick - st.lastPickup[cargoId]) / TICKS_PER_DAY;
-    const waiting = waitingAmount(st, cargoId);
-    let target = 20;
-    target += days <= 7 ? 40 : days <= 14 ? 30 : days <= 21 ? 20 : days <= 30 ? 10 : 0;
-    target += waiting <= 100 ? 25 : waiting <= 300 ? 15 : waiting <= 600 ? 5 : waiting <= 1000 ? 0 : -15;
-    target += Math.min(20, Math.max(0, (st.lastSpeed - 40) / 4));
-    target += advertBonus(state, st); // town advertising campaign (townAuthority.js), expires by date
-    target = Math.max(0, Math.min(100, target));
-    const cur = st.rating[cargoId] ?? 69;
-    const delta = Math.max(-2, Math.min(2, target - cur));
-    st.rating[cargoId] = Math.round(cur + delta);
-    // poorly rated stations slowly lose waiting cargo
-    if (st.rating[cargoId] < 40 && waiting > 200) takeWaiting(st, cargoId, Math.ceil(waiting * 0.05));
-  }
 }
 
 /**

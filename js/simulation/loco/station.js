@@ -18,6 +18,7 @@ import { waitingAmount, takeWaiting, recomputeAcceptance } from '../stations.js'
 import { stationRatingFixed } from '../cheats.js';
 import { notify } from '../news.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
+import { advertBonus } from '../townAuthority.js';
 
 export const MIN_CARGO_RATING = 0;
 export const MAX_CARGO_RATING = 200;
@@ -158,12 +159,15 @@ export function updateCargo(game, st) {
     if (st.cargoAge[cargoId] === undefined) st.cargoAge[cargoId] = 0;
     st.cargoAge[cargoId] = Math.min(st.cargoAge[cargoId] + 1, 255);
     let quantity = waitingAmount(st, cargoId);
-    const target = calculateCargoRating({
+    const base = calculateCargoRating({
       age: st.cargoAge[cargoId], quantity,
       vehicleSpeed: carrierStats(st, cargoId).speed * KMH_TO_MPH,
       vehicleAge: carrierStats(st, cargoId).age,
       npc: rivalRatingOverride(st),
     });
+    // town advertising campaign (townAuthority.js): +N % points while active = +2N on the 0..200 scale
+    const adBoost = 2 * advertBonus(state, st);
+    const target = adBoost ? Math.min(MAX_CARGO_RATING, base + adBoost) : base;
     const delta = Math.max(-2, Math.min(2, target - st.rating200[cargoId]));
     let r = (st.rating200[cargoId] += delta);
     if (stationRatingCheat) r = st.rating200[cargoId] = MAX_CARGO_RATING; // OpenTTD station_rating cheat (station_cmd.cpp:4016)

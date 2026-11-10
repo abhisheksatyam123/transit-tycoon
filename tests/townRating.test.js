@@ -115,7 +115,7 @@ describe('town rating', () => {
     expect(s.company.money).toBe(money0 - cost);
     expect(st.adBoost.amount).toBeGreaterThan(0);
     expect(st.adBoost.until).toBeGreaterThan(s.tick);
-    // the boost is applied inside updateRatings: target rises while active
+    // the live rating applies the boost (loco/station.js updateCargo; see tests/advertLiveRating.test.js)
     expect(st.adBoost.until - s.tick).toBeGreaterThan(30 * TICKS_PER_DAY);
     // after expiry it no longer counts
     s.tick = st.adBoost.until + 1;

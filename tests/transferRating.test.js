@@ -2,7 +2,7 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
 import { updateCargo } from '../js/simulation/loco/station.js';
-import { updateRatings, addWaiting, waitingAmount } from '../js/simulation/stations.js';
+import { addWaiting, waitingAmount } from '../js/simulation/stations.js';
 
 function setup() {
   const g = flatGame(11);
@@ -42,12 +42,5 @@ describe('transfer-only cargo rating', () => {
     updateCargo(g, st);
     expect(st.lastPickup.COAL).toBeUndefined();
     expect(waitingAmount(st, 'COAL')).toBeGreaterThan(0);
-  });
-
-  test('updateRatings (stations.js) is unchanged and still only iterates lastPickup keys', () => {
-    const { g, st } = setup();
-    addWaiting(st, 'COAL', 20, st.x, st.y, g.state.tick, 9999, 0, null, undefined, true);
-    updateRatings(g.state, st);
-    expect(st.rating.COAL).toBeUndefined();
   });
 });
