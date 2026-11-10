@@ -75,6 +75,10 @@ export const DEFAULT_SETTINGS = {
   trainFlipReverse: 'all',
   /** OpenTTD vehicle.smoke_amount (def 2): 0 = no vehicle smoke, 1 = half as much (chance halved), 2 = normal. Render-only (renderer/vehicleFx.js); no effect on simulation. */
   smokeAmount: 2,
+  /** OpenTTD economy.larger_towns (town_cmd.cpp:2441, def 0): every Nth generated town is a city (random phase). 0 = no cities (no draws). */
+  largerTowns: 0,
+  /** OpenTTD economy.initial_city_size (town_cmd.cpp:2063, def 2): layout size multiplier for city towns at generation (normal towns 1-3, capped at 6). */
+  initialCitySize: 2,
   /** OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in/near a town. Off = one of each type per town. */
   multipleIndustryPerTown: false,
   /** OpenTTD construction.raw_industry_construction (settings_type.h:496): 'normal' funds raw industries at a site (default); 'none' blocks raw (primary) industries; 'prospect' prospects them at a random site with the type's chance (cmdFound.js). Processing industries are always fundable. */

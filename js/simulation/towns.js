@@ -7,6 +7,7 @@ import { linkTiles } from './network.js';
 import { neighbours } from './map.js';
 import { LAYOUTS } from './townLayout.js';
 import { erasEnabled, pickEraHouse } from './buildingEras.js';
+import { getSetting } from './settings.js';
 
 /** Deterministic layout from the site (no RNG draw): 1 in 8 towns get a fixed grid. */
 function townLayoutFor(x, y) {
@@ -165,6 +166,10 @@ export function generateTowns(state, rng, count) {
   const used = new Set();
   const margin = 6;
   let minDist = Math.max(12, Math.floor(Math.min(map.width, map.height) / 4));
+  // OpenTTD larger_towns: every `every`-th town is a city, with a random phase (town_cmd.cpp:2441). 0 draws nothing.
+  const every = Math.max(0, Math.floor(Number(getSetting(state, 'largerTowns')) || 0));
+  const phase = every ? rng.int(0, every - 1) : 0;
+  const citySize = Math.max(1, Math.floor(Number(getSetting(state, 'initialCitySize')) || 2));
   for (let n = 0; n < count; n++) {
     let site = null;
     for (let attempt = 0; attempt < 600 && !site; attempt++) {
@@ -174,7 +179,10 @@ export function generateTowns(state, rng, count) {
       site = { x, y };
     }
     if (!site) break;
-    createTown(state, rng, site.x, site.y, used);
+    const city = every > 0 && (phase + n) % every === 0;
+    // city: the normal 1-3 layout size times initialCitySize (OpenTTD x *= initial_city_size), capped at 6
+    const size = city ? Math.min(6, rng.int(1, 3) * citySize) : undefined;
+    createTown(state, rng, site.x, site.y, used, size);
   }
 }
 
