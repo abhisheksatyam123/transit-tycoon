@@ -11,10 +11,10 @@ Status: research only (no code). Date 2026-11-10. Default-preserving port recomm
 - OpenTTD manual, Cargo page (wiki.openttd.org/en/Manual/Cargo): confirms the selectgoods rule (a station takes producer cargo only after a vehicle that accepts it has visited).
 
 ## How it works upstream
-1. **Load amount per cycle, per vehicle part.** `GetLoadAmount(v)` (economy.cpp:1299) returns the engine's `load_amount`. Each articulated/consist part with capacity loads `cap_left = min(cap_left, load_amount)` per cycle (economy.cpp:1779). Air mail uses a quarter (1304-1306). Zero is clamped to 1 (1334).
+1. **Load amount per cycle, per vehicle part.** `GetLoadAmount(v)` (economy.cpp:1299) returns the engine's `load_amount`. Each articulated/consist part with capacity loads `cap_left = min(cap_left, load_amount)` per cycle (economy.cpp:1779). Air mail uses a quarter (1305-1306). Zero is clamped to 1 (1334).
 2. **Unload is gradual too.** `amount_unloaded = min(count, load_amount)` per cycle (economy.cpp:1670). Cargo left over keeps the vehicle in an unloading state (`remaining`, 1722).
 3. **Wait between cycles.** When a cycle moved anything, the next cycle waits a fixed time from `gradual_loading_wait_time = { 40, 20, 10, 20 }` for train, road, ship, aircraft (economy.cpp:1851-1853, "values found in TTDPatch"). Units are OpenTTD ticks (74 per day).
-4. **Stop rule.** Loading stops when a cycle moved less than the per-part allowance for every cargo, and the order is not full load, and the timetable wait is over (economy.cpp ~1857-1862, from r20506). A full-load order keeps going.
+4. **Stop rule.** Loading stops when a cycle moved less than the per-part allowance for every cargo, and the order is not full load, and the timetable wait is over (economy.cpp:1857-1859, from r20506). A full-load order keeps going.
 5. **Payment once.** Each delivered slice is paid as it is unloaded; cargo is not paid twice (r7377).
 
 Load amounts (upstream engines.h, base table, per class; these are real values, not invented):
@@ -32,7 +32,7 @@ So the earlier objection ("TT has no per-model load amount") does not hold for t
 - TT loads everything in one step at the end of the stop: `loadingTick` (js/simulation/orders.js ~644) calls `loadCargo` once; `LOAD_TICKS = 40` is the whole stop. Unload is instant in `arriveAtStation` (`unload`, orders.js ~610).
 - Gradual loading changes the timing and the amount per stop, so it changes money and the world hash. It must be opt-in (default off), like `improvedLoad` and `stationLengthLoadingPenalty`.
 - **Time units:** OpenTTD waits 40/20/10/20 OpenTTD ticks (74 per day). TT has 96 ticks per day (js/simulation/constants.js:24). For real time to match, convert: 40 -> 52, 20 -> 26, 10 -> 13 TT ticks. TT's own `LOAD_TICKS = 40` is not an OpenTTD number; leave it for the non-gradual path.
-- **Per-part budget:** TT has `v.consist` (mixed wagons) and `v.wagons`. A part with capacity contributes `loadAmount(class)`; the cycle budget is `amount x carrying parts` (cargo-less engines do not count, as in economy.cpp:1726 `cargo_cap == 0`).
+- **Per-part budget:** TT has `v.consist` (mixed wagons) and `v.wagons`. A part with capacity contributes `loadAmount(class)`; the cycle budget is `amount x carrying parts` (cargo-less engines do not count, as in economy.cpp:1663 `cargo_cap == 0`).
 
 ## Recommended port (two phases)
 **Phase 1, loading only (M):** when the setting is on, `loadingTick` caps each cycle at the budget and sets the wait to the converted table value. Stop when the cycle loaded less than its budget (unless full load or a timetable hold). Unloading stays instant (a documented deviation).
