@@ -16,6 +16,7 @@ import { loadTransparency, setTransparency } from '../../renderer/transparency.j
 import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits, DATE_FORMATS } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
+import { getSignalSpacing, setSignalSpacing } from '../signalSpacing.js';
 import { saveNewGameSetting } from '../newGamePrefs.js';
 import { logger, LEVELS } from '../logger.js';
 
@@ -134,6 +135,18 @@ export function openSettings(app) {
           }
         }
         if (g.id === 'interface') {
+          // Signal drag spacing (browser-local, not part of game state)
+          {
+            const sel = /** @type {HTMLSelectElement} */ (el('select.input', { style: { width: 'auto' }, 'aria-label': 'Signal drag spacing', title: 'Spacing between signals when dragging the signal tool' }));
+            for (const n of [1,2,3,4,5,6,7,8,10,12,16]) sel.append(el('option', { value: String(n), text: `${n} tile${n === 1 ? '' : 's'}` }));
+            sel.addEventListener('change', () => { setSignalSpacing(sel.value); });
+            const sigRow = el('div.set-row', null,
+              el('label.set-line', null, el('span.set-label', { text: 'Signal drag spacing' }), sel),
+              el('span.set-help.muted', { text: 'Tiles between signals when you drag the signal tool. Default 4. Saved in this browser.' }));
+            const syncSig = () => { if (document.activeElement !== sel) sel.value = String(getSignalSpacing()); };
+            rows.push({ item: { label: 'Signal drag spacing', help: 'distance between signals on a dragged run, default 4 tiles', group: g.id }, row: sigRow, pref: true, sync: syncSig });
+            inner.push(sigRow);
+          }
           const hk = el('button.btn', { type: 'button', text: 'Keyboard shortcuts…', title: 'View and change the keyboard shortcuts' });
           hk.addEventListener('click', () => app.open('hotkeys'));
           inner.push(el('div.set-row', null, hk, el('span.set-help.muted', { text: 'Rebind keys for windows and build tools. Stored in this browser.' })));

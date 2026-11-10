@@ -2,7 +2,7 @@
  * Save / Load windows: localStorage slots 1-3 (+ autosave when loading), JSON export/import.
  */
 import { el, setText } from '../dom.js';
-import { saveToSlot, loadSlotData, slotMeta, exportToFile, importFromFile } from '../storage.js';
+import { saveToSlot, loadSlotData, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
 import { date, money } from '../format.js';
 import { AUTOSAVE_SLOTS, autosaveLabel } from '../autosavePrefs.js';
 
@@ -46,7 +46,7 @@ export function openSave(app) {
       p.pause();
       SLOTS.forEach((slot) => {
         const d = el('span.muted.small');
-        const b = el('button.btn', { type: 'button', text: `Slot ${slot}`, onclick: () => {
+        const save = el('button.btn', { type: 'button', text: `Slot ${slot}`, onclick: () => {
           const r = saveToSlot(slot, app.game);
           if (app.exec(r, { quiet: true, sound: 'click' })) {
             app.toast(`Saved to slot ${slot}`, 'good');
@@ -55,8 +55,15 @@ export function openSave(app) {
           }
           setText(d, describe(slot));
         } });
+        const del = el('button.btn', { type: 'button', text: 'Delete', disabled: !slotMeta(slot), title: 'Delete this save slot', onclick: () => {
+          if (!slotMeta(slot)) return;
+          if (!confirm(`Delete save slot ${slot}?`)) return;
+          deleteSlot(slot);
+          setText(d, describe(slot));
+          del.disabled = true;
+        } });
         setText(d, describe(slot));
-        body.appendChild(el('div.slot-row', null, b, d));
+        body.appendChild(el('div.slot-row', null, save, del, d));
       });
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Export JSON file', onclick: () => exportToFile(app.game) })));
     },
@@ -76,12 +83,27 @@ export function openLoad(app) {
       p.pause();
       for (const slot of ['autosave', ...AUTOSAVE_SLOTS, ...SLOTS]) {
         const meta = slotMeta(slot);
+        const isManual = SLOTS.includes(slot);
         const text = slot === 'autosave' ? 'Autosave' : AUTOSAVE_SLOTS.includes(slot) ? autosaveLabel(slot) : `Slot ${slot}`;
-        const b = el('button.btn', { type: 'button', text, disabled: !meta, onclick: async () => {
+        const load = el('button.btn', { type: 'button', text, disabled: !meta, onclick: async () => {
           const d = loadSlotData(slot);
           if (d && await app.loadFromString(d)) win.close();
         } });
-        body.appendChild(el('div.slot-row', null, b, el('span.muted.small', { text: describe(slot) })));
+        const desc = el('span.muted.small', { text: describe(slot) });
+        const row = el('div.slot-row', null, load);
+        if (isManual) {
+          const del = el('button.btn', { type: 'button', text: 'Delete', disabled: !meta, title: 'Delete this save slot', onclick: () => {
+            if (!slotMeta(slot)) return;
+            if (!confirm(`Delete save slot ${slot}?`)) return;
+            deleteSlot(slot);
+            load.disabled = true;
+            del.disabled = true;
+            setText(desc, describe(slot));
+          } });
+          row.appendChild(del);
+        }
+        row.appendChild(desc);
+        body.appendChild(row);
       }
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Import JSON file…', onclick: async () => {
         const text = await importFromFile();
