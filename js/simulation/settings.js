@@ -85,6 +85,8 @@ export const DEFAULT_SETTINGS = {
   disableElrails: false,
   /** OpenTTD difficulty.train_flip_reverse_allowed (def 'all'): 'all' = trains may turn around anywhere; 'endOfLine' = only where the track ends (one rail link); 'none' = trains never turn around (they wait). Applies to the reverse command and to blocked-train turnarounds. */
   trainFlipReverse: 'all',
+  /** OpenTTD pf.reverse_at_signals (pathfinding_settings.ini:55, def true): a train held at a red signal turns round after the blocked timeout. TT already did this (movement.js hold, BLOCK_TIMEOUT_TICKS), so true = current behaviour. Off = trains wait at red signals and never turn round. */
+  reverseAtSignals: true,
   /** OpenTTD vehicle.smoke_amount (def 2): 0 = no vehicle smoke, 1 = half as much (chance halved), 2 = normal. Render-only (renderer/vehicleFx.js); no effect on simulation. */
   smokeAmount: 2,
   /** OpenTTD economy.larger_towns (town_cmd.cpp:2441, def 0): every Nth generated town is a city (random phase). 0 = no cities (no draws). */

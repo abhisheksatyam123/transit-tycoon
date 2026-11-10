@@ -68,6 +68,8 @@ export const SETTING_META = [
   { key: 'trainFlipReverse', group: 'difficulty', label: 'Train turn-around', type: 'select',
     options: [['all', 'Anywhere (default)'], ['endOfLine', 'End of line only'], ['none', 'Never']],
     help: 'OpenTTD difficulty.train_flip_reverse_allowed: where trains may turn around (reverse command and blocked trains). Never: trains wait instead of turning. OpenTTD backs trains up; this game only turns them.' },
+  { key: 'reverseAtSignals', group: 'difficulty', label: 'Reverse at signals', type: 'check',
+    help: 'OpenTTD pf.reverse_at_signals (default on): a train held at a red signal turns round after a while. Off: trains wait at red signals and never turn round.' },
   { key: 'distLocalAuthority', group: 'difficulty', label: 'Local authority distance (tiles)', type: 'select',
     options: [['5', '5'], ['10', '10'], ['20', '20 (default)'], ['30', '30'], ['40', '40']],
     help: 'Manhattan radius of a town local authority (OpenTTD economy.dist_local_authority). Stations and roads inside it count toward that town rating.' },

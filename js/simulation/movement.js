@@ -320,6 +320,7 @@ function move(ctx, v) {
   const tie = v.kind === 'aircraft' ? null : startTie(ctx, v);
   if (tie) { hold(ctx, v, tie); return; }
   const blocker = v.kind === 'aircraft' ? null : nextBlocker(ctx, v);
+  const atSignal = heldAtSignal; // read now: only nextBlocker sets it
   if (v.kind === 'aircraft') {
     // planeSpeedFactor (OpenTTD vehicle.plane_speed, aircraft_cmd.cpp): speed limit divided by N; 1 = unchanged
     const pf = getSetting(state, 'planeSpeedFactor') || 1;
@@ -361,7 +362,7 @@ function move(ctx, v) {
       v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
     if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, maxTiles); // OTTD 512 vs 256
-    if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker); return; }
+    if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker, atSignal); return; }
     v.progress += v.speed;
   }
   if (v.blockedTicks) clearBlock(v);
@@ -389,8 +390,12 @@ export function crossingBarred(ctx, a, b) {
   return entersBarred(ctx.barred, W, a.y * W + a.x, b.y * W + b.x);
 }
 
+/** Set by nextBlocker: true when the returned blocker is a red signal (signalBlocker or typedGate), not a vehicle. */
+let heldAtSignal = false;
+
 /** Vehicle ahead on the next tile of the path that blocks v (see blocking.js), or null. */
 function nextBlocker(ctx, v) {
+  heldAtSignal = false;
   const layer = occupancyLayer(v);
   const p = v.path, i = v.pathIndex;
   if (!layer || !p || i + 1 >= p.length) return null;
@@ -404,7 +409,11 @@ function nextBlocker(ctx, v) {
   // OpenTTD TFP_SIGNAL/TFP_STUCK (forceTrainProceed): the signal rules are skipped for the step onto/off the
   // forced signal tile only; the same-tile occupancy check above still applies (never enters an occupied tile).
   const force = v.forceProceed && forceCovers(ctx, v, a, b) ? v.forceProceed : null;
-  return signalBlocker(ctx, v, a, b, force) || typedGate(ctx, v, a, b, force);
+  const sb = signalBlocker(ctx, v, a, b, force);
+  if (sb) { heldAtSignal = true; return sb; }
+  const tg = typedGate(ctx, v, a, b, force);
+  heldAtSignal = tg !== null;
+  return tg;
 }
 
 /** True when a forced train's step a->b touches its forced signal tile (forceProceed.k). */
@@ -476,14 +485,18 @@ function clearBlock(v) {
  * vehicles blocked by a moving vehicle for BLOCK_TIMEOUT_TICKS turn around and re-plan (cooldown: the timeout
  * restarts after a turn). Blocked behind a loading vehicle they wait for it instead.
  */
-function hold(ctx, v, blocker) {
+function hold(ctx, v, blocker, atSignal = false) {
   v.speed = 0;
   v.blockedTicks = (v.blockedTicks || 0) + 1;
   v.blockedBy = blocker.id;
   const last = v.pathIndex + 2 === v.path.length;
   if (last && blocker.state === 'loading' && v.blockedTicks % 8 === 1) tryFreeBay(ctx, v);
   // blocked for a full timeout by a moving vehicle: turn around once (blockedTicks restarts from 0 in turnAround)
-  if (v.blockedTicks === BLOCK_TIMEOUT_TICKS && blocker.state !== 'loading') turnAround(ctx, v);
+  if (v.blockedTicks === BLOCK_TIMEOUT_TICKS && blocker.state !== 'loading') {
+    // reverseAtSignals (default true = TT current): off, a train held at a red signal waits instead of turning
+    if (atSignal && !getSetting(ctx.state, 'reverseAtSignals')) return;
+    turnAround(ctx, v);
+  }
 }
 
 /** Re-route a vehicle waiting for a busy stop bay to a free goal tile of its current order. */

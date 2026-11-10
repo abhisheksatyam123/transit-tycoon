@@ -43,3 +43,20 @@ Rule: every new setting's default reproduces the current Transit Tycoon (TT) beh
 `tests/roundACSettings.test.js` (11 tests): defaults; SETTING_META key count and group for the four keys; rights listed, bought, and refused when off; other town actions still listed when off; bus stop on a town road allowed by default, refused when off, company road still allowed; autorenew at max age by default; delayed by 6 months; money threshold blocks renewal when above company money; purchase cost only at default.
 
 SETTING_META entries: `js/ui/settingsGroups.js:37` (economy), `:98` (construction), `:225` and `:227` (companies).
+
+## pf.reverse_at_signals
+
+- Setting: `reverseAtSignals` (`js/simulation/settings.js`, group `difficulty` in `js/ui/settingsGroups.js`, next to `trainFlipReverse`).
+- OpenTTD default: `true` (`src/table/settings/pathfinding_settings.ini:55`). OpenTTD effect: `src/train_cmd.cpp` ~3470.
+- TT default: `true`. This is the current TT behaviour, so the default is bit-identical (world hash unchanged).
+- Current TT behaviour (before this change): a train held at a red signal is held by `hold()` (`js/simulation/movement.js`), which counts `blockedTicks` and calls `turnAround` at `BLOCK_TIMEOUT_TICKS` (3 days, `js/simulation/blocking.js:23`). This covers both two-way block signals (`signalBlocker`) and one-way/path signals (`typedGate` returns `SIGNAL_HOLD`). Nothing excluded signal holds.
+- Rule: when `reverseAtSignals` is false, a train held at a red signal does not reach `turnAround`. It waits at the signal. Holds by vehicles (non-signal blockers) and the `trainFlipReverse` rule keep their existing behaviour.
+- Changed:
+  - `js/simulation/settings.js` `reverseAtSignals: true` (with doc comment).
+  - `js/ui/settingsGroups.js` one `SETTING_META` entry (type `check`, group `difficulty`).
+  - `js/simulation/movement.js` `nextBlocker` sets module flag `heldAtSignal` (true only when `signalBlocker` or `typedGate` holds); `move` passes it to `hold(ctx, v, blocker, atSignal)`; `hold` skips `turnAround` at the timeout only when `atSignal` and the setting is false.
+- Tests: `tests/roundACSignals.test.js`: default true and one SETTING_META entry; false holds a block-signal train past the timeout without turning; true turns it; false/true for a one-way SIGNAL_HOLD hold. Mutation check: forcing the gate off fails the true tests; ignoring the setting fails the false tests.
+- Limits:
+  - The timeout is the existing 3-day TT timeout, not OTTD's `wait_oneway_signal` (15 days) / `wait_twoway_signal` (41 days). Changing it would change the default, so it is not ported.
+  - With the setting false, the half-day deadlock breaker (`breaksCycle`) can still let a train pass a signal in a cycle of waiting vehicles.
+  - OTTD backs trains up behind a red signal; TT still does not model queues behind a signal, so this setting only stops the turnaround.
