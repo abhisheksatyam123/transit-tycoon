@@ -10,7 +10,7 @@ import { spend } from './economy.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { createStation, adjacentStation, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
 import { allocId, findTown, nearestTown } from './state.js';
-import { removeStationTile, removeDepot, spreadLimit } from './cmdStation.js';
+import { removeStationTile, removeDepot, spreadLimit, distantJoinRefused } from './cmdStation.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 import { findStation } from './state.js';
 import { clearHouseAt } from './largeHouses.js';
@@ -55,6 +55,7 @@ export function buildAirport(ctx, x, y, opts = {}) {
   if (money) return money;
   let existing = adjacentStation(state, tiles);
   if (opts.joinStationId != null) {
+    if (distantJoinRefused(state, opts, tiles)) return { ok: false, error: 'Distant join is disabled in game settings' };
     const joined = findStation(state, opts.joinStationId);
     if (!joined || !spreadOk(joined, tiles, spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
     existing = joined;

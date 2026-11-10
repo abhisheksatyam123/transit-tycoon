@@ -12,7 +12,7 @@ import { spend } from './economy.js';
 import { companyById, ownerMismatch, stampOwner, RIVAL_OWNED } from './owner.js';
 import { ERR, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
 import { createStation, adjacentStation, spreadOk, refreshKinds, recomputeAcceptance } from './stations.js';
-import { spreadLimit } from './cmdStation.js';
+import { spreadLimit, distantJoinRefused } from './cmdStation.js';
 import { findStation } from './state.js';
 import { allocId } from './state.js';
 import { getTile } from './map.js';
@@ -74,6 +74,7 @@ export function buildDock(ctx, x, y, opts = {}) {
   let existing = adjacentStation(state, [{ x, y }]);
   if (existing && existing.tiles.some((p) => p.kind === 'buoy')) existing = null;
   if (opts.joinStationId != null) {
+    if (distantJoinRefused(state, opts, [{ x, y }])) return { ok: false, error: 'Distant join is disabled in game settings' };
     const joined = findStation(state, opts.joinStationId);
     if (!joined || !spreadOk(joined, [{ x, y }], spreadLimit(state))) return { ok: false, error: 'Station too spread out' };
     existing = joined;

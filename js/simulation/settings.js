@@ -159,6 +159,8 @@ export const DEFAULT_SETTINGS = {
   maxBridgeLength: 12,
   /** OpenTTD construction.max_tunnel_length: longest player tunnel in tiles, portals included (default 16 = MAX_TUNNEL_LENGTH). */
   maxTunnelLength: 16,
+  /** OpenTTD station.distant_join_stations (game_settings.ini, def true): Ctrl+click may join a station that is not next to the new one. */
+  distantJoinStations: true,
   /** OpenTTD difficulty.town_council_tolerance (difficulty_settings.ini:298, def 0): 0 Lenient, 1 Tolerant, 2 Hostile, 3 Permissive; townAuthority.js refuseBelow. */
   townCouncilTolerance: 0,
   /** OpenTTD economy.dist_local_authority (economy_settings.ini, def 20, min 5): manhattan radius (tiles) of a town's local authority. authorityTown / refusalAt / monthly rating use it. */

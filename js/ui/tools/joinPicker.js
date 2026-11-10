@@ -27,6 +27,7 @@ export function adjacentOwn(state, tiles) {
 /** Our stations (any facility, as in OpenTTD) that the footprint could join (within spread). */
 export function joinChoices(state, kind, tiles) {
   const limit = getSetting(state, 'stationSpread');
+  if (getSetting(state, 'distantJoinStations') === false) return []; // OpenTTD distant_join off: no picker
   return state.stations.filter((st) => st.ownerId == null && spreadOk(st, tiles, limit))
     .map((st) => ({ id: st.id, name: st.name }));
 }

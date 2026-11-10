@@ -33,6 +33,8 @@ export const SETTING_META = [
   { key: 'maxBridgeLength', group: 'construction', label: 'Max bridge length (tiles)', type: 'select',
     options: [['12', '12 (default)'], ['16', '16'], ['20', '20'], ['24', '24'], ['32', '32'], ['40', '40'], ['48', '48'], ['64', '64']],
     help: 'Longest player bridge, heads included (OpenTTD construction.max_bridge_length). Applies to new bridges; existing bridges are kept.' },
+  { key: 'distantJoinStations', group: 'construction', label: 'Distant station join', type: 'check',
+    help: 'Ctrl+click on a new station site may join one of your stations that is not next to it (OpenTTD station.distant_join_stations). Off = Ctrl+click builds a new station.' },
   { key: 'maxTunnelLength', group: 'construction', label: 'Max tunnel length (tiles)', type: 'select',
     options: [['16', '16 (default)'], ['24', '24'], ['32', '32'], ['48', '48'], ['64', '64']],
     help: 'Longest player rail tunnel, portals included (OpenTTD construction.max_tunnel_length). Applies to new tunnels; existing tunnels are kept.' },

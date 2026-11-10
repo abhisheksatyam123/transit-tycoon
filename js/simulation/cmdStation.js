@@ -23,6 +23,18 @@ export function spreadLimit(state) {
 }
 
 /**
+ * OpenTTD distant_join (station_cmd.cpp:1463,2097,2632,2900): a join to a station that is not next to the new
+ * tiles is refused while station.distant_join_stations is off. A join to an adjacent station is never refused.
+ * Default on (true): no change.
+ * @returns {boolean} true when the join must be refused
+ */
+export function distantJoinRefused(state, opts, tiles) {
+  if (!opts || opts.joinStationId == null) return false;
+  if (getSetting(state, 'distantJoinStations') !== false) return false;
+  return !adjacentStations(state, tiles).some((st) => st.id === opts.joinStationId);
+}
+
+/**
  * Distant join (OpenTTD station picker): the station the player chose with Ctrl+click via
  * opts.joinStationId. Only player builds are checked; the chosen station must exist and stay within the spread limit. Returns null when no join was requested,
  * the station record when valid, or {error} when refused.
@@ -31,6 +43,7 @@ export function joinTarget(state, opts, kind, tiles) {
   if (!opts || opts.joinStationId == null) return null;
   const st = findStation(state, opts.joinStationId);
   if (!st) return { error: 'No such station to join' };
+  if (distantJoinRefused(state, opts, tiles)) return { error: 'Distant join is disabled in game settings' };
   // OpenTTD: any facility may join any own station within spread (a bus stop can join a rail station)
   if (!spreadOk(st, tiles, spreadLimit(state))) return { error: 'Station too spread out' };
   return st;
