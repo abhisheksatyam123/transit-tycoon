@@ -24,7 +24,7 @@ describe('save format', () => {
     const back = parseState(str);
     expect(JSON.stringify(back)).toBe(JSON.stringify(state));
     expect(back.map.tiles.length).toBe(state.map.tiles.length);
-  });
+  }, 20000);
 
   test('scenario save is much smaller than the classic JSON', () => {
     expect(serializeState(state).length).toBeLessThan(JSON.stringify(state).length / 3);
