@@ -1,7 +1,8 @@
 /**
  * Transparency toggles (OpenTTD transparency_gui.cpp, TransparencyOption): display-only, stored in this browser
- * (localStorage 'tt.transparency'), never in the save. Buildings, industries, stations, bridges and signs draw
- * semi-transparent; trees are hidden (OTTD 'invisible'). Ctrl+1..6 toggle them (input/input.js).
+ * (localStorage 'tt.transparency'), never in the save. Buildings, industries, stations, bridges, signs,
+ * structures (map objects) and catenary draw semi-transparent; trees are hidden (OTTD 'invisible').
+ * Ctrl+1..8 toggle them (input/input.js).
  * When every toggle is off, loadTransparency() returns null and the renderer does one null check per frame.
  */
 export const TRANSPARENCY_KEY = 'tt.transparency';
@@ -15,6 +16,10 @@ export const TRANSPARENCY_OPTIONS = [
   { id: 'stations', label: 'Stations' },
   { id: 'bridges', label: 'Bridges' },
   { id: 'signs', label: 'Signs' },
+  // OpenTTD TransparencyOption TO_STRUCTURES (transparency.h ~22-33): map objects (transmitter, lighthouse, bought land).
+  { id: 'structures', label: 'Structures' },
+  // OpenTTD TransparencyOption TO_CATENARY: electrified rail and tram overhead wires.
+  { id: 'catenary', label: 'Catenary' },
 ];
 
 /** @type {Record<string, boolean>|null|undefined} undefined = not loaded yet */
@@ -67,6 +72,16 @@ export function tileTransparency(tile, tr) {
     if (b.type === 'station' && tr.stations) return TRANSPARENT_ALPHA;
     return 1;
   }
+  // OpenTTD TO_STRUCTURES: map objects (cmdObject.js) are drawn by layers/objects.js drawObjectTile.
+  if (tile.object && tr.structures) return TRANSPARENT_ALPHA;
   if (tile.terrain === 'forest' && tr.trees && !tile.rail && !tile.road) return 0;
   return 1;
+}
+
+/**
+ * Alpha for overhead wires under the toggles (OpenTTD TO_CATENARY): 1 = normal, TRANSPARENT_ALPHA = faded.
+ * @param {Record<string, boolean>|null} tr non-null toggles (or null)
+ */
+export function catenaryAlpha(tr) {
+  return tr && tr.catenary ? TRANSPARENT_ALPHA : 1;
 }

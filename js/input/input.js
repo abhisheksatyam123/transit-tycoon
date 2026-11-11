@@ -172,7 +172,7 @@ export function setupInput(app, canvas, shortcuts) {
     if (e.ctrlKey && e.altKey && !e.metaKey && e.key.toLowerCase() === 'c') { // hidden cheats window (OpenTTD cheat_gui)
       e.preventDefault(); app.open('cheats'); return;
     }
-    if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-6]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..6 too, browsers keep Ctrl+1..8 for tabs
+    if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-8]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..8 too, browsers keep Ctrl+1..8 for tabs
       e.preventDefault();
       const opt = TRANSPARENCY_OPTIONS[Number(e.code.slice(5)) - 1];
       const on = !(loadTransparency() || {})[opt.id];

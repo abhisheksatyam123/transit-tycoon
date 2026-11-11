@@ -111,7 +111,7 @@ describe('transparency toggles (UI only)', () => {
   });
   test('all off by default: loadTransparency is null', () => {
     expect(loadTransparency()).toBeNull();
-    expect(TRANSPARENCY_OPTIONS.map((o) => o.id)).toEqual(['buildings', 'trees', 'industries', 'stations', 'bridges', 'signs']);
+    expect(TRANSPARENCY_OPTIONS.map((o) => o.id)).toEqual(['buildings', 'trees', 'industries', 'stations', 'bridges', 'signs', 'structures', 'catenary']);
   });
   test('setTransparency persists and turning the last one off returns null', () => {
     setTransparency('buildings', true);
