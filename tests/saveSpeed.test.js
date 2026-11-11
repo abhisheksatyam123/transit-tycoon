@@ -32,7 +32,16 @@ describe('time-sliced save', () => {
     g.stepDays(5);
     const stats = {};
     await serializeStateAsync(g.state, stats);
-    expect(stats.maxSliceMs).toBeLessThan(40); // generous: CI noise; bun measures ~8 ms
+    // Robust statistic instead of a single worst-case bound. The old `maxSliceMs < 40` flaked under load:
+    // the OS preempts the process mid-slice, so one slice can hit ~80-130 ms although the code is fine.
+    // Measured on this fixture (moscow, 5 game days, ~18 slices): alone max 15-21 ms, median slice ~8.2 ms;
+    // 4 parallel copies: max 20-79 ms, median 8.2-8.8 ms, mean (totalMs/slices, yields included) <= 14.7 ms.
+    // So: the mean wall time per slice must stay under 40 ms (catches a sustained regression), and no single
+    // slice may exceed the hard limit 250 ms (catches one long blocking slice; a real regression runs hundreds
+    // of ms). The limit is the floor of 250 ms: 3x the worst loaded max is ~240 ms, and it must stay below the
+    // 300 ms regression probe.
+    expect(stats.totalMs / stats.slices).toBeLessThan(40);
+    expect(stats.maxSliceMs).toBeLessThan(250);
   }, 60000);
 });
 
