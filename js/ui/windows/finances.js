@@ -5,9 +5,31 @@ import { el, setText, clear } from '../dom.js';
 import { money, monthName } from '../format.js';
 import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
+import { getSetting } from '../../simulation/settings.js';
 
 const LOAN_STEP = 10000;
 const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep', infrastructure: 'Infrastructure maintenance' };
+
+/** Yearly loan interest shown in the window: the live loanInterestRate setting as a percent (default 5%). */
+export function interestLabel(state) {
+  return `${Number(getSetting(state, 'loanInterestRate'))}%`;
+}
+
+/** Own value (OpenTTD company_gui.cpp ~371-379): bank balance minus loan. */
+export function ownValue(company) {
+  return company.money - company.loan;
+}
+
+/** Borrow amount for "Max borrow": loan up to company.maxLoan, in whole LOAN_STEP increments (borrow() rounds up). */
+export function maxBorrowAmount(company) {
+  return Math.max(0, Math.floor((company.maxLoan - company.loan) / LOAN_STEP) * LOAN_STEP);
+}
+
+/** Repay amount for "Max repay": the whole loan when cash covers it, else as far as cash allows in LOAN_STEP increments. */
+export function maxRepayAmount(company) {
+  if (company.money >= company.loan) return company.loan;
+  return Math.max(0, Math.floor(company.money / LOAN_STEP) * LOAN_STEP);
+}
 
 /**
  * @param {import('../app.js').App} app
@@ -17,10 +39,12 @@ export function openFinances(app) {
     title: 'Finances',
     width: 620,
     build(body, win) {
-      const set = kvGrid(body, ['Bank balance', 'Loan', 'Max loan', 'Interest (yearly)']);
+      const set = kvGrid(body, ['Bank balance', 'Loan', 'Own value', 'Max loan', 'Interest (yearly)']);
       body.appendChild(el('div.btn-row', null,
         el('button.btn', { type: 'button', text: `Borrow ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.borrow(LOAN_STEP), { sound: 'income' }) }),
         el('button.btn', { type: 'button', text: `Repay ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.repay(LOAN_STEP), { sound: 'click' }) }),
+        el('button.btn', { type: 'button', text: 'Max borrow', onclick: () => app.exec(app.game.borrow(maxBorrowAmount(app.game.state.company)), { sound: 'income' }) }),
+        el('button.btn', { type: 'button', text: 'Max repay', onclick: () => app.exec(app.game.repay(maxRepayAmount(app.game.state.company)), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Rename company…', onclick: () => openRename(app, 'company') })));
       const autoBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
       autoBox.addEventListener('change', () => { app.exec(app.game.setLoanAutopay(autoBox.checked), { sound: 'click' }); });
@@ -33,8 +57,9 @@ export function openFinances(app) {
         win.setTitle(c.name ? `Finances · ${c.name}` : 'Finances');
         set['Bank balance'](money(c.money));
         set['Loan'](money(c.loan));
+        set['Own value'](money(ownValue(c)));
         set['Max loan'](money(c.maxLoan));
-        set['Interest (yearly)']('5%');
+        set['Interest (yearly)'](interestLabel(app.game.state));
         autoBox.checked = !!c.autopayLoan;
         const hist = (c.ledger.history || []).slice(-11);
         const cols = [...hist.map((h) => ({ label: `${monthName(h.month)} ${String(h.year).slice(2)}`, h })), { label: 'This month', h: c.ledger.current }];
