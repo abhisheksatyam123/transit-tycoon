@@ -463,6 +463,7 @@ function deliverLoad(ctx, v, st) {
   if (mult !== 1) pay = Math.round(pay * mult);
   const payee = companyOf(state, v);
   recordDelivery(payee, v.cargoId, load.amount, dist);
+  if (getSetting(state, 'townGrowthModel') === 'ottd') st.lastUnload = state.tick; // OTTD time_since_unload (tt: no write)
   if (st.ownerId != null) st.delivered = 1; // rival stations only (player stations never use it); OL StationFlags::flag_8 (VehicleHead.cpp:3134): lifts the rival rating override
   const acceptingInd = creditDelivery(state, st, v.cargoId, load.amount);
   noteFirstDelivery(ctx, state, st, v.cargoId, acceptingInd);

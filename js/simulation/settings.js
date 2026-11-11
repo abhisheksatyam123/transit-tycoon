@@ -155,6 +155,9 @@ export const DEFAULT_SETTINGS = {
   planeSpeedFactor: 1,
   /** town growth rate (OpenTTD economy.town_growth_rate): 'none' | 'slow' | 'normal' | 'fast' | 'veryfast'. 'normal' = current growth. */
   townGrowthRate: 'normal',
+  /** town growth model (OpenTTD town_cmd.cpp UpdateTownGrowth/CountActiveStations): 'tt' = current TT build-speed growth (default,
+   * unchanged). 'ottd' = growth period from stations with a pickup/delivery in the last 20 days; no active station => 1/12 chance. */
+  townGrowthModel: 'tt',
   /** OpenTTD economy.allow_town_roads (def true): towns may extend/build their road network as they grow. Off = towns never build roads (houses still grow along existing roads). */
   allowTownRoads: true,
   /** OpenTTD economy.place_houses (def true): towns may construct new houses as they grow. Off = existing houses only (population stays put, roads may still grow). */

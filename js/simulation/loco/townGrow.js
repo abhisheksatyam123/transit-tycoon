@@ -31,6 +31,10 @@ import { ensembleBoxes } from '../scenarios/moscowTowns.js';
 import { findRoadPath, layRoadPath } from '../townRoads.js';
 import { labelComponents, labelComponentsAll } from '../diagIssue.js';
 import { TOWN_CORE_RADIUS } from '../diagChecksMap.js';
+import { getSetting } from '../settings.js';
+import { TICKS_PER_DAY } from '../constants.js';
+import { localAuthorityDist } from '../townAuthority.js';
+import { manhattan } from '../state.js';
 
 /** kBuildSpeedToGrowthPerTick */
 export const BUILD_SPEED_TO_GROWTH_PER_TICK = [0, 1, 3, 5, 7, 9, 12, 16, 22, 0, 0, 0];
@@ -371,6 +375,51 @@ export function growTown(game, town, { buildInitialRoadFlag = true, constructBui
   return changed || town.houses.length !== housesBefore;
 }
 
+/** OpenTTD town_cmd.cpp _grow_count_values[fund?0:1][min(activeStations,5)] (normal = row 1). */
+export const OTTD_GROW_COUNT = [[120, 120, 120, 100, 80, 60], [320, 420, 300, 220, 160, 100]];
+/** OpenTTD reference period (normal, 1 active station) used to scale the per-check growth chance. */
+const OTTD_REF_PERIOD = 420;
+/** OpenTTD CountActiveStations: time_since_load <= 20 || time_since_unload <= 20 (days). */
+const OTTD_ACTIVE_DAYS = 20;
+
+/** Stations near the town (same reach as townAuthority) with a pickup or delivery in the last 20 days. */
+export function countActiveStations(state, town) {
+  const dist = localAuthorityDist(state);
+  const lim = OTTD_ACTIVE_DAYS * TICKS_PER_DAY;
+  const recent = (v) => typeof v === 'number' && state.tick - v <= lim;
+  let n = 0;
+  for (const st of state.stations || []) {
+    if (!st.tiles || !st.tiles.length) continue;
+    if (manhattan(town.x, town.y, st.x, st.y) > dist) continue;
+    const picked = st.lastPickup && typeof st.lastPickup === 'object' && Object.values(st.lastPickup).some(recent);
+    if (picked || recent(st.lastUnload)) n++;
+  }
+  return n;
+}
+
+/** OpenTTD growth period for n active stations: table / (num_houses / 50 + 1). */
+export function ottdGrowthPeriod(town, n) {
+  const m = OTTD_GROW_COUNT[town.fundMonths > 0 ? 0 : 1][Math.min(n, 5)];
+  return m / (Math.floor((town.houses || []).length / 50) + 1);
+}
+
+/**
+ * 'ottd' growth check (opt-in; the TT path is untouched). No active station: grow with chance 1/12
+ * (OpenTTD Chance16(1,12)). Otherwise grow with chance period / OTTD_REF_PERIOD (capped at 1), one growTown
+ * step per check. buildSpeed is not used. Flags as in the TT path.
+ */
+function growForTickOttd(game, town, opts) {
+  const n = countActiveStations(game.state, town);
+  const chance = n === 0 ? 1 / 12 : Math.min(1, ottdGrowthPeriod(town, n) / OTTD_REF_PERIOD);
+  if (!game.rng.chance(chance)) return false;
+  const noHouses = opts.placeHouses === false;
+  const noRoads = opts.allowTownRoads === false;
+  const gopts = noHouses || noRoads
+    ? { constructBuildings: !noHouses, allowRoadExpansion: !noRoads, allowRoadBranching: !noRoads, buildInitialRoadFlag: !noRoads }
+    : undefined;
+  return growTown(game, town, gopts);
+}
+
 /**
  * The per-tick grow-call schedule of Town::tick. Returns true if anything grew.
  * opts (OpenTTD economy.allow_town_roads / place_houses, both default true): when a flag is false the
@@ -379,6 +428,7 @@ export function growTown(game, town, { buildInitialRoadFlag = true, constructBui
  * @param {{allowTownRoads?:boolean, placeHouses?:boolean}} [opts]
  */
 export function growForTick(game, town, opts = {}) {
+  if (getSetting(game.state, 'townGrowthModel') === 'ottd') return growForTickOttd(game, town, opts);
   const per = BUILD_SPEED_TO_GROWTH_PER_TICK[town.buildSpeed] ?? 0;
   const noHouses = opts.placeHouses === false;
   const noRoads = opts.allowTownRoads === false;
