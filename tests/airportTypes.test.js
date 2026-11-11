@@ -3,7 +3,6 @@ import { describe, expect, test } from 'bun:test';
 import { Game } from '../js/simulation/game.js';
 import { AIRPORT_TYPES, airportTypeId, vehicleFitsAirport } from '../js/simulation/airportTypes.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
-import { serializeState } from '../js/simulation/save.js';
 import { catchRadius } from '../js/simulation/stations.js';
 import { createHash } from 'node:crypto';
 
@@ -179,7 +178,9 @@ describe('save/load and world hash', () => {
   test('a random world without airports hashes as pinned (see MP note) (seed 1, 60 days)', () => {
     const g = Game.create({ seed: 1 });
     g.stepDays(60);
-    const h = createHash('sha256').update(serializeState(g.state)).digest('hex').slice(0, 16);
+    // Raw state, not the save encoding: a save-format change (e.g. dropping per-tick traffic scratch)
+    // must not move the pin.
+    const h = createHash('sha256').update(JSON.stringify(g.state)).digest('hex').slice(0, 16);
     // MP: ind.hist (monthly industry production history, saved) changed the serialized state; the
     // simulation itself is unchanged (the hash with hist stripped is still 211ce1138012979d).
     expect(h).toBe('e66b684174510b6b');
