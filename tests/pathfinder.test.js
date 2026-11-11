@@ -40,11 +40,27 @@ describe('pathfinder', () => {
       const t = map.tiles[64 * 128 + x];
       t.rail = (x > 0 ? 8 : 0) | (x < 127 ? 2 : 0);
     }
-    const t0 = performance.now();
-    const p = findPath(map, { x: 0, y: 64 }, [{ x: 127, y: 64 }], 'rail');
-    const dt = performance.now() - t0;
-    expect(p).not.toBeNull();
-    expect(p.length).toBe(128);
-    expect(dt).toBeLessThan(50);
+    const run = () => {
+      const t0 = performance.now();
+      const p = findPath(map, { x: 0, y: 64 }, [{ x: 127, y: 64 }], 'rail');
+      return { p, dt: performance.now() - t0 };
+    };
+    run(); // warm-up, not counted
+    const times = [];
+    for (let i = 0; i < 7; i++) {
+      const { p, dt } = run();
+      expect(p).not.toBeNull();
+      expect(p.length).toBe(128);
+      times.push(dt);
+    }
+    const sorted = [...times].sort((a, b) => a - b);
+    // Timing statistic: the pathfinder has no exposed work counter (its `expanded` count is a
+    // local in js/simulation/pathfinder.js), so wall clock is the only signal. A single run is
+    // load-sensitive, so we use the median of 7 runs (after one warm-up) as the bound and keep
+    // a hard guard on the worst run to catch real regressions.
+    // Measured (bun, this machine): median ~0.05 ms alone, ~0.1 ms with 4 parallel copies;
+    // worst single run ~0.2-0.5 ms. Bounds: median < 50 ms, max < 500 ms.
+    expect(sorted[3]).toBeLessThan(50);
+    expect(sorted[6]).toBeLessThan(500);
   });
 });
