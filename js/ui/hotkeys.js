@@ -7,6 +7,8 @@
  * (rotate, cycle, length...) are listed in READ_ONLY_HOTKEYS: they stay in the tools and cannot be rebound.
  */
 
+import { FIXED_SHORTCUTS } from '../input/fixedShortcuts.js';
+
 export const HOTKEYS_STORAGE_KEY = 'tt.hotkeys';
 
 /** Keys that are never bindable (pan, zoom, cancel), so they keep working. */
@@ -71,6 +73,14 @@ export const READ_ONLY_HOTKEYS = [
   { label: 'Line drag: cycle shape', group: 'Build tools', keys: 'C' },
   { label: 'Line drag: tunnel / bridge (rail, road)', group: 'Build tools', keys: 'U' },
   { label: 'Line drag: highway class (road)', group: 'Build tools', keys: 'H' },
+  // Fixed global keys (OpenTTD main_gui/toolbar_gui); listed from the same table input.js dispatches.
+  ...FIXED_SHORTCUTS.map((s) => ({
+    label: s.label,
+    group: s.group,
+    keys: s.key === 'c' ? 'C (when no tool uses C)'
+      : s.key === 'delete' ? 'Delete (not in a text field)'
+        : keyLabel(s.key),
+  })),
 ];
 
 /**
