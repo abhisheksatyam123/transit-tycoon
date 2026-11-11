@@ -205,6 +205,10 @@ export const DEFAULT_SETTINGS = {
   engineRenewMonths: 0,
   /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default 0 = only the purchase cost is checked (current). */
   engineRenewMoney: 0,
+  /** OpenTTD processing-industry abandonment (industry_cmd.cpp:3004-3007; always on in OpenTTD, no setting): secondary industries idle 5 years close at 1/180 per month. TT default off = no abandonment (current). */
+  industryAbandonment: false,
+  /** OpenTTD last-instance closure protection (industry_cmd.cpp:2758-2766; CanCloseLastInstance behaviour flag, not a setting): the last instance of an industry type cannot close. TT default off = it may close (current). */
+  protectLastIndustry: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */

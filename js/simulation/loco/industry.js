@@ -225,6 +225,32 @@ export function isMonthlyProductionClosing(rng, state, ind) {
     || ((type.monthlyClosureChance || 0) !== 0 && type.monthlyClosureChance > rng.int(0, 0xffff));
 }
 
+/** OpenTTD PROCESSING_INDUSTRY_ABANDONMENT_YEARS (industry_cmd.cpp). */
+export const ABANDONMENT_YEARS = 5;
+
+/**
+ * industryAbandonment (opt-in, default off = no abandonment): OpenTTD ChangeIndustryProduction (industry_cmd.cpp:3004-3007).
+ * A secondary (processing) industry with no production for ABANDONMENT_YEARS years closes with Chance16(1,180) per month.
+ * Last production year: ind.lastProductionYear (recorded only while the setting is on), else ind.foundingYear.
+ * RNG is drawn only when the setting is on and the industry has been idle that long.
+ */
+export function isMonthlyAbandonment(rng, state, ind) {
+  if (!getSetting(state, 'industryAbandonment')) return false;
+  if (!requiredCargos(INDUSTRY_BY_ID[ind.typeId]).length) return false; // primary industries never abandon
+  const last = ind.lastProductionYear ?? ind.foundingYear ?? state.date.year;
+  if (state.date.year - last < ABANDONMENT_YEARS) return false;
+  return rng.int(0, 0xffff) < Math.floor(0xffff / 180); // Chance16(1,180)
+}
+
+/**
+ * protectLastIndustry (opt-in, default off = last instance may close): OpenTTD CheckIndustryCloseDownProtection
+ * (industry_cmd.cpp:2758-2766). True = closure must be refused because this is the only industry of its type.
+ */
+export function closureProtected(state, ind) {
+  if (!getSetting(state, 'protectLastIndustry')) return false;
+  return state.industries.filter((i) => i.typeId === ind.typeId).length <= 1;
+}
+
 /**
  * OpenTTD economy.type 'smooth' (ChangeIndustryProduction, industry_cmd.cpp:2943-2990), primary industries.
  * Per produced cargo: 1 in 22 chance per month to move its rate by max(10..59 % of the rate, 1); direction is up with
@@ -276,13 +302,15 @@ export function updateMonthly(game, ind, notify) {
   // EF economyType 'frozen' (OpenTTD ET_FROZEN, industry_cmd.cpp:2926): no production changes and no closures; no draws.
   const frozen = getSetting(state, 'economyType') === 'frozen';
   const smooth = !frozen && getSetting(state, 'economyType') === 'smooth';
+  // last_prod_year (industry_cmd.cpp:2581): month with production; tracked only while industryAbandonment is on
+  if (getSetting(state, 'industryAbandonment') && (ind.producedMonthly[0] > 0 || ind.producedMonthly[1] > 0)) ind.lastProductionYear = state.date.year;
   if (smooth && !ind.closingDown && primary) {
     const sm = smoothMonthlyChange(rng, ind, type);
     if (sm.changed && sm.pct >= 10) {
       at(`Production at ${ind.name} has ${sm.up ? 'increased' : 'decreased'}.`, sm.up ? 'good' : 'bad', 'production');
     }
     if (sm.changed) hasEvent = true;
-    if (sm.close) {
+    if (sm.close && !closureProtected(state, ind)) {
       ind.closingDown = true;
       ind.dailyProductionTarget = [0, 0];
       at(`${ind.name} is going to close down.`, 'bad', 'industryClose');
@@ -301,7 +329,7 @@ export function updateMonthly(game, ind, notify) {
     }
   }
   if (!frozen && !hasEvent && !state.disallowIndustriesCloseDown && !ind.closingDown) {
-    if (isMonthlyProductionClosing(rng, state, ind)) {
+    if ((isMonthlyProductionClosing(rng, state, ind) || isMonthlyAbandonment(rng, state, ind)) && !closureProtected(state, ind)) {
       ind.closingDown = true;
       ind.dailyProductionTarget = [0, 0];
       at(`${ind.name} is going to close down.`, 'bad', 'industryClose');
