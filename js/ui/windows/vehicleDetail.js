@@ -26,6 +26,7 @@ import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { vehicleSpecs, consistRows } from '../../simulation/vehicleSpec.js';
 import { monthlyRunningCost } from '../../simulation/loco/vehicle.js';
 import { vehicleModel } from '../../simulation/vehicles.js';
+import { play } from '../../audio/sfx.js';
 
 /**
  * Age text; core stores `age` in days.
@@ -91,8 +92,11 @@ export function openVehicleDetail(app, id) {
         body.appendChild(el('div.muted', { text: `Owned by ${rival ? rival.name : 'a rival company'}. Orders and sales are not available.` }));
         return;
       }
+      // OpenTTD VehicleDetailsWindow 'Honk' button (vehicle_gui.cpp ~3472): sound only, touches no state.
+      const honkBtn = el('button.btn', { type: 'button', text: 'Honk', 'aria-label': 'Play the vehicle horn', title: 'Play the vehicle horn (sound only; no effect on the game)', onclick: () => play('horn') });
       body.appendChild(el('div.btn-row', null,
         startStop,
+        honkBtn,
         el('button.btn', { type: 'button', text: 'Orders', onclick: () => app.open('orders', id) }),
         el('button.btn', { type: 'button', text: 'Rename…', onclick: () => openRename(app, 'vehicle', id) }),
         el('button.btn', { type: 'button', text: 'Autoreplace…', title: 'Model replacement rules (applied when stopped in a depot)', onclick: () => app.open('autoreplace') }),
