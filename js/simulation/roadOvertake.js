@@ -4,6 +4,7 @@
  *
  * A road vehicle v about to be held by a same-way road vehicle u may overtake when:
  *  - v is not a tram, and u is not a tram (trams never overtake);
+ *  - v has no articulated part (OpenTTD roadveh_cmd.cpp:828-829: articulated road vehicles can't overtake anything);
  *  - v is faster than u (u's max speed below v's, or u stopped: OTTD RoadVehCheckOvertake speed test);
  *  - the lane ahead is straight plain road for OVERTAKE_WINDOW_TILES tiles: no junction, station, depot,
  *    level crossing, bridge/tunnel end or one-way tile (no legal opposite lane);
@@ -18,6 +19,7 @@
 import { dirBetween, AXIS_BITS } from './constants.js';
 import { vehiclesOn, vehicleDir } from './blocking.js';
 import { straightAxis } from './network.js';
+import { articSpan } from './articulated.js';
 import { getSetting } from './settings.js';
 
 /** OpenTTD RV_OVERTAKE_TIMEOUT (35), in TT ticks. */
@@ -57,6 +59,8 @@ export function overtakeBlocker(ctx, v, x, y, dir) {
  */
 export function tryOvertake(ctx, v, u) {
   if (v.roadType === 'tram' || u.roadType === 'tram' || u.kind !== 'road') return false;
+  // OpenTTD roadveh_cmd.cpp:828-829 RoadVehCheckOvertake: "For now, articulated road vehicles can't overtake anything."
+  if (articSpan(v) > 0) return false;
   // OTTD: u_speed = max speed of u; no overtake of a vehicle that is at least as fast and moving
   if (u.maxSpeed >= v.maxSpeed && u.state !== 'stopped' && u.speed !== 0) return false;
   const path = v.path, i = v.pathIndex;

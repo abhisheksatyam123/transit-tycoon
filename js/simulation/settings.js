@@ -71,6 +71,10 @@ export const DEFAULT_SETTINGS = {
   trainAcceleration: 'original',
   /** roadOvertaking: OpenTTD road vehicle overtaking (roadOvertake.js): a faster road vehicle passes a slower one on a straight plain road when the opposite lane is free. Trams never. Off by default: changes results. */
   roadOvertaking: false,
+  /** OpenTTD pf.roadveh_queue (pathfinding_settings.ini, def true; roadveh_cmd.cpp:919): a road vehicle waits for
+   * a free bay at a road stop and enters when one frees. True = current TT behaviour (road vehicles always queue).
+   * False = a road vehicle does not enter a stop that has no free bay; it keeps driving and comes back. */
+  roadvehQueue: true,
   /** tramCurveCap: OpenTTD tram corner speed limits (GetCurveSpeedLimit via RoadVeh tram): trams take corners at capped speed instead of the OpenLoco road fraction. Off = trams use the road curve fraction like buses/trucks. */
   tramCurveCap: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
