@@ -542,5 +542,10 @@ function migrate(state) {
   if (tr.acc.samples.length !== n) tr.acc.samples = new Array(n).fill(0);
   tr.acc.blocked ??= new Array(n).fill(0);
   if (tr.acc.blocked.length !== n) tr.acc.blocked = new Array(n).fill(0);
+  // curveLimit is NO_LIMIT (Infinity) on a straight path (loco/trainRealistic.js); JSON.stringify
+  // writes Infinity as null, so restore it here instead of leaving null for numeric readers.
+  if (Array.isArray(state.vehicles)) {
+    for (const v of state.vehicles) if (v.curveLimit === null) v.curveLimit = Infinity;
+  }
   return state;
 }
