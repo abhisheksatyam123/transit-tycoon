@@ -9,13 +9,24 @@
   cursor: move; background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 38, 0.9));
   border-bottom: 1px solid rgba(148, 163, 184, 0.14); user-select: none; touch-action: none;
 }
-.win-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+/* title bar controls: shade, pin, close (close last so narrow layouts keep a predictable order) */
+.win-ctrls { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.win-btn {
+  width: 24px; height: 24px; padding: 0; border-radius: 6px; border: 1px solid transparent; background: transparent;
+  color: var(--muted); font-size: 13px; line-height: 1; cursor: pointer;
+}
+.win-btn:hover { color: #fff; background: rgba(148, 163, 184, 0.22); border-color: rgba(148, 163, 184, 0.35); }
+.win-btn[aria-pressed="true"] { color: #fff; background: rgba(14, 165, 233, 0.22); border-color: var(--accent); }
+.win-stick { font-size: 12px; }
 .win-close {
   width: 24px; height: 24px; border-radius: 6px; border: 1px solid transparent; background: transparent;
   color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
 }
 .win-close:hover { color: #fff; background: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.5); }
 .win-body { padding: 10px 12px 12px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+/* shaded (rolled up) window: body hidden, title bar and position kept */
+.win.shaded > .win-body { display: none; }
 .win-h { margin: 8px 0 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
 
 .btn {
@@ -140,6 +151,7 @@
   }
   .win-body { padding: 8px 10px 10px; font-size: 12.5px; }
   .win-title { font-size: 12.5px; }
+  .win-btn { width: 30px; height: 30px; font-size: 16px; }
   .win-close { width: 30px; height: 30px; font-size: 20px; }
   .list.scroll { max-height: 38vh; }
   .field { grid-template-columns: 76px 1fr; }

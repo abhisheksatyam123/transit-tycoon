@@ -23,6 +23,12 @@ import { logger } from './logger.js';
  * @property {HTMLElement} body
  * @property {HTMLElement} titleEl
  * @property {(()=>void)|null} update
+ * @property {boolean} shaded rolled up to the title bar (UI-only; not saved)
+ * @property {boolean} sticky kept open by closeTop/closeAll (UI-only; not saved)
+ * @property {HTMLElement} shadeBtn
+ * @property {HTMLElement} stickBtn
+ * @property {(on:boolean)=>void} setShaded
+ * @property {(on:boolean)=>void} setSticky
  * @property {(t:string)=>void} setTitle
  * @property {()=>void} close
  * @property {WindowSpec} spec
@@ -59,21 +65,48 @@ export class WindowManager {
       return existing;
     }
     const titleEl = el('span.win-title', { id: 'win-title-' + (++winSeq), text: spec.title });
-    const closeBtn = el('button.win-close', { type: 'button', title: 'Close (Esc)', 'aria-label': 'Close ' + spec.title, text: '×' });
-    const header = el('div.win-header', null, titleEl, closeBtn);
+    // Title bar buttons, OpenTTD order (WWT_SHADEBOX, WWT_STICKYBOX, then close). Close stays last so the
+    // controls keep that order and never overlap the title on narrow (phone) layouts.
+    const shadeBtn = el('button.win-btn.win-shade', { type: 'button', title: 'Shade (roll up)', 'aria-label': 'Shade ' + spec.title, 'aria-pressed': 'false', text: '▾' });
+    const stickBtn = el('button.win-btn.win-stick', { type: 'button', title: 'Pin (keep open on Esc / close all)', 'aria-label': 'Pin ' + spec.title, 'aria-pressed': 'false', text: '⚑' });
+    const closeBtn = el('button.win-close.win-btn', { type: 'button', title: 'Close (Esc)', 'aria-label': 'Close ' + spec.title, text: '×' });
+    const header = el('div.win-header', null, titleEl, el('div.win-ctrls', null, shadeBtn, stickBtn, closeBtn));
     const body = el('div.win-body');
     const root = el('section.win.hud-surface' + (spec.className ? '.' + spec.className : ''), { role: 'dialog', tabindex: '-1', 'aria-labelledby': titleEl.id }, header, body);
     if (spec.width) root.style.width = spec.width + 'px';
+    /** Shade (roll up): hide the body, keep the title bar, position and width. */
+    const setShaded = (on) => {
+      win.shaded = !!on;
+      root.classList.toggle('shaded', win.shaded);
+      body.hidden = win.shaded;
+      shadeBtn.setAttribute('aria-pressed', win.shaded ? 'true' : 'false');
+      shadeBtn.setAttribute('aria-label', (win.shaded ? 'Unshade ' : 'Shade ') + titleEl.textContent);
+      shadeBtn.title = win.shaded ? 'Unshade (roll down)' : 'Shade (roll up)';
+      shadeBtn.textContent = win.shaded ? '▴' : '▾';
+    };
+    /** Sticky (pin): closeTop/closeAll skip this window; the close button still closes it. */
+    const setSticky = (on) => {
+      win.sticky = !!on;
+      root.classList.toggle('sticky', win.sticky);
+      stickBtn.setAttribute('aria-pressed', win.sticky ? 'true' : 'false');
+      stickBtn.setAttribute('aria-label', (win.sticky ? 'Unpin ' : 'Pin ') + titleEl.textContent);
+      stickBtn.title = win.sticky ? 'Unpin (close with Esc / close all)' : 'Pin (keep open on Esc / close all)';
+    };
     /** @type {FloatingWindow} */
     const win = {
-      id, root, body, titleEl, spec, update: null,
+      id, root, body, titleEl, spec, update: null, shaded: false, sticky: false,
+      shadeBtn, stickBtn, setShaded, setSticky,
       setTitle: (t) => {
         if (titleEl.textContent !== t) titleEl.textContent = t;
         closeBtn.setAttribute('aria-label', 'Close ' + t);
+        shadeBtn.setAttribute('aria-label', (win.shaded ? 'Unshade ' : 'Shade ') + t);
+        stickBtn.setAttribute('aria-label', (win.sticky ? 'Unpin ' : 'Pin ') + t);
       },
       close: () => this.close(id),
     };
     closeBtn.addEventListener('click', () => this.close(id));
+    shadeBtn.addEventListener('click', () => setShaded(!win.shaded));
+    stickBtn.addEventListener('click', () => setSticky(!win.sticky));
     root.addEventListener('pointerdown', () => this.focus(win));
     this.makeDraggable(win, header);
     this.container.appendChild(root);
@@ -123,9 +156,13 @@ export class WindowManager {
     if (win.spec.onClose) win.spec.onClose();
   }
 
-  /** Close every window. */
+  /** Close every window except sticky (pinned) ones (OpenTTD CloseNonVitalWindows, window.cpp:3382). */
   closeAll() {
-    for (const id of Array.from(this.windows.keys())) this.close(id);
+    for (const id of Array.from(this.windows.keys())) {
+      const w = this.windows.get(id);
+      if (w && w.sticky) continue;
+      this.close(id);
+    }
   }
 
   /**
@@ -135,6 +172,7 @@ export class WindowManager {
   closeTop() {
     let top = null, z = -1;
     for (const w of this.windows.values()) {
+      if (w.sticky) continue; // pinned windows survive Esc (OpenTTD WindowFlag::Sticky)
       const wz = Number(w.root.style.zIndex) || 0;
       if (wz > z) { z = wz; top = w; }
     }
