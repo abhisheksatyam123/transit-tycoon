@@ -23,7 +23,7 @@ export function airportLocked(toolId, year) {
   if (!t || !t.introYear || year >= t.introYear) return null;
   return `${t.name} not yet available: available from ${t.introYear}`;
 }
-import { screenshotCanvas, giantScreenshot } from './screenshot.js';
+import { screenshotCanvas, giantScreenshot, screenshotCanvasAtZoom, SHOT_ZOOMS } from './screenshot.js';
 import { announce } from './liveRegion.js';
 
 /** Build tool buttons: [toolId, label, icon, shortcut]. */
@@ -111,12 +111,14 @@ export const TOOL_GROUPS = [
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
   ['lists', 'Lists', 'stations', ['win:towns', 'win:stations', 'win:depots', 'win:waypoints', 'win:industries', 'win:signs', 'win:map', 'win:metro']],
   ['stats', 'Stats', 'graphs', ['win:graphs', 'win:cargoRates', 'win:traffic', 'win:goals', 'win:storyBook', 'win:subsidies', 'win:news', 'toggle:linkOverlay']],
-  ['shots', 'Screenshot', 'camera', ['shot', 'shotMap', 'win:extraViewport']],
+  ['shots', 'Screenshot', 'camera', ['shot', 'shotDefaultZoom', 'shotZoomedIn', 'shotMap', 'win:extraViewport']],
 ];
 
 /** Screenshot flyout items (not windows): [id, label, icon, shortcut]; handled in createToolbar. */
 export const SHOT_ITEMS = {
   shot: ['Screenshot (map view)', 'camera', '.'],
+  shotDefaultZoom: ['Screenshot at default zoom', 'camera', ''],
+  shotZoomedIn: ['Screenshot zoomed in', 'camera', ''],
   shotMap: ['Whole-map screenshot', 'camera', ''],
 };
 
@@ -181,6 +183,13 @@ export function createToolbar(root, app) {
     play('click');
     if (id === 'shot') {
       screenshotCanvas(app.renderer).then((name) => app.toast(`Saved ${name}`, 'good'), (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error'));
+      return;
+    }
+    if (id === 'shotDefaultZoom' || id === 'shotZoomedIn') {
+      const kind = id === 'shotZoomedIn' ? 'zoomedIn' : 'default';
+      screenshotCanvasAtZoom(app.renderer, SHOT_ZOOMS[kind], kind).then(
+        (name) => app.toast(`Saved ${name}`, 'good'),
+        (e) => app.toast('Screenshot failed: ' + (e && e.message ? e.message : e), 'error'));
       return;
     }
     app.toast('Rendering whole-map screenshot…', 'info', false, 60000);
