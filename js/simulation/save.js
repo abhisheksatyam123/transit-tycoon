@@ -352,6 +352,33 @@ function* packTrafficSteps(tr) {
 }
 
 /**
+ * Classic saves are JSON.stringify(state), but traffic cars carry per-tick scratch fields (`_key`, `_ahead`)
+ * that the next tick rebuilds. Drop them exactly as packCarsSteps does (any `_`-prefixed key), so the save
+ * does not embed the `_ahead` car copies; nothing else is touched.
+ */
+function stripCarScratch(state) {
+  const tr = state.traffic;
+  const cars = tr && tr.cars;
+  if (!Array.isArray(cars) || cars.length === 0) return state;
+  let scratch = false;
+  for (const c of cars) {
+    if (!c || typeof c !== 'object') continue;
+    for (const k of Object.keys(c)) if (k[0] === '_') { scratch = true; break; }
+    if (scratch) break;
+  }
+  if (!scratch) return state;
+  const out = new Array(cars.length);
+  for (let i = 0; i < cars.length; i++) {
+    const c = cars[i];
+    if (!c || typeof c !== 'object') { out[i] = c; continue; }
+    const o = {};
+    for (const k of Object.keys(c)) if (k[0] !== '_') o[k] = c[k];
+    out[i] = o;
+  }
+  return { ...state, traffic: { ...tr, cars: out } };
+}
+
+/**
  * The one serialisation implementation. A generator: `yield` marks a point where the caller may pause
  * (serializeState runs it to the end; serializeStateAsync pauses on its time budget). Output fragments are
  * written to `sink` in order; their concatenation is the result (for classic saves: JSON.stringify(state)).
@@ -360,7 +387,7 @@ function* packTrafficSteps(tr) {
  * @returns {Generator<void, void, void>}
  */
 export function* serializeStateSteps(state, sink) {
-  if (!state.scenario) { sink.write(JSON.stringify(state)); return; }
+  if (!state.scenario) { sink.write(JSON.stringify(stripCarScratch(state))); return; }
   const tiles = Array.isArray(state.map.tiles) ? yield* packTilesSteps(state.map.tiles) : state.map.tiles;
   const tr = state.traffic ? yield* packTrafficSteps(state.traffic) : state.traffic;
   yield;
