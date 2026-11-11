@@ -25,6 +25,9 @@ export const RELIABILITY_LOSS_PER_DAY = 4; // kReliabilityLossPerDay
 export const RELIABILITY_LOSS_PER_DAY_OBSOLETE = 10; // kReliabilityLossPerDayObsolete
 export const MIN_RELIABILITY = 100;
 export const BREAKDOWN_DAYS = 5; // car.front->breakdownTimeout = 5
+/** OpenTTD vehicle.cpp:1357 `if (Ship) rel += 0x6666` (16-bit reliability): ships are boosted by 0x6666/65536 = 0.4 of full
+ *  scale; on the 25600 scale that is exactly 10240. Used only with setting shipBreakdownReduced (default off). */
+export const SHIP_BREAKDOWN_BOOST = Math.round((0x6666 * RELIABILITY_SCALE) / 65536); // 10240
 export const NO_BREAKDOWN_TIMEOUT = 0xffff;
 const PROFIT_HISTORY = 4; // OpenLoco veh2->profit[4]
 
@@ -48,7 +51,10 @@ export function armBreakdownTimer(v, rng, state) {
   v.timeoutToBreakdown = NO_BREAKDOWN_TIMEOUT;
   const rel16 = Math.round(v.reliability * RELIABILITY_SCALE);
   if (rel16 !== 0) {
-    let f = Math.trunc(rel16 / 256);
+    // shipBreakdownReduced (default off): a ship's reliability is boosted by SHIP_BREAKDOWN_BOOST before the timer is
+    // computed, so a ship's timer is lengthened the way the reliability bonus would. Trains and default play unchanged.
+    const boost = state && v.kind === 'ship' && getSetting(state, 'shipBreakdownReduced') ? SHIP_BREAKDOWN_BOOST : 0;
+    let f = Math.trunc((rel16 + boost) / 256);
     f = Math.trunc((f * f) / 16);
     const randVal = Math.trunc((Math.floor(rng.next() * 65536) * (f >> 1)) / 65536);
     f -= f >> 2;
@@ -56,6 +62,21 @@ export function armBreakdownTimer(v, rng, state) {
     if (state && getSetting(state, 'breakdowns') === 'reduced') f *= 2;
     v.timeoutToBreakdown = Math.max(4, f);
   }
+}
+
+/**
+ * Daily reliability loss (fraction of full scale). Default: 4 per day, 10 once obsolete (current TT).
+ * ageDecayOttd (default off): OpenTTD AgeVehicle (vehicle.cpp:1454-1466) doubles reliability_spd_dec at each start of
+ * year past max age, starting at max age itself: x2 in year 0, x4 in year 1, ... capped at x32 (5 doublings).
+ * Years past max age are whole 365-day years (TT has no leap years).
+ */
+export function dailyReliabilityLoss(v, obsolete, state) {
+  const base = obsolete ? RELIABILITY_LOSS_PER_DAY_OBSOLETE : RELIABILITY_LOSS_PER_DAY;
+  if (!state || !getSetting(state, 'ageDecayOttd')) return base / RELIABILITY_SCALE;
+  const past = v.age - v.maxAge;
+  if (!(past >= 0)) return base / RELIABILITY_SCALE;
+  const doublings = Math.min(4, Math.floor(past / 365)) + 1; // 1..5 doublings = x2..x32
+  return (base * 2 ** doublings) / RELIABILITY_SCALE;
 }
 
 /** VehicleHead::updateDaily (reliability / breakdown part) + transit-tycoon ageing. */
@@ -80,7 +101,7 @@ export function vehicleDaily(ctx, v, rng, year) {
   if (ctx && ctx.state && getSetting(ctx.state, 'breakdowns') === 'none') {
     v.timeoutToBreakdown = null;
     v.breakdownPending = false;
-    v.reliability = Math.max(v.reliability - (obsoleteYear(vehicleModel(v)) <= year ? RELIABILITY_LOSS_PER_DAY_OBSOLETE : RELIABILITY_LOSS_PER_DAY) / RELIABILITY_SCALE, MIN_RELIABILITY / RELIABILITY_SCALE);
+    v.reliability = Math.max(v.reliability - dailyReliabilityLoss(v, obsoleteYear(vehicleModel(v)) <= year, ctx && ctx.state), MIN_RELIABILITY / RELIABILITY_SCALE);
     return;
   }
   if (v.timeoutToBreakdown == null) armBreakdownTimer(v, rng, ctx && ctx.state);
@@ -92,7 +113,7 @@ export function vehicleDaily(ctx, v, rng, year) {
     }
   }
   const obsolete = obsoleteYear(vehicleModel(v)) <= year;
-  const loss = (obsolete ? RELIABILITY_LOSS_PER_DAY_OBSOLETE : RELIABILITY_LOSS_PER_DAY) / RELIABILITY_SCALE;
+  const loss = dailyReliabilityLoss(v, obsolete, ctx && ctx.state);
   v.reliability = Math.max(v.reliability - loss, MIN_RELIABILITY / RELIABILITY_SCALE);
 }
 
