@@ -170,6 +170,12 @@ export const DEFAULT_SETTINGS = {
   industryCargoBacklog: false,
   /** OpenTTD order.no_servicing_if_no_breakdowns (def true): with vehicle breakdowns disabled, vehicles skip mandatory depot servicing. false = service anyway. */
   noServicingIfNoBreakdowns: true,
+  /** OpenTTD vehicle.cpp:1357 `if (Ship) rel += 0x6666`: ships break down less (timer from reliability + 0.4). Default false = current TT. */
+  shipBreakdownReduced: false,
+  /** OpenTTD vehicle.cpp:1454-1466: reliability decay doubles per year past max age (x2..x32). Default false = current TT (one step). */
+  ageDecayOttd: false,
+  /** OpenTTD vehicle.cpp:189-203: every depot entry services (reliability to max, timers reset). Default false = only with serviceIntervalDays. */
+  serviceOnDepotVisit: false,
   /** OpenTTD vehicle.freight_trains: default number of wagons when buying a freight train (0 = automatic, the current 4). */
   freightTrainWagons: 0,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */

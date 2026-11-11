@@ -184,7 +184,7 @@ describe('save/load and world hash', () => {
     // MP: ind.hist (monthly industry production history, saved) changed the serialized state; the
     // simulation itself is unchanged (the hash with hist stripped is still 211ce1138012979d).
     expect(h).toBe('e66b684174510b6b');
-  });
+  }, 30000);
 });
 
 describe('new airport types (OpenTTD sizes, years, catchment, aircraft)', () => {

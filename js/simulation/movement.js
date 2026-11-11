@@ -612,7 +612,8 @@ export function enterDepot(ctx, v, depotId) {
   v.flipped = false;
   // RX2b (OpenLoco audit #2): OpenLoco never restores reliability on a depot visit (it only decays daily and is set at
   // build / model replace), so with service intervals off a depot entry must not reset reliability to baseReliability.
-  if (v.serviceIntervalDays) servicePerformed(ctx.state, v);
+  // serviceOnDepotVisit (default off; OpenTTD VehicleServiceInDepot on every entry, vehicle.cpp:189-203) resets as well
+  if (v.serviceIntervalDays || getSetting(ctx.state, 'serviceOnDepotVisit')) servicePerformed(ctx.state, v);
   else v.breakdownTicks = 0;
 }
 
@@ -630,7 +631,7 @@ function depotOrderVisit(ctx, v, order) {
   const nv = autorenewVehicle(ctx, v, { serviceVisit: true });
   const cur = nv || v;
   cur.goingToDepot = null;
-  if (cur.serviceIntervalDays) servicePerformed(state, cur);
+  if (cur.serviceIntervalDays || getSetting(state, 'serviceOnDepotVisit')) servicePerformed(state, cur);
   // RX2b (OpenLoco audit #2): no reliability restore without service intervals (OpenLoco has none on a depot visit).
   else cur.breakdownTicks = 0;
   // refit order: only an empty single-cargo vehicle is refitted (refit.js refitCore; the cost is charged)
