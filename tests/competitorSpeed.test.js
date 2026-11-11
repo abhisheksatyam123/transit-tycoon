@@ -33,6 +33,9 @@ describe('competitorSpeed cadence', () => {
     expect(competitorSpeed({ settings: { competitorSpeed: 'x' } })).toBe(2);
   });
 
+  // Explicit timeout: three 60-day simulations with a rival AI (~1 s standalone). The AI
+  // cadence check needs the real simulation, so give it a generous bound (20 s) instead of
+  // shrinking the horizon; Bun's 5 s default flakes when the host is busy with the suite.
   test('very fast acts more often than very slow over N days with AI enabled', () => {
     const run = (level) => {
       const g = flatGame(7);
@@ -46,7 +49,7 @@ describe('competitorSpeed cadence', () => {
     };
     expect(run(4)).toBeGreaterThan(run(0));
     expect(run(2)).toBe(24);
-  });
+  }, 20000);
 
   test('setting is saved and loaded', () => {
     const g = flatGame(3);

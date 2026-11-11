@@ -6,6 +6,10 @@ import { noteLeg, updateMonthly } from '../js/simulation/cargodist.js';
 import { setSetting } from '../js/simulation/settings.js';
 
 describe('cargodist: pending link-graph job save', () => {
+  // Explicit timeout: this test drives two games for ~2 months of ticks (twice the work of a
+  // normal test). Under a loaded machine (full `bun test` run) that can exceed Bun's 5 s
+  // default, so the work gets a generous bound instead of being shrunk. The standalone cost
+  // is ~1.2 s, so 30 s keeps >4x margin even on a heavily loaded host.
   test('pending job (non-empty) survives save/load; loaded and original agree after it is applied', () => {
     const g = flatGame(5);
     const s = g.state;
@@ -35,5 +39,5 @@ describe('cargodist: pending link-graph job save', () => {
     expect(g.state.cargoDist.PASS.pending.due).toBeGreaterThan(due);
     expect(g2.state.cargoDist).toEqual(g.state.cargoDist);
     expect(g2.serialize()).toBe(g.serialize());
-  });
+  }, 30000);
 });
