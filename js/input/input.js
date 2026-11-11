@@ -10,6 +10,7 @@ import { labelAt } from '../renderer/layers/labels.js';
 import { openSignPrompt } from '../ui/tools/sign.js';
 import { findSign } from '../simulation/cmdSign.js';
 import { TRANSPARENCY_OPTIONS, loadTransparency, setTransparency } from '../renderer/transparency.js';
+import { runFixedShortcut } from './fixedShortcuts.js';
 
 
 const PAN_SPEED = 700; // CSS px per second
@@ -189,6 +190,9 @@ export function setupInput(app, canvas, shortcuts) {
       return;
     }
     if (app.tool && app.tool.key && app.tool.key(e)) { e.preventDefault(); return; }
+    // Fixed OpenTTD keys (Delete, C, F1-F4/F7-F10): after the tool so Terraform/line drag keep C,
+    // and never on auto-repeat (F1 would otherwise flip pause every repeat).
+    if (!e.repeat && runFixedShortcut(app, k, { target })) { e.preventDefault(); return; }
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
       held.add(k);
       app.follow(null);
