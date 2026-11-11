@@ -54,6 +54,11 @@ export function monthlyLoanInterest(state, loan) {
   return Math.trunc((loan * getSetting(state, 'loanInterestRate')) / 1200);
 }
 
+/** Maximum loan of a company (same cap that borrow() uses): flat company.maxLoan, or inflation-adjusted when the setting is on. */
+export function maxLoanCap(state, company) {
+  return (state && getSetting(state, 'inflationAdjustsMaxLoan')) ? effectiveMaxLoan(state) : company.maxLoan;
+}
+
 /**
  * Borrow money in LOAN_STEP increments.
  * @returns {{ok:boolean,cost?:number,error?:string,loan?:number}}
