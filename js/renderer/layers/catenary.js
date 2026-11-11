@@ -16,11 +16,13 @@ const POLE_COL = '#5b5f68';
  * @param {object} south neighbour tile at y+1 (or undefined)
  * @param {number} sx tile centre x (iso)
  * @param {number} sy tile centre y (iso)
+ * @param {number} [alpha] transparency alpha (1 = normal; OpenTTD TO_CATENARY)
  */
-export function drawCatenary(ctx, tile, east, south, sx, sy) {
+export function drawCatenary(ctx, tile, east, south, sx, sy, alpha = 1) {
   const top = sy - POLE;
   const px = sx + 4;
   ctx.save();
+  if (alpha !== 1) ctx.globalAlpha = alpha; // transparency toggle (UI only)
   // pole (2 px, dark steel) with a short cross-arm at the top
   ctx.strokeStyle = POLE_COL;
   ctx.lineWidth = 2;
@@ -57,12 +59,14 @@ const TRAM_DIRS = [[1, 0, -1, 0, 1], [2, 1, 0, 1, 2], [4, 0, 1, 2, 3], [8, -1, 0
  * @param {number} sx tile centre x (iso)
  * @param {number} sy tile centre y (iso, already lifted by the centre height)
  * @param {number[]} c corner heights [hN,hE,hS,hW] (levels)
+ * @param {number} [alpha] transparency alpha (1 = normal; OpenTTD TO_CATENARY)
  */
-export function drawTramWires(ctx, tile, sx, sy, c) {
+export function drawTramWires(ctx, tile, sx, sy, c, alpha = 1) {
   const hc = (c[0] + c[1] + c[2] + c[3]) / 4 * HEIGHT_STEP;
   const top = sy - POLE;
   const px = sx + 4;
   ctx.save();
+  if (alpha !== 1) ctx.globalAlpha = alpha; // transparency toggle (UI only)
   ctx.strokeStyle = POLE_COL;
   ctx.lineWidth = 2;
   ctx.beginPath();

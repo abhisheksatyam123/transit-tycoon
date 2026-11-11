@@ -45,7 +45,7 @@ import { drawCatenary, drawTramWires } from './layers/catenary.js';
 import { drawOneWayArrow } from './layers/oneway.js';
 import { drawTunnelPortal } from './layers/transport.js';
 import { drawLabels } from './layers/labels.js';
-import { loadTransparency, tileTransparency, TRANSPARENT_ALPHA } from './transparency.js';
+import { loadTransparency, tileTransparency, catenaryAlpha, TRANSPARENT_ALPHA } from './transparency.js';
 import { drawLinkOverlay } from './layers/linkOverlay.js';
 
 export class Renderer {
@@ -374,6 +374,7 @@ export class Renderer {
     if (this.overlay.trafficHeat) drawTrafficHeat(ctx, this.game, this.heights, range);
 
     const tr = loadTransparency(); // null when every transparency toggle is off (renderer/transparency.js)
+    const ca = catenaryAlpha(tr); // OpenTTD TO_CATENARY (UI only): overhead wires fade together
     const showCars = this.overlay.trafficCars !== false;
     if (showCars) this.collectCars();
 
@@ -466,8 +467,8 @@ export class Renderer {
         }
         if (tile.aqueduct && tile.aqueduct.role === 'deck' && sy >= r.y0 - 100 && sy <= r.y1 + 100 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawAqueductDeck(ctx, tile, sx, sy, this.heights, x, y);
         if (tile.tunnelPortal && sy >= r.y0 - 60 && sy <= r.y1 + 60 && !(sx < r.x0 - 64 || sx > r.x1 + 64)) drawTunnelPortal(ctx, tile, sx, (x + y) * HALF_H, this.heights.tileCorners(x, y), map, x, y);
-        if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy);
-        if (tile.tram && !tile.rail && (!tile.building || (tile.building.type === 'station' && tile.building.kind === 'tram')) && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawTramWires(ctx, tile, sx, sy, this.heights.tileCorners(x, y));
+        if (tile.elec && tile.rail && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawCatenary(ctx, tile, x + 1 < W ? map.tiles[y * W + x + 1] : null, y + 1 < map.height ? map.tiles[(y + 1) * W + x] : null, sx, sy, ca);
+        if (tile.tram && !tile.rail && (!tile.building || (tile.building.type === 'station' && tile.building.kind === 'tram')) && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) drawTramWires(ctx, tile, sx, sy, this.heights.tileCorners(x, y), ca);
         if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) {
           const fa = tr && tr.signs ? TRANSPARENT_ALPHA : 1; // signs toggle (UI only): fade the signal post
           if (fa !== 1) ctx.globalAlpha = fa;
