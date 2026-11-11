@@ -130,6 +130,8 @@ export const SETTING_META = [
     help: 'OpenTTD economy.place_houses: towns may construct new houses as they grow. Off = the existing houses stay and the population stops rising (roads can still grow).' },
   { key: 'townCargoScale', group: 'economy', label: 'Town cargo scale (%)', type: 'number', min: 0, max: 500,
     help: 'OpenTTD economy.town_cargo_scale: scales the passengers and mail produced by town houses. 100 = current (default).' },
+  { key: 'industryCargoBacklog', group: 'economy', label: 'Industry cargo backlog', type: 'check',
+    help: 'Undelivered industry output is kept (up to 65535 units per cargo) and offered to stations in range each month, so a station built later is paid for it. Off = undelivered output is discarded (default).' },
   { key: 'industryCargoScale', group: 'economy', label: 'Industry cargo scale (%)', type: 'number', min: 0, max: 500,
     help: 'OpenTTD economy.industry_cargo_scale: scales the cargo industries produce each day. 100 = current (default).' },
   { key: 'maxTrains', group: 'vehicles', label: 'Max trains per company', type: 'number', min: 0, max: 5000,

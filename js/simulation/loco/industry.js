@@ -193,6 +193,11 @@ export function updateDaily(game, ind) {
       ind.producedMonthly[i] = u16(ind.producedMonthly[i] + qty);
       const delivered = deliverCargoToStations(state, ind.statsStations[i], prod[i], qty, sx, sy);
       ind.deliveredMonthly[i] = u16(ind.deliveredMonthly[i] + delivered);
+      // industryCargoBacklog (default off): undelivered output waits in the industry (cap 65535, as OpenTTD u16)
+      if (getSetting(state, 'industryCargoBacklog')) {
+        if (!ind.cargoBacklog) ind.cargoBacklog = [0, 0];
+        ind.cargoBacklog[i] = u16(ind.cargoBacklog[i] + qty - delivered);
+      }
       ind.producedThisMonth[prod[i]] = ind.producedMonthly[i];
       ind.transportedThisMonth[prod[i]] = ind.deliveredMonthly[i];
     }
@@ -287,12 +292,32 @@ export function smoothMonthlyChange(rng, ind, type) {
 }
 
 /**
+ * industryCargoBacklog: offer the waiting buffer to the stations in range (same split as a daily delivery);
+ * whatever is still unplaced stays in the buffer. Draws no rng.
+ */
+function offerBacklog(state, ind) {
+  const prod = producedCargos(INDUSTRY_BY_ID[ind.typeId]);
+  if (!ind.cargoBacklog) ind.cargoBacklog = [0, 0];
+  const sx = ind.x + (ind.w >> 1), sy = ind.y + (ind.h >> 1);
+  for (let i = 0; i < prod.length; i++) {
+    const b = ind.cargoBacklog[i];
+    if (!(b > 0)) continue;
+    const placed = deliverCargoToStations(state, ind.statsStations[i], prod[i], b, sx, sy);
+    ind.cargoBacklog[i] = b - placed;
+    ind.deliveredMonthly[i] = u16(ind.deliveredMonthly[i] + placed);
+    ind.transportedThisMonth[prod[i]] = ind.deliveredMonthly[i];
+  }
+}
+
+/**
  * Industry::updateMonthly (the closure removal itself is done by the manager).
  * @returns {'remove'|null}
  */
 export function updateMonthly(game, ind, notify) {
   const state = game.state, rng = game.rng;
   ensureIndustryState(ind, state);
+  // industryCargoBacklog: the buffer is offered at the monthly tick, before this month's production changes
+  if (getSetting(state, 'industryCargoBacklog')) offerBacklog(state, ind);
   const type = INDUSTRY_BY_ID[ind.typeId];
   if (ind.closingDown && ind.dailyProduction[0] === 0 && ind.dailyProduction[1] === 0) return 'remove';
   let hasEvent = false;

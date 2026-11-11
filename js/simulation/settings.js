@@ -163,6 +163,8 @@ export const DEFAULT_SETTINGS = {
   townCargoScale: 100,
   /** OpenTTD economy.industry_cargo_scale (percent 0..500, def 100): scales cargo produced by industries each day. 100 = current. */
   industryCargoScale: 100,
+  /** OpenTTD has no setting: it always keeps undelivered industry output in a waiting buffer (u16, cap 65535, gated by minimal_cargo). TT default false = undelivered output is discarded. On = kept per industry (cap 65535) and offered to stations in range at each monthly tick. */
+  industryCargoBacklog: false,
   /** OpenTTD order.no_servicing_if_no_breakdowns (def true): with vehicle breakdowns disabled, vehicles skip mandatory depot servicing. false = service anyway. */
   noServicingIfNoBreakdowns: true,
   /** OpenTTD vehicle.freight_trains: default number of wagons when buying a freight train (0 = automatic, the current 4). */
