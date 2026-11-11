@@ -63,6 +63,11 @@ export const FUND_MONTHS = 3;
 /** Build speed used while a town is funded (OpenTTD: funding forces growth). */
 export const FUND_BUILD_SPEED = 4;
 
+/**
+ * TT opt-in 'give money' rating gain. OpenTTD 16.x TownAction has no give-money entry
+ * (src/town.h:297-308), so this reuses the bribe success step without the random failure.
+ */
+export const RATING_GIVE_MONEY_UP_STEP = 200;
 /** OpenTTD town_type.h: bribe rating step, cap, and the rating a failed bribe drops to. */
 export const RATING_BRIBE_UP_STEP = 200;
 export const RATING_BRIBE_MAXIMUM = 800;
@@ -170,6 +175,8 @@ export function actionList(state, town) {
   const bribeAllowed = getSetting(state, 'allowTownBribe') !== false;
   const bribeOk = !unwanted && bribeAllowed && rating < RATING_BRIBE_MAXIMUM;
   const bribeDetail = !bribeAllowed ? 'Bribing disabled in game settings' : `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`;
+  const giveMoneyOn = getSetting(state, 'localGiveMoney') === true;
+  const giveMoneyOk = rating < RATING_BRIBE_MAXIMUM;
   const blocked = (ok) => unwanted ? false : ok;
   const blockedDetail = (ok, detail) => unwanted ? 'The town will not deal with this company' : detail;
   const list = [
@@ -180,6 +187,8 @@ export function actionList(state, town) {
     { id: 'roadworks', label: 'Fund local road reconstruction', cost: constructionTotal(state, Math.max(COSTS.roadRebuild, Math.round(pop * 25)), 'property'), hint: `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`, detail: blockedDetail((town.roadWorksMonths || 0) <= 0, (town.roadWorksMonths || 0) > 0 ? `Active, ${town.roadWorksMonths} more months` : `Repairs town roads, slows cars ${ROAD_WORKS_MONTHS} months`), ok: blocked((town.roadWorksMonths || 0) <= 0), enabled: blocked((town.roadWorksMonths || 0) <= 0) },
     { id: 'rights', label: 'Buy exclusive transport rights', cost: constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property'), hint: `${EXCLUSIVE_MONTHS} months (no other company in this town)`, detail: blockedDetail((town.exclusiveMonths || 0) <= 0, (town.exclusiveMonths || 0) > 0 ? `Active, ${town.exclusiveMonths} more months` : `${EXCLUSIVE_MONTHS} months (no other company in this town)`), ok: blocked((town.exclusiveMonths || 0) <= 0), enabled: blocked((town.exclusiveMonths || 0) <= 0) },
     { id: 'statue', label: 'Build a statue of the company owner', cost: constructionTotal(state, Math.max((COSTS.buildStatue ?? 45000), Math.round(pop * 60)), 'property'), hint: `Permanent +${STATUE_BONUS} rating`, detail: blockedDetail(!town.statue, town.statue ? 'Already built' : `Permanent +${STATUE_BONUS} rating`), ok: blocked(!town.statue), enabled: blocked(!town.statue) },
+    // TT opt-in (localGiveMoney): hidden unless on; order after statue, before bribe.
+    ...(giveMoneyOn ? [{ id: 'give_money', label: 'Donate money to the town', cost: constructionTotal(state, Math.max(COSTS.giveMoney, Math.round(pop * 90)), 'property'), hint: `+${RATING_GIVE_MONEY_UP_STEP} rating; no risk of refusal`, detail: blockedDetail(giveMoneyOk, giveMoneyOk ? `+${RATING_GIVE_MONEY_UP_STEP} rating; no risk of refusal` : 'Rating is already maximal'), ok: blocked(giveMoneyOk), enabled: blocked(giveMoneyOk) }] : []),
     { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, detail: bribeDetail, ok: bribeOk, enabled: bribeOk },
   ];
   // OpenTTD economy.exclusive_rights (def true): off = the rights action is not offered (town_cmd.cpp GetMaskOfTownActions)
@@ -194,6 +203,8 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
   ensureTown(town);
   // OpenTTD economy.exclusive_rights: refused when the setting is off (town_cmd.cpp TownActionBuyRights)
   if (actionId === 'rights' && getSetting(state, 'exclusiveRights') === false) return { ok: false, error: 'Exclusive transport rights are disabled in game settings' };
+  // TT opt-in: off (default) = the action is refused outright, matching it being unlisted.
+  if (actionId === 'give_money' && getSetting(state, 'localGiveMoney') !== true) return { ok: false, error: 'Donating to the town is disabled in game settings' };
   const entry = actionList(state, town).find((a) => a.id === actionId);
   if (!entry) return { ok: false, error: 'Unknown town action' };
   if (actionId === 'statue' && town.statue) return { ok: false, error: `${town.name} already has a statue` };
@@ -203,7 +214,7 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
   // OpenTTD town_cmd.cpp GetMaskOfTownActions: an unwanted company (failed bribe) gets no town actions at all
   if (town.unwantedMonths > 0) return { ok: false, error: `${town.name} refuses to deal with you for ${town.unwantedMonths} more months` };
   if (actionId === 'bribe' && getSetting(ctx.state, 'allowTownBribe') === false) return { ok: false, error: 'Bribing the town council is disabled in game settings' };
-  if (actionId === 'bribe' && townRating(town) >= RATING_BRIBE_MAXIMUM) return { ok: false, error: `${town.name} rating is already maximal` };
+  if ((actionId === 'bribe' || actionId === 'give_money') && townRating(town) >= RATING_BRIBE_MAXIMUM) return { ok: false, error: `${town.name} rating is already maximal` };
   const money = checkMoney(state, entry.cost);
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost: entry.cost };
@@ -227,6 +238,10 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
     town.exclusiveMonths = EXCLUSIVE_MONTHS;
     // Effect: other companies' cargo in this town is blocked. We have one company, so nothing is blocked (documented).
     notify(ctx, `${state.company.name} bought exclusive transport rights in ${town.name} for ${EXCLUSIVE_MONTHS} months`, 'good', town.x, town.y, 'general');
+  } else if (actionId === 'give_money') {
+    const r = townRating(town);
+    town.companyRating = Math.max(r, Math.min(r + RATING_GIVE_MONEY_UP_STEP, RATING_BRIBE_MAXIMUM));
+    notify(ctx, `${state.company.name} donated to ${town.name}`, 'good', town.x, town.y, 'general');
   } else if (actionId === 'bribe') {
     if (createRng(state).chance(BRIBE_FAIL_CHANCE)) {
       town.unwantedMonths = BRIBE_UNWANTED_MONTHS;

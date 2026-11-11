@@ -59,6 +59,8 @@ export const COSTS = {
   roadRebuild: 35000,
   buyRights: 117000,
   bribe: 175000,
+  /** TT opt-in 'donate money to the town' base (no OpenTTD town action equivalent; anchored on the bribe cost) */
+  giveMoney: 20000,
   /** found a town (OpenTTD CMD_FOUND_TOWN): flat price for a new town centre, scaled by inflation */
   foundTown: 40000,
   /** company headquarters (OpenTTD CMD_BUILD_OBJECT OBJECT_HQ): flat price, inflated; relocating costs the same */
