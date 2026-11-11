@@ -39,7 +39,8 @@ import { unbunchArrive, unbunchWaits, unbunchDepart } from './unbunch.js';
 import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
-import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock } from './blocking.js';
+import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock, bayInUse } from './blocking.js';
+import { articParts } from './articulated.js';
 import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
 import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick, overtakeSpeed } from './roadOvertake.js';
@@ -362,6 +363,10 @@ function move(ctx, v) {
       v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
     if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, maxTiles); // OTTD 512 vs 256
+    // OTTD bay-stop refusal (roadstop.cpp:225, roadveh_cmd.cpp:907/919): the vehicle does not enter the bay,
+    // and with roadvehQueue off it does not queue for it either: it backs off and keeps driving (OTTD
+    // roadveh_cmd.cpp reverses when the bay stop is unreachable).
+    if (v.kind === 'road' && v.progress + v.speed >= 1 && bayEntryRefused(ctx, v)) { turnAround(ctx, v); return; }
     if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker, atSignal); return; }
     v.progress += v.speed;
   }
@@ -480,6 +485,31 @@ function clearBlock(v) {
 }
 
 /**
+ * OpenTTD bay road-stop entry refusal (roadstop.cpp:225 RoadStop::Enter, roadveh_cmd.cpp:907/919): decides
+ * whether a road vehicle may step into the bay of the stop tile it is about to enter (the next path tile,
+ * or the tile it stands on at the end of its path).
+ *  - articulated road vehicles are refused while the articulatedRV setting is off (OpenTTD roadstop.cpp:225
+ *    refuses `rv->HasArticulatedPart()`; that setting offers the articulated models, so in TT the case is
+ *    reached only after it is switched off);
+ *  - with roadvehQueue off (OpenTTD pf.roadveh_queue / roadveh_cmd.cpp:919) a vehicle does not enter a stop
+ *    that has no free bay (another road vehicle is loading there).
+ * Both branches are inert on the default path: articulatedRV off only refuses opt-in vehicles, roadvehQueue
+ * defaults to true (always queue, the previous behaviour).
+ */
+function bayEntryRefused(ctx, v) {
+  if (v.kind !== 'road') return false;
+  const path = v.path, next = path && path[v.pathIndex + 1];
+  const x = next ? next.x : v.tx, y = next ? next.y : v.ty;
+  const bd = ctx.state.map.tiles[y * ctx.state.map.width + x].building;
+  if (!bd || bd.type !== 'station' || !bd.kind || bd.kind === 'waypoint' || bd.kind === 'rail') return false;
+  if (articParts(v) && getSetting(ctx.state, 'articulatedRV') !== true) return true;
+  if (getSetting(ctx.state, 'roadvehQueue') !== false) return false;
+  const order = currentOrder(v);
+  if (!order || order.stationId !== bd.stationId) return false; // only the stop it is heading to
+  return bayInUse(ctx, v, x, y);
+}
+
+/**
  * Hold a vehicle at the boundary of its current tile while the next tile is occupied. A vehicle held at the
  * last tile of a stop with a loading vehicle in its bay tries another free bay of the same stop. Trains and
  * vehicles blocked by a moving vehicle for BLOCK_TIMEOUT_TICKS turn around and re-plan (cooldown: the timeout
@@ -589,6 +619,7 @@ function onPathEnd(ctx, v) {
         if (!ground) airTookRunway(state, v, st);
       }
       if (v.kind === 'aircraft' && maybeCrashLanding(ctx, v, st)) return; // landing crash: vehicle removed
+      if (bayEntryRefused(ctx, v)) { turnAround(ctx, v); return; } // articulated bay stop / roadvehQueue off: no stop
       arriveAtStation(ctx, v, st); return;
     }
   }

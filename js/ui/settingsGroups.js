@@ -30,6 +30,8 @@ export const SETTING_META = [
     help: 'Trams slow to OpenTTD corner limits on curves (61 km/h for a square corner, 88 km/h for tight 45-degree corners). Off = trams use the road curve fraction like buses and trucks.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
+  { key: 'roadvehQueue', group: 'vehicles', label: 'Road vehicles queue for a bay', type: 'check',
+    help: 'OpenTTD pf.roadveh_queue: a road vehicle waits for a free bay at a road stop and enters when one frees. Off = a vehicle that finds no free bay does not enter the stop; it keeps driving.' },
   { key: 'infiniteMoney', group: 'difficulty', label: 'Infinite money', type: 'check',
     help: 'OpenTTD difficulty.infinite_money: every company can always pay for anything; bankruptcy never happens. Off = normal money (default).' },
   { key: 'cargoAgingRate', group: 'economy', label: 'Cargo aging rate (%)', type: 'number', min: 0, max: 250,
