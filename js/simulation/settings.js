@@ -151,6 +151,15 @@ export const DEFAULT_SETTINGS = {
   /** infrastructure maintenance (OpenTTD economy.infrastructure_maintenance, economy.cpp CompaniesGenStatistics): monthly
    * fee for track, road and station tiles by count (infrastructure.js). Off = no fee (unchanged). */
   infraMaintenance: false,
+  /** bankruptcy by loan (OpenTTD economy.cpp CompanyCheckBankrupt:557): a company is only in trouble when money - loan < -maxLoan.
+   * Off = any negative balance counts as bankrupt (TT current behaviour). OpenTTD has no switch: always on. */
+  bankruptcyNegativeLoanRule: false,
+  /** single-player bankruptcy (OpenTTD economy.cpp:600-612): the local company's bankruptcy does not end the game.
+   * Off = bankruptcy sets game over (TT current behaviour). OpenTTD has no switch: always on. */
+  bankruptcySinglePlayerContinue: false,
+  /** negative cash interest (OpenTTD economy.cpp:818-826): the yearly fee also charges interest on negative money, monthly here.
+   * Off = interest on the loan only (TT current behaviour). OpenTTD has no switch: always on. */
+  negativeCashInterest: false,
   /** plane speed factor 1..4 (OpenTTD vehicle.plane_speed, aircraft_cmd.cpp): aircraft max speed is divided by N. 1 = full speed (unchanged). */
   planeSpeedFactor: 1,
   /** town growth rate (OpenTTD economy.town_growth_rate): 'none' | 'slow' | 'normal' | 'fast' | 'veryfast'. 'normal' = current growth. */

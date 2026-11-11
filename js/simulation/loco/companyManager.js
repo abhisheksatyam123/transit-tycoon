@@ -14,10 +14,10 @@ import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
 import { infrastructureMaintenance } from '../infrastructure.js';
-import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest } from '../economy.js';
+import { propertyUpkeep, upkeepFor, closeLedgerMonth, spend, monthlyLoanInterest, maxLoanCap } from '../economy.js';
 import { sharesValue } from '../shares.js';
 import { findVehicle } from '../state.js';
-import { infiniteMoney } from '../settings.js';
+import { infiniteMoney, getSetting } from '../settings.js';
 import { failObjective } from '../objective.js';
 import { stopVehicle } from '../cmdVehicle.js';
 import * as VehicleManager from './vehicleManager.js';
@@ -87,6 +87,10 @@ export function updateMonthly1(game) {
   // loan interest (World/Company.cpp:724, loanInterestRate setting), then property upkeep (transit-tycoon addition)
   const monthlyInterest = monthlyLoanInterest(s, c.loan);
   spend(c, 'interest', monthlyInterest);
+  // negative cash interest (OpenTTD economy.cpp:818-826 charges the same rate on negative money; here its monthly share): off by default
+  if (getSetting(s, 'negativeCashInterest') && c.money < 0 && !infiniteMoney(s)) {
+    spend(c, 'interest', Math.trunc((-c.money * getSetting(s, 'loanInterestRate')) / 1200));
+  }
   spend(c, 'property', inflateCost(s, COST_INDEX.property, propertyUpkeep(s)));
   for (const r of s.rivals || []) spend(r, 'property', inflateCost(s, COST_INDEX.property, upkeepFor(s, r.id)));
   // infrastructure maintenance (OpenTTD economy.infrastructure_maintenance, economy.cpp CompaniesGenStatistics): off by default
@@ -94,7 +98,9 @@ export function updateMonthly1(game) {
 
   // bankruptcy: 3 / 6 months warnings, 9 months declared
   if (!c.bankrupt) {
-    if (c.money < 0 && !infiniteMoney(s)) {
+    // default: any negative balance is trouble. bankruptcyNegativeLoanRule (OpenTTD economy.cpp:557): only when money - loan < -maxLoan
+    const inDebt = getSetting(s, 'bankruptcyNegativeLoanRule') ? c.money - c.loan < -maxLoanCap(s, c) : c.money < 0;
+    if (inDebt && !infiniteMoney(s)) {
       c.numMonthsInTheRed++;
       if (c.numMonthsInTheRed === BANKRUPT_MONTHS) declareBankrupt(game, c);
       else if (c.numMonthsInTheRed === 3) notify(game.ctx, `${c.name} has been in debt for 3 months! Bankruptcy in 6 months unless the balance recovers.`, 'bad', undefined, undefined, 'company');
@@ -109,6 +115,11 @@ export function updateMonthly1(game) {
 
 /** Bankruptcy: flag the company and stop every vehicle (stopAllCompanyVehicles). */
 export function declareBankrupt(game, c) {
+  // bankruptcySinglePlayerContinue (OpenTTD economy.cpp:600-612): the local company keeps playing; warn only, no game over
+  if (getSetting(game.state, 'bankruptcySinglePlayerContinue')) {
+    notify(game.ctx, `${c.name} is bankrupt, but the game goes on (single-player rule).`, 'bad', undefined, undefined, 'company');
+    return;
+  }
   c.bankrupt = true;
   notify(game.ctx, `${c.name} has been declared bankrupt!`, 'bad', undefined, undefined, 'company');
   // OL Company.cpp:745-748: bankruptcy sets challengeFailed unless the challenge is already beaten/completed.
