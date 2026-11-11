@@ -10,6 +10,7 @@ import { getSetting } from '../../simulation/settings.js';
 import { playerColourOf, COMPANY_COLOURS, setCompanyColour } from '../../simulation/companyColour.js';
 import { presidentDisplayName, presidentFaceId, MAX_PRESIDENT_FACE_ID } from '../../simulation/cmdRename.js';
 import { openRename } from '../rename.js';
+import { openCompanyInfrastructure } from './companyInfrastructure.js';
 
 /** Rows for the company window: the player first, then the rivals (pure, testable). */
 export function companyRows(state) {
@@ -159,6 +160,10 @@ export function openCompanies(app) {
         table.appendChild(presidentFaceRow(app, () => { sig=''; }));
         if (cheated) table.appendChild(el('p.small.neg', { text: 'Cheated game: a cheat was used (Settings > Cheats).' }));
         table.appendChild(colourChooser(app));
+        // Read-only owned-infrastructure window (OpenTTD CompanyInfrastructureWindow)
+        table.appendChild(el('div.btn-row', null,
+          el('button.btn', { type: 'button', text: 'Infrastructure…', title: 'Owned infrastructure pieces and monthly maintenance (read-only)',
+            onclick: () => openCompanyInfrastructure(app) })));
       };
     },
   });

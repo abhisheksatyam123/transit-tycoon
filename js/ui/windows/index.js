@@ -41,6 +41,7 @@ import { openGraphs, openCargoRates } from './graphs.js';
 import { openMap } from './map.js';
 import { openAutoreplace } from './autoreplace.js';
 import { openCompanies } from './companies.js';
+import { openCompanyInfrastructure } from './companyInfrastructure.js';
 import { openHotkeys } from './hotkeys.js';
 import { openExtraViewport } from './extraViewport.js';
 
@@ -88,6 +89,7 @@ const REGISTRY = {
   map: openMap,
   autoreplace: openAutoreplace,
   companies: openCompanies,
+  companyInfrastructure: openCompanyInfrastructure,
   extraViewport: openExtraViewport,
 };
 

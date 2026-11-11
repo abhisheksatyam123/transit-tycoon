@@ -7,6 +7,7 @@
  */
 import { Renderer } from '../renderer/renderer.js';
 import { giantShotPlan, GIANT_MAX_SIDE } from '../renderer/giantShot.js';
+import { MAX_ZOOM } from '../renderer/camera.js';
 
 /** @param {string} name */
 function downloadBlob(blob, name) {
@@ -41,6 +42,60 @@ export async function screenshotCanvas(renderer) {
   renderer.render(0);
   const blob = await toPng(cv);
   const name = `transit-tycoon-${shotDate()}.png`;
+  downloadBlob(blob, name);
+  return name;
+}
+
+/** Zoom levels for the two extra screenshot menu entries (OpenTTD SC_DEFAULTZOOM / SC_ZOOMEDIN). */
+export const SHOT_ZOOMS = { default: 1, zoomedIn: MAX_ZOOM };
+
+/**
+ * File name for an extra-zoom screenshot (pure): transit-tycoon-default-YYYY-MM-DD.png /
+ * transit-tycoon-zoomedIn-YYYY-MM-DD.png. Unknown kind returns null (no entry).
+ * @param {string} kind
+ * @param {Date} [d]
+ * @returns {string|null}
+ */
+export function zoomShotName(kind, d = new Date()) {
+  if (!(kind in SHOT_ZOOMS)) return null;
+  return `transit-tycoon-${kind}-${shotDate(d)}.png`;
+}
+
+/**
+ * Save the current viewport at a fixed zoom as a PNG. A short-lived secondary renderer (same pattern as
+ * giantScreenshot / extra viewport) draws the same camera centre at the wanted zoom into an offscreen
+ * canvas of the viewport's pixel size, so the main renderer and its camera are never touched.
+ * @param {import('../renderer/renderer.js').Renderer} renderer main renderer
+ * @param {number} zoom
+ * @param {string} kind key of SHOT_ZOOMS (used for the file name)
+ * @returns {Promise<string>} file name
+ */
+export async function screenshotCanvasAtZoom(renderer, zoom, kind) {
+  const cam = renderer.camera;
+  const W = Math.max(1, Math.round(cam.viewW)), H = Math.max(1, Math.round(cam.viewH));
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const r = new Renderer(cv, renderer.game, { secondary: true, fixedView: true });
+  r.shareHeights(renderer);
+  r.dpr = 1;
+  r.overlay = renderer.overlay; // same selection / catchment highlights as the main view
+  r.showMetro = renderer.showMetro;
+  const c = r.camera;
+  c.setMap(renderer.game.state.map.width, renderer.game.state.map.height);
+  c.zoom = zoom;
+  c.viewW = W;
+  c.viewH = H;
+  c.x = cam.x;
+  c.y = cam.y;
+  c.clamp = () => {}; // the view is copied from the main camera; do not move it
+  for (let i = 0; i < 400; i++) {
+    r.render(0);
+    if (!r.ground.pending) break;
+    await new Promise((res) => setTimeout(res, 0));
+  }
+  const blob = await toPng(cv);
+  const name = zoomShotName(kind) || zoomShotName('default');
   downloadBlob(blob, name);
   return name;
 }
