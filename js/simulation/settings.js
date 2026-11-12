@@ -91,6 +91,11 @@ export const DEFAULT_SETTINGS = {
    * behind trams, and the stop-bay rules (bayInUse / bayEntryRefused) cover trams. Oncoming trams still pass.
    * Off = trams stay on their own unindexed layer and pass through each other (current behaviour). */
   tramQueue: false,
+  /** roadvehDriveThrough: OpenTTD roadveh_cmd.cpp:698 anti-deadlock backup — a road vehicle (tram included)
+   * blocked by a moving (not loading) vehicle for 1480 OpenTTD ticks (20 days) drives through it and carries
+   * on instead of turning around. Off = the TT 3-day turn-around (BLOCK_TIMEOUT_TICKS) stays. Blocked behind
+   * a loading vehicle both modes wait / try another bay (tryFreeBay). */
+  roadvehDriveThrough: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
   enginePreview: false,
   /** OpenTTD engine.cpp block_preview (20 months): a company that declined or let an engine preview time out is not offered that model for 20 months. Off = offered again at once (current). Lazy: rec.block is written only when on. */
