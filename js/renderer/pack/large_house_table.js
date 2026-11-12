@@ -3,16 +3,6 @@
 // LARGE_HOUSES[id] = { group, part, size, dx, dy (tile offset of the part), pairs[TileHash2Bit] = [ground, building, dx, dy] }.
 // Sprite ids are OpenGFX base sprite ids (never renumber: append new groups only).
 
-/** Multi-tile house groups: id = first part id (north-west anchor), size, min year, population, climates (OpenTTD HouseZone), part ids. */
-export const LARGE_HOUSE_GROUPS = [
-  { id: 7, size: '1x2', minYear: 1959, pop: 140, climates: ['temperate'], parts: [7, 8] },
-  { id: 20, size: '2x2', minYear: 0, pop: 65, climates: ['temperate'], parts: [20, 21, 22, 23] },
-  { id: 32, size: '2x2', minYear: 1958, pop: 65, climates: ['temperate', 'arctic-below', 'tropic'], parts: [32, 33, 34, 35] },
-  { id: 40, size: '2x2', minYear: 1983, pop: 180, climates: ['temperate'], parts: [40, 41, 42, 43] },
-  { id: 66, size: '1x2', minYear: 1972, pop: 140, climates: ['arctic-below'], parts: [66, 67] },
-  { id: 68, size: '1x2', minYear: 1972, pop: 140, climates: ['arctic-above'], parts: [68, 69] },
-];
-
 /** Part house id -> part data (see header). */
 export const LARGE_HOUSES = {
   7: { group: 7, size: '1x2', part: 0, dx: 0, dy: 0, pairs: [[1420, 1450, 0, 0], [1420, 1450, 0, 0], [1420, 1450, 0, 0], [1420, 1450, 0, 0]] },

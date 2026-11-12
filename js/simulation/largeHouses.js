@@ -2,8 +2,7 @@
  * Multi-tile houses (OpenTTD town_cmd.cpp CheckTownBuild2House / CheckTownBuild2x2House, GetHouseNorthPart), opt-in via
  * the `largeHouses` setting (default off: no call places anything, so default games and hashes are unchanged).
  *
- * A group is a 1x2 or 2x2 temperate house (OpenTTD spec ids 7, 20, 32; the same ids as LARGE_HOUSE_GROUPS in
- * renderer/pack/large_house_table.js). Each covered tile carries a house building {type:'house', townId, level, variant,
+ * A group is a 1x2 or 2x2 temperate house (OpenTTD spec ids 7, 20, 32, from the OpenTTD _original_house_specs table). Each covered tile carries a house building {type:'house', townId, level, variant,
  * size, part, ax, ay, lgId: groupId}: part is the index in the group, (ax, ay) the anchor (the tile holding the
  * first part, which is the only town.houses entry, so population counts the house once at its anchor level).
  * Demolition and removal clear every part through clearHouseAt.
@@ -12,8 +11,8 @@ import { getSetting } from './settings.js';
 import { isArctic, isToyland, isTropic, snowDensity, snowLineOf } from './climate.js';
 
 /**
- * Multi-tile groups (OpenTTD _original_house_specs; ids and climates match the generated LARGE_HOUSE_GROUPS in
- * renderer/pack/large_house_table.js): first part id, size, offsets (dx, dy) of each part, earliest year, and the
+ * Multi-tile groups (OpenTTD _original_house_specs; ids and climates come from the OpenTTD spec, not from
+ * renderer/pack/large_house_table.js, which only holds per-part sprite data): first part id, size, offsets (dx, dy) of each part, earliest year, and the
  * climates it may be built in ('temperate', 'arctic-below' / 'arctic-above' = sub-arctic below / above the snow line,
  * 'tropic' = sub-tropic). OpenTTD places part p at TileDiffXY(0,1)/(1,0)/(1,1) in ITS axes; our x axis is OpenTTD's y
  * (screen sx = (x - y) * W/2), so dx/dy are swapped.

@@ -74,11 +74,6 @@ lines.push(`// _town_draw_tile_data; GPL-2.0). Multi-tile houses of the temperat
 lines.push(`// LARGE_HOUSES[id] = { group, part, size, dx, dy (tile offset of the part), pairs[TileHash2Bit] = [ground, building, dx, dy] }.`);
 lines.push(`// Sprite ids are OpenGFX base sprite ids (never renumber: append new groups only).`);
 lines.push('');
-lines.push('/** Multi-tile house groups: id = first part id (north-west anchor), size, min year, population, climates (OpenTTD HouseZone), part ids. */');
-lines.push('export const LARGE_HOUSE_GROUPS = [');
-for (const g of groups) lines.push(`  { id: ${g.id}, size: '${g.size}', minYear: ${g.minYear}, pop: ${g.pop}, climates: [${g.climates.map((c) => `'${c}'`).join(', ')}], parts: [${g.parts.map((q) => q.id).join(', ')}] },`);
-lines.push('];');
-lines.push('');
 lines.push('/** Part house id -> part data (see header). */');
 lines.push('export const LARGE_HOUSES = {');
 for (const g of groups) {

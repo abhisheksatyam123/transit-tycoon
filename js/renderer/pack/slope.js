@@ -2,7 +2,7 @@
  * Slope helpers for OpenGFX ground sprites.
  * Ported from OpenTTD src/landscape.cpp `_slope_to_sprite_offset` (GPL-2.0): the raised-corner
  * bits are W=1, S=2, E=4, N=8 (OpenTTD SLOPE_* bits), which map 1:1 onto our corners
- * [N,E,S,W]. Slope sprite = base + bits, verified against the OpenGFX pixels (see tables.js).
+ * [N,E,S,W]. Slope sprite = base + bits, verified against the OpenGFX pixels.
  */
 
 /** Raised-corner bits of a corner height array [hN,hE,hS,hW] relative to its minimum. */
