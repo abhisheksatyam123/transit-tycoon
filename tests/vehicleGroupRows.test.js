@@ -14,7 +14,7 @@ const G = [{ id: 2, name: 'Ferries' }];
 describe('vehicle group rows', () => {
   test('group-by modes are offered', () => {
     expect(GROUP_BY.map((g) => g[0])).toEqual(['none', 'shared', 'group']);
-    expect(BUCKET_SORTS.map((s) => s[0])).toEqual(['count', 'total', 'avg', 'length']);
+    expect(BUCKET_SORTS.map((s) => s[0])).toEqual(['count', 'total', 'avg', 'last', 'usage', 'capacity', 'number', 'length']);
   });
   test('none yields no buckets', () => {
     expect(bucketVehicles(V, { by: 'none', groups: G })).toEqual([]);
@@ -67,6 +67,40 @@ describe('vehicle group rows', () => {
     expect(sortBuckets(b, { sort: 'length', dir: -1 }).map((x) => x.key)).toEqual(['o:7', 'v:3', 'v:5']);
     expect(sortBuckets(b, { sort: 'length', dir: 1 }).map((x) => x.key)).toEqual(['v:5', 'v:3', 'o:7']);
     expect(sortBuckets(bucketVehicles([{ id: 9, name: 'X', orderGroup: 1 }], { by: 'shared' }), { sort: 'length', dir: 1 })[0].length).toBe(0);
+  });
+  test('bucket rows carry a per-kind vehicle count', () => {
+    const vs = [
+      { id: 1, name: 'T', orderGroup: 1, kind: 'train', unitNumber: 4 },
+      { id: 2, name: 'B', orderGroup: 1, kind: 'road', unitNumber: 2 },
+      { id: 3, name: 'P', orderGroup: 1, kind: 'aircraft', unitNumber: 9 },
+      { id: 4, name: 'X', orderGroup: 1, unitNumber: 1 },
+    ];
+    const b = bucketVehicles(vs, { by: 'shared' })[0];
+    expect(b.counts).toEqual({ train: 1, road: 1, aircraft: 1, ship: 0, total: 4 });
+    expect(b.number).toBe(4); // leader's unit number
+  });
+  test('bucket capacity sums vehicle capacity; sortBuckets by capacity and number', () => {
+    const vs = [
+      { id: 1, name: 'A', orderGroup: 7, unitNumber: 5, capacity: 100 },
+      { id: 2, name: 'B', orderGroup: 7, unitNumber: 9, capacity: 50 },
+      { id: 3, name: 'C', orderGroup: null, unitNumber: 1, capacity: 200 },
+      { id: 4, name: 'D', orderGroup: null, unitNumber: 3, capacity: 10 },
+    ];
+    const b = bucketVehicles(vs, { by: 'shared' }); // o:7 cap 150 number 5, v:3 cap 200 number 1, v:4 cap 10 number 3
+    expect(b.map((x) => x.capacity)).toEqual([150, 200, 10]);
+    expect(sortBuckets(b, { sort: 'capacity', dir: -1 }).map((x) => x.key)).toEqual(['v:3', 'o:7', 'v:4']);
+    expect(sortBuckets(b, { sort: 'number', dir: 1 }).map((x) => x.key)).toEqual(['v:3', 'v:4', 'o:7']);
+  });
+  test('sortBuckets by last-year profit and usage', () => {
+    const vs = [
+      { id: 1, name: 'A', orderGroup: 7, load: { amount: 100 }, capacity: 100, profitLastYear: -10 },
+      { id: 2, name: 'B', orderGroup: 7, load: { amount: 0 }, capacity: 100, profitLastYear: 5 },
+      { id: 3, name: 'C', orderGroup: null, load: { amount: 50 }, capacity: 100, profitLastYear: 99 },
+    ];
+    const b = bucketVehicles(vs, { by: 'shared' }); // o:7 last -5 usage 50, v:3 last 99 usage 50
+    expect(sortBuckets(b, { sort: 'last', dir: 1 }).map((x) => x.key)).toEqual(['o:7', 'v:3']);
+    expect(sortBuckets(b, { sort: 'last', dir: -1 }).map((x) => x.key)).toEqual(['v:3', 'o:7']);
+    expect(sortBuckets(b, { sort: 'usage', dir: -1 }).map((x) => x.key)).toEqual(['o:7', 'v:3']);
   });
   test('sortBuckets does not mutate its input', () => {
     const b = bucketVehicles(V, { by: 'shared' });
