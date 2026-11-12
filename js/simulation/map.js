@@ -494,6 +494,19 @@ function heightAt(map, x, y) {
 }
 
 /**
+ * True when the tile's 2x2 corner block of heights is level (OpenTTD SLOPE_FLAT). Corners off the
+ * map are ignored. Used by construction.build_on_slopes = off.
+ */
+export function isLevelTile(map, x, y) {
+  const h = heightAt(map, x, y);
+  for (const [cx, cy] of [[x + 1, y], [x + 1, y + 1], [x, y + 1]]) {
+    const v = heightAt(map, cx, cy);
+    if (v >= 0 && v !== h) return false;
+  }
+  return true;
+}
+
+/**
  * True when the tile's four corners (its 2x2 block of tile heights, N,E,S,W) form a flat or straight
  * inclined plane: all equal, or exactly two adjacent corners one level above the other two.
  * Corner (diagonal) slopes and steeper or two-level spreads cannot carry a river (OpenTTD slope rule).

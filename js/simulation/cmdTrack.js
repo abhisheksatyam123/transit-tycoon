@@ -10,7 +10,7 @@ import { COSTS } from '../config/costs.js';
 import { RAIL_TYPES, railBuildCost, railConvertCost, trackTypeAvailable } from '../config/railTypes.js';
 import { linePath, pruneOneWay } from './network.js';
 import { pathOk } from './shapes.js';
-import { getTile, inBounds } from './map.js';
+import { getTile, inBounds, isLevelTile } from './map.js';
 import { straightAxis } from './network.js';
 import { spend } from './economy.js';
 import { ERR, MAX_BRIDGE_LENGTH, MAX_TUNNEL_LENGTH, canAddBits, clearingCost, clearTerrain, coordsOk, checkMoney, objectError } from './trackRules.js';
@@ -260,6 +260,10 @@ export function buildLine(ctx, layer, x0, y0, x1, y1, opts = {}) {
   } else if (!coordsOk(map, x0, y0, x1, y1)) return { ok: false, error: ERR.bounds };
   const pts = custom || linePath(x0, y0, x1, y1);
   const n = pts.length;
+  // construction.build_on_slopes (default on = no check, TT's historic behaviour)
+  if (getSetting(state, 'buildOnSlopes') === false) {
+    for (const p of pts) if (!isLevelTile(map, p.x, p.y)) return { ok: false, error: ERR.slope };
+  }
   // track type (OpenTTD RailType, config/railTypes.js): 0 = plain rail (default, untouched). Monorail / maglev lines
   // carry tile.trk; existing track of another type on the line is converted (OpenTTD CmdConvertRail).
   const trk = layer === 'rail' ? (opts.trk | 0) : 0;

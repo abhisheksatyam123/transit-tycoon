@@ -98,12 +98,16 @@ export function presignalFrame(dir, red) {
  * @param {number} sy tile centre y (iso)
  * @param {boolean} [red]
  */
-export function drawSignalPost(ctx, sx, sy, red = false, type = 'block', dir = 0) {
-  // post beside the track (towards the viewer's right), tall enough to read at default zoom
-  const px = sx + 6, base = sy + HALF_H * 0.3, top = base - 18;
+export function drawSignalPost(ctx, sx, sy, red = false, type = 'block', dir = 0, side = 1) {
+  // post beside the track (side +1 = towards the viewer's right, the default; -1 = left), tall enough to read at default zoom
+  const px = sx + 6 * side, base = sy + HALF_H * 0.3, top = base - 18;
   // OpenGFX path: blit the electric light sprite; keep distinguishing overlays (path two-lamp
   // head becomes the pair lamp, oneway gets its dir arrow) for parity with procedural.
-  if (drawSignalSprite(ctx, sx, sy, red, type, dir)) {
+  // A left-side post mirrors the sprite about the tile centre (the arrows stay put: they show the direction).
+  if (side < 0) { ctx.save(); ctx.translate(2 * sx, 0); ctx.scale(-1, 1); }
+  const spriteDrawn = drawSignalSprite(ctx, sx, sy, red, type, dir);
+  if (side < 0) ctx.restore();
+  if (spriteDrawn) {
     if (type === 'path') drawDirArrow(ctx, sx, sy, dir, '#60a5fa');
     if (type === 'oneway') drawDirArrow(ctx, sx, sy, dir, '#f9fafb');
     return;
@@ -125,7 +129,7 @@ export function drawSignalPost(ctx, sx, sy, red = false, type = 'block', dir = 0
   }
   if (type === 'oneway') {
     // one-way block (T3c): post with a white plate on the lamp head to tell it from the two-way mast
-    drawSignalPost(ctx, sx, sy, red, 'block');
+    drawSignalPost(ctx, sx, sy, red, 'block', 0, side);
     ctx.fillStyle = '#f9fafb'; ctx.fillRect(px - 2.5, top - 2, 5, 2);
     drawDirArrow(ctx, sx, sy, dir, '#f9fafb');
     return;
@@ -148,6 +152,21 @@ export function drawSignalPost(ctx, sx, sy, red = false, type = 'block', dir = 0
 
 /** Screen-space unit vector of a dirBetween bit (iso: east = right-down, south = left-down). */
 const DIR_SCREEN = { 1: [1, -1], 2: [1, 1], 4: [-1, 1], 8: [-1, -1] };
+
+/**
+ * Side of the track a signal post stands on: +1 = right (TT's historic fixed side, the default), -1 = left.
+ * setting: construction.train_signal_side ('right' | 'left' | 'driving'); 'driving' follows road_side.
+ * @param {string} setting
+ * @param {string} roadSide 'right' | 'left'
+ */
+export function signalPostSide(setting, roadSide) {
+  if (setting === 'left') return -1;
+  if (setting === 'driving') return roadSide === 'left' ? -1 : 1;
+  return 1;
+}
+
+/** Signal post side for the current frame (set by the renderer from the settings, read by the signal layer). */
+export const signalPostSideSign = { value: 1 };
 
 /** Small triangle on the track beside the signal, pointing the way trains may pass (dir bit). */
 export function drawDirArrow(ctx, sx, sy, dir, color) {

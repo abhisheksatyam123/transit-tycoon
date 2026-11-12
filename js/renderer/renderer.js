@@ -40,7 +40,7 @@ import { isArctic, snowLineOf, isTropic, isToyland } from '../simulation/climate
 import { Heights } from './heights.js';
 import { setPoseMap } from './net/pose.js';
 import { setOverlayHeights } from './layers/overlays.js';
-import { drawSignalPost } from './layers/signals.js';
+import { drawSignalPost, signalPostSide, signalPostSideSign } from './layers/signals.js';
 import { drawCatenary, drawTramWires } from './layers/catenary.js';
 import { drawOneWayArrow } from './layers/oneway.js';
 import { drawTunnelPortal } from './layers/transport.js';
@@ -333,6 +333,7 @@ export class Renderer {
     const map = state.map;
     setPoseMap(map);
     roadSideSign.value = getSetting(state, 'roadSide') === 'left' ? -1 : 1; // once per frame (road driving side)
+    signalPostSideSign.value = signalPostSide(getSetting(state, 'trainSignalSide'), getSetting(state, 'roadSide')); // construction.train_signal_side
     this.vfx.smokeAmount = Number(getSetting(state, 'smokeAmount')) || 0; // OTTD smoke_amount (render-only)
     setOverlayHeights(this.heights); // module-level: another renderer may have set its own
     const W = map.width;
@@ -472,7 +473,7 @@ export class Renderer {
         if (tile.signal && !tile.building && sy >= r.y0 - 40 && sy <= r.y1 + 40 && !(sx < r.x0 || sx > r.x1)) {
           const fa = tr && tr.signs ? TRANSPARENT_ALPHA : 1; // signs toggle (UI only): fade the signal post
           if (fa !== 1) ctx.globalAlpha = fa;
-          drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block', typeof tile.signal === 'object' ? tile.signal.dir : 0);
+          drawSignalPost(ctx, sx, sy, !!(state.resv && state.resv[y * W + x] !== undefined), typeof tile.signal === 'object' ? tile.signal.type : 'block', typeof tile.signal === 'object' ? tile.signal.dir : 0, signalPostSideSign.value);
           if (fa !== 1) ctx.globalAlpha = 1;
         }
         if (overlays && sy >= r.y0 - 220 && sy <= r.y1 + 160) for (const o of overlays) drawLm3dObjects(ctx, o.id, x, y, sx, sy, r);

@@ -239,6 +239,12 @@ export const DEFAULT_SETTINGS = {
   roadStopOnTownRoad: true,
   /** OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): road stops may be built on roads owned by another company. Off = refused (station_cmd.cpp). TT default true = current. */
   roadStopOnCompetitorRoad: true,
+  /** OpenTTD construction.train_signal_side (settings_type.h TrainSignalSide, render-only): side of the track the signal post stands on. 'right' (default) = TT's historic fixed right side; 'left'; 'driving' = follow roadSide (OpenTTD's default RoadVehicleDrivingSide). */
+  trainSignalSide: 'right',
+  /** OpenTTD construction.build_on_slopes (world_settings.ini, def true): rail and road may be built on sloped tiles. true = TT's current behaviour (no slope check). false = buildLine refuses a tile whose four corners are not level. */
+  buildOnSlopes: true,
+  /** OpenTTD construction.map_height_limit (def 0 = no limit): highest terrain level terraform may raise to. TT default 7 = cmdTerraform MAX_HEIGHT, the current hard ceiling; lower values cap raising. */
+  mapHeightLimit: 7,
   /** OpenTTD company.engine_renew_months (company_settings.ini, def 6): extra months past max age before autorenew (vehicle.cpp NeedsAutorenewing, 30 days each). TT default 0 = renew exactly past max age (current). */
   engineRenewMonths: 0,
   /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default 0 = only the purchase cost is checked (current). */

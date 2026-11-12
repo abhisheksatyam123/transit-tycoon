@@ -10,6 +10,7 @@ import { infiniteMoney } from './settings.js';
 export const ERR = {
   bounds: 'Out of map bounds',
   water: "Can't build on water",
+  slope: 'Track and roads need level ground (build on slopes is off)',
   house: 'Tile occupied by a house',
   industry: 'Tile occupied by an industry',
   station: 'Tile occupied by a station',

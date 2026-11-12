@@ -179,12 +179,13 @@ function evaluate(state, op, rect, opts = {}) {
     return { ok: true, changes, raw: changes.length * COSTS.plantTree, area };
   }
   const startH = tiles[rect.y0 * W + rect.x0].height;
+  const heightCap = getSetting(state, 'mapHeightLimit') ?? MAX_HEIGHT; // construction.map_height_limit (default = MAX_HEIGHT)
   // rect tiles are pinned to their target height; every other tile relaxes toward the neighbour rule
   const pinned = new Map(); // idx -> target height
   for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
     const i = y * W + x, h = tiles[i].height;
     const v = op === 'raise' ? h + 1 : op === 'lower' ? h - 1 : startH;
-    if (v > MAX_HEIGHT) return { ok: false, error: TERRA_ERR.max };
+    if (v > heightCap) return { ok: false, error: TERRA_ERR.max };
     if (v < MIN_HEIGHT) return { ok: false, error: TERRA_ERR.min };
     pinned.set(i, v);
   }
@@ -220,7 +221,7 @@ function evaluate(state, op, rect, opts = {}) {
     inQueue.delete(j);
     if (++steps > limit) return { ok: false, error: TERRA_ERR.steep };
     const x = j % W, y = Math.floor(j / W);
-    let lo = MIN_HEIGHT, hi = MAX_HEIGHT;
+    let lo = MIN_HEIGHT, hi = heightCap;
     for (const [dx, dy] of NB8) {
       const nx = x + dx, ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
