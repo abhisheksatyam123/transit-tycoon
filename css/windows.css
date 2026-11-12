@@ -83,6 +83,9 @@
 .table-row { padding: 4px 8px; border-radius: 6px; background: rgba(15, 23, 38, 0.7); border: 1px solid rgba(100, 116, 139, 0.15); }
 .table-row .num { text-align: right; }
 .table-head, .table-row { grid-template-columns: 1.4fr 1fr 0.9fr 0.9fr 0.8fr auto; }
+/* grouped (Group by) view: the header and every row are separate grids, so tracks must not depend on their content (auto/min-content): fr tracks with minmax(0,..) or fixed minimums resolve identically in each grid */
+.table-head.grouped, .list.grouped .table-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(56px, 0.5fr); }
+.table-head.grouped span:nth-child(n + 3) { text-align: right; }
 .table-row .late { font-size: 11px; white-space: nowrap; }
 .state { font-size: 12px; }
 .st-running { color: #86efac; } .st-loading { color: #7dd3fc; } .st-stopped, .st-depot { color: var(--muted); }

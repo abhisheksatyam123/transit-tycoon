@@ -361,6 +361,9 @@ export function openVehicleList(app) {
           setText(gStatsValue[2], `${st.occupancy}%`);
           gStatsValue[2].classList.toggle('neg', false);
         }
+        // grouped view gets its own column tracks (css .grouped) so bucket rows line up with the bucket header
+        head.classList.toggle('grouped', grouped);
+        list.classList.toggle('grouped', grouped);
         if (!grouped) {
           setHead('veh');
           const vs = sortVehicles(all, state);
