@@ -30,6 +30,13 @@ export const VEHICLE_SORTS = [
   ['number', 'Number'], ['capacity', 'Total capacity'], // OpenTTD vehicle_gui.cpp ADI sorts (vehicle number, total capacity); appended so existing indices are unchanged
 ];
 
+/** Tooltip for the group protect checkbox, matching the active autoreplace protection semantics (settings.js autoreplaceProtectOttd). */
+function protectTitle(ottd) {
+  return ottd
+    ? 'Protect this group from autoreplace (OpenTTD ReplaceProtection): blocks only the company-wide rule; the group\'s own rule and autorenew still run'
+    : 'Protect this group from autoreplace (TT default): blocks the group\'s own rule, the company rule and autorenew; the vehicles keep as-is';
+}
+
 /** True when the vehicle runs to a timetable (any order with a wait or travel time). */
 export function hasVehicleTimetable(v) {
   return Array.isArray(v.orders) && v.orders.some((o) => hasTimetable(o));
@@ -240,8 +247,8 @@ export function openVehicleList(app) {
       const bySel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Group by', title: 'Group the list into rows' },
         GROUP_BY.map(([k, l]) => el('option', { value: k, text: l })));
       bySel.onchange = () => { state.by = bySel.value; state.open.clear(); state.dir = 1; refresh(); };
-      const protectCb = el('input', { type: 'checkbox', title: 'Protect this group from autoreplace (OpenTTD GroupFlag::ReplaceProtection)', onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
-      const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: 'Protect this group from autoreplace' }, protectCb, el('span', { text: 'Protect from autoreplace' }));
+      const protectCb = el('input', { type: 'checkbox', title: protectTitle(false), onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
+      const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: protectTitle(false) }, protectCb, el('span', { text: 'Protect from autoreplace' }));
       // selected group details (OpenTTD group_gui.cpp WID_GL_INFO): read-only sums over the group's listed vehicles.
       const gStatsValue = [0, 1, 2].map(() => el('span.kv-value.mono'));
       const gStats = el('div.kv-grid', { style: { display: 'none' } },
@@ -393,6 +400,10 @@ export function openVehicleList(app) {
         }
         livery.style.display = selG ? 'flex' : 'none';
         protectCb.checked = !!(selG && selG.replaceProtect);
+        // The tooltip describes the active semantics (autoreplaceProtectOttd, default off = TT behaviour).
+        const protectOttd = getSetting(app.game.state, 'autoreplaceProtectOttd') === true;
+        const pt = protectTitle(protectOttd);
+        if (protectCb.title !== pt) { protectCb.title = pt; protectLabel.title = pt; }
         protectLabel.style.display = selG ? 'inline-flex' : 'none';
         if (selG) liveryRow(selG);
         gStats.style.display = hasGroup ? 'grid' : 'none';

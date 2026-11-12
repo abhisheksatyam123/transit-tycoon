@@ -46,6 +46,19 @@ export function openAutoreplace(app) {
         const setRule = (modelId, newModelId) => (gid == null
           ? g.setAutoreplace(modelId, newModelId)
           : g.setGroupAutoreplace(gid, modelId, newModelId));
+        // Human-readable effective rule for one model (mirrors autoreplaceTarget's precedence; display only).
+        const effectiveHint = (modelId) => {
+          const own = rules[modelId];
+          if (gid == null) return own ? `Company rule → ${MODEL_BY_ID[own]?.name || own}` : 'No company rule';
+          const grp = (company.groups || []).find((x) => x.id === gid);
+          const protectedGroup = !!(grp && grp.replaceProtect);
+          const ottd = getSetting(g.state, 'autoreplaceProtectOttd') === true;
+          if (protectedGroup && !ottd) return 'Blocked by group protection (no replacement, incl. company rule)';
+          if (own) return `Group rule applies → ${MODEL_BY_ID[own]?.name || own}`;
+          if (protectedGroup) return 'Company rule blocked by group protection';
+          const co = (company.autoreplace || {})[modelId];
+          return co ? `Company rule applies (inherited) → ${MODEL_BY_ID[co]?.name || co}` : 'No group or company rule';
+        };
         const models = Object.keys(counts).map((id) => MODEL_BY_ID[id]).filter(Boolean)
           .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
         listOrEmpty(list, models, (m) => m.id,
@@ -56,16 +69,19 @@ export function openAutoreplace(app) {
             const cbLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' },
               title: 'Replace only when old' }, cb, 'when old');
             const row = el('div.table-row', null,
-              el('span'), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
+              el('span', null, el('span.name'), el('div.muted.small', { style: { fontSize: '0.85em' } })), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
               el('button.btn.sm', { type: 'button', text: 'Stop', title: 'Stop replacing this model',
                 onclick: () => app.exec(setRule(m.id, null), { sound: 'click' }) }));
             row._sel = sel;
             row._cb = cb;
+            row._name = row.children[0].children[0];
+            row._hint = row.children[0].children[1];
             return row;
           },
           (row, m) => {
             const c = row.children;
-            setText(c[0], m.name);
+            setText(row._name, m.name);
+            setText(row._hint, effectiveHint(m.id));
             setText(c[1], `×${counts[m.id]}`);
             const sel = row._sel;
             const cands = replacementCandidates(m.id, year, getSetting(g.state, 'neverExpireVehicles'));
