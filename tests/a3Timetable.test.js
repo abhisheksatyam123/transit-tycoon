@@ -3,9 +3,10 @@ import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
 import { serializeState, parseState } from '../js/simulation/save.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
-import { loadingTick, arriveAtStation, advanceOrder } from '../js/simulation/orders.js';
+import { loadingTick, arriveAtStation, advanceOrder, noteDepotDeparture } from '../js/simulation/orders.js';
 import { setSetting, DEFAULT_SETTINGS } from '../js/simulation/settings.js';
 import { SETTING_META } from '../js/ui/settingsGroups.js';
+import { resolveConditionals } from '../js/simulation/condOrders.js';
 
 function setup(on = false) {
   const g = flatGame(33);
@@ -166,5 +167,72 @@ describe('timetableLateness setting + save', () => {
     // target = 3 days - 2 days = 1 day: still holding, lateTicks materialised from lateDays
     expect(loadingTick(g.ctx, v)).toBe(false);
     expect(v.lateTicks).toBe(2 * TICKS_PER_DAY);
+  });
+});
+
+describe('timetable legs through conditional and depot orders', () => {
+  /** Depart order 0 at tick 0 with loading done (same driver as departA). */
+  function leaveFirst(g, v, stA) {
+    g.state.tick = 0;
+    v.state = 'loading'; v.atStationId = stA.id; v.speed = 0; v.loadingTicks = 1; v.orderIndex = 0;
+    expect(loadingTick(g.ctx, v)).toBe(true);
+  }
+
+  test('lateness is booked on the leg after a conditional order', () => {
+    const { g, L, v, stA, stB } = setup(true);
+    expect(g.setOrders(v.id, [
+      { stationId: L.a.id },
+      { cond: { v: 'always', cmp: '==', val: 1, to: 2 } },
+      { stationId: L.b.id },
+    ]).ok).toBe(true);
+    expect(g.setOrderTimetable(v.id, 2, { travelDays: 2 }).ok).toBe(true);
+    leaveFirst(g, v, stA);
+    // the leg is measured even though the order after S1 is conditional
+    expect(v.departTick).toBe(0);
+    advanceOrder(v);
+    resolveConditionals(g.state, v);
+    expect(v.orderIndex).toBe(2);
+    v.state = 'loading'; v.atStationId = stB.id; v.loadingTicks = 1;
+    g.state.tick = 3 * TICKS_PER_DAY; // one day late against the 2-day schedule
+    arriveAtStation(g.ctx, v, stB);
+    expect(v.lateTicks).toBe(TICKS_PER_DAY);
+  });
+
+  test('estimates fill the leg after a conditional order', () => {
+    const { g, L, v, stA, stB } = setup(true);
+    setSetting(g.state, 'timetableEstimates', true);
+    expect(g.setOrders(v.id, [
+      { stationId: L.a.id },
+      { cond: { v: 'always', cmp: '==', val: 1, to: 2 } },
+      { stationId: L.b.id },
+    ]).ok).toBe(true);
+    leaveFirst(g, v, stA);
+    expect(v.departTick).toBe(0);
+    advanceOrder(v);
+    resolveConditionals(g.state, v);
+    v.state = 'loading'; v.atStationId = stB.id; v.loadingTicks = 1;
+    g.state.tick = 2 * TICKS_PER_DAY;
+    arriveAtStation(g.ctx, v, stB);
+    expect(v.orders[2].estTravelDays).toBe(2); // recorded on the station order, not on the conditional
+  });
+
+  test('a depot order between stations does not inflate the measured leg', () => {
+    const { g, L, v, stA, stB } = setup(true);
+    expect(g.setOrders(v.id, [
+      { stationId: L.a.id },
+      { depotId: L.depotId },
+      { stationId: L.b.id },
+    ]).ok).toBe(true);
+    expect(g.setOrderTimetable(v.id, 2, { travelDays: 2 }).ok).toBe(true);
+    leaveFirst(g, v, stA);
+    expect(v.departTick).toBe(0); // measured: the walk skips the depot order
+    advanceOrder(v); // depot order
+    g.state.tick += 5 * TICKS_PER_DAY; // time spent in the depot
+    noteDepotDeparture(g.state, v); // what the depot visit calls when the vehicle leaves
+    expect(v.departTick).toBe(5 * TICKS_PER_DAY); // the leg restarts at the depot exit
+    advanceOrder(v);
+    g.state.tick += TICKS_PER_DAY; // one day of travel against the 2-day schedule
+    arriveAtStation(g.ctx, v, stB);
+    expect(v.lateTicks).toBe(-TICKS_PER_DAY); // early by one day: the 5 depot days are not booked
   });
 });

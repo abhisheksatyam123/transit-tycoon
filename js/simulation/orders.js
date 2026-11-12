@@ -245,7 +245,13 @@ function inPlatform(v, fn) {
   try { return fn(); } finally {
     v.capacity = whole;
     load.amount += outside;
-    if (outDests) for (const k of Object.keys(outDests)) if (outDests[k] > 0) load.dests[k] = (load.dests[k] || 0) + outDests[k];
+    if (outDests) {
+      // unloadDist deletes load.dests when the inside cargo is delivered; restore the outside share into a
+      // fresh (lazy) dests object rather than assuming it still exists.
+      const cur = load.dests || (load.dests = {});
+      for (const k of Object.keys(outDests)) if (outDests[k] > 0) cur[k] = (cur[k] || 0) + outDests[k];
+      if (!Object.keys(cur).length) delete load.dests; // keep the lazy invariant: no dests when nothing is destined
+    }
   }
 }
 
@@ -884,9 +890,28 @@ function recordDeparture(ctx, v, order) {
     if (v.autofillLeft <= 0) { delete v.autofill; delete v.autofillLeft; delete v.autofillPreserve; }
   }
   delete v.arriveTick;
-  const next = n ? v.orders[(idx + 1) % n] : null;
+  // Timetable: the leg runs to the next order that has a station. Conditional orders carry no travelDays and
+  // depot orders carry neither travel time nor a station, so skip both instead of clearing departTick on them
+  // (which left the leg after them unmeasured). A depot's dwell is excluded when the vehicle leaves it
+  // (noteDepotDeparture). Plain station lists are unchanged: the walk stops at the very next station order.
+  let next = null;
+  for (let k = 1; k <= n; k++) {
+    const o = v.orders[(idx + k) % n];
+    if (!o || o.cond != null || isDepotOrder(o)) continue;
+    next = o;
+    break;
+  }
   if (next && (next.travelDays > 0 || v.autofill || timetableEstimatesOn(state))) v.departTick = state.tick;
   else delete v.departTick;
+}
+
+/**
+ * Timetable: the time spent inside a depot is not travel time. Called when the vehicle leaves a depot, with a
+ * measured leg in progress (departTick set because the next station order needs a time): restart the leg at the
+ * depot exit so the depot dwell is not booked into it. No-op otherwise.
+ */
+export function noteDepotDeparture(state, v) {
+  if (v.departTick != null) v.departTick = state.tick;
 }
 
 /**

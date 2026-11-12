@@ -10,7 +10,7 @@ import { resolvePurchase, createVehicle, purchasable, modelAvailable, refundValu
 import { getSetting } from './settings.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
-import { normaliseOrders, setOrderField, isDepotOrder } from './orders.js';
+import { normaliseOrders, setOrderField, isDepotOrder, noteDepotDeparture } from './orders.js';
 import { isCond } from './condOrders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack, canFlipTrain } from './routing.js';
 import { RAIL_TYPES } from '../config/railTypes.js';
@@ -182,6 +182,7 @@ export function startVehicle(ctx, id, opts = {}) {
   if (v.state === 'depot') {
     v.history = [{ x: v.tx, y: v.ty }];
     v.path = [];
+    noteDepotDeparture(ctx.state, v); // timetable: a halt in the depot is not travel time
   }
   if (v.ubHold) { delete v.ubHold; unbunchDepart(ctx.state, v); } // started by hand: leave now (the hold is dropped)
   if (v.path.length && v.pathIndex < v.path.length - 1) v.state = 'running';

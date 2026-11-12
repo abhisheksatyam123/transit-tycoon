@@ -35,7 +35,7 @@ import { refitCore } from './refit.js';
 import { autorenewVehicle } from './autorenew.js';
 import { dayNumber } from './date.js';
 import { getSetting } from './settings.js';
-import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode, isDepotOrder, isNearestDepotOrder } from './orders.js';
+import { currentOrder, advanceOrder, arriveAtStation, loadingTick, stopMode, isDepotOrder, isNearestDepotOrder, noteDepotDeparture } from './orders.js';
 import { unbunchArrive, unbunchWaits, unbunchDepart } from './unbunch.js';
 import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
@@ -722,7 +722,7 @@ function depotOrderVisit(ctx, v, order) {
     return;
   }
   if (order.halt) haltInDepot(state, cur, depotId); // stop in the depot; the next start continues with the next order
-  else replan(ctx, cur);
+  else { noteDepotDeparture(state, cur); replan(ctx, cur); } // timetable: the depot dwell is not travel time
 }
 
 /** Leave the unbunch hold once the shared group's next departure is due (vehicle.cpp LeaveUnbunchingDepot). */
@@ -730,6 +730,7 @@ function unbunchRelease(ctx, v) {
   if (unbunchWaits(ctx.state, v)) return;
   delete v.ubHold;
   unbunchDepart(ctx.state, v);
+  noteDepotDeparture(ctx.state, v); // the unbunch hold in the depot is not travel time
   v.history = [{ x: v.tx, y: v.ty }];
   v.path = [];
   v.pathIndex = 0;

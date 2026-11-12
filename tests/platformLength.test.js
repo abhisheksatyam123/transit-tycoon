@@ -75,6 +75,36 @@ describe('platform length (setting platformLength, OpenTTD LoadUnloadVehicle)', 
     expect(v.capacity).toBe(cap); // whole capacity restored after the partial load
   });
 
+  test('cargodist dests: delivering the inside cargo does not crash and the outside dests are restored', () => {
+    const { g, L, v } = setup(8, true);
+    const st = L.b; // the power station accepts coal
+    park(g, v, st);
+    const cap = v.capacity;
+    const inside = Math.floor(cap * 5 / 8);
+    v.load.amount = cap;
+    v.load.dests = { [String(st.id)]: cap };
+    // unloadDist delivers the inside share and deletes load.dests; the outside share is put back afterwards
+    expect(() => arriveAtStation({ state: g.state, emit: () => {} }, v, st)).not.toThrow();
+    expect(v.platFit).toBe(5);
+    expect(v.load.amount).toBe(cap - inside);
+    expect(v.load.dests).toEqual({ [String(st.id)]: cap - inside });
+    expect(v.capacity).toBe(cap);
+  });
+
+  test('cargodist dests: when all inside cargo is delivered and dests would end empty, nothing crashes', () => {
+    const { g, L, v } = setup(8, true);
+    const st = L.b;
+    park(g, v, st);
+    const cap = v.capacity;
+    const inside = Math.floor(cap * 5 / 8);
+    v.load.amount = inside; // all of it inside the platform
+    v.load.dests = { [String(st.id)]: inside };
+    expect(() => arriveAtStation({ state: g.state, emit: () => {} }, v, st)).not.toThrow();
+    expect(v.load.amount).toBe(0);
+    expect(v.load.dests).toBeUndefined(); // lazy invariant kept: no empty dests object
+    expect(v.capacity).toBe(cap); // whole capacity restored
+  });
+
   test('full-load check uses the inside capacity', () => {
     const { g, v, st } = setup(8, true);
     park(g, v, st);
