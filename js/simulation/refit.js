@@ -40,11 +40,18 @@ export function dropLoad(load) {
 
 /**
  * Keep at most `keep` units aboard (same-cargo refit to a smaller capacity): the excess is lost, and cargodist
- * destinations are pruned to the kept units so the packet stays consistent.
+ * destinations are pruned to the kept units so the packet stays consistent. The feeder share (cargo picked up
+ * elsewhere) is prorated to the kept units, like cutLoad in orders.js; the excess share is lost with the cargo.
  */
 export function truncateLoad(load, keep) {
   if (!load || !(load.amount > keep)) return;
+  const original = load.amount;
   load.amount = keep;
+  if (load.feeder) {
+    const keptFeeder = Math.round((load.feeder * keep) / original);
+    if (keptFeeder > 0) load.feeder = keptFeeder;
+    else delete load.feeder;
+  }
   if (!load.dests) return;
   let left = keep;
   for (const k of Object.keys(load.dests)) {

@@ -1,6 +1,7 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame, coalLine } from './helpers.js';
 import { refitVehicle, REFIT_COST_FRACTION } from '../js/simulation/cmdVehicle.js';
+import { truncateLoad } from '../js/simulation/refit.js';
 import { vehiclePrice } from '../js/simulation/prices.js';
 import { MODEL_BY_ID } from '../js/config/vehicles.js';
 import { DEFAULT_SETTINGS, getSetting, setSetting } from '../js/simulation/settings.js';
@@ -42,7 +43,31 @@ describe('partial refit (A2, opt-in)', () => {
     expect(v.cargoId).toBe('COAL');
     expect(v.capacity).toBe(w.capacity);
     expect(v.load.amount).toBe(w.capacity);
+    // feeder is prorated to the kept units: round(7 * 30 / 60) = 4, the excess share is lost
+    expect(v.load.feeder).toBe(4);
     expect(r.cost).toBe(0); // same cargo: OpenTTD charges only on a cargo type change
+  });
+
+  test('truncateLoad prorates the feeder share to the kept units (cutLoad rule)', () => {
+    const load = { amount: 60, fromStationId: 5, feeder: 7, dests: { 5: 40, 6: 20 } };
+    truncateLoad(load, 20);
+    expect(load.amount).toBe(20);
+    expect(load.feeder).toBe(2); // round(7 * 20 / 60) = round(2.33)
+    expect(load.dests).toEqual({ 5: 20 });
+  });
+
+  test('truncateLoad drops the feeder when the kept share rounds to zero', () => {
+    const load = { amount: 100, fromStationId: 5, feeder: 1 };
+    truncateLoad(load, 10);
+    expect(load.amount).toBe(10);
+    expect(load.feeder).toBeUndefined(); // round(1 * 10 / 100) = 0; excess cargo is lost
+  });
+
+  test('truncateLoad leaves the feeder untouched when nothing is truncated', () => {
+    const load = { amount: 20, fromStationId: 5, feeder: 7 };
+    truncateLoad(load, 30);
+    expect(load.amount).toBe(20);
+    expect(load.feeder).toBe(7);
   });
 
   test('on: a cargo type change drops the load and charges the cost', () => {
