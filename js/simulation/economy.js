@@ -10,6 +10,29 @@ import { effectiveMaxLoan } from './prices.js';
 /** Ledger categories. */
 export const LEDGER_TYPES = ['construction', 'vehicles', 'running', 'income', 'interest', 'property'];
 
+/** Revenue-by-vehicle-type buckets shown in the finance window (D7 Phase 2, sparse). */
+export const REVENUE_KINDS = ['train', 'tram', 'bus', 'truck', 'ship', 'aircraft'];
+
+/**
+ * Map an unloading vehicle's model kind to a revenue bucket: engines (and a lone wagon, which never unloads
+ * on its own) count as train; the rest use their own model kind. Unknown kinds are not attributed.
+ */
+export function revenueKindOfModel(model) {
+  if (!model) return null;
+  if (model.kind === 'engine' || model.kind === 'wagon') return 'train';
+  return REVENUE_KINDS.includes(model.kind) ? model.kind : null;
+}
+
+/**
+ * Attribute a cargo payment to the unloading vehicle type for the current month. Lazy and sparse: `byKind`
+ * is created only on the first delivery, so idle games keep their exact ledger shape and save bytes.
+ */
+export function noteRevenueKind(company, kind, amount) {
+  if (!amount || !kind) return;
+  const cur = company.ledger.current;
+  (cur.byKind ??= {})[kind] = (cur.byKind[kind] || 0) + amount;
+}
+
 /** Fresh company record. */
 export function createCompany(name = 'Transit Tycoon Co.') {
   return {
@@ -139,10 +162,13 @@ function recordOwner(state, b) {
 export function closeLedgerMonth(state, ended) {
   const company = state.company;
   const cur = company.ledger.current;
-  company.ledger.history.push({
+  const entry = {
     year: ended.year, month: ended.month, income: cur.income, expenses: cur.expenses,
     byType: { ...cur.byType },
-  });
+  };
+  // Sparse: only months with a delivery carry a vehicle-type breakdown (old/idle months keep the old shape).
+  if (cur.byKind) entry.byKind = { ...cur.byKind };
+  company.ledger.history.push(entry);
   if (company.ledger.history.length > 36) company.ledger.history.shift();
   company.ledger.current = emptyLedger();
 }

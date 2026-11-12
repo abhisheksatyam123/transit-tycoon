@@ -7,7 +7,7 @@ import { getSetting } from './settings.js';
 import { servicePerformed } from './service.js';
 import { isHelicopter, airportTypeId } from './airportTypes.js';
 import { HELI_PAD_TYPES } from './airportGround.js';
-import { earn } from './economy.js';
+import { earn, noteRevenueKind, revenueKindOfModel } from './economy.js';
 import { calculateDeliveredCargoPayment } from './loco/economy.js';
 import { recordDelivery } from './loco/company.js';
 import { companyOf, ownerMismatch, RIVAL_OWNED } from './owner.js';
@@ -477,6 +477,10 @@ function deliverLoad(ctx, v, st) {
   delete load.feeder;
   if (pay > 0) {
     earn(payee, pay);
+    // D7 Phase 2: attribute the full payment (not pay - feeder) to the unloading vehicle's model kind, so the
+    // per-kind sums equal the month's income. Player-only (rival ledgers stay untouched); sparse: creates
+    // ledger.current.byKind only on the first payment.
+    if (payee === state.company) noteRevenueKind(payee, revenueKindOfModel(vehicleModel(v)), pay);
     v.profitThisYear += pay - feeder;
     ctx.emit('income', { amount: pay, x: st.x, y: st.y, vehicleId: v.id, cargoId: v.cargoId, units: amount });
   }

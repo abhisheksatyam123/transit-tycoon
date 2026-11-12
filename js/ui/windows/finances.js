@@ -7,10 +7,11 @@ import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
 import { openCompanyInfrastructure } from './companyInfrastructure.js';
 import { getSetting } from '../../simulation/settings.js';
-import { maxLoanCap } from '../../simulation/economy.js';
+import { maxLoanCap, REVENUE_KINDS } from '../../simulation/economy.js';
 
 const LOAN_STEP = 10000;
 const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep', infrastructure: 'Infrastructure maintenance' };
+const KIND_LABEL = { train: 'Train', tram: 'Tram', bus: 'Bus', truck: 'Truck', ship: 'Ship', aircraft: 'Aircraft' };
 
 /** View periods offered above the ledger; Monthly is the default (the existing 12-month view). */
 export const FINANCE_PERIODS = [['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['yearly', 'Yearly']];
@@ -80,6 +81,14 @@ export function groupQuarters(entries) {
     for (const [k, v] of Object.entries(e.byType || {})) {
       const n = Number(v) || 0;
       if (n) b.byType[k] = (b.byType[k] || 0) + n;
+    }
+    // sparse per-vehicle-type revenue (D7 Phase 2): only months written after a delivery carry it
+    if (e.byKind) {
+      b.byKind ||= {};
+      for (const [k, v] of Object.entries(e.byKind)) {
+        const n = Number(v) || 0;
+        if (n) b.byKind[k] = (b.byKind[k] || 0) + n;
+      }
     }
     b.months++;
     if (e.current) b.current = true;
@@ -187,7 +196,7 @@ export function openFinances(app) {
           const hist = (c.ledger.history || []).slice(-11);
           cols = [...hist.map((h) => ({ label: `${monthName(h.month)} ${String(h.year).slice(2)}`, h })), { label: 'This month', h: c.ledger.current }];
         }
-        const s = period + '|' + JSON.stringify(cols.map((x) => [x.label, x.h.income, x.h.expenses, x.h.byType]));
+        const s = period + '|' + JSON.stringify(cols.map((x) => [x.label, x.h.income, x.h.expenses, x.h.byType, x.h.byKind]));
         if (s === sig) return;
         sig = s;
         const types = new Set(Object.keys(TYPE_LABEL));
@@ -212,6 +221,25 @@ export function openFinances(app) {
             const v = pick(k);
             return el('td.mono' + (v < 0 ? '.neg' : v > 0 ? '.pos' : ''), { text: v ? money(v) : '—' });
           })));
+        }
+        // D7 Phase 2: per-vehicle-type revenue, shown only when the displayed columns carry a byKind breakdown.
+        // Old months (or yearly columns, which come from expenditures) show nothing here; their revenue is the
+        // "Unattributed" row when some other column has a breakdown.
+        const kindCols = cols.map((col) => col.h.byKind || {});
+        if (kindCols.some((b) => Object.keys(b).length)) {
+          const kindCell = (v) => el('td.mono' + (v > 0 ? '.pos' : ''), { text: v ? money(v) : '—' });
+          table.appendChild(el('tr.kind-head', null, el('th', { text: 'Revenue by vehicle type', colspan: cols.length + 1 })));
+          for (const k of REVENUE_KINDS) {
+            table.appendChild(el('tr', null, el('td.lbl', { text: KIND_LABEL[k] }), kindCols.map((b) => kindCell(Number(b[k]) || 0))));
+          }
+          const unattributed = cols.map((col, i) => {
+            const sum = Object.values(kindCols[i]).reduce((a, v) => a + (Number(v) || 0), 0);
+            return (Number(col.h.income) || 0) - sum;
+          });
+          if (unattributed.some((v) => v)) {
+            table.appendChild(el('tr', null, el('td.lbl', { title: 'Revenue from months without a vehicle-type breakdown (old saves or non-delivery income)' }, 'Unattributed'),
+              unattributed.map(kindCell)));
+          }
         }
         table.appendChild(el('tr.total', null, el('td.lbl', { text: 'Net' }), cols.map((col) => {
           const n = (col.h.income || 0) - (col.h.expenses || 0);
