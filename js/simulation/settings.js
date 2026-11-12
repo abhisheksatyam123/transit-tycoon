@@ -149,6 +149,8 @@ export const DEFAULT_SETTINGS = {
   cargodist: 'off',
   /** timetable separation: vehicles on a complete timetable with shared orders depart at their evenly spaced slots. Off by default. */
   timetableSeparation: false,
+  /** timetable lateness (OpenTTD lateness counter): early vehicles wait longer, late ones shorter, cumulative over the round, seeded by the start date. Off by default. */
+  timetableLateness: false,
   /** freight distribution (OpenTTD linkgraph distribution_default for cargo other than pax/mail): 'manual' (default, classic) | 'asymmetric' (acceptance-weighted destinations, no return demand) */
   freightDistribution: 'manual',
   /** capacity-constrained routing (OpenTTD MCF, simplified) for the cargodist link graphs. Off by default. */

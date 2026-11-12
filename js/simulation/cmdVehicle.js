@@ -435,6 +435,7 @@ export function setTimetableStart(ctx, id, startTick, opts = {}) {
   if (opts.dryRun) return { ok: true, cost: 0 };
   if (startTick == null) delete v.ttStart;
   else v.ttStart = Math.round(Number(startTick));
+  delete v.ttStarted; // a (re)set start date seeds the lateness counter on the next first arrival
   return { ok: true, cost: 0 };
 }
 
@@ -462,8 +463,8 @@ export function resetLateness(ctx, id, opts = {}) {
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   const members = opts.applyToGroup ? orderGroupMembers(ctx.state, v) : [v];
   if (opts.dryRun) return { ok: true, cost: 0, count: members.length };
-  // delete is idempotent: members whose timetable hasn't started (no lateDays recorded) stay as-is.
-  members.forEach((w) => delete w.lateDays);
+  // delete is idempotent: members whose timetable hasn't started (no lateDays/lateTicks recorded) stay as-is.
+  members.forEach((w) => { delete w.lateDays; delete w.lateTicks; delete w.ttStarted; });
   return { ok: true, cost: 0, count: members.length };
 }
 

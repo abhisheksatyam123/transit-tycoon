@@ -71,3 +71,46 @@ export function departureHoldUntil(state, v, idx) {
   if (s != null && state.tick < s) until = until == null ? s : Math.max(until, s);
   return until;
 }
+
+/** Timetable lateness setting (OpenTTD lateness counter semantics; default off). */
+export function timetableLatenessOn(state) {
+  return !!getSetting(state, 'timetableLateness');
+}
+
+/**
+ * Lazy signed lateness in ticks (positive = late, negative = early). Enabling the setting on an old save
+ * seeds it once from the legacy rounded `lateDays` value (spec Q3). Absent = on time.
+ */
+export function lateTicksOf(v) {
+  if (v.lateTicks == null && v.lateDays != null) {
+    const t = Math.round(Number(v.lateDays) * TICKS_PER_DAY);
+    if (t) v.lateTicks = t;
+  }
+  return v.lateTicks || 0;
+}
+
+/**
+ * Book a completed leg into the vehicle's lateness counter (OpenTTD timetable_cmd.cpp:548-568): add the
+ * measured minus timetabled duration, reduce modulo one full round, then keep the legacy `lateDays` as the
+ * rounded UI value. Both fields stay lazy (deleted when zero).
+ */
+export function bookLateness(v, deltaTicks, orders) {
+  let x = lateTicksOf(v) + deltaTicks;
+  const T = roundTicks(orders);
+  if (T > 0) {
+    if (x > T) x %= T;
+    else if (x < -T) x = -((-x) % T);
+  }
+  if (x) v.lateTicks = x; else delete v.lateTicks;
+  const d = Math.round(x / TICKS_PER_DAY);
+  if (d) v.lateDays = d; else delete v.lateDays;
+}
+
+/**
+ * Ticks to hold at the current stop: timetabled wait reduced by the vehicle's lateness, floored at zero
+ * (OpenTTD vehicle.cpp:2458 `max(GetTimetabledWait() - lateness_counter, 0)`).
+ */
+export function latenessWaitTicks(v, order) {
+  const wait = ((order && order.waitDays) || 0) * TICKS_PER_DAY;
+  return Math.max(wait - lateTicksOf(v), 0);
+}
