@@ -51,6 +51,13 @@ export const DEFAULT_SETTINGS = {
   stationLengthLoadingPenalty: false,
   /** OpenTTD order.gradual_loading (def true in OpenTTD; TT default off = one-step loading): vehicles load in cycles of their load amount per part (gradualLoad.js). */
   gradualLoading: false,
+  /**
+   * OpenTTD refit of a loaded vehicle (vehicle_cmd.cpp:376-506: no "must be empty" check). Default off = TT's
+   * current rule: a vehicle must be unloaded before a depot refit. On: a loaded vehicle may be refitted in a
+   * depot; the same cargo is kept and truncated to the new capacity, another cargo is dropped, and the depot
+   * ORDER refit rule is unchanged.
+   */
+  partialRefit: false,
   /** OpenTTD difficulty.infinite_money (def false): companies can always pay; affordability and bankruptcy checks are skipped (settings.js infiniteMoney). */
   infiniteMoney: false,
   /** OpenTTD economy.cargo_aging_rate (percent, def 100): scales the transit days used for cargo payment (economy.cpp GetTransportedGoodsIncome). */
