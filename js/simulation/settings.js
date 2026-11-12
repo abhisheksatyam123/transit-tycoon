@@ -97,6 +97,8 @@ export const DEFAULT_SETTINGS = {
   largerTowns: 0,
   /** OpenTTD economy.town_min_distance (town_cmd.cpp:373): minimum Manhattan distance between generated towns. 0 = automatic spacing (towns.js). */
   townMinDistance: 0,
+  /** OpenTTD economy.town_layout (economy_settings.ini: town_layout): road grid used by generated towns. 'mixed' = each site gets its own layout (the classic generator). Only new maps; the generator reads state.mapgen.townLayout, this setting only remembers the New Game default. */
+  townLayout: 'mixed',
   /** OpenTTD economy.initial_city_size (town_cmd.cpp:2063, def 2): layout size multiplier for city towns at generation (normal towns 1-3, capped at 6). */
   initialCitySize: 2,
   /** OpenTTD economy.multiple_industry_per_town: allow more than one industry of the same type in/near a town. Off = one of each type per town. */
