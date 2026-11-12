@@ -40,8 +40,8 @@
   partial snow density, but their terrain stays grass (snow terrain starts at 7). Terrain snow and the climate line
   therefore differ by 2 levels by design (the climate density ramps up to full snow at line + 2). Each rule is
   self-consistent with OpenTTD; the mismatch is only visible on the map as a ramp, not a contradiction.
-- Temperate games also get terrain snow at snowLine + 2 (the climate code is arctic-only). This was already the case
-  before W5 (height >= 7 for every game); unchanged.
+- Terrain snow at snowLine + 2 applies to temperate games too (only the climate code is arctic-only). This was already
+  the case before W5 (height >= 7 for every game); unchanged.
 
 ## Skipped / design items (not done)
 - The mountain-style peak comment (`map.js` near `MOUNTAIN_PEAK`, "top level 7 = snow line") was left as is; it is the
@@ -51,5 +51,6 @@
 - Snow/desert coverage percentages, tree placer, heightmap import, non-square maps and water borders: out of scope.
 - DESIGN: whether the top setting value (High = 7) should mean "no snow terrain" (current), or the scale should be
   re-spread over 0..7 (for example 4/5/6 -> line + 2 = 6/7/8). Decision for the user.
-- DESIGN: whether temperate games should also honour the snow line for terrain (currently only sub-arctic has the line
-  for climate effects, and terrain snow applies to all games at snowLine + 2 = 7 by default).
+- Terrain snow is applied for every climate (`map.js` `finishTerrain`, `snowAt`). Only the climate effects (town
+  growth food, snow density, farm fields) are sub-arctic only. So temperate games also get terrain snow at
+  snowLine + 2 (7 by default). This is intended.

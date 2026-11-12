@@ -252,9 +252,9 @@ export const DEFAULT_SETTINGS = {
   freightTrainWagons: 0,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
   roadSide: 'right',
-  /** OpenTTD construction.max_bridge_length: longest player bridge in tiles, heads included (default 12 = trackRules MAX_BRIDGE_LENGTH). */
+  /** OpenTTD construction.max_bridge_length: TT counts tiles INCLUDING both heads (OpenTTD counts between heads, so TT 12 = OTTD 10). Default 12 = trackRules MAX_BRIDGE_LENGTH. */
   maxBridgeLength: 12,
-  /** OpenTTD construction.max_tunnel_length: longest player tunnel in tiles, portals included (default 16 = MAX_TUNNEL_LENGTH). */
+  /** OpenTTD construction.max_tunnel_length: TT counts tiles INCLUDING both portals (OpenTTD counts between portals, so TT 16 = OTTD 14). Default 16 = MAX_TUNNEL_LENGTH. */
   maxTunnelLength: 16,
   /** OpenTTD station.distant_join_stations (game_settings.ini, def true): Ctrl+click may join a station that is not next to the new one. */
   distantJoinStations: true,
