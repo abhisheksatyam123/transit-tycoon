@@ -897,6 +897,7 @@ export function normaliseOrders(state, v, orders, kindOf) {
   const out = [];
   for (const o of orders) {
     if (o && o.cond != null) { // conditional order (condOrders.js): no station; target checked below
+      // G7/G8: only the condition itself is kept - stray timetable times / speed limits are dropped here.
       const r = normaliseCond(o.cond);
       if (!r.ok) return r;
       out.push(r.entry);
@@ -937,7 +938,8 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (unload !== 'normal') entry.unload = unload;
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
-    if (o.maxSpeed > 0) entry.maxSpeed = Math.round(o.maxSpeed);
+    // G8: aircraft speed limits are refused (OpenTTD): do not keep one through normalisation
+    if (o.maxSpeed > 0 && v.kind !== 'aircraft') entry.maxSpeed = Math.round(o.maxSpeed);
     if (stop !== undefined) entry.stop = stop;
     const stopLocation = o.stopLocation !== undefined ? o.stopLocation : o.stopAt;
     if (stopLocation !== undefined) {

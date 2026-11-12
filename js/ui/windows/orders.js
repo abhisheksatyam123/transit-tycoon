@@ -291,11 +291,11 @@ export function openOrders(app, id) {
         const st = app.game.state;
         const tc = timetableComplete(v);
         const roundDays = Math.round(roundTicks(v.orders) / TICKS_PER_DAY);
-        setText(totalLabel, roundDays > 0 ? `Total time: ${roundDays} day${roundDays === 1 ? '' : 's'}${tc ? '' : ' (incomplete: every order needs a travel time)'}` : '');
+        setText(totalLabel, roundDays > 0 ? `Total time: ${roundDays} day${roundDays === 1 ? '' : 's'}${tc ? '' : ' (incomplete: every non-conditional order needs a travel time)'}` : '');
         setText(startLabel, v.ttStart != null ? (v.ttStart > st.tick ? `starts in ${Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)} days` : 'started') : 'no start date');
         if (document.activeElement !== startIn) startIn.value = v.ttStart != null && v.ttStart > st.tick ? String(Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)) : '';
         spreadBtn.disabled = !tc;
-        spreadBtn.title = tc ? spreadBtn.title : 'Needs a complete timetable: every order needs a travel time';
+        spreadBtn.title = tc ? spreadBtn.title : 'Needs a complete timetable: every non-conditional order needs a travel time';
         const late = v.lateDays;
         setText(lateLine, !v.orders.some(hasTimetable) ? '' : late == null ? 'This vehicle is on time' : late > 0 ? `This vehicle is running ${late} day${late === 1 ? '' : 's'} late` : `This vehicle is running ${-late} day${late === -1 ? '' : 's'} early`);
         const estOn = timetableEstimatesOn(st);
@@ -317,12 +317,13 @@ export function openOrders(app, id) {
               el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: `Travel days: scheduled days from the previous stop (blank = auto${estOn && it.o.estTravelDays > 0 ? `, estimated ~${it.o.estTravelDays} d` : ''})`, placeholder: estOn && it.o.estTravelDays > 0 ? `~${it.o.estTravelDays}` : 'auto', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { travelDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),
-              el('label.small', { text: ' speed ' }, el('input.input', { type: 'number', min: '1', step: '1', title: 'Speed limit: max speed while travelling to this order (blank = no limit)', 'aria-label': 'Speed limit', placeholder: 'none', style: 'width:5em',
+              // G8: aircraft have no order speed limit (OpenTTD hides the control), so omit it entirely
+              ...(v.kind === 'aircraft' ? [] : [el('label.small', { text: ' speed ' }, el('input.input', { type: 'number', min: '1', step: '1', title: 'Speed limit: max speed while travelling to this order (blank = no limit)', 'aria-label': 'Speed limit', placeholder: 'none', style: 'width:5em',
                 onchange: (e) => setOrderSpeed(it.i, e.target.value) }),
-                el('span.speed-unit', { text: ' ' + speedUnitName() })),
+                el('span.speed-unit', { text: ' ' + speedUnitName() }))]),
               el('span.btn-row', null,
                 el('button.btn.sm', { type: 'button', text: 'Clear time', title: 'Clear wait and travel times of this order (Ctrl+click: all orders)', onclick: (e) => clearTimes(e, it.i) }),
-                el('button.btn.sm', { type: 'button', text: 'Clear speed', title: 'Clear the speed limit of this order (Ctrl+click: all orders)', onclick: (e) => clearSpeed(e, it.i) }))),
+                ...(v.kind === 'aircraft' ? [] : [el('button.btn.sm', { type: 'button', text: 'Clear speed', title: 'Clear the speed limit of this order (Ctrl+click: all orders)', onclick: (e) => clearSpeed(e, it.i) })]))),
             el('span.row-actions', null,
               el('button.btn.sm', { type: 'button', text: 'Skip', title: 'Go to this order now', onclick: () => app.exec(app.game.skipToOrder(id, it.i), { quiet: true, sound: 'click' }) }),
               el('button.btn.sm', { type: 'button', text: '▲', title: 'Move up', onclick: () => editList((os) => (it.i > 0 ? moveOrderTo(os, it.i, it.i - 1) : os)) }),
