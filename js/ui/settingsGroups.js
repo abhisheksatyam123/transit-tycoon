@@ -37,7 +37,7 @@ export const SETTING_META = [
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'partialRefit', group: 'vehicles', label: 'Refit loaded vehicles', type: 'check',
-    help: 'OpenTTD refit does not require an empty vehicle: a loaded vehicle may be refitted in a depot. The same cargo is kept and cut to the new capacity; refitting to another cargo drops the load (nothing is paid for it). Off = unload the vehicle before refitting.' },
+    help: 'OpenTTD refit does not require an empty vehicle: a loaded vehicle may be refitted in a depot, by the refit command or a refit depot order. The same cargo is kept and cut to the new capacity; refitting to another cargo drops the load (nothing is paid for it). Off = unload the vehicle before refitting.' },
   { key: 'roadvehQueue', group: 'vehicles', label: 'Road vehicles queue for a bay', type: 'check',
     help: 'OpenTTD pf.roadveh_queue: a road vehicle waits for a free bay at a road stop and enters when one frees. Off = a vehicle that finds no free bay does not enter the stop; it keeps driving.' },
   { key: 'infiniteMoney', group: 'difficulty', label: 'Infinite money', type: 'check',

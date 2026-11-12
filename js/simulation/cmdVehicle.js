@@ -633,7 +633,7 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot to refit' };
   // partialRefit (default off): OpenTTD allows refitting a loaded vehicle in a depot. The depot ORDER path
-  // (movement.js) keeps its own rule: it does not pass opts.partial.
+  // (movement.js depotOrderVisit) reads the same setting.
   const partial = getSetting(state, 'partialRefit') === true;
   return refitCore(ctx, v, cargoId, partial ? { ...opts, partial } : opts);
 }

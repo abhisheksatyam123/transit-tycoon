@@ -7,6 +7,7 @@ import { loadingTick, isFullAny, isFull, normaliseOrders, orderFlagText } from '
 import { dayNumber } from '../js/simulation/date.js';
 import { serializeState, parseState } from '../js/simulation/save.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 /** Coal line; a train with 2 hoppers starting in the depot at (20,25), depot id from helpers. */
 function trainSetup(orders) {
@@ -100,14 +101,31 @@ describe('refit order at the depot', () => {
     expect(depot.id).toBeDefined();
   });
 
-  test('a loaded vehicle is not refitted at the depot', () => {
+  test('a loaded vehicle is not refitted at the depot (partialRefit off, the default)', () => {
     const { g, L, v, depot } = trainSetup((L, d) => [{ depotId: d.id, refit: 'IORE' }, { stationId: L.b.id, full: false }]);
     v.load.amount = 10; // still carrying coal
     v.load.sourceX = L.a.x; v.load.sourceY = L.a.y; v.load.sinceTick = 0; v.load.fromStationId = L.a.id;
+    const before = g.state.company.money;
     expect(g.startVehicle(v.id).ok).toBe(true);
     expect(runUntil(g, () => v.orderIndex === 1)).toBe(true);
     expect(v.cargoId).toBe('COAL');
+    expect(v.load.amount).toBe(10);
+    expect(g.state.company.money).toBe(before); // no refit cost charged
     expect(depot.id).toBeDefined();
+  });
+
+  test('partialRefit on: a loaded vehicle is refitted at the depot order, the other cargo drops the load (cost charged)', () => {
+    const { g, L, v } = trainSetup((L, d) => [{ depotId: d.id, refit: 'IORE' }, { stationId: L.b.id, full: false }]);
+    setSetting(g.state, 'partialRefit', true);
+    v.load.amount = 10;
+    v.load.sourceX = L.a.x; v.load.sourceY = L.a.y; v.load.sinceTick = 0; v.load.fromStationId = L.a.id;
+    const before = g.state.company.money;
+    expect(g.startVehicle(v.id).ok).toBe(true);
+    expect(runUntil(g, () => v.orderIndex === 1)).toBe(true);
+    expect(v.cargoId).toBe('IORE');
+    expect(v.capacity).toBe(2 * 30);
+    expect(v.load.amount).toBe(0);
+    expect(g.state.company.money).toBeLessThan(before);
   });
 });
 
