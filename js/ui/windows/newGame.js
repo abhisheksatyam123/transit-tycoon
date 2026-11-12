@@ -6,7 +6,7 @@ import { loadSlotData, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
 import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
-import { greyscaleFromPixels, heightsForMap, HEIGHTMAP_ROTATIONS } from '../../simulation/heightmap.js';
+import { greyscaleFromPixels, heightsForMap, HEIGHTMAP_LEVELS, HEIGHTMAP_ROTATIONS } from '../../simulation/heightmap.js';
 import { loadNewGameSettings, newGameMapgenSelection, saveNewGameMapgen, saveNewGameSetting } from '../newGamePrefs.js';
 import { DEFAULT_SETTINGS } from '../../simulation/settings.js';
 import { COMPANY_COLOURS, DEFAULT_PLAYER_COLOUR } from '../../simulation/companyColour.js';
@@ -153,7 +153,15 @@ export function openNewGame(app) {
       let hm = null;
       const hmFile = /** @type {HTMLInputElement} */ (el('input', { type: 'file', accept: 'image/png,image/jpeg', 'aria-label': 'Heightmap image' }));
       const hmInfo = el('span.muted', { text: 'none' });
-      const hmClear = el('button.btn.sm', { type: 'button', text: 'Clear', onclick: () => { hm = null; hmFile.value = ''; hmInfo.textContent = 'none'; } });
+      // U6: import height scale 1..7, default 7 (= the historic full range). Dialog-only: it is applied while
+      // precomputing opts.heightmap, so it never enters state.mapgen or the save.
+      const hmHeight = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Heightmap height', disabled: true, title: 'Highest land level in the imported map' },
+        ...Array.from({ length: HEIGHTMAP_LEVELS }, (_, i) => el('option', {
+          value: String(i + 1),
+          text: i + 1 === HEIGHTMAP_LEVELS ? `${i + 1} (full range)` : String(i + 1),
+        }))));
+      hmHeight.value = String(HEIGHTMAP_LEVELS);
+      const hmClear = el('button.btn.sm', { type: 'button', text: 'Clear', onclick: () => { hm = null; hmFile.value = ''; hmInfo.textContent = 'none'; hmHeight.disabled = true; } });
       hmFile.addEventListener('change', async () => {
         const f = hmFile.files && hmFile.files[0];
         if (!f) return;
@@ -169,14 +177,16 @@ export function openNewGame(app) {
           bmp.close && bmp.close();
           hm = { grey: greyscaleFromPixels(px, w, h, 4), w, h, name: f.name };
           hmInfo.textContent = `${f.name} (${w}×${h})`;
+          hmHeight.disabled = false;
         } catch (err) {
           if (!logger.warn('newGame', 'Heightmap unreadable', err)) console.warn('Heightmap unreadable', err);
           hm = null;
           hmInfo.textContent = 'could not read this image';
+          hmHeight.disabled = true;
         }
       });
       const hmField = el('div.field', null, el('span.field-label', { text: 'Heightmap' }),
-        el('span.inline', null, hmFile, hmClear, mgHeightmapRot), hmInfo);
+        el('span.inline', null, hmFile, hmClear, hmHeight, mgHeightmapRot), hmInfo);
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
@@ -240,7 +250,7 @@ export function openNewGame(app) {
         const mg = mapgenOptions(mgChoice);
         if (Object.keys(mg).length) opts.mapgen = mg;
         // heightmap: sized to the chosen map (only when an image was picked, so default games are unchanged)
-        if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, s);
+        if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, s, 'none', Number(hmHeight.value));
         win.close();
         app.newGame(opts);
       });
