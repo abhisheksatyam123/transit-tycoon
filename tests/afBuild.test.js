@@ -86,7 +86,8 @@ describe('vehicle list sorts: number and capacity', () => {
     expect(sortVehicles(V, {}).map((v) => v.id)).toEqual([10, 20, 30]);
   });
 
-  test('number sorts by vehicle id ascending (and descending)', () => {
+  // Fixture ids (30,10,20) and unit numbers (3,1,2) are in different orders, so this checks unit number, not id. See f3NumberSort.test.js.
+  test('number sorts by unit number ascending (and descending)', () => {
     expect(sortVehicles(V, { sort: 'number', dir: 1 }).map((v) => v.id)).toEqual([10, 20, 30]);
     expect(sortVehicles(V, { sort: 'number', dir: -1 }).map((v) => v.id)).toEqual([30, 20, 10]);
   });
