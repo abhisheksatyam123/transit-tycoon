@@ -27,7 +27,7 @@ import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
-import { departureHoldUntil, timetableSeparationOn } from './ttSchedule.js';
+import { departureHoldUntil, timetableSeparationOn, timetableLatenessOn, lateTicksOf, bookLateness, latenessWaitTicks } from './ttSchedule.js';
 import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { updatePlatFit, loadingTicksFor } from './platformLength.js';
@@ -739,15 +739,32 @@ export function arriveAtStation(ctx, v, st, intermediate = false) {
 function recordArrival(ctx, v, order) {
   const { state } = ctx;
   if (!order) return;
-  if (order.waitDays > 0 || v.autofill || (v.orderGroup != null && timetableSeparationOn(state))) v.arriveTick = state.tick;
+  const latenessOn = timetableLatenessOn(state);
+  if (latenessOn || order.waitDays > 0 || v.autofill || (v.orderGroup != null && timetableSeparationOn(state))) v.arriveTick = state.tick;
   else delete v.arriveTick;
+  // Timetable start date (OpenTTD timetable_cmd.cpp:485-501): the first arrival at the first order seeds the
+  // lateness counter from the start tick and consumes it. The first round does not measure (:516).
+  if (latenessOn && !v.ttStarted && v.ttStart != null && v.orderIndex % v.orders.length === 0) {
+    const seeded = Math.max(0, state.tick - v.ttStart);
+    if (seeded) v.lateTicks = seeded; else delete v.lateTicks;
+    delete v.ttStart;
+    v.ttStarted = true;
+    const d = Math.round(seeded / TICKS_PER_DAY);
+    if (d) v.lateDays = d; else delete v.lateDays;
+    return;
+  }
   if (v.departTick == null || !(order.travelDays > 0 || v.autofill)) return;
   const idx = v.orderIndex % v.orders.length;
-  const actual = Math.round((state.tick - v.departTick) / TICKS_PER_DAY);
+  const actualTicks = state.tick - v.departTick;
+  const actual = Math.round(actualTicks / TICKS_PER_DAY);
   let scheduled = order.travelDays || 0;
   if (v.autofill) {
     scheduled = Math.max(1, actual);
     setOrderField(state, v, idx, { travelDays: scheduled });
+  }
+  if (latenessOn) {
+    bookLateness(v, actualTicks - scheduled * TICKS_PER_DAY, v.orders);
+    return;
   }
   const late = actual - scheduled;
   if (late) v.lateDays = late;
@@ -794,11 +811,15 @@ export function loadingTick(ctx, v) {
     v.loadingTicks = retry;
     return false;
   }
-  // timetable: hold until the minimum wait since arrival has passed
-  if (order && order.waitDays > 0 && v.arriveTick != null
-    && state.tick - v.arriveTick < order.waitDays * TICKS_PER_DAY) {
-    v.loadingTicks = retry;
-    return false;
+  // timetable: hold until the timetabled wait since arrival has passed (lateness reduces it: OpenTTD
+  // vehicle.cpp:2458 max(timetabled wait - lateness, 0); the off path is the plain minimum wait)
+  if (order && v.arriveTick != null) {
+    const target = timetableLatenessOn(state) ? latenessWaitTicks(v, order)
+      : (order.waitDays > 0 ? order.waitDays * TICKS_PER_DAY : 0);
+    if (target > 0 && state.tick - v.arriveTick < target) {
+      v.loadingTicks = retry;
+      return false;
+    }
   }
   // timetable start date and separation: hold until the departure slot (lazy; absent = no hold)
   if (order && !v.intermediate && (v.ttStart != null || v.orderGroup != null)) {
@@ -831,6 +852,12 @@ function recordDeparture(ctx, v, order) {
   const { state } = ctx;
   const n = v.orders.length;
   const idx = n ? v.orderIndex % n : 0;
+  // Timetable lateness: book the completed station wait. Guard (OpenTTD timetable_cmd.cpp:554): an
+  // untimetabled wait only counts while the vehicle is already late.
+  if (timetableLatenessOn(state) && order && v.arriveTick != null
+    && (order.waitDays > 0 || lateTicksOf(v) > 0)) {
+    bookLateness(v, (state.tick - v.arriveTick) - (order.waitDays || 0) * TICKS_PER_DAY, v.orders);
+  }
   if (v.autofill && order && v.arriveTick != null) {
     const waited = Math.round((state.tick - v.arriveTick) / TICKS_PER_DAY);
     setOrderField(state, v, idx, { waitDays: waited });
