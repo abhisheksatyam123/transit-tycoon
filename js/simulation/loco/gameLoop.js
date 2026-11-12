@@ -55,6 +55,7 @@ export function tickDate(game) {
 
   const { newMonth, newYear } = advanceDay(s.date);
   game.events.emit('day', { date: s.date });
+  CargoDist.updateDaily(s); // linkgraphIntervalDays setting (0 = off, month schedule runs below)
   if (newMonth) {
     // end of every month
     s.monthsInChallenge = (s.monthsInChallenge || 0) + 1;

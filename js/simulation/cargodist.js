@@ -20,6 +20,7 @@
  */
 import { getSetting } from './settings.js';
 import { manhattan } from './state.js';
+import { dayNumber } from './date.js';
 import { CARGOS } from '../config/cargos.js';
 import { catchmentTiles, tileAcceptance } from './stations.js';
 import { ACCEPT_THRESHOLD } from './constants.js';
@@ -49,6 +50,21 @@ export function freightMode(state) {
 /** Capacity-constrained routing (OpenTTD MCF passes) on (setting cargodistMcf). */
 export function cdMcfOn(state) {
   return getSetting(state, 'cargodistMcf') === true;
+}
+
+/** OpenTTD-style batched capacity routing on (setting cargodistCapacityRouting, off by default). */
+export function cdCapacityRoutingOn(state) {
+  return getSetting(state, 'cargodistCapacityRouting') === true;
+}
+
+/** Days between link graph job starts (setting linkgraphIntervalDays; 0 = month schedule, the default). */
+export function linkgraphIntervalDays(state) {
+  return Math.max(0, Math.round(getSetting(state, 'linkgraphIntervalDays') || 0));
+}
+
+/** Minimum days a job runs before it is applied (setting linkgraphTimeDays; 0 = apply at once). */
+export function linkgraphTimeDays(state) {
+  return Math.max(0, Math.round(getSetting(state, 'linkgraphTimeDays') || 0));
 }
 
 /**
@@ -328,6 +344,130 @@ function mcfFlows(pairs, adj, capMap, pos, trees, augment = MCF_AUGMENT, saturat
   return flows;
 }
 
+/** Relaxation budget of the batched capacity solver; when exhausted the job is marked approximate (bounded tick). */
+const CAP_ROUTING_BUDGET = 60000;
+const CAP_ROUTING_ROUNDS = 8;
+
+/**
+ * Batched, deterministic approximation of OpenTTD's first MCF pass (setting cargodistCapacityRouting).
+ * Demand is unchanged (demand parity is a separate decision). Per round, sources are walked in id order and one
+ * residual Dijkstra per source builds a path tree over edges with free capacity; each unsatisfied destination is
+ * pushed `demand/accuracy` (at least 1) along it, capped by the free capacity of every leg (cap*saturation/100,
+ * applied at push time). Rounds stop at no progress. Leftover demand takes the unconstrained shortest path
+ * (the cheap second-pass fallback; it may overfill an edge). No cycle elimination, so it is closer to OpenTTD,
+ * not identical.
+ * @returns {{flows:Map<string, Map<number,number>>, approx:boolean}} 's>d' -> (first hop -> units)
+ */
+function capacityFlows(pairs, capMap, pos, trees, accuracy, saturation) {
+  // adjacency built and sorted here, so the result does not depend on edge insertion order
+  const succ = new Map();
+  for (const k of [...capMap.keys()].sort()) {
+    const [a, b] = k.split('>').map(Number);
+    if (!succ.has(a)) succ.set(a, []);
+    succ.get(a).push(b);
+  }
+  for (const list of succ.values()) list.sort((x, y) => x - y);
+  const limit = new Map();
+  for (const [k, v] of capMap) limit.set(k, Math.max(1, Math.floor(v * saturation / 100)));
+  const load = new Map();
+  const flows = new Map();
+  const add = (k, hop, amt) => {
+    let m = flows.get(k);
+    if (!m) flows.set(k, m = new Map());
+    m.set(hop, (m.get(hop) || 0) + amt);
+  };
+  const bySource = new Map();
+  for (const p of pairs) {
+    let list = bySource.get(p.s);
+    if (!list) bySource.set(p.s, list = []);
+    list.push({ d: p.d, amt: p.amt, left: p.amt });
+  }
+  for (const list of bySource.values()) list.sort((a, b) => a.d - b.d);
+  const sources = [...bySource.keys()].sort((a, b) => a - b);
+  const lastTrees = new Map(); // last residual tree per source: the fallback prefers it (stays within capacity)
+  const acc = Math.max(1, Math.round(accuracy));
+  const nodeCount = new Set([...limit.keys()].flatMap((k) => k.split('>').map(Number))).size;
+  let rounds = nodeCount > 128 ? 1 : CAP_ROUTING_ROUNDS;
+  let approx = nodeCount > 128; // large graph: one tree per source, keep the tick bounded
+  let budget = CAP_ROUTING_BUDGET;
+  for (let r = 0; r < rounds; r++) {
+    let progressed = false;
+    for (const s of sources) {
+      const list = bySource.get(s);
+      if (!list.some((p) => p.left > 0)) continue;
+      const dist = new Map([[s, 0]]), prev = new Map(), first = new Map();
+      const done = new Set(), heap = [[0, s]];
+      while (heap.length) {
+        if (budget <= 0) { approx = true; break; }
+        const [best, u] = heapPop(heap);
+        budget--;
+        if (done.has(u)) continue;
+        done.add(u);
+        for (const v of succ.get(u) || []) {
+          const k = edgeKey(u, v);
+          if (!((limit.get(k) || 0) - (load.get(k) || 0) > 0)) continue;
+          const pu = pos.get(u), pv = pos.get(v);
+          const d = best + (pu && pv ? manhattan(pu[0], pu[1], pv[0], pv[1]) : 1);
+          if (!dist.has(v) || d < dist.get(v)) {
+            dist.set(v, d);
+            prev.set(v, u);
+            first.set(v, u === s ? v : first.get(u));
+            heapPush(heap, [d, v]);
+          }
+        }
+      }
+      if (budget <= 0) break;
+      lastTrees.set(s, { dist, first });
+      for (const p of list) {
+        if (!(p.left > 0) || !dist.has(p.d)) continue;
+        const path = [];
+        let ok = true;
+        for (let v = p.d; v !== s; v = prev.get(v)) {
+          if (v === undefined) { ok = false; break; }
+          path.push(edgeKey(prev.get(v), v));
+        }
+        if (!ok) continue;
+        let free = Infinity;
+        for (const k of path) free = Math.min(free, (limit.get(k) || 0) - (load.get(k) || 0));
+        if (!(free > 0)) continue;
+        const step = Math.min(free, Math.max(1, Math.round(p.amt / acc)), p.left);
+        if (!(step > 0)) continue;
+        for (const k of path) load.set(k, (load.get(k) || 0) + step);
+        add(s + '>' + p.d, first.get(p.d), step);
+        p.left -= step;
+        progressed = true;
+      }
+    }
+    if (!progressed || budget <= 0) break;
+  }
+  // leftover demand: plain shortest path (markets over capacity as a last resort, like OpenTTD's second pass)
+  for (const s of sources) {
+    for (const p of bySource.get(s)) {
+      if (!(p.left > 0)) continue;
+      const lt = lastTrees.get(s);
+      const tree = trees.get(s);
+      const hop = (lt && lt.dist.has(p.d) ? lt.first.get(p.d) : undefined) ?? (tree && tree.first.get(p.d));
+      if (hop !== undefined) add(s + '>' + p.d, hop, p.left);
+    }
+  }
+  return { flows, approx };
+}
+
+/** Turn a flow map ('s>d' -> first hop -> units) into the job's nhs shares and single nh next hop. */
+function applyFlows(res, flows) {
+  for (const [k, m] of flows) {
+    const [s, d] = k.split('>').map(Number);
+    const tot = [...m.values()].reduce((n, x) => n + x, 0);
+    if (!(tot > 0)) continue;
+    const list = [...m.entries()].map(([h, x]) => [h, x / tot]).sort((a, b) => a[0] - b[0]);
+    (res.nhs[s] = res.nhs[s] || {})[d] = list;
+    // the single next hop used for unloading decisions: the largest share (lowest id on ties)
+    let best = list[0];
+    for (const x of list) if (x[1] > best[1]) best = x;
+    res.nh[s][d] = best[0];
+  }
+}
+
 /** Parcels whose destination is no longer reachable become unrouted again (any vehicle may take them). */
 function clearStranded(state, cargoId, g) {
   for (const st of state.stations) {
@@ -346,14 +486,25 @@ function clearStranded(state, cargoId, g) {
  * Starts the job: edge clock, supply counters and the routing result are computed here and returned; the caller
  * applies them (now, or after the recalc time: applyJob). @returns {{nodes:number[], dem:object, nh:object, nhs:object}}
  */
-function computeJob(state, cargoId, mode) {
+function computeJob(state, cargoId, mode, opts = {}) {
   const g = ensureGraph(state, cargoId);
+  const day = opts.day; // days-based schedule (setting linkgraphIntervalDays > 0); undefined = month schedule
   g.month++;
+  // day mode: edge expiry counts days since last use (OpenTTD 32 + manhattan/8 days); month mode is unchanged
+  const stPos = day === undefined ? null : new Map(state.stations.map((st) => [st.id, [st.x, st.y]]));
   for (const k of Object.keys(g.edges)) {
     const e = g.edges[k];
-    if (e.used > 0) e.cap = e.used;
+    if (e.used > 0) {
+      e.cap = e.used;
+      if (day !== undefined) e.lastDay = day;
+    }
     e.used = 0;
-    if (g.month - e.last > EDGE_EXPIRE_MONTHS) delete g.edges[k];
+    if (day !== undefined) {
+      if (e.lastDay === undefined) e.lastDay = day;
+      const pa = stPos.get(e.a), pb = stPos.get(e.b);
+      const expire = 32 + (pa && pb ? Math.floor(manhattan(pa[0], pa[1], pb[0], pb[1]) / 8) : 0);
+      if (day - e.lastDay > expire) delete g.edges[k];
+    } else if (g.month - e.last > EDGE_EXPIRE_MONTHS) delete g.edges[k];
   }
   const adj = new Map(), pos = new Map(), nodeSet = new Set(), capMap = new Map();
   for (const e of Object.values(g.edges)) {
@@ -420,19 +571,13 @@ function computeJob(state, cargoId, mode) {
     for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
   }
   // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
-  if (cdMcfOn(state)) {
-    const flows = mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state));
-    for (const [k, m] of flows) {
-      const [s, d] = k.split('>').map(Number);
-      const tot = [...m.values()].reduce((n, x) => n + x, 0);
-      if (!(tot > 0)) continue;
-      const list = [...m.entries()].map(([h, x]) => [h, x / tot]).sort((a, b) => a[0] - b[0]);
-      (res.nhs[s] = res.nhs[s] || {})[d] = list;
-      // the single next hop used for unloading decisions: the largest share (lowest id on ties)
-      let best = list[0];
-      for (const x of list) if (x[1] > best[1]) best = x;
-      res.nh[s][d] = best[0];
-    }
+  if (cdCapacityRoutingOn(state)) {
+    // OpenTTD-style batched capacity routing (setting cargodistCapacityRouting): demand is unchanged
+    const { flows, approx } = capacityFlows(pairs, capMap, pos, trees, getSetting(state, 'linkgraphAccuracy'), mcfSaturation(state));
+    if (approx) res.approx = true;
+    applyFlows(res, flows);
+  } else if (cdMcfOn(state)) {
+    applyFlows(res, mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state)));
   }
   for (const s of Object.keys(res.dem)) {
     const row = res.dem[s];
@@ -480,6 +625,7 @@ function acceptanceOf(state, cargoId, nodeSet) {
  * Defaults (1 and 0) rebuild every month, as before. The pending job is lazy (g.pending = { res, due }) and saved with the state (plain JSON; tests/cargodistJobSave.test.js).
  */
 export function updateMonthly(state) {
+  if (linkgraphIntervalDays(state) > 0) return; // days-based schedule (updateDaily) takes over
   const now = state.date.year * 12 + state.date.month;
   const interval = Math.max(1, Math.round(getSetting(state, 'linkgraphRecalcInterval')));
   const delay = Math.max(0, Math.round(getSetting(state, 'linkgraphRecalcTime')));
@@ -495,6 +641,50 @@ export function updateMonthly(state) {
       else g.pending = { res, due: now + delay };
     }
   }
+}
+
+/**
+ * Days-based link graph schedule (setting linkgraphIntervalDays > 0; 0 = off and nothing here runs). OpenTTD
+ * linkgraphschedule.cpp: a job starts when day % interval == 0, and is joined (applied) on the mid-interval day
+ * (day % interval == interval/2) once its minimum run time (linkgraphTimeDays) has elapsed. With the OpenTTD
+ * defaults (4 and 16) a job spawned on day 0 is applied on day 18, not 16. One cargo graph starts per spawn,
+ * round-robin over the active cargos (the graph that ran longest ago, ties in cdCargoList order), so a given
+ * cargo is refreshed about every N*interval days. Month-schedule fields (g.month, pending.due) are not used here;
+ * the days fields (g.day, pending.dueDay, edge.lastDay) are only created in this mode.
+ */
+export function updateDaily(state) {
+  const intervalDays = linkgraphIntervalDays(state);
+  if (!(intervalDays > 0)) return; // default: the month schedule in updateMonthly is authoritative
+  const interval = Math.max(1, intervalDays);
+  const delay = linkgraphTimeDays(state);
+  const now = dayNumber(state.date);
+  const cargos = cdCargoList(state);
+  const graphs = cargos.map((c) => ensureGraph(state, c));
+  // join elapsed jobs on the mid-interval day (OpenTTD linkgraphschedule.cpp SpawnNext/join)
+  if (now % interval === Math.floor(interval / 2)) {
+    for (let i = 0; i < cargos.length; i++) {
+      const g = graphs[i];
+      if (g.pending && g.pending.dueDay <= now) {
+        applyJob(state, cargos[i], g.pending.res);
+        delete g.pending;
+      }
+    }
+  }
+  if (now % interval !== 0) return;
+  // one component per spawn: the eligible cargo whose graph last ran longest ago (round-robin, deterministic)
+  let pick = -1, pickDay = Infinity;
+  for (let i = 0; i < cargos.length; i++) {
+    const g = graphs[i];
+    if (g.pending) continue;
+    const last = g.day === undefined ? -Infinity : g.day;
+    if (last < pickDay) { pickDay = last; pick = i; }
+  }
+  if (pick < 0) return;
+  const c = cargos[pick], g = graphs[pick];
+  const res = computeJob(state, c, FREIGHT_CARGOS.includes(c) ? 'asymmetric' : cdMode(state, c), { day: now });
+  g.day = now;
+  if (delay === 0) applyJob(state, c, res);
+  else g.pending = { res, dueDay: now + delay };
 }
 
 /**
