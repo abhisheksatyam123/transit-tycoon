@@ -25,6 +25,17 @@ import { CARGOS } from '../config/cargos.js';
 import { catchmentTiles, tileAcceptance } from './stations.js';
 import { ACCEPT_THRESHOLD } from './constants.js';
 
+/**
+ * OpenTTD DistanceMaxPlusManhattan + 1 between two station positions (dx + dy + max(dx, dy) + 1), the edge
+ * metric of OpenTTD's MCF solver. Used only by the opt-in capacity routing paths (settings cargodistMcf /
+ * cargodistCapacityRouting); with both off the routing tree keeps plain manhattan, so default behaviour is unchanged.
+ * @param {[number,number]} a @param {[number,number]} b
+ */
+export function ottdDistance(a, b) {
+  const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]);
+  return dx + dy + Math.max(dx, dy) + 1;
+}
+
 /** Passenger / mail cargos (cargodist setting, OpenTTD symmetric/asymmetric demand). */
 export const CD_CARGOS = ['PASS', 'MAIL'];
 /** Freight cargos (setting freightDistribution = asymmetric): OpenTTD asymmetric demand. */
@@ -266,10 +277,11 @@ function heapPop(h) {
 
 /**
  * Dijkstra from one source over the directed edges (heap frontier, O(E log V)).
- * Distances are manhattan distances between station positions (1 when a position is unknown).
+ * Distances are manhattan distances between station positions by default (1 when a position is unknown);
+ * `metric` overrides the edge length (opt-in capacity routing passes ottdDistance).
  * @returns {{dist:Map<number,number>, first:Map<number,number>, prev:Map<number,number>}}
  */
-function shortest(src, adj, pos) {
+function shortest(src, adj, pos, metric = null) {
   const dist = new Map([[src, 0]]), first = new Map(), prev = new Map();
   const done = new Set();
   const heap = [[0, src]];
@@ -280,7 +292,7 @@ function shortest(src, adj, pos) {
     const pu = pos.get(u);
     for (const v of adj.get(u) || []) {
       const pv = pos.get(v);
-      const d = best + (pu && pv ? manhattan(pu[0], pu[1], pv[0], pv[1]) : 1);
+      const d = best + (pu && pv ? (metric ? metric(pu, pv) : manhattan(pu[0], pu[1], pv[0], pv[1])) : 1);
       if (!dist.has(v) || d < dist.get(v)) {
         dist.set(v, d);
         prev.set(v, u);
@@ -305,7 +317,7 @@ const MCF_AUGMENT = 8;
  * @param {Map<number,object>} trees shortest-path trees (second pass)
  * @returns {Map<string, Map<number,number>>} 's>d' -> (first hop -> units)
  */
-function mcfFlows(pairs, adj, capMap, pos, trees, augment = MCF_AUGMENT, saturation = 100) {
+function mcfFlows(pairs, adj, capMap, pos, trees, augment = MCF_AUGMENT, saturation = 100, metric = null) {
   const res = new Map();
   for (const [k, v] of capMap) res.set(k, saturation >= 100 ? v : Math.floor(v * saturation / 100));
   const flows = new Map();
@@ -323,7 +335,7 @@ function mcfFlows(pairs, adj, capMap, pos, trees, augment = MCF_AUGMENT, saturat
         const ok = vs.filter((v) => (res.get(edgeKey(u, v)) || 0) > 0);
         if (ok.length) adjR.set(u, ok);
       }
-      const t = shortest(p.s, adjR, pos);
+      const t = shortest(p.s, adjR, pos, metric);
       if (!t.dist.has(p.d)) break;
       const path = [];
       for (let v = p.d; v !== p.s; v = t.prev.get(v)) path.push(edgeKey(t.prev.get(v), v));
@@ -358,7 +370,7 @@ const CAP_ROUTING_ROUNDS = 8;
  * not identical.
  * @returns {{flows:Map<string, Map<number,number>>, approx:boolean}} 's>d' -> (first hop -> units)
  */
-function capacityFlows(pairs, capMap, pos, trees, accuracy, saturation) {
+function capacityFlows(pairs, capMap, pos, trees, accuracy, saturation, metric = null) {
   // adjacency built and sorted here, so the result does not depend on edge insertion order
   const succ = new Map();
   for (const k of [...capMap.keys()].sort()) {
@@ -407,7 +419,7 @@ function capacityFlows(pairs, capMap, pos, trees, accuracy, saturation) {
           const k = edgeKey(u, v);
           if (!((limit.get(k) || 0) - (load.get(k) || 0) > 0)) continue;
           const pu = pos.get(u), pv = pos.get(v);
-          const d = best + (pu && pv ? manhattan(pu[0], pu[1], pv[0], pv[1]) : 1);
+          const d = best + (pu && pv ? (metric ? metric(pu, pv) : manhattan(pu[0], pu[1], pv[0], pv[1])) : 1);
           if (!dist.has(v) || d < dist.get(v)) {
             dist.set(v, d);
             prev.set(v, u);
@@ -528,9 +540,13 @@ function computeJob(state, cargoId, mode, opts = {}) {
   const res = { nodes, dem: {}, nh: {}, nhs: {} };
   if (nodes.length < 2) return res;
 
-  // routing: one shortest-path tree per source
+  // routing: one shortest-path tree per source. The opt-in capacity solvers use OpenTTD's
+  // DistanceMaxPlusManhattan + 1 edge metric; every default path keeps plain manhattan.
+  const capRouting = cdCapacityRoutingOn(state);
+  const mcfRouting = cdMcfOn(state);
+  const metric = capRouting || mcfRouting ? ottdDistance : null;
   const trees = new Map();
-  for (const s of nodes) trees.set(s, shortest(s, adj, pos));
+  for (const s of nodes) trees.set(s, shortest(s, adj, pos, metric));
   // freight (OpenTTD asymmetric demand): only stations accepting the cargo are destinations, weighted by their
   // acceptance in the catchment; pax/mail: weighted by the destination's supply (setting cdDemandSize: exponent)
   const freight = FREIGHT_CARGOS.includes(cargoId);
@@ -571,13 +587,13 @@ function computeJob(state, cargoId, mode, opts = {}) {
     for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
   }
   // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
-  if (cdCapacityRoutingOn(state)) {
+  if (capRouting) {
     // OpenTTD-style batched capacity routing (setting cargodistCapacityRouting): demand is unchanged
-    const { flows, approx } = capacityFlows(pairs, capMap, pos, trees, getSetting(state, 'linkgraphAccuracy'), mcfSaturation(state));
+    const { flows, approx } = capacityFlows(pairs, capMap, pos, trees, getSetting(state, 'linkgraphAccuracy'), mcfSaturation(state), metric);
     if (approx) res.approx = true;
     applyFlows(res, flows);
-  } else if (cdMcfOn(state)) {
-    applyFlows(res, mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state)));
+  } else if (mcfRouting) {
+    applyFlows(res, mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state), metric));
   }
   for (const s of Object.keys(res.dem)) {
     const row = res.dem[s];

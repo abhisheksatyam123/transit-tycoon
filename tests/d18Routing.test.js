@@ -2,7 +2,7 @@
 import { test, expect, describe } from 'bun:test';
 import { flatGame } from './helpers.js';
 import { placeIndustry } from '../js/simulation/industries.js';
-import { rebuildGraph, nextHop, nextHops, noteLeg, cdCapacityRoutingOn } from '../js/simulation/cargodist.js';
+import { rebuildGraph, nextHop, nextHops, noteLeg, cdCapacityRoutingOn, ottdDistance } from '../js/simulation/cargodist.js';
 import { recomputeAllAcceptance } from '../js/simulation/stations.js';
 import { setSetting } from '../js/simulation/settings.js';
 
@@ -92,6 +92,75 @@ describe('D18 capacity routing', () => {
     // and both leave every row normalised to 1
     for (const row of Object.values(plain.s.cargoDist.COAL.dem)) {
       expect(row.reduce((n, [, v]) => n + v, 0)).toBeCloseTo(1, 9);
+    }
+  });
+});
+
+/**
+ * Five stations whose shortest A->E path differs between the two metrics:
+ * manhattan A(25,30)-B(10,33)-D(10,24)-E(28,30) = 51 vs A-C-E = 57, but openTTD (max+manhattan+1)
+ * A-C-E = 89 vs A-B-D-E = 96 (the manhattan detour is more diagonal per edge).
+ */
+function metricNet(opts = {}) {
+  const g = flatGame(5);
+  const s = g.state;
+  setSetting(s, 'cargodist', 'asymmetric');
+  if (opts.routing !== undefined) setSetting(s, 'cargodistCapacityRouting', opts.routing);
+  if (opts.mcf) setSetting(s, 'cargodistMcf', true);
+  for (const [x, y] of [[25, 30], [10, 33], [13, 15], [10, 24], [28, 30]]) expect(g.buildRailStation(x, y, 'x', 1).ok).toBe(true);
+  const [A, B, C, D, E] = s.stations.slice(-5);
+  const legs = [[A, B], [A, C], [B, C], [B, D], [C, D], [C, E], [D, E]];
+  for (const [u, v] of legs) {
+    noteLeg(s, u, v.id, [{ cargoId: 'PASS', capacity: 4000 }]);
+    noteLeg(s, v, u.id, [{ cargoId: 'PASS', capacity: 4000 }]);
+  }
+  A.cdSupply = { PASS: 1000 };
+  return { s, A, B, C, D, E };
+}
+
+describe('D18 routing metric', () => {
+  test('ottdDistance is DistanceMaxPlusManhattan + 1 (integer, symmetric, strictly positive)', () => {
+    expect(ottdDistance([0, 0], [3, 0])).toBe(3 + 0 + 3 + 1);
+    expect(ottdDistance([0, 0], [0, 4])).toBe(0 + 4 + 4 + 1);
+    expect(ottdDistance([0, 0], [3, 4])).toBe(3 + 4 + 4 + 1);
+    expect(ottdDistance([2, 2], [0, 0])).toBe(7); // diagonal: dx+dy+max+1
+    expect(ottdDistance([1, 2], [1, 2])).toBe(1); // same tile: only the +1
+    expect(ottdDistance([1, 7], [9, 3])).toBe(ottdDistance([9, 3], [1, 7]));
+    expect(Number.isInteger(ottdDistance([1, 2], [4, 6]))).toBe(true);
+    for (const [a, b] of [[[0, 0], [3, 0]], [[0, 0], [3, 4]], [[2, 2], [0, 0]]]) {
+      const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]);
+      expect(ottdDistance(a, b)).toBeGreaterThan(dx + dy); // manhattan for distinct tiles
+    }
+  });
+
+  test('default (opt-ins off) routing stays on manhattan; both opt-in solvers switch to the OpenTTD metric', () => {
+    const base = metricNet({});
+    rebuildGraph(base.s, 'PASS', 'asymmetric');
+    expect(nextHop(base.s, 'PASS', base.A.id, base.E.id)).toBe(base.B.id); // manhattan A-B-D-E
+    expect(nextHops(base.s, 'PASS', base.A.id, base.E.id)).toEqual([base.B.id]);
+
+    for (const opts of [{ mcf: true }, { routing: true }]) {
+      const net = metricNet(opts);
+      rebuildGraph(net.s, 'PASS', 'asymmetric');
+      expect(nextHop(net.s, 'PASS', net.A.id, net.E.id)).toBe(net.C.id); // openTTD A-C-E
+      // the demand matrix itself is unchanged by routing (metric affects paths only)
+      expect(JSON.stringify(net.s.cargoDist.PASS.dem[net.A.id]))
+        .toBe(JSON.stringify(base.s.cargoDist.PASS.dem[base.A.id]));
+      for (const row of Object.values(net.s.cargoDist.PASS.dem)) {
+        expect(row.reduce((n, [, v]) => n + v, 0)).toBeCloseTo(1, 9);
+      }
+      // flow shares are normalised per (source, destination) and pick the openTTD-metric first hop C
+      const shares = net.s.cargoDist.PASS.nhs[net.A.id][net.E.id];
+      expect(shares.reduce((n, [, v]) => n + v, 0)).toBeCloseTo(1, 9);
+      expect(shares.map(([hop]) => hop)).toEqual([net.C.id]);
+      for (const byDest of Object.values(net.s.cargoDist.PASS.nhs)) {
+        for (const list of Object.values(byDest)) expect(list.reduce((n, [, v]) => n + v, 0)).toBeCloseTo(1, 9);
+      }
+      // deterministic: same graph, same metric -> identical demand/next-hop tables
+      const again = metricNet(opts);
+      rebuildGraph(again.s, 'PASS', 'asymmetric');
+      expect(JSON.stringify(again.s.cargoDist.PASS.nh)).toBe(JSON.stringify(net.s.cargoDist.PASS.nh));
+      expect(JSON.stringify(again.s.cargoDist.PASS.nhs)).toBe(JSON.stringify(net.s.cargoDist.PASS.nhs));
     }
   });
 });
