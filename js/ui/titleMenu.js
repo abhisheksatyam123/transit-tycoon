@@ -9,6 +9,7 @@ import { runWithLoading, buildingLabel } from './loading.js';
 import { openNewGame } from './windows/newGame.js';
 import { openScenarioSetup } from './windows/scenarioEditor.js';
 import { createGameFast } from './scenarioSnapshot.js';
+import { confirmDiscardGame } from './discardGuard.js';
 
 export const TITLE_VERSION = '0.1.0';
 const MOSCOW_REQUEST = Object.freeze({ scenario: 'moscow', seed: 1 });
@@ -29,7 +30,8 @@ export function titleMenuOpen() { return !!current; }
 export function openTitleMenu(app, opts = {}) {
   if (current) return current;
   const prevFocus = /** @type {HTMLElement|null} */ (document.activeElement);
-  const wasSpeed = app.speed > 0 ? app.speed : (app.prevSpeed || 1);
+  // The speed as the menu finds it (0 when the player had paused): Resume/Esc restore exactly that.
+  const wasSpeed = app.speed;
   const hadAutosave = !!loadSlotData('autosave');
   app.setSpeed(0); // simulation paused while the menu is up
 
@@ -54,6 +56,8 @@ export function openTitleMenu(app, opts = {}) {
   };
   /** Close the menu (resuming the game), then run the action: a window or new game must not sit under the menu. */
   const then = (fn) => () => { close(true); fn(); };
+  /** Like then(), but replacing a running game asks first; Cancel keeps the menu open. */
+  const replacing = (fn) => () => { if (confirmDiscardGame(app.game)) then(fn)(); };
 
   const btn = (label, hint, onclick, cls = '') =>
     el(`button.btn.tm-btn${cls}`, { type: 'button', title: hint, onclick },
@@ -61,14 +65,14 @@ export function openTitleMenu(app, opts = {}) {
 
   const rows = [];
   if (hadAutosave) {
-    rows.push(btn('Continue', 'Resume your autosaved game', opts.loaded ? then(() => {}) : then(async () => {
+    rows.push(btn('Continue', 'Resume your autosaved game', opts.loaded ? then(() => {}) : replacing(async () => {
       const d = loadSlotData('autosave');
       if (!(d && await app.loadFromString(d))) app.toast('Autosave could not be loaded', 'error');
     }), ' primary'));
   }
-  rows.push(btn('New game', 'Choose seed, map size and towns', then(() => openNewGame(app)), hadAutosave ? '' : ' primary'));
-  rows.push(btn('Scenario editor', 'Build a map from scratch: terrain, towns, industries; set the start year and Play', then(() => openScenarioSetup(app))));
-  rows.push(btn('Moscow scenario', 'Real-OSM Moscow with staged goals', then(async () => {
+  rows.push(btn('New game', 'Choose seed, map size and towns', replacing(() => openNewGame(app)), hadAutosave ? '' : ' primary'));
+  rows.push(btn('Scenario editor', 'Build a map from scratch: terrain, towns, industries; set the start year and Play', replacing(() => openScenarioSetup(app))));
+  rows.push(btn('Moscow scenario', 'Real-OSM Moscow with staged goals', replacing(async () => {
     const game = await runWithLoading(buildingLabel(MOSCOW_REQUEST.scenario), () => createGameFast(MOSCOW_REQUEST, app.GameClass));
     app.setGame(game);
     app.announceScenario(game);

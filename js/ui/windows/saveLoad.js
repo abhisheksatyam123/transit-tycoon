@@ -5,6 +5,7 @@ import { el, setText } from '../dom.js';
 import { saveToSlot, loadSlotData, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
 import { date, money } from '../format.js';
 import { AUTOSAVE_SLOTS, autosaveLabel } from '../autosavePrefs.js';
+import { confirmDiscardGame, confirmOverwriteSlot } from '../discardGuard.js';
 
 const SLOTS = ['1', '2', '3'];
 
@@ -47,6 +48,7 @@ export function openSave(app) {
       SLOTS.forEach((slot) => {
         const d = el('span.muted.small');
         const save = el('button.btn', { type: 'button', text: `Slot ${slot}`, onclick: () => {
+          if (slotMeta(slot) && !confirmOverwriteSlot(slot)) return; // an occupied slot is never replaced silently
           const r = saveToSlot(slot, app.game);
           if (app.exec(r, { quiet: true, sound: 'click' })) {
             app.toast(`Saved to slot ${slot}`, 'good');
@@ -86,6 +88,7 @@ export function openLoad(app) {
         const isManual = SLOTS.includes(slot);
         const text = slot === 'autosave' ? 'Autosave' : AUTOSAVE_SLOTS.includes(slot) ? autosaveLabel(slot) : `Slot ${slot}`;
         const load = el('button.btn', { type: 'button', text, disabled: !meta, onclick: async () => {
+          if (!confirmDiscardGame(app.game)) return;
           const d = loadSlotData(slot);
           if (d && await app.loadFromString(d)) win.close();
         } });
@@ -106,6 +109,7 @@ export function openLoad(app) {
         body.appendChild(row);
       }
       body.appendChild(el('div.btn-row', null, el('button.btn', { type: 'button', text: 'Import JSON file…', onclick: async () => {
+        if (!confirmDiscardGame(app.game)) return;
         const text = await importFromFile();
         if (text && await app.loadFromString(text)) win.close();
       } })));

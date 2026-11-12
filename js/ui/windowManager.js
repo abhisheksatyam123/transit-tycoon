@@ -56,7 +56,8 @@ export class WindowManager {
    * @param {string} id unique key (e.g. 'vehicle:12')
    * @param {WindowSpec} spec
    * @param {{x?:number,y?:number}} [pos]
-   * @returns {FloatingWindow}
+   * @returns {FloatingWindow|null} null when build() threw: the window is closed (its onClose runs) and
+   *   not registered, so a later open() of the same id builds it again instead of returning a broken window
    */
   open(id, spec, pos) {
     const existing = this.windows.get(id);
@@ -123,7 +124,14 @@ export class WindowManager {
     root.style.top = y + 'px';
     this.windows.set(id, win);
     this.focus(win);
-    const upd = spec.build(body, win);
+    let upd;
+    try {
+      upd = spec.build(body, win);
+    } catch (err) {
+      if (!logger.warn('window', `Window ${id} failed to build; closed`, err)) console.error(`Window ${id} failed to build; closed`, err);
+      this.close(id);
+      return null;
+    }
     win.update = typeof upd === 'function' ? upd : null;
     if (win.update) this.safeUpdate(win);
     // keyboard/screen-reader users land inside the new dialog; remember the opener to return to on close
@@ -156,11 +164,15 @@ export class WindowManager {
     if (win.spec.onClose) win.spec.onClose();
   }
 
-  /** Close every window except sticky (pinned) ones (OpenTTD CloseNonVitalWindows, window.cpp:3382). */
-  closeAll() {
+  /**
+   * Close every window except sticky (pinned) ones (OpenTTD CloseNonVitalWindows, window.cpp:3382).
+   * @param {{includeSticky?: boolean}} [opts] includeSticky: pinned windows too (used when the game changes,
+   *   so no window keeps showing the previous game's data; pins are not saved, so nothing is lost)
+   */
+  closeAll(opts = {}) {
     for (const id of Array.from(this.windows.keys())) {
       const w = this.windows.get(id);
-      if (w && w.sticky) continue;
+      if (w && w.sticky && !opts.includeSticky) continue;
       this.close(id);
     }
   }

@@ -144,7 +144,7 @@ export class App {
    */
   setGame(game) {
     this.setTool(null);
-    this.wm.closeAll();
+    this.wm.closeAll({ includeSticky: true }); // pinned windows too: they would show the previous game's data
     this.unsubscribe();
     this.game = game;
     watchIssueCommands(game);
