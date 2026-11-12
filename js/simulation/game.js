@@ -120,7 +120,7 @@ function createEditorGame(game, o) {
 }
 
 /** T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness/variety, densities; climate + snowLine for sub-arctic). */
-const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5, townLayout: 'mixed' };
+export const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5, townLayout: 'mixed' };
 export function mapgenOptions(src) {
   const out = {};
   if (!src || typeof src !== 'object') return out;
@@ -168,6 +168,9 @@ export class Game {
     // T34 map generator options: stored only when non-default so default saves are unchanged
     const mg = mapgenOptions(o.mapgen);
     if (Object.keys(mg).length) state.mapgen = mg;
+    // The New Game town-layout choice is mirrored into the townLayout setting so the Settings window
+    // shows what this map was generated with. The generator itself still reads state.mapgen only.
+    if (mg.townLayout) setSetting(state, 'townLayout', mg.townLayout);
     // heightmap import (newGame window): the heights are the terrain; never stored in state (tiles hold them)
     if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, mg);
     else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
