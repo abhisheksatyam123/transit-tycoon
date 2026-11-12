@@ -17,6 +17,7 @@ const DEFAULT_MAPGEN = {
   townLayout: 'mixed', industryDensity: 'normal', climate: 'temperate', snowLine: 5,
   // F3 opt-in heightmap rotation, default none (no effect on generated terrain or default saves)
   heightmapRotation: 'none',
+  waterBorders: 'none',
 };
 
 describe('New Game mapgen options persistence (tt.newGameMapgen)', () => {

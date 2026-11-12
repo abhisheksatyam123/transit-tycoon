@@ -4,6 +4,7 @@
 import { DIRS } from './constants.js';
 import { DEFAULT_SNOW_LINE } from './climate.js';
 import { rotateGrid } from './heightmap.js';
+import { hashSeed } from './rng.js';
 
 /**
  * Terrain snow starts this many levels above the snow line setting (mapgen snowLine, default 5 = the
@@ -174,6 +175,64 @@ function applyVarietyCurves(width, height, values, rng, level) {
 }
 
 /**
+ * Water borders (OpenTTD-style "water borders"): the selected map edges are turned into water at
+ * height 0. The option is opt-in and absent (none) by default, so the historic maps and their hashes
+ * are untouched and no extra RNG draws happen.
+ *
+ * Values: 'none' (default) | 'all' | 'random' | a comma-separated list of sides ('north', 'east',
+ * 'south', 'west'). 'random' picks a non-empty subset of the four sides from the game seed, using a
+ * separate hash (not the terrain RNG stream), so it is deterministic for a seed, independent of the
+ * other mapgen options and reproducible without perturbing town/industry generation.
+ */
+export const WATER_BORDER_SIDES = ['north', 'east', 'south', 'west'];
+
+/**
+ * Resolve a waterBorders option to a side bitmask (north 1, east 2, south 4, west 8).
+ * `seed` is the game seed (state.seed); only 'random' uses it.
+ * @param {string|undefined} option
+ * @param {number|string} [seed]
+ * @returns {number} 0 = no water border
+ */
+export function waterBorderMask(option, seed) {
+  if (!option || option === 'none') return 0;
+  if (option === 'all') return 15;
+  if (option === 'random') {
+    // hashSeed(<seed>:waterBorders) is stable across runs and independent of the terrain RNG draws.
+    return (hashSeed(String(seed) + ':waterBorders') % 15) + 1; // 1..15: every non-empty subset
+  }
+  let mask = 0;
+  for (const part of String(option).split(',')) {
+    const i = WATER_BORDER_SIDES.indexOf(part.trim());
+    if (i >= 0) mask |= 1 << i;
+  }
+  return mask;
+}
+
+/**
+ * Turn every map-edge tile on the selected sides into water at height 0 (in place).
+ * @param {object} map
+ * @param {number} mask side bitmask from waterBorderMask
+ * @returns {number} number of tiles that were not already water at height 0
+ */
+export function applyWaterBorders(map, mask) {
+  if (!mask) return 0;
+  const { width, height, tiles } = map;
+  let changed = 0;
+  const wet = (i) => {
+    const t = tiles[i];
+    if (t.terrain !== 'water' || t.height !== 0) changed++;
+    t.terrain = 'water';
+    t.height = 0;
+    if (t.river) t.river = 0;
+  };
+  if (mask & 1) for (let x = 0; x < width; x++) wet(x);
+  if (mask & 2) for (let y = 0; y < height; y++) wet(y * width + width - 1);
+  if (mask & 4) for (let x = 0; x < width; x++) wet((height - 1) * width + x);
+  if (mask & 8) for (let y = 0; y < height; y++) wet(y * width);
+  return changed;
+}
+
+/**
  * Generate terrain in place: heights 0..7, water (sea/lakes/rivers), forests, desert, rock, snow.
  * Options (all default to today's map; default draws are identical to the historic generator):
  * - waterRatio: explicit sea fraction (overrides seaLevel)
@@ -187,9 +246,12 @@ function applyVarietyCurves(width, height, values, rng, level) {
  * - snowLine: 5 (default; snow terrain from height 7) | 3 (snow from 5) | 7 (no snow terrain, the line is above level 7)
  * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
  *   (rivers on slopes at their height; the heights are not changed)
+ * - waterBorders: 'none' (default) | 'all' | 'random' | comma-separated sides: flood the selected map
+ *   edges with water at height 0 (inland slopes drop like a coast; no RNG draws except 'random' from the seed)
+ * - seed: game seed; only used by waterBorders 'random' (never stored on the map)
  * @param {object} map
  * @param {object} rng
- * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string,cliffs?:string}} [opts]
+ * @param {{waterRatio?:number,seaLevel?:string,terrain?:string,smoothness?:string,rivers?:string,cliffs?:string,waterBorders?:string,seed?:number|string}} [opts]
  */
 export function generateTerrain(map, rng, opts = {}) {
   const { width, height, tiles } = map;
@@ -265,6 +327,10 @@ function finishTerrain(map, rng, opts, forest, dry) {
   const snowAt = snowTerrainHeight(opts.snowLine);
   const cliffs = opts.cliffs === 'on';
   const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
+  // Water border (opt-in; mask 0 on the default path, so nothing changes and no draws happen). Set before
+  // limitSlopes so the land next to the new water drops to within the normal 1-level step (a coast).
+  const borderMask = waterBorderMask(opts.waterBorders, opts.seed);
+  if (borderMask) applyWaterBorders(map, borderMask);
   limitSlopes(map, cap);
   if (opts.rivers === 'flowing') carveFlowingRivers(map, rng, FLOW_RIVER_COUNT);
   const riverTarget = RIVER_COUNTS[opts.rivers ?? 'none'] ?? 0;

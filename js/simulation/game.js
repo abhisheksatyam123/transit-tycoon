@@ -107,7 +107,7 @@ function createEditorGame(game, o) {
   if (!o.emptyFlat) {
     const mg = mapgenOptions(o.mapgen);
     if (Object.keys(mg).length) state.mapgen = mg;
-    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
+    generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg, seed: o.seed });
   } else {
     // flat land at height 1 (height 0 reads as sea level, so towns and industries would refuse it);
     // no water at all: an empty flat map is land everywhere (OpenTTD flat-world editor map)
@@ -122,9 +122,9 @@ function createEditorGame(game, o) {
 /**
  * T34: keep only the explicit, non-default map generator options (terrain/seaLevel/rivers/smoothness/variety,
  * densities; climate + snowLine for sub-arctic; heightmapRotation for imported heightmaps, default 'none' = no
- * rotation and therefore stripped like every other default).
+ * rotation and therefore stripped like every other default; waterBorders, default 'none' = no edge flooding).
  */
-export const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5, townLayout: 'mixed', heightmapRotation: 'none' };
+export const MAPGEN_DEFAULTS = { terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off', mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal', industryDensity: 'normal', climate: 'temperate', snowLine: 5, townLayout: 'mixed', heightmapRotation: 'none', waterBorders: 'none' };
 export function mapgenOptions(src) {
   const out = {};
   if (!src || typeof src !== 'object') return out;
@@ -176,8 +176,8 @@ export class Game {
     // shows what this map was generated with. The generator itself still reads state.mapgen only.
     if (mg.townLayout) setSetting(state, 'townLayout', mg.townLayout);
     // heightmap import (newGame window): the heights are the terrain; never stored in state (tiles hold them)
-    if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, mg);
-    else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg });
+    if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, { ...mg, seed: o.seed });
+    else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg, seed: o.seed });
     // density options scale the requested counts (normal = 1x, so default games are unchanged)
     const townMul = DENSITY[mg.townDensity ?? 'normal'] ?? 1, indMul = DENSITY[mg.industryDensity ?? 'normal'] ?? 1;
     generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
