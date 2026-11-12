@@ -237,7 +237,7 @@ export const SETTING_META = [
   { key: 'linkgraphTimeDays', group: 'economy', label: 'Link graph delay (days)', type: 'number', min: 0, max: 9000,
     help: 'Minimum days a link graph job runs before its routing is applied (OpenTTD recalc_time; OpenTTD default 16). With the default 4-day interval the result is applied on day 18, not 16. 0 = applied at once. Only used when the days interval is above 0.' },
   { key: 'linkgraphAccuracy', group: 'economy', label: 'Link graph accuracy', type: 'number', min: 2, max: 64,
-    help: 'Accuracy of the capacity routing (OpenTTD linkgraph accuracy). Higher = fewer augmenting paths per demand pair, faster. Default 16.' },
+    help: 'Accuracy of the capacity routing (OpenTTD linkgraph accuracy). Higher = more augmenting paths per demand pair (more accurate, slower). Default 16.' },
   { key: 'linkgraphDemandDistance', group: 'economy', label: 'Demand distance effect %', type: 'number', min: 0, max: 255,
     help: 'How much distance reduces demand (OpenTTD demand_distance). 0 = distance ignored (current); 100 = the OpenTTD default.' },
   { key: 'linkgraphDemandSize', group: 'economy', label: 'Demand size effect %', type: 'number', min: 0, max: 100,
