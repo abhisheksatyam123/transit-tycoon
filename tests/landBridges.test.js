@@ -67,7 +67,7 @@ describe('player rail valley bridges (B1)', () => {
     // too short (< 3 tiles)
     expect(planLandBridge(map, pts.slice(0, 2)).ok).toBe(false);
 
-    // too long (> MAX_BRIDGE_LENGTH = 16)
+    // too long (19 tiles > MAX_BRIDGE_LENGTH = 12)
     const longPts = [];
     for (let x = 10; x <= 28; x++) longPts.push({ x, y: 20 });
     expect(planLandBridge(map, longPts).ok).toBe(false);

@@ -82,9 +82,9 @@ export function canAddBits(tile, layer, bits, deck = false, crossingTunnels = fa
   return null;
 }
 
-/** Longest player bridge in tiles, heads included (OpenTTD-style span limit). */
+/** Longest player bridge in tiles, both heads included (TT count; OpenTTD counts only the tiles between heads). */
 export const MAX_BRIDGE_LENGTH = 12;
-/** Longest player rail tunnel in tiles, both portals included. */
+/** Longest player rail tunnel in tiles, both portals included (TT count; OpenTTD counts only the tiles between portals). */
 export const MAX_TUNNEL_LENGTH = 16;
 
 /**

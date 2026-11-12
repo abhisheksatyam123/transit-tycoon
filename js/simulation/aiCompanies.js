@@ -1,18 +1,19 @@
 /**
- * AI competitor companies (gap #25 stages 1-2, OpenLoco CompanyAi, reduced to bus routes).
+ * AI competitor companies (gap #25; OpenLoco CompanyAi, reduced).
  *
  * Opt-in: the `aiCompanies` setting (0..3, default 0). With 0 nothing here runs and no state is created,
- * so default games (and their hashes/saves) are unchanged. The rivals use only the game's own commands
- * (buildRoadStop, buildDepot, buyVehicle, setOrders, startVehicle, sellVehicle) with `owner: rivalId`, so
- * costs and placement rules match the player's. Nothing here uses the game rng (determinism).
+ * so default games (and their hashes/saves) are unchanged. Rivals use only the game's own commands with
+ * `owner: rivalId`, so costs and placement rules match the player's. Nothing here uses the game rng.
  *
- * Each month, per rival:
- *  1. loans: borrow when short of cash and expanding, repay when cash is comfortable; loan interest;
- *  2. vehicles with 12 consecutive negative-profit months are sent to a depot and sold;
- *  3. with enough money, a route is built: the best unserved town pair 15..40 tiles apart on one road
- *     network; stops on the straight road tiles that cover the most houses, a road depot on the same
- *     network, and 2 buses with 2 orders. Routes with waiting passengers get one more bus (up to 6);
- *  4. company value below zero for 12 months: the company is wound up (vehicles and stations removed).
+ * Each month, per rival (think passes scaled by the competitor_speed setting):
+ *  - loans: borrow when short of cash and expanding, repay when cash is comfortable; loan interest;
+ *  - routes: bus, truck (freight), rail, ship and air routes are built when affordable, with vehicles
+ *    added as they earn; airports upgrade in place as towns grow (aiAirUpgrade.js); old or obsolete
+ *    vehicles are renewed (aiRenew.js); vehicles with 12 consecutive negative-profit months are sold;
+ *  - HQ: built once near the largest town when the rival can afford it;
+ *  - takeover: after a long negative-value run an offer is posted (the player can buy the company);
+ *    a rival whose company value stays below zero for 12 months is wound up (bankruptcy).
+ * The League and Companies windows show rival money, loan, value and vehicles. Rival shares: see shares.js.
  */
 import { getSetting } from './settings.js';
 import { createCompany, borrow, repay, spend, earn, monthlyLoanInterest } from './economy.js';
