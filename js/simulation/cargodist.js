@@ -280,8 +280,9 @@ function heapPop(h) {
  * Distances are manhattan distances between station positions by default (1 when a position is unknown);
  * `metric` overrides the edge length (opt-in capacity routing passes ottdDistance).
  * @returns {{dist:Map<number,number>, first:Map<number,number>, prev:Map<number,number>}}
+ * Exported (pure) so demand oracles/tests can rebuild the same routing trees.
  */
-function shortest(src, adj, pos, metric = null) {
+export function shortest(src, adj, pos, metric = null) {
   const dist = new Map([[src, 0]]), first = new Map(), prev = new Map();
   const done = new Set();
   const heap = [[0, src]];
@@ -494,6 +495,63 @@ function clearStranded(state, cargoId, g) {
 }
 
 /**
+ * Pure demand-building core of one link-graph job (OpenTTD demands.cpp, simplified). No state writes, no
+ * settings reads, no RNG: every input is captured by the caller (computeJob) or by a parity oracle.
+ *
+ * Spreads each source's supply over the nodes reachable from it in the routing trees, weighted by each
+ * destination's supply (pax/mail, sizeExp) or acceptance (freight); optional distance decay distK; symmetric mode
+ * averages the forward and back raw weights. Rows are normalised per source and sorted by destination id.
+ *
+ * @param {{nodes:number[], trees:Map<number,{dist:Map<number,number>,first:Map<number,number>}>,
+ *   supply:Map<number,number>, mode:'asymmetric'|'symmetric', freight:boolean,
+ *   acceptance?:Map<number,number>|null, sizeExp?:number, distK?:number}} inputs
+ * @returns {{dem:Object<string,[number,number][]>, nh:Object<string,Object<string,number>>,
+ *   pairs:{s:number,d:number,amt:number,dist:number}[]}}
+ */
+export function computeDemand({ nodes, trees, supply, mode, freight, acceptance = null, sizeExp = 1, distK = 0 }) {
+  // freight (OpenTTD asymmetric demand): only stations accepting the cargo are destinations, weighted by their
+  // acceptance in the catchment; pax/mail: weighted by the destination's supply (setting cdDemandSize: exponent)
+  const wOf = (d) => (freight ? acceptance.get(d) || 0 : (sizeExp === 1 ? Math.max(1, supply.get(d)) : Math.pow(Math.max(1, supply.get(d)), sizeExp)));
+  // demand: supply of the source spread over reachable destinations, weighted by their weight
+  const dem = new Map();
+  for (const s of nodes) {
+    const reach = [...trees.get(s).dist.keys()].filter((d) => d !== s && (!freight || wOf(d) > 0));
+    let meanD = 0;
+    if (distK > 0 && reach.length) meanD = reach.reduce((n, d) => n + trees.get(s).dist.get(d), 0) / reach.length;
+    const wd = (d) => (distK > 0 && meanD > 0 ? wOf(d) / (1 + distK * trees.get(s).dist.get(d) / meanD) : wOf(d));
+    const W = reach.reduce((n, d) => n + wd(d), 0);
+    if (!(W > 0)) continue;
+    for (const d of reach) {
+      // shares only matter (rows are normalised below), so a source with no recent supply still gets routes
+      const v = (sizeExp === 0 ? 1 : Math.max(1, supply.get(s))) * wd(d) / W; // demand_size 0: no supply effect at all
+      dem.set(s + '>' + d, v);
+    }
+  }
+  const out = { dem: {}, nh: {}, pairs: [] };
+  for (const s of nodes) {
+    for (const d of trees.get(s).dist.keys()) {
+      if (d === s) continue;
+      const fwd = dem.get(s + '>' + d) || 0;
+      const back = mode === 'symmetric' ? (dem.get(d + '>' + s) || 0) : fwd;
+      const amount = mode === 'symmetric' ? (fwd + back) / 2 : fwd;
+      if (!(amount > 0)) continue;
+      // demand rows: cargo generated at s goes to d with this share
+      (out.dem[s] = out.dem[s] || []).push([d, amount]);
+      out.pairs.push({ s, d, amt: amount, dist: trees.get(s).dist.get(d) });
+    }
+    // next hop table: first hop from s to every reachable node
+    const nhRow = (out.nh[s] = out.nh[s] || {});
+    for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
+  }
+  for (const s of Object.keys(out.dem)) {
+    const row = out.dem[s];
+    const tot = row.reduce((n, [, a]) => n + a, 0);
+    out.dem[s] = row.map(([d, a]) => [d, a / tot]).sort((a, b) => a[0] - b[0]);
+  }
+  return out;
+}
+
+/**
  * One link-graph job (OpenTTD LinkGraphJob, simplified): expire edges, demand, routing, flows, next hops.
  * Starts the job: edge clock, supply counters and the routing result are computed here and returned; the caller
  * applies them (now, or after the recalc time: applyJob). @returns {{nodes:number[], dem:object, nh:object, nhs:object}}
@@ -547,45 +605,15 @@ function computeJob(state, cargoId, mode, opts = {}) {
   const metric = capRouting || mcfRouting ? ottdDistance : null;
   const trees = new Map();
   for (const s of nodes) trees.set(s, shortest(s, adj, pos, metric));
-  // freight (OpenTTD asymmetric demand): only stations accepting the cargo are destinations, weighted by their
-  // acceptance in the catchment; pax/mail: weighted by the destination's supply (setting cdDemandSize: exponent)
+  // demand and next hops are built by the pure core (exported for parity oracles/tests)
   const freight = FREIGHT_CARGOS.includes(cargoId);
   const acc = freight ? acceptanceOf(state, cargoId, nodeSet) : null;
-  const sizeExp = demandSizeExponent(state);
-  const wOf = (d) => (freight ? acc.get(d) || 0 : (sizeExp === 1 ? Math.max(1, supply.get(d)) : Math.pow(Math.max(1, supply.get(d)), sizeExp)));
-  // setting cdDemandDistance (0 = off): each destination's weight is divided by 1 + k * dist / meanDist
-  const distK = demandDistanceK(state);
-  // demand: supply of the source spread over reachable destinations, weighted by their weight
-  const dem = new Map();
-  for (const s of nodes) {
-    const reach = [...trees.get(s).dist.keys()].filter((d) => d !== s && (!freight || wOf(d) > 0));
-    let meanD = 0;
-    if (distK > 0 && reach.length) meanD = reach.reduce((n, d) => n + trees.get(s).dist.get(d), 0) / reach.length;
-    const wd = (d) => (distK > 0 && meanD > 0 ? wOf(d) / (1 + distK * trees.get(s).dist.get(d) / meanD) : wOf(d));
-    const W = reach.reduce((n, d) => n + wd(d), 0);
-    if (!(W > 0)) continue;
-    for (const d of reach) {
-      // shares only matter (rows are normalised below), so a source with no recent supply still gets routes
-      const v = (sizeExp === 0 ? 1 : Math.max(1, supply.get(s))) * wd(d) / W; // demand_size 0: no supply effect at all
-      dem.set(s + '>' + d, v);
-    }
-  }
-  const pairs = [];
-  for (const s of nodes) {
-    for (const d of trees.get(s).dist.keys()) {
-      if (d === s) continue;
-      const fwd = dem.get(s + '>' + d) || 0;
-      const back = mode === 'symmetric' ? (dem.get(d + '>' + s) || 0) : fwd;
-      const amount = mode === 'symmetric' ? (fwd + back) / 2 : fwd;
-      if (!(amount > 0)) continue;
-      // demand rows: cargo generated at s goes to d with this share
-      (res.dem[s] = res.dem[s] || []).push([d, amount]);
-      pairs.push({ s, d, amt: amount, dist: trees.get(s).dist.get(d) });
-    }
-    // next hop table: first hop from s to every reachable node
-    const nhRow = (res.nh[s] = res.nh[s] || {});
-    for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
-  }
+  const demand = computeDemand({
+    nodes, trees, supply, mode, freight, acceptance: acc,
+    sizeExp: demandSizeExponent(state), distK: demandDistanceK(state),
+  });
+  res.dem = demand.dem; res.nh = demand.nh;
+  const pairs = demand.pairs;
   // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
   if (capRouting) {
     // OpenTTD-style batched capacity routing (setting cargodistCapacityRouting): demand is unchanged
@@ -594,11 +622,6 @@ function computeJob(state, cargoId, mode, opts = {}) {
     applyFlows(res, flows);
   } else if (mcfRouting) {
     applyFlows(res, mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state), metric));
-  }
-  for (const s of Object.keys(res.dem)) {
-    const row = res.dem[s];
-    const tot = row.reduce((n, [, a]) => n + a, 0);
-    res.dem[s] = row.map(([d, a]) => [d, a / tot]).sort((a, b) => a[0] - b[0]);
   }
   return res;
 }
@@ -621,8 +644,9 @@ export function rebuildGraph(state, cargoId, mode) {
   return res.nodes.length;
 }
 
-/** Acceptance weight of each graph node for a freight cargo: sum of its catchment's acceptance (0 = not accepting). */
-function acceptanceOf(state, cargoId, nodeSet) {
+/** Acceptance weight of each graph node for a freight cargo: sum of its catchment's acceptance (0 = not accepting).
+ * Exported (reads state only) so demand oracles/tests can supply the same acceptance weights. */
+export function acceptanceOf(state, cargoId, nodeSet) {
   const out = new Map();
   for (const st of state.stations) {
     if (!nodeSet.has(st.id)) continue;
