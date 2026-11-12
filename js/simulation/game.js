@@ -57,7 +57,7 @@ import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setCompanyColour } from './companyColour.js';
 import { switchCompany as switchCompanyCheat, activeCompanyId as activeCompanyIdOf, moneyCheat, clearDebtCheat, acquireCompanyCheat } from './cheats.js';
-import { setAutoreplace, setAutoreplaceWhenOld, setGroupAutoreplace, clearGroupAutoreplace, setGroupAutoreplaceWhenOld, autoreplaceWhenOldState } from './autoreplace.js';
+import { setAutoreplace, setAutoreplaceWhenOld, setGroupAutoreplace, clearGroupAutoreplace, setGroupAutoreplaceWhenOld, autoreplaceWhenOldState, setGroupKeepLength, keepLengthState } from './autoreplace.js';
 import { massAutoreplace } from './autorenew.js';
 import * as gcmd from './cmdGroup.js';
 
@@ -432,6 +432,10 @@ export class Game {
   setGroupAutoreplaceWhenOld(groupId, oldModelId, value, opts) { return setGroupAutoreplaceWhenOld(this.state, groupId, oldModelId, value, opts); }
   /** Tri-state (inherited/value/company) for the autoreplace window's group scope. */
   autoreplaceWhenOldState(groupId, modelId) { return autoreplaceWhenOldState(this.state, groupId, modelId); }
+  /** Per-group keep-length (wagon removal): true/false overrides the company setting, null clears to inheritance (opt-in). */
+  setGroupKeepLength(groupId, value, opts) { return setGroupKeepLength(this.state, groupId, value, opts); }
+  /** Tri-state (inherited/value/company) of the keep-length flag for the autoreplace window's group scope. */
+  keepLengthState(groupId) { return keepLengthState(this.state, groupId); }
   /** Mass autoreplace (r27): replace every eligible vehicle inside a depot via autorenew/autoreplace path. */
   massAutoreplace(depotId, opts) { return massAutoreplace(this.ctx, depotId, opts); }
   /** Stop mode of one order: 'non' (non-stop, default), 'all' (stop at all stations), 'via' (go via). */

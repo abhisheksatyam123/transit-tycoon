@@ -251,3 +251,67 @@ function clearWhenOld(company, modelId) {
   delete company.autoreplaceWhenOld[modelId];
   if (!Object.keys(company.autoreplaceWhenOld).length) delete company.autoreplaceWhenOld;
 }
+
+/**
+ * Keep-length / wagon removal (OpenTTD company.renew_keep_length + GroupFlag::ReplaceWagonRemoval, autoreplace_cmd.cpp
+ * :595,:612). TT has uniform wagon lengths and replacements preserve the wagon count, so the OpenTTD length
+ * comparison is vacuous; the cap form is kept instead: with this on, a replaced train keeps at most
+ * min(oldWagons, min(maxTrainWagons, floor(2*maxTrainLength + 1e-9) - 1)) wagons (autorenew.js).
+ *
+ * The company setting `renewKeepLength` (settings.js) is the default. A group can override it lazily through
+ * company.groupReplaceWagonRemoval = { [groupId]: true|false }; an absent entry follows the company setting live (a
+ * deviation from OpenTTD's copy-at-creation: no key is written unless the group is set). Both keys are absent in
+ * default games, so saves stay unchanged (no SAVE_REVISION bump).
+ */
+export function isKeepLength(state) {
+  return getSetting(state, 'renewKeepLength') === true;
+}
+
+/** Effective keep-length for one vehicle: its group's explicit flag wins, else the company setting. Rivals are never trimmed. */
+export function isKeepLengthFor(state, v) {
+  if (!v || v.ownerId != null) return false;
+  const company = state.company;
+  if (v.groupId != null && company && company.groupReplaceWagonRemoval
+    && Object.prototype.hasOwnProperty.call(company.groupReplaceWagonRemoval, v.groupId)) {
+    return company.groupReplaceWagonRemoval[v.groupId] === true;
+  }
+  return isKeepLength(state);
+}
+
+/**
+ * Tri-state view for the UI: `inherited` means the group has no entry and follows `company`; otherwise `value` is the
+ * group's explicit on/off. Company scope (groupId null) is always inherited-by-definition with the company value.
+ * @returns {{value:boolean, inherited:boolean, company:boolean}}
+ */
+export function keepLengthState(state, groupId) {
+  const company = state.company;
+  const c = isKeepLength(state);
+  const byGroup = groupId != null && company && company.groupReplaceWagonRemoval;
+  if (byGroup && Object.prototype.hasOwnProperty.call(byGroup, groupId)) {
+    return { value: byGroup[groupId] === true, inherited: false, company: c };
+  }
+  return { value: c, inherited: true, company: c };
+}
+
+/**
+ * Set/clear one group's keep-length entry. `value` true/false is an explicit override; null removes the entry so the
+ * group follows the company setting again. Lazy: the map and group key are absent while unset.
+ * @returns {{ok:true,keepLength:(boolean|null)}|{ok:false,error:string}}
+ */
+export function setGroupKeepLength(state, groupId, value, opts = {}) {
+  const company = state.company;
+  if (!((company && company.groups) || []).some((g) => g.id === groupId)) return { ok: false, error: 'Unknown group' };
+  if (!opts.dryRun) {
+    if (value == null) {
+      const all = company.groupReplaceWagonRemoval;
+      if (all) {
+        delete all[groupId];
+        if (!Object.keys(all).length) delete company.groupReplaceWagonRemoval;
+      }
+    } else {
+      company.groupReplaceWagonRemoval ??= {};
+      company.groupReplaceWagonRemoval[groupId] = !!value;
+    }
+  }
+  return { ok: true, keepLength: value == null ? null : !!value };
+}

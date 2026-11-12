@@ -84,6 +84,8 @@ export const SETTING_META = [
   { key: 'maxTrainLength', group: 'vehicles', label: 'Max train length (tiles)', type: 'select',
     options: [['1', '1 tile'], ['2', '2 tiles'], ['3', '3 tiles'], ['4', '4 tiles'], ['5', '5 tiles'], ['7', '7 tiles (default)'], ['10', '10 tiles'], ['16', '16 tiles'], ['32', '32 tiles'], ['64', '64 tiles']],
     help: 'Most tiles long a player train may be (OpenTTD vehicle.max_train_length). Limits train purchases and added wagons.' },
+  { key: 'renewKeepLength', group: 'vehicles', label: 'Keep train length when replacing', type: 'check',
+    help: 'OpenTTD company.renew_keep_length: after autoreplace, sell the wagons that would make the train longer than before (TT has uniform wagon lengths, so this means capping the wagon count at the old count and at Max wagons / Max train length, dropping the wagons nearest the engine). Off = the replacement keeps every wagon (current). A group flag can override this per group; absent = follow this setting.' },
   { key: 'townCouncilTolerance', group: 'difficulty', label: 'Town council tolerance', type: 'select',
     options: [['0', 'Lenient (default)'], ['1', 'Tolerant'], ['2', 'Hostile'], ['3', 'Permissive']],
     help: 'Local authority attitude (OpenTTD difficulty.town_council_tolerance). Lenient: refuses below 0 rating. Tolerant: refuses below 200. Hostile: refuses below 400. Permissive: never refuses.' },

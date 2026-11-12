@@ -10,9 +10,9 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty, heading } from './common.js';
 import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
-import { replacementCandidates, isReplaceWhenOld, autoreplaceWhenOldState } from '../../simulation/autoreplace.js';
+import { replacementCandidates, isReplaceWhenOld, autoreplaceWhenOldState, keepLengthState } from '../../simulation/autoreplace.js';
 import { wagonList } from '../../simulation/consist.js';
-import { getSetting } from '../../simulation/settings.js';
+import { getSetting, setSetting } from '../../simulation/settings.js';
 
 /**
  * Vehicle and wagon counts per model for the vehicles in scope (player vehicles; `groupId` null = all of them).
@@ -75,11 +75,19 @@ export function openAutoreplace(app) {
       const summary = el('div.muted', { text: 'Vehicles stopped in a depot are replaced by the model you choose here. Group rules apply to that group only and win over the company rule.' });
       const scope = el('select.input', { 'aria-label': 'Autoreplace rule scope' });
       const scopeRow = el('label.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Rules for ', scope);
+      // Keep train length (D1/D2): company scope edits the setting, group scope edits the lazy tri-state group flag.
+      const keepCb = el('input', { type: 'checkbox', 'aria-label': 'Keep train length when replacing',
+        title: 'Sell the wagons that would make the replacement longer than the old train' });
+      const keepCbLabel = el('label.muted', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, keepCb, 'Keep train length');
+      const keepSel = el('select.input', { 'aria-label': 'Keep train length for this group',
+        title: 'Sell the wagons that would make the replacement longer than the old train' });
+      const keepSelLabel = el('label.muted', { style: { display: 'none', alignItems: 'center', gap: '4px' } }, 'Keep train length ', keepSel);
+      const keepRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', margin: '2px 0' } }, keepCbLabel, keepSelLabel);
       const list = el('div.list.scroll.table');
       const wagonHead = heading('Train wagons');
       const wagonHint = el('div.muted.small', { text: 'Replacing a wagon keeps the wagon count of the train and swaps only its wagon model. A wagon rule alone makes a train eligible; the engine stays.' });
       const wagonListEl = el('div.list.scroll.table');
-      body.append(summary, scopeRow, heading('Vehicles'), list, wagonHead, wagonHint, wagonListEl);
+      body.append(summary, scopeRow, keepRow, heading('Vehicles'), list, wagonHead, wagonHint, wagonListEl);
       // Scope options: company, then every vehicle group. Rebuilt here (not in refresh) so a selection survives refreshes.
       const refreshScope = () => {
         const groups = app.game.state.company.groups || [];
@@ -93,6 +101,26 @@ export function openAutoreplace(app) {
         const company = g.state.company;
         const year = g.state.date.year;
         const gid = scope.value === '' ? null : Number(scope.value);
+        // Keep-length control: a plain checkbox at company scope, a tri-state (inherit/on/off) at group scope.
+        const ks = keepLengthState(g.state, gid);
+        const groupScope = gid != null;
+        keepCbLabel.style.display = groupScope ? 'none' : '';
+        keepSelLabel.style.display = groupScope ? '' : 'none';
+        if (groupScope) {
+          keepSel.replaceChildren(
+            el('option', { value: '', text: `inherit company (${ks.company ? 'on' : 'off'})` }),
+            el('option', { value: 'on', text: 'on' }),
+            el('option', { value: 'off', text: 'off' }));
+          keepSel.value = ks.inherited ? '' : (ks.value ? 'on' : 'off');
+          keepSel.onchange = () => {
+            const value = keepSel.value === '' ? null : keepSel.value === 'on';
+            app.exec(g.setGroupKeepLength(gid, value), { sound: 'click' });
+            refresh();
+          };
+        } else {
+          keepCb.checked = ks.value;
+          keepCb.onchange = () => { setSetting(g.state, 'renewKeepLength', keepCb.checked); refresh(); };
+        }
         const { engines: counts, wagons: wagonCounts } = autoreplaceCounts(g.state.vehicles, gid);
         const rules = gid == null ? (company.autoreplace || {})
           : ((company.groupAutoreplace && company.groupAutoreplace[gid]) || {});

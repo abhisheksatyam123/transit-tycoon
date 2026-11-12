@@ -12,7 +12,7 @@
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { resolvePurchase, createVehicle, effectiveMaxAge, isVehicleOld } from './vehicles.js';
-import { isReplaceWhenOldFor, autoreplaceTarget, groupProtectBlocksAll } from './autoreplace.js';
+import { isReplaceWhenOldFor, autoreplaceTarget, groupProtectBlocksAll, isKeepLengthFor } from './autoreplace.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -21,6 +21,17 @@ import { notify } from './news.js';
 import { dayNumber } from './date.js';
 
 const NAG_DAYS = 30;
+
+/**
+ * Wagon cap under keep-length: min(maxTrainWagons, floor(2*maxTrainLength + 1e-9) - 1). The second term is the inverse
+ * of resolvePurchase's `(wagons + 1) * SEGMENT_SPACING <= maxTrainLength` test (SEGMENT_SPACING = 0.5).
+ */
+function keepLengthCap(state) {
+  const maxWagons = Number(getSetting(state, 'maxTrainWagons'));
+  const maxLength = Number(getSetting(state, 'maxTrainLength'));
+  const byLength = Number.isFinite(maxLength) ? Math.floor(2 * maxLength + 1e-9) - 1 : Infinity;
+  return Math.max(0, Math.min(Number.isFinite(maxWagons) ? maxWagons : Infinity, byLength));
+}
 
 /**
  * OpenTTD company.engine_renew_months (def 6; vehicle.cpp NeedsAutorenewing: age - max_age < months*30 is not old enough).
@@ -72,14 +83,29 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   // with no rule this is exactly the old wagon fields. Applies to the player's trains only (rival AI replacements
   // must not read the player's rule table). Protect/when-old semantics live inside wagonRuleTarget.
   const remapWagon = wagonRuleTarget(state, v, v.wagonModelId, v.cargoId);
-  const consist = v.consist ? v.consist.map((w) => ({ ...w })) : undefined;
+  let consist = v.consist ? v.consist.map((w) => ({ ...w })) : undefined;
   if (consist) {
     for (const w of consist) w.modelId = wagonRuleTarget(state, v, w.modelId, w.cargoId) || w.modelId;
+  }
+  // D1/D2 keep-length (opt-in): with renewKeepLength effective for this vehicle, cap the replacement chain at the old
+  // wagon count and at maxTrainWagons / maxTrainLength. TT wagon lengths are uniform, so OpenTTD's length comparison is
+  // vacuous; the cap decides. Wagons nearest the engine (consist[0]) are dropped, matching OpenTTD's rear-to-front
+  // rebuild. Off (the default) leaves the count untouched and does not pass maxTrainLength (current behaviour).
+  const keepLength = v.kind === 'train' && isKeepLengthFor(state, v);
+  let wagons = v.wagons || 0;
+  if (keepLength) {
+    const cap = keepLengthCap(state);
+    const oldCount = consist ? consist.length : wagons;
+    const keep = Math.min(oldCount, cap);
+    if (keep < oldCount) {
+      if (consist) consist = consist.slice(oldCount - keep); // drop the wagons nearest the old head
+      else wagons = keep;
+    }
   }
   const spec = {
     modelId: newModelId,
     wagonModelId: (remapWagon || v.wagonModelId) || undefined,
-    wagons: v.wagons || 0,
+    wagons,
     cargoId: v.cargoId || undefined,
     consist,
   };
@@ -89,7 +115,8 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   // obsolete year); same-model autorenew keeps the old purchasable check.
   const neverExpire = getSetting(state, 'neverExpireVehicles')
     || (reason === 'autoreplace' && newModelId === v.modelId && v.kind === 'train');
-  const r = resolvePurchase(depot, spec, state.date.year, neverExpire, getSetting(state, 'maxTrainWagons'));
+  const r = resolvePurchase(depot, spec, state.date.year, neverExpire, getSetting(state, 'maxTrainWagons'),
+    keepLength ? getSetting(state, 'maxTrainLength') : null);
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);

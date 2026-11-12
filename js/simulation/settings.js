@@ -319,6 +319,11 @@ export const DEFAULT_SETTINGS = {
    * (ALL_GROUP) autoreplace rule; its own per-group rule and age-based autorenew still run. Off = TT behaviour today:
    * a protected group blocks its own group rule, the company rule and autorenew. */
   autoreplaceProtectOttd: false,
+  /** OpenTTD company.renew_keep_length (company_settings.ini, def false): after autoreplace, sell the wagons that would
+   * make the train longer than before (TT: cap at the old wagon count and at maxTrainWagons / maxTrainLength, dropping
+   * the wagons nearest the engine). Off = today's count-preserving replacement. The group flag
+   * company.groupReplaceWagonRemoval lazily overrides it per group (absent = follow this setting live). */
+  renewKeepLength: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */

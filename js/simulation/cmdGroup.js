@@ -151,6 +151,11 @@ export function deleteGroup(ctx, id, opts = {}) {
     delete state.company.groupAutoreplaceWhenOld[id];
     if (!Object.keys(state.company.groupAutoreplaceWhenOld).length) delete state.company.groupAutoreplaceWhenOld;
   }
+  // keep-length flag (D2): drop the group's override, key removed when empty
+  if (state.company.groupReplaceWagonRemoval) {
+    delete state.company.groupReplaceWagonRemoval[id];
+    if (!Object.keys(state.company.groupReplaceWagonRemoval).length) delete state.company.groupReplaceWagonRemoval;
+  }
   return { ok: true, cost: 0 };
 }
 
