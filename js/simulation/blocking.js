@@ -13,20 +13,28 @@
  *  - trains: only a train moving the same way blocks (head-on trains pass: no signals / passing loops yet);
  *  - road vehicles: only a vehicle moving the same way blocks (oncoming traffic passes), except on a stop tile;
  *  - a vehicle loading at a stop tile blocks the vehicles behind it until it leaves;
- *  - aircraft and vehicles in a depot are not indexed.
+ *  - aircraft and vehicles in a depot are not indexed;
+ *  - trams are unindexed on their own tram layer, unless the opt-in `tramQueue` setting puts them on the road layer.
  */
 import { TICKS_PER_DAY, dirBetween } from './constants.js';
 import { blockIndex, guardedBlock } from './signals.js';
 import { articSpan } from './articulated.js';
+import { getSetting } from './settings.js';
 
 /** A vehicle blocked this long by a moving (not loading) vehicle turns around / re-plans (3 days). */
 export const BLOCK_TIMEOUT_TICKS = 3 * TICKS_PER_DAY;
 
-/** Occupancy layer of a vehicle ('rail' for trains, 'road' for road vehicles) or null. */
-export function occupancyLayer(v) {
+/**
+ * Occupancy layer of a vehicle ('rail' for trains, 'road' for road vehicles) or null.
+ * Trams are normally unindexed (own tram layer); with `tramQueue` on they join the road layer, so they queue
+ * behind buses/trams in the same lane and use the bay logic like any road vehicle (roadveh_cmd.cpp:634-701).
+ * Default off = no extra map work for trams (today's behaviour).
+ */
+export function occupancyLayer(v, state) {
   if (v.kind === 'train') return 'rail';
-  if (v.kind === 'road' && v.roadType !== 'tram') return 'road'; // trams run on their own (unindexed) tram layer
-  return null;
+  if (v.kind !== 'road') return null;
+  if (v.roadType !== 'tram') return 'road';
+  return getSetting(state, 'tramQueue') === true ? 'road' : null; // trams: own unindexed layer unless opted in
 }
 
 /**
@@ -46,10 +54,10 @@ export function vehicleDir(v) {
 
 /**
  * Body cells of a vehicle as tile keys (see module comment). `reuse` (an array no longer indexed) is
- * refilled in place when its length matches, so re-indexing a moving vehicle does not allocate.
+ * refilled in place when its length matches, so re-indexing a moving vehicle does not allocate. `layer` is
+ * the caller's occupancyLayer result (one settings read per vehicle per tick).
  */
-function bodyKeys(state, v, reuse) {
-  const layer = occupancyLayer(v);
+function bodyKeys(state, v, reuse, layer) {
   if (!layer || v.state === 'depot') return null;
   const w = state.map.width;
   const h = v.history && v.history.length ? v.history : [{ x: v.tx, y: v.ty }];
@@ -80,8 +88,8 @@ function removeFrom(map, k, v) {
 export function beginOccupancy(state) {
   const occ = { rail: new Map(), road: new Map(), keys: new Map(), blocks: new Map(), blockIds: new Map() };
   for (const v of state.vehicles) {
-    const layer = occupancyLayer(v);
-    const keys = bodyKeys(state, v, null);
+    const layer = occupancyLayer(v, state);
+    const keys = bodyKeys(state, v, null, layer);
     if (!keys) continue;
     occ.keys.set(v, keys);
     for (const k of keys) addTo(occ[layer], k, v);
@@ -119,14 +127,14 @@ export function trainInBlock(ctx, v, b) {
 export function syncOccupancy(ctx, v) {
   const occ = ctx.occupancy;
   if (!occ) return;
-  const layer = occupancyLayer(v);
+  const layer = occupancyLayer(v, ctx.state);
   const old = occ.keys.get(v);
   if (old) {
     for (const k of old) removeFrom(occ[layer], k, v);
     occ.keys.delete(v);
   }
   // `old` is no longer indexed, so its array can hold the new body cells
-  const keys = bodyKeys(ctx.state, v, old);
+  const keys = bodyKeys(ctx.state, v, old, layer);
   const oldBlocks = occ.blockIds.get(v);
   if (oldBlocks) {
     for (const b of oldBlocks) removeFrom(occ.blocks, b, v);
