@@ -5,7 +5,8 @@
  *
  * Mapping from OpenLoco IndustryObject to js/config/industries.js:
  *  producedCargoType[0..1] = type.produces[0..1]; requiredCargoType[0..2] = type.accepts[0..2];
- *  requiresAllCargo = false (every processor sums its inputs); canIncrease/DecreaseProduction = primary industries
+ *  requiresAllCargo = false for the shipped types (every processor sums its inputs; updateDaily also implements
+ *  OpenLoco's requiresAllCargo branch for configs that set it); canIncrease/DecreaseProduction = primary industries
  *  (no accepts); monthlyClosureChance/designedYear/obsoleteYear = type.* (see config).
  * Units: OpenLoco counts daily production in 1/8 cargo units against an 8-unit send threshold; here
  *  dailyProduction and outputBuffer are in eighths of a unit (a coal mine's 110/month ~ 29 per day), the initial target is
@@ -168,17 +169,34 @@ export function updateDaily(game, ind) {
   const scale = Number(getSetting(state, 'industryCargoScale'));
   const scaled = (n) => (Number.isFinite(scale) && scale !== 100 ? Math.round((n * scale) / 100) : n);
 
-  // received cargo -> output (requiresAllCargo is false: all inputs are summed)
+  // Snapshot the input stock before this day's processing zeroes it: the industry window's "waiting to be
+  // processed" (OpenLoco IndustryWindow shows receivedCargoQuantityDailyTotal) otherwise always reads 0.
+  const waiting = [ind.receivedDaily[0], ind.receivedDaily[1], ind.receivedDaily[2]];
+
+  // received cargo -> output (OpenLoco Industry::updateDaily, both branches)
   let amountToProduce = 0;
-  for (let i = 0; i < req.length; i++) {
-    amountToProduce = u16(amountToProduce + ind.receivedDaily[i]);
-    ind.receivedDaily[i] = 0;
+  if (type.requiresAllCargo) {
+    // Production is limited by the least-supplied input; the rest stays in receivedDaily and, like OpenLoco
+    // line 228 ("lose a 16th of required cargo if requiresAllCargo and not equally satisfied"), decays 1/16 a day.
+    amountToProduce = req.length ? 0xffff : 0;
+    for (let i = 0; i < req.length; i++) amountToProduce = Math.min(amountToProduce, ind.receivedDaily[i]);
+    if (amountToProduce !== 0) {
+      for (let i = 0; i < req.length; i++) ind.receivedDaily[i] = u16(ind.receivedDaily[i] - amountToProduce);
+    }
+    for (let i = 0; i < req.length; i++) ind.receivedDaily[i] -= Math.floor(u16(ind.receivedDaily[i] + 15) / 16);
+  } else {
+    // Every ported processor sums its inputs (requiresAllCargo is false); OpenLoco zeroes the buffers here, so
+    // its line-228 decay is a no-op on this branch and must not be applied (the leftovers it decays only exist
+    // in the requiresAllCargo branch above).
+    for (let i = 0; i < req.length; i++) {
+      amountToProduce = u16(amountToProduce + ind.receivedDaily[i]);
+      ind.receivedDaily[i] = 0;
+    }
   }
   if (amountToProduce !== 0) {
     const eighths = scaled(Math.round(amountToProduce * 8 * CONVERSION_RATIO));
     for (let i = 0; i < prod.length; i++) ind.outputBuffer[i] = u16(ind.outputBuffer[i] + eighths);
   }
-  for (let i = 0; i < 3; i++) ind.receivedDaily[i] -= Math.floor(u16(ind.receivedDaily[i] + 15) / 16);
 
   const sx = ind.x + (ind.w >> 1), sy = ind.y + (ind.h >> 1);
   for (let i = 0; i < prod.length; i++) {
@@ -202,8 +220,8 @@ export function updateDaily(game, ind) {
       ind.transportedThisMonth[prod[i]] = ind.deliveredMonthly[i];
     }
   }
-  // UI: cargo waiting to be processed
-  for (let i = 0; i < req.length; i++) ind.stock[req[i]] = ind.receivedDaily[i];
+  // UI: cargo waiting to be processed (snapshot from before the daily consumption)
+  for (let i = 0; i < req.length; i++) ind.stock[req[i]] = waiting[i];
 }
 
 /** Industry::isMonthlyProductionUp. */
