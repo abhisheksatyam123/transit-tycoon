@@ -142,6 +142,11 @@ export function deleteGroup(ctx, id, opts = {}) {
   for (const v of state.vehicles) if (v.groupId === id) delete v.groupId;
   state.company.groups = groupList(state).filter((x) => x !== g);
   if (!state.company.groups.length) delete state.company.groups;
+  // drop the group's lazy autoreplace rules too (key removed again when no group rules remain)
+  if (state.company.groupAutoreplace) {
+    delete state.company.groupAutoreplace[id];
+    if (!Object.keys(state.company.groupAutoreplace).length) delete state.company.groupAutoreplace;
+  }
   return { ok: true, cost: 0 };
 }
 
