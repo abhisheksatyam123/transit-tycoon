@@ -294,6 +294,8 @@ export const SETTING_META = [
     help: 'OpenTTD company.engine_renew_money (OpenTTD default 100000): the company must hold at least this much before autoreplace or autorenew runs. 0 = only the purchase cost is checked (current default).' },
   { key: 'autorenew', group: 'companies', label: 'Autorenew', type: 'check',
     help: 'Vehicles past their max age are replaced by a new one of the same model when they next stop in a depot (price minus resale). Off = old vehicles keep running.' },
+  { key: 'autoreplaceProtectOttd', group: 'companies', label: 'OpenTTD group protection', type: 'check',
+    help: 'How a protected vehicle group treats autoreplace. On (OpenTTD): protection blocks only the company-wide rule, while the group\'s own rule and autorenew still run. Off = current: a protected group blocks its own rule, the company rule and autorenew.' },
   { key: 'treeGrowth', group: 'environment', label: 'Tree growth', type: 'check',
     help: 'Forests slowly spread to free grass next to them (a few tiles a month).' },
   { key: 'farmFields', group: 'environment', label: 'Farm fields', type: 'check', newGame: true,

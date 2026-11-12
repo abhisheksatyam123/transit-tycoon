@@ -113,9 +113,24 @@ function clearGroupRules(company, groupId, oldModelId) {
 }
 
 /**
- * The rule that applies to `modelId` on `v`: the vehicle group's rule first, then the company rule. Current TT
- * protect semantics stay: a protected group blocks every rule (its own group rule and the company rule), exactly as
- * before. With no group rules the result is identical to the old company-only lookup.
+ * Does a protected group block *every* autoreplace action for `v`? Only under the current TT semantics, i.e. while
+ * the `autoreplaceProtectOttd` opt-in is off: a protected group then blocks its own group rule, the company rule and
+ * autorenew. With the opt-in on, protection blocks only the company-wide rule (handled in autoreplaceTarget), so the
+ * group's own rule and age-based autorenew still run (OpenTTD autoreplace.cpp:70 only skips the ALL_GROUP lookup).
+ */
+export function groupProtectBlocksAll(state, v) {
+  if (v.groupId == null) return false;
+  const company = state.company;
+  const group = company && (company.groups || []).find((g) => g.id === v.groupId);
+  if (!group || !group.replaceProtect) return false;
+  return getSetting(state, 'autoreplaceProtectOttd') !== true;
+}
+
+/**
+ * The rule that applies to `modelId` on `v`: the vehicle group's rule first, then the company rule.
+ * A protected group blocks every rule under the default TT semantics; with `autoreplaceProtectOttd` on it blocks
+ * only the company rule (its own group rule still applies). With no group rules the result is identical to the old
+ * company-only lookup.
  * @returns {string|undefined} replacement model id, or undefined when no rule applies
  */
 export function autoreplaceTarget(state, v, modelId = v.modelId) {
@@ -123,9 +138,13 @@ export function autoreplaceTarget(state, v, modelId = v.modelId) {
   if (!company) return undefined;
   if (v.groupId != null) {
     const group = (company.groups || []).find((g) => g.id === v.groupId);
-    if (group && group.replaceProtect) return undefined;
+    const protectedGroup = !!(group && group.replaceProtect);
+    // Default TT semantics: a protected group blocks its own rule and the company rule.
+    if (protectedGroup && groupProtectBlocksAll(state, v)) return undefined;
     const groupRules = company.groupAutoreplace && company.groupAutoreplace[v.groupId];
     if (groupRules && Object.prototype.hasOwnProperty.call(groupRules, modelId)) return groupRules[modelId];
+    // OpenTTD semantics: protection blocks only the company-wide (ALL_GROUP) rule, not the group's own rule.
+    if (protectedGroup) return undefined;
   }
   const rules = company.autoreplace;
   return rules && Object.prototype.hasOwnProperty.call(rules, modelId) ? rules[modelId] : undefined;
