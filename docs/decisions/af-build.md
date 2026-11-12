@@ -6,7 +6,7 @@ Rule: every new setting's default reproduces the current Transit Tycoon (TT) beh
 |---|---|---|---|---|
 | 1 | `roadStopOnCompetitorRoad` (group construction) | `table/settings/world_settings.ini:544` (`construction.road_stop_on_competitor_road`, def true); `station_cmd.cpp:1160` (refuse when road owner is not none and `CheckOwnership` fails) | `js/simulation/cmdStation.js:171` (refusal in `buildRoadStop`, bus/truck only); helper `roadOwnerId` above `buildRoadStop` | true = allowed (unchanged) |
 | 2 | Vehicle list sort `number` and `capacity` | `vehicle_gui.cpp:57-68` (`VehicleNumberSorter`, sorter set incl. capacity-style list); list built ~100-121 | `js/ui/windows/vehicleList.js` `VEHICLE_SORTS` (two entries appended at the end) and `sortKey` (`number` = vehicle id, `capacity` = `v.capacity`, falling back to the model capacity) | default sort `name` (index 0), unchanged |
-| 3 | `enginePreviewBlock` (group companies) | `engine.cpp:963` (offer only if `block_preview == 0` and not asked); `engine.cpp:1133` (`block_preview = 20` months) | `js/simulation/enginePreview.js`: `BLOCK_DAYS = 600` (20 x 30 days), `bestCompanyKey` skips `rec.block[key]` dates not yet passed, `blockCompany` called on player decline (`answerEnginePreview`) and on timeout (`updateDaily`) | false = offered again at once (unchanged); `rec.block` is never written |
+| 3 | `enginePreviewBlock` (group companies) | `engine.cpp:963` (offer only if `block_preview == 0` and not asked); `engine.cpp:1133` (`block_preview = 20` months) | `js/simulation/enginePreview.js`: `BLOCK_DAYS = 600` (20 x 30 days), `bestCompanyKey` checks `rec.block[key]` before `rec.asked`, `blockCompany` called on player decline (`answerEnginePreview`) and on timeout (`updateDaily`) removes the company from `asked`; while a candidate is blocked the record waits and retries a preview cycle every 30 days (`rec.retry`, `updateDaily`) | false = offered again at once (unchanged); `rec.block`/`rec.retry` are never written |
 
 ## Details
 
@@ -19,7 +19,7 @@ Rule: every new setting's default reproduces the current Transit Tycoon (TT) beh
 
 ## Left out / caveats
 
-- **Preview block has no effect within one preview cycle.** `rec.asked` already stops a company being asked twice in one preview. TT has no second preview cycle per model, so the 20-month block only matters where a record is re-opened. It is implemented as the data and gate; no new preview cycle was invented.
+- **Preview block (fixed F2).** While a company is blocked the block, not `rec.asked`, excludes it (the declining company is removed from `asked`). If every candidate is blocked the record does not go public: it waits and retries a preview cycle every 30 days, so the company is offered the model again once the 600-day block expires. This adds a preview cycle that TT did not have; only when the setting is on.
 - **Sort 'number'** uses vehicle id, not the unit number (the spec asked for id). OTTD sorts by unit number.
 - **Sort 'capacity'** does not split by cargo type (see above).
 - **Competitor road for AI.** With the setting off, AI rivals are refused the same way (`buildRoadStop` is shared). No AI policy change was made.
