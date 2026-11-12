@@ -2,6 +2,19 @@
  * Tile grid: creation, indexing and value-noise terrain generation.
  */
 import { DIRS } from './constants.js';
+import { DEFAULT_SNOW_LINE } from './climate.js';
+
+/**
+ * Terrain snow starts this many levels above the snow line setting (mapgen snowLine, default 5 = the
+ * climate snow line): the level where OpenTTD TileLoopClearAlps reaches full snow (climate.js snowDensity,
+ * z - line + 1 >= 3). Default 5 + 2 = 7 = the historic hard-coded threshold, so default maps are unchanged.
+ */
+export const SNOW_TERRAIN_OFFSET = 2;
+
+/** Terrain snow height for a mapgen snow line (levels; above 7 = no snow terrain, e.g. High = 7 -> 9). */
+export function snowTerrainHeight(snowLine) {
+  return (Number.isInteger(snowLine) ? snowLine : DEFAULT_SNOW_LINE) + SNOW_TERRAIN_OFFSET;
+}
 
 /**
  * Create a blank tile.
@@ -170,6 +183,7 @@ function applyVarietyCurves(width, height, values, rng, level) {
  * - lakes: 'off' (default) | 'few' | 'many' (enclosed land basins flooded to water at height 0; RNG draws only when not off)
  * - variety: 0 (default, none) | 1..5 (very low..very high): OTTD curve-map height variety (see applyVarietyCurves)
  * - mountainStyle: 'off' (default) | 'on' (land within 12 tiles of a peak becomes rock, OpenLoco generateTerrainOnMountains; no RNG draws)
+ * - snowLine: 5 (default; snow terrain from height 7) | 3 (snow from 5) | 7 (no snow terrain, the line is above level 7)
  * - rivers: 'none' | 'few' | 'many' (valley rivers, extra RNG draws only when not 'none') | 'flowing'
  *   (rivers on slopes at their height; the heights are not changed)
  * @param {object} map
@@ -238,6 +252,7 @@ export function generateTerrainFromHeights(map, rng, heights, opts = {}) {
  */
 function finishTerrain(map, rng, opts, forest, dry) {
   const { width, height, tiles } = map;
+  const snowAt = snowTerrainHeight(opts.snowLine);
   const cliffs = opts.cliffs === 'on';
   const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
   limitSlopes(map, cap);
@@ -256,7 +271,7 @@ function finishTerrain(map, rng, opts, forest, dry) {
     for (let x = 0; x < width; x++) {
       const t = tiles[y * width + x];
       if (t.terrain === 'water') continue;
-      if (t.height >= 7) t.terrain = 'snow';
+      if (t.height >= snowAt) t.terrain = 'snow';
       else if (t.height >= 6 && dry(x, y) > 0.55) t.terrain = 'rock';
       else if (forest(x, y) > 0.6) t.terrain = 'forest';
       else if (t.height <= 2 && dry(x, y) > 0.72) t.terrain = 'desert';
