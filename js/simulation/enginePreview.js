@@ -12,8 +12,11 @@
  * Accepted: the holder alone can buy the model for EXCLUSIVE_DAYS (365); then it is public with news.
  *
  * State is lazy: state.enginePreview = { models: { [modelId]: rec } } exists only while the setting is on.
- * rec = { status: 'offer'|'exclusive'|'public', offer: key|null, holder: key|null, asked: key[], wait, until, block? }.
- * block (enginePreviewBlock only): { [key]: dayNumber until which the company is not offered this model }.
+ * rec = { status: 'offer'|'exclusive'|'public', offer: key|null, holder: key|null, asked: key[], wait, until, block?, retry? }.
+ * block/retry (enginePreviewBlock only): block = { [key]: dayNumber until which the company is not offered this
+ * model }; retry = day of the next preview cycle while the record waits for a block to pass.
+ * asked = companies asked in the current preview cycle; enginePreviewBlock removes a declining company from it when
+ * the block is recorded, so the block (not asked) excludes that company and it can be asked again in a later cycle.
  * key = 'p' (player) or 'r<rivalId>'. Nothing here draws from the game rng (determinism).
  */
 import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
@@ -25,6 +28,7 @@ import { dayNumber } from './date.js';
 export const PREVIEW_WAIT_DAYS = 20; // OpenTTD engine.cpp preview_wait = 20 days
 export const EXCLUSIVE_DAYS = 365; // one year of exclusive use
 export const BLOCK_DAYS = 600; // OpenTTD engine.cpp block_preview = 20 months (20 x 30 days); enginePreviewBlock setting
+const PREVIEW_RETRY_DAYS = 30; // enginePreviewBlock: while every candidate is blocked, try the next preview cycle monthly
 
 /** Company key used in preview records: 'p' = player, 'r<id>' = rival. */
 export function ownerKey(ownerId) { return ownerId == null ? 'p' : 'r' + ownerId; }
@@ -68,7 +72,8 @@ export function pendingPlayerOffer(state) {
 
 /**
  * Companies that may be offered a model, best performance first (OTTD GetPreviewCompany).
- * A company whose rec.block[key] date has not passed is skipped (enginePreviewBlock; block is only set when on).
+ * enginePreviewBlock: the block is checked before rec.asked, and a company whose block has passed is eligible even if
+ * it is still listed in asked, so asked can never keep a company blocked forever (block is only written when on).
  */
 export function bestCompanyKey(state, model, rec) {
   const kind = vehicleKindOf(model);
@@ -76,8 +81,9 @@ export function bestCompanyKey(state, model, rec) {
   const today = dayNumber(state.date);
   let best = null, bestPerf = -1;
   for (const key of keys) {
-    if (rec.asked.includes(key)) continue;
-    if (rec.block && rec.block[key] > today) continue;
+    const blockedUntil = rec.block ? rec.block[key] : 0;
+    if (blockedUntil > today) continue; // enginePreviewBlock: the block wins over asked
+    if (rec.asked.includes(key) && !(blockedUntil && blockedUntil <= today)) continue; // expired block -> new cycle
     const owner = keyOwner(key);
     const co = companyById(state, owner);
     if (!co) continue;
@@ -94,6 +100,17 @@ function blockCompany(state, rec, key) {
   if (!getSetting(state, 'enginePreviewBlock')) return;
   if (!rec.block) rec.block = {};
   rec.block[key] = dayNumber(state.date) + BLOCK_DAYS;
+  // the block now excludes the company; drop it from asked so a later preview cycle can offer the model again
+  const i = rec.asked.indexOf(key);
+  if (i >= 0) rec.asked.splice(i, 1);
+}
+
+/** True while any company has a future rec.block date (enginePreviewBlock; called on events/cycles only). */
+function hasFutureBlock(state, rec) {
+  if (!rec.block) return false;
+  const today = dayNumber(state.date);
+  for (const key of Object.keys(rec.block)) if (rec.block[key] > today) return true;
+  return false;
 }
 
 /** Make the model public: news once, then the rest of the world can buy it (OTTD NewVehicleAvailable). */
@@ -106,7 +123,16 @@ function makePublic(ctx, model, rec) {
 function offerNext(ctx, model, rec) {
   const { state } = ctx;
   const key = bestCompanyKey(state, model, rec);
-  if (!key) { makePublic(ctx, model, rec); return; }
+  if (!key) {
+    // enginePreviewBlock: if a company is only skipped because its block has not passed, wait for the next
+    // preview cycle instead of making the model public; when the block expires that company is asked again.
+    if (getSetting(state, 'enginePreviewBlock') && hasFutureBlock(state, rec)) {
+      rec.status = 'offer'; rec.offer = null; rec.wait = 0;
+      rec.retry = dayNumber(state.date) + PREVIEW_RETRY_DAYS;
+      return;
+    }
+    makePublic(ctx, model, rec); return;
+  }
   rec.asked.push(key);
   if (key === 'p') {
     rec.status = 'offer'; rec.offer = 'p'; rec.wait = PREVIEW_WAIT_DAYS;
@@ -165,7 +191,12 @@ export function updateDaily(game) {
   for (const m of ALL_VEHICLE_MODELS) {
     const rec = st.models[m.id];
     if (!rec) continue;
-    if (rec.status === 'offer' && rec.offer === 'p') {
+    if (rec.status === 'offer' && rec.offer == null && rec.retry != null && dayNumber(state.date) >= rec.retry) {
+      // enginePreviewBlock waiting record: a new preview cycle is due; offerNext asks the best unblocked company
+      delete rec.retry;
+      offerNext(ctx, m, rec);
+      if (rec.status === 'public') continue;
+    } else if (rec.status === 'offer' && rec.offer === 'p') {
       rec.wait -= 1;
       if (rec.wait <= 0) { blockCompany(state, rec, 'p'); rec.offer = null; if (ctx.emit) ctx.emit('enginePreviewClosed', { modelId: m.id }); offerNext(ctx, m, rec); }
     } else if (rec.status === 'exclusive' && dayNumber(state.date) >= rec.until) {
