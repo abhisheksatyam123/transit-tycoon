@@ -121,7 +121,7 @@ export const SETTING_META = [
     help: 'OpenTTD construction.build_on_slopes: rail and road may be built on sloped ground. Off = track and roads need level tiles (the default is on).' },
   { key: 'mapHeightLimit', group: 'construction', label: 'Terrain height limit', type: 'select',
     options: [['3', '3'], ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7 (default)']],
-    help: 'OpenTTD construction.map_height_limit: highest level terraforming may raise the land to. Lower values stop raising above the limit; existing terrain is kept.' },
+    help: 'OpenTTD construction.map_height_limit: highest level terraforming may raise the land to. Lower values stop raising above the limit; land already above a lowered limit is kept, and it can still be lowered.' },
   { key: 'autoslope', group: 'construction', label: 'Autoslope', type: 'check',
     help: 'Terraform under rail and road: land can be raised or lowered beneath track as long as the track stays valid on the new slope. Stations, depots, tunnels and bridges still block it.' },
   { key: 'pathCosts', group: 'construction', label: 'Realistic pathfinder costs', type: 'check',

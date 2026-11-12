@@ -185,7 +185,8 @@ function evaluate(state, op, rect, opts = {}) {
   for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
     const i = y * W + x, h = tiles[i].height;
     const v = op === 'raise' ? h + 1 : op === 'lower' ? h - 1 : startH;
-    if (v > heightCap) return { ok: false, error: TERRA_ERR.max };
+    // the cap only refuses RAISING a tile above it; lowering (or levelling down) is always allowed
+    if (v > h && v > heightCap) return { ok: false, error: TERRA_ERR.max };
     if (v < MIN_HEIGHT) return { ok: false, error: TERRA_ERR.min };
     pinned.set(i, v);
   }
@@ -221,7 +222,9 @@ function evaluate(state, op, rect, opts = {}) {
     inQueue.delete(j);
     if (++steps > limit) return { ok: false, error: TERRA_ERR.steep };
     const x = j % W, y = Math.floor(j / W);
-    let lo = MIN_HEIGHT, hi = heightCap;
+    const v = get(j);
+    // a free tile already above the cap may be pulled down (never capped from below); it is never raised above the cap
+    let lo = MIN_HEIGHT, hi = Math.max(heightCap, v);
     for (const [dx, dy] of NB8) {
       const nx = x + dx, ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
@@ -229,7 +232,6 @@ function evaluate(state, op, rect, opts = {}) {
       if (g - 1 > lo) lo = g - 1;
       if (g + 1 < hi) hi = g + 1;
     }
-    const v = get(j);
     const nv = v < lo ? lo : v > hi ? hi : v;
     if (nv === v) continue;
     const e = reasonOf(j);
@@ -240,6 +242,8 @@ function evaluate(state, op, rect, opts = {}) {
   // every changed tile must satisfy the rule against all its neighbours (blocked ones included)
   for (const i of cur.keys()) {
     const x = i % W, y = Math.floor(i / W), v = get(i);
+    // final check (not per step: the worklist may raise a tile transiently): no tile ends raised above the cap
+    if (v > tiles[i].height && v > heightCap) return { ok: false, error: TERRA_ERR.max };
     for (const [dx, dy] of NB8) {
       const nx = x + dx, ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) continue;
