@@ -52,6 +52,11 @@ export function cdMcfOn(state) {
   return getSetting(state, 'cargodistMcf') === true;
 }
 
+/** OpenTTD-style batched capacity routing on (setting cargodistCapacityRouting, off by default). */
+export function cdCapacityRoutingOn(state) {
+  return getSetting(state, 'cargodistCapacityRouting') === true;
+}
+
 /** Days between link graph job starts (setting linkgraphIntervalDays; 0 = month schedule, the default). */
 export function linkgraphIntervalDays(state) {
   return Math.max(0, Math.round(getSetting(state, 'linkgraphIntervalDays') || 0));
@@ -339,6 +344,130 @@ function mcfFlows(pairs, adj, capMap, pos, trees, augment = MCF_AUGMENT, saturat
   return flows;
 }
 
+/** Relaxation budget of the batched capacity solver; when exhausted the job is marked approximate (bounded tick). */
+const CAP_ROUTING_BUDGET = 60000;
+const CAP_ROUTING_ROUNDS = 8;
+
+/**
+ * Batched, deterministic approximation of OpenTTD's first MCF pass (setting cargodistCapacityRouting).
+ * Demand is unchanged (demand parity is a separate decision). Per round, sources are walked in id order and one
+ * residual Dijkstra per source builds a path tree over edges with free capacity; each unsatisfied destination is
+ * pushed `demand/accuracy` (at least 1) along it, capped by the free capacity of every leg (cap*saturation/100,
+ * applied at push time). Rounds stop at no progress. Leftover demand takes the unconstrained shortest path
+ * (the cheap second-pass fallback; it may overfill an edge). No cycle elimination, so it is closer to OpenTTD,
+ * not identical.
+ * @returns {{flows:Map<string, Map<number,number>>, approx:boolean}} 's>d' -> (first hop -> units)
+ */
+function capacityFlows(pairs, capMap, pos, trees, accuracy, saturation) {
+  // adjacency built and sorted here, so the result does not depend on edge insertion order
+  const succ = new Map();
+  for (const k of [...capMap.keys()].sort()) {
+    const [a, b] = k.split('>').map(Number);
+    if (!succ.has(a)) succ.set(a, []);
+    succ.get(a).push(b);
+  }
+  for (const list of succ.values()) list.sort((x, y) => x - y);
+  const limit = new Map();
+  for (const [k, v] of capMap) limit.set(k, Math.max(1, Math.floor(v * saturation / 100)));
+  const load = new Map();
+  const flows = new Map();
+  const add = (k, hop, amt) => {
+    let m = flows.get(k);
+    if (!m) flows.set(k, m = new Map());
+    m.set(hop, (m.get(hop) || 0) + amt);
+  };
+  const bySource = new Map();
+  for (const p of pairs) {
+    let list = bySource.get(p.s);
+    if (!list) bySource.set(p.s, list = []);
+    list.push({ d: p.d, amt: p.amt, left: p.amt });
+  }
+  for (const list of bySource.values()) list.sort((a, b) => a.d - b.d);
+  const sources = [...bySource.keys()].sort((a, b) => a - b);
+  const lastTrees = new Map(); // last residual tree per source: the fallback prefers it (stays within capacity)
+  const acc = Math.max(1, Math.round(accuracy));
+  const nodeCount = new Set([...limit.keys()].flatMap((k) => k.split('>').map(Number))).size;
+  let rounds = nodeCount > 128 ? 1 : CAP_ROUTING_ROUNDS;
+  let approx = nodeCount > 128; // large graph: one tree per source, keep the tick bounded
+  let budget = CAP_ROUTING_BUDGET;
+  for (let r = 0; r < rounds; r++) {
+    let progressed = false;
+    for (const s of sources) {
+      const list = bySource.get(s);
+      if (!list.some((p) => p.left > 0)) continue;
+      const dist = new Map([[s, 0]]), prev = new Map(), first = new Map();
+      const done = new Set(), heap = [[0, s]];
+      while (heap.length) {
+        if (budget <= 0) { approx = true; break; }
+        const [best, u] = heapPop(heap);
+        budget--;
+        if (done.has(u)) continue;
+        done.add(u);
+        for (const v of succ.get(u) || []) {
+          const k = edgeKey(u, v);
+          if (!((limit.get(k) || 0) - (load.get(k) || 0) > 0)) continue;
+          const pu = pos.get(u), pv = pos.get(v);
+          const d = best + (pu && pv ? manhattan(pu[0], pu[1], pv[0], pv[1]) : 1);
+          if (!dist.has(v) || d < dist.get(v)) {
+            dist.set(v, d);
+            prev.set(v, u);
+            first.set(v, u === s ? v : first.get(u));
+            heapPush(heap, [d, v]);
+          }
+        }
+      }
+      if (budget <= 0) break;
+      lastTrees.set(s, { dist, first });
+      for (const p of list) {
+        if (!(p.left > 0) || !dist.has(p.d)) continue;
+        const path = [];
+        let ok = true;
+        for (let v = p.d; v !== s; v = prev.get(v)) {
+          if (v === undefined) { ok = false; break; }
+          path.push(edgeKey(prev.get(v), v));
+        }
+        if (!ok) continue;
+        let free = Infinity;
+        for (const k of path) free = Math.min(free, (limit.get(k) || 0) - (load.get(k) || 0));
+        if (!(free > 0)) continue;
+        const step = Math.min(free, Math.max(1, Math.round(p.amt / acc)), p.left);
+        if (!(step > 0)) continue;
+        for (const k of path) load.set(k, (load.get(k) || 0) + step);
+        add(s + '>' + p.d, first.get(p.d), step);
+        p.left -= step;
+        progressed = true;
+      }
+    }
+    if (!progressed || budget <= 0) break;
+  }
+  // leftover demand: plain shortest path (markets over capacity as a last resort, like OpenTTD's second pass)
+  for (const s of sources) {
+    for (const p of bySource.get(s)) {
+      if (!(p.left > 0)) continue;
+      const lt = lastTrees.get(s);
+      const tree = trees.get(s);
+      const hop = (lt && lt.dist.has(p.d) ? lt.first.get(p.d) : undefined) ?? (tree && tree.first.get(p.d));
+      if (hop !== undefined) add(s + '>' + p.d, hop, p.left);
+    }
+  }
+  return { flows, approx };
+}
+
+/** Turn a flow map ('s>d' -> first hop -> units) into the job's nhs shares and single nh next hop. */
+function applyFlows(res, flows) {
+  for (const [k, m] of flows) {
+    const [s, d] = k.split('>').map(Number);
+    const tot = [...m.values()].reduce((n, x) => n + x, 0);
+    if (!(tot > 0)) continue;
+    const list = [...m.entries()].map(([h, x]) => [h, x / tot]).sort((a, b) => a[0] - b[0]);
+    (res.nhs[s] = res.nhs[s] || {})[d] = list;
+    // the single next hop used for unloading decisions: the largest share (lowest id on ties)
+    let best = list[0];
+    for (const x of list) if (x[1] > best[1]) best = x;
+    res.nh[s][d] = best[0];
+  }
+}
+
 /** Parcels whose destination is no longer reachable become unrouted again (any vehicle may take them). */
 function clearStranded(state, cargoId, g) {
   for (const st of state.stations) {
@@ -442,19 +571,13 @@ function computeJob(state, cargoId, mode, opts = {}) {
     for (const [d, h] of trees.get(s).first) if (d !== s) nhRow[d] = h;
   }
   // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
-  if (cdMcfOn(state)) {
-    const flows = mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state));
-    for (const [k, m] of flows) {
-      const [s, d] = k.split('>').map(Number);
-      const tot = [...m.values()].reduce((n, x) => n + x, 0);
-      if (!(tot > 0)) continue;
-      const list = [...m.entries()].map(([h, x]) => [h, x / tot]).sort((a, b) => a[0] - b[0]);
-      (res.nhs[s] = res.nhs[s] || {})[d] = list;
-      // the single next hop used for unloading decisions: the largest share (lowest id on ties)
-      let best = list[0];
-      for (const x of list) if (x[1] > best[1]) best = x;
-      res.nh[s][d] = best[0];
-    }
+  if (cdCapacityRoutingOn(state)) {
+    // OpenTTD-style batched capacity routing (setting cargodistCapacityRouting): demand is unchanged
+    const { flows, approx } = capacityFlows(pairs, capMap, pos, trees, getSetting(state, 'linkgraphAccuracy'), mcfSaturation(state));
+    if (approx) res.approx = true;
+    applyFlows(res, flows);
+  } else if (cdMcfOn(state)) {
+    applyFlows(res, mcfFlows(pairs, adj, capMap, pos, trees, mcfAugment(state), mcfSaturation(state)));
   }
   for (const s of Object.keys(res.dem)) {
     const row = res.dem[s];

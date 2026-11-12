@@ -162,6 +162,8 @@ export const DEFAULT_SETTINGS = {
   freightDistribution: 'manual',
   /** capacity-constrained routing (OpenTTD MCF, simplified) for the cargodist link graphs. Off by default. */
   cargodistMcf: false,
+  /** OpenTTD-style capacity routing (batched, deterministic approximation of OpenTTD MCF pass 1) for cargodist link graphs. Off by default; when off, cargodistMcf/routing above is unchanged. */
+  cargodistCapacityRouting: false,
   /** link graph schedule in months. OpenTTD linkgraph.recalc_interval default is 8 in economy seconds x SECONDS_PER_DAY=2 = 4 days (linkgraph_settings.ini:45, timer_game_common.h:168). TT is monthly, not the OpenTTD cadence (known gap, see GAPS.md). 1 = rebuild monthly (current). */
   linkgraphRecalcInterval: 1,
   /** months a link graph job runs before its routing is applied (OpenTTD linkgraph.recalc_time; default 32 economy seconds x 2 = 16 days, linkgraph_settings.ini:58). Not the OpenTTD delay: TT counts months (known gap, see GAPS.md). 0 = applied at once (current). */
