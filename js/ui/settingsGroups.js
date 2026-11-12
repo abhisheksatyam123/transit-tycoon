@@ -114,6 +114,8 @@ export const SETTING_META = [
   { key: 'trainAcceleration', group: 'vehicles', label: 'Train acceleration', type: 'select',
     options: [['original', 'Original'], ['realistic', 'Realistic (OpenTTD)']],
     help: 'Realistic: trains slow for curves (OpenTTD corner limits) and accelerate from tractive effort, air drag, rolling friction and slope against their weight.' },
+  { key: 'wagonSpeedLimits', group: 'vehicles', label: 'Wagon speed limits', type: 'check',
+    help: 'Off by default (TT behaviour). When on, a train is limited by the slowest wagon with a nonzero speed (OpenTTD vehicle.wagon_speed_limits); 0 = unlimited.' },
   { key: 'gradients', group: 'construction', label: 'Gradients', type: 'check',
     help: 'Uphill slopes slow trains and road vehicles (heavier loads more); downhill gives a small speed bonus.' },
   { key: 'roadStopOnTownRoad', group: 'construction', label: 'Road stops on town roads', type: 'check',

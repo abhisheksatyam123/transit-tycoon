@@ -45,6 +45,7 @@ import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
 import { overtakeEnabled, overtakeBlocker, tryOvertake, overtakeTick, overtakeSpeed } from './roadOvertake.js';
 import { CROSSING_HOLD, entersBarred } from './levelCrossing.js';
+import { consistMaxSpeedTiles } from './consist.js';
 
 /** Ticks between path retries for lost vehicles. */
 export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
@@ -341,7 +342,8 @@ function move(ctx, v) {
     // OTTD order max speed (GetMaxSpeed of the current order): the vehicle's cap while heading to that order.
     // Lazy: only an order with `maxSpeed` (km/h) lowers the cap; the common path is one array read.
     const cur = v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
-    let maxTiles = v.maxSpeed;
+    // OpenTTD vehicle.wagon_speed_limits: a train may also be capped by its slowest wagon (setting off = v.maxSpeed).
+    let maxTiles = v.kind === 'train' ? consistMaxSpeedTiles(state, v) : v.maxSpeed;
     if (cur && cur.maxSpeed > 0) { const c = cur.maxSpeed * KMH_TO_TILES_PER_TICK; if (c < maxTiles) maxTiles = c; }
     // Typed bridge (config/bridges.js, OTTD train_cmd.cpp:437 / roadveh): the bridge's speed caps trains and road
     // vehicles on its tiles. Untyped tiles (the default bridge) only pay one property read.

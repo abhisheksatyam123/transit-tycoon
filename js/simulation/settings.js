@@ -78,6 +78,10 @@ export const DEFAULT_SETTINGS = {
   gradients: false,
   /** trainAcceleration: 'original' (current TT model, default) | 'realistic' (OTTD curve speed limits + tractive effort / drag / slope acceleration, loco/trainRealistic.js). Changes results; off by default. */
   trainAcceleration: 'original',
+  /** wagonSpeedLimits: OpenTTD vehicle.wagon_speed_limits (train_cmd.cpp ConsistChanged): a train is limited by
+   * the slowest wagon with a nonzero speed; a wagon speed of 0 (or absent) = unlimited. Off = the engine speed only
+   * (current behaviour). No wagon data has a nonzero speed yet, so even On is inert today. */
+  wagonSpeedLimits: false,
   /** roadOvertaking: OpenTTD road vehicle overtaking (roadOvertake.js): a faster road vehicle passes a slower one on a straight plain road when the opposite lane is free. Trams never. Off by default: changes results. */
   roadOvertaking: false,
   /** OpenTTD pf.roadveh_queue (pathfinding_settings.ini, def true; roadveh_cmd.cpp:919): a road vehicle waits for
