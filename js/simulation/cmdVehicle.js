@@ -11,6 +11,7 @@ import { getSetting } from './settings.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
 import { normaliseOrders, setOrderField, isDepotOrder } from './orders.js';
+import { isCond } from './condOrders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack, canFlipTrain } from './routing.js';
 import { RAIL_TYPES } from '../config/railTypes.js';
 
@@ -365,6 +366,12 @@ export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!v.orders[index]) return { ok: false, error: 'No such order' };
+  // G7: conditional orders carry no timetable times. OpenTTD refuses a travel time on them
+  // (CmdChangeTimetable MTF_TRAVEL_TIME); TT has no conditional-wait storage, so refuse edits rather
+  // than keeping a partial wait that later normalisation would silently drop.
+  if (isCond(v.orders[index]) && (times.travelDays !== undefined || times.waitDays !== undefined)) {
+    return { ok: false, error: 'Conditional orders cannot have a timetable time' };
+  }
   const patch = {};
   for (const k of ['waitDays', 'travelDays']) {
     if (times[k] === undefined) continue;
@@ -406,9 +413,19 @@ export function changeOrderTimes(ctx, id, index, patch = {}, opts = {}) {
     clean.maxSpeed = n;
   }
   if (!Object.keys(clean).length) return { ok: false, error: 'Nothing to change' };
-  if (opts.dryRun) return { ok: true, cost: 0, count: idxs.length };
-  for (const i of idxs) setOrderField(state, v, i, clean);
-  return { ok: true, cost: 0, count: idxs.length };
+  // G8: aircraft cannot carry an order speed limit (OpenTTD CmdChangeTimetable refuses MTF_TRAVEL_SPEED)
+  if (clean.maxSpeed !== undefined && v.kind === 'aircraft') return { ok: false, error: 'Aircraft cannot have an order speed limit' };
+  // G7/G8: conditional orders carry no timetable times or speed limit (OpenTTD refuses travel/speed;
+  // TT does not store conditional waits, so refuse them too rather than keep a partial value).
+  if (index !== 'all' && isCond(v.orders[index])) {
+    return { ok: false, error: 'Conditional orders cannot have timetable times or a speed limit' };
+  }
+  // Ctrl = all orders: apply only to the orders that can carry the change (conditionals are skipped)
+  const apply = index === 'all' ? idxs.filter((i) => !isCond(v.orders[i])) : idxs;
+  if (!apply.length) return { ok: false, error: 'No order can take that change' };
+  if (opts.dryRun) return { ok: true, cost: 0, count: apply.length };
+  for (const i of apply) setOrderField(state, v, i, clean);
+  return { ok: true, cost: 0, count: apply.length };
 }
 
 /** Turn autofill of the timetable on or off for one vehicle (on = one round of orders is recorded). */
@@ -452,7 +469,7 @@ export function spreadTimetableStart(ctx, id, opts = {}) {
   const v = findVehicle(state, id);
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
-  if (!timetableComplete(v)) return { ok: false, error: 'Timetable incomplete: every order needs a travel time before spreading' };
+  if (!timetableComplete(v)) return { ok: false, error: 'Timetable incomplete: every non-conditional order needs a travel time before spreading' };
   const T = roundTicks(v.orders);
   const mem = orderGroupMembers(state, v);
   if (opts.dryRun) return { ok: true, cost: 0, count: mem.length };

@@ -9,9 +9,14 @@
 import { TICKS_PER_DAY } from './constants.js';
 import { getSetting } from './settings.js';
 
-/** True when every order has a travel time (OpenTTD: the timetable can be spread / separated). */
+/**
+ * True when every non-conditional order has a travel time (OpenTTD IsCompletelyTimetabled: conditional
+ * orders carry no travel time and never make a timetable incomplete). Needs at least one such order.
+ */
 export function timetableComplete(v) {
-  return !!v.orders && v.orders.length > 0 && v.orders.every((o) => o.travelDays > 0);
+  if (!v.orders || !v.orders.length) return false;
+  const timed = v.orders.filter((o) => !(o && o.cond != null));
+  return timed.length > 0 && timed.every((o) => o.travelDays > 0);
 }
 
 /** Total timetable duration in ticks: all travel and wait days over the order list (0 when none). */
