@@ -124,7 +124,7 @@ export function openNewGame(app) {
       const mgLayout = sel([['mixed', 'Mixed (default)'], ['original', 'Original'], ['better', 'Better roads'], ['2x2', '2x2 grid'], ['3x3', '3x3 grid'], ['random', 'Random']]);
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgClimate = sel([['temperate', 'Temperate (default)'], ['arctic', 'Sub-arctic (snow above the snow line)'], ['tropic', 'Sub-tropical (desert and rainforest)'], ['toyland', 'Toyland (candy ground and toy houses)']]);
-      const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High']]);
+      const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High (no snow)']]);
       // Opt-in heightmap rotation (U5): only affects an imported heightmap; None keeps the historic import.
       const ROTATION_LABELS = { none: 'None (default)', rot90: '90° clockwise', rot180: '180°', rot270: '270° clockwise', flipX: 'Mirror left-right', flipY: 'Mirror top-bottom', transpose: 'Transpose (main diagonal)', antiTranspose: 'Anti-transpose' };
       const mgHeightmapRot = sel(HEIGHTMAP_ROTATIONS.map((v) => [v, ROTATION_LABELS[v]]));
@@ -146,6 +146,9 @@ export function openNewGame(app) {
       mgInd.value = mgInit.industryDensity;
       mgClimate.value = mgInit.climate;
       mgSnow.value = String(mgInit.snowLine);
+      // Snow terrain starts at snow line + 2 levels in every climate (map.js snowTerrainHeight); 7 = no snow on a 0..7 map.
+      const snowField = el('label.field', null, el('span.field-label', { text: 'Snow line' }), mgSnow,
+        el('small', { text: 'Snow terrain starts 2 levels above the snow line, in every climate. High = no snow terrain.' }));
       mgHeightmapRot.value = mgInit.heightmapRotation ?? 'none';
       mgBorders.value = mgInit.waterBorders;
       // Heightmap import (OpenTTD heightmap.cpp rules, see simulation/heightmap.js): decoded once on pick
@@ -194,7 +197,7 @@ export function openNewGame(app) {
         el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth), field('Variety distribution', mgVariety),
         field('Town density', mgTowns), field('Town roads', mgLayout), field('Industry density', mgInd),
-        field('Climate', mgClimate), field('Snow line', mgSnow), field('Water borders', mgBorders));
+        field('Climate', mgClimate), snowField, field('Water borders', mgBorders));
       body.append(
         field('Scenario', scenario),
         desc,
