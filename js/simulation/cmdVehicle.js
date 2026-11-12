@@ -617,7 +617,8 @@ export { refitCargos, REFIT_COST_FRACTION } from './refit.js';
 
 /**
  * Refit a vehicle stopped in a depot to another cargo its model supports (OpenTTD refit, simplified).
- * Only when the vehicle is in a depot and empty (rules in refit.js refitCore).
+ * Only when the vehicle is in a depot; empty unless the opt-in `partialRefit` setting is on
+ * (rules in refit.js refitCore).
  * @returns {{ok:true,cost:number,cargoId:string,capacity:number}|{ok:false,error:string}}
  */
 export function refitVehicle(ctx, id, cargoId, opts = {}) {
@@ -626,7 +627,10 @@ export function refitVehicle(ctx, id, cargoId, opts = {}) {
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (v.state !== 'depot') return { ok: false, error: 'Vehicle must be stopped in a depot to refit' };
-  return refitCore(ctx, v, cargoId, opts);
+  // partialRefit (default off): OpenTTD allows refitting a loaded vehicle in a depot. The depot ORDER path
+  // (movement.js) keeps its own rule: it does not pass opts.partial.
+  const partial = getSetting(state, 'partialRefit') === true;
+  return refitCore(ctx, v, cargoId, partial ? { ...opts, partial } : opts);
 }
 
 /**

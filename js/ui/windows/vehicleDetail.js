@@ -14,6 +14,7 @@ import { findStation } from '../../simulation/state.js';
 import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText, hasTimetable, isDepotOrder } from '../../simulation/orders.js';
+import { getSetting } from '../../simulation/settings.js';
 
 /** True when the vehicle has any timetable value or autofill running. */
 function hasTimetableOrders(v) {
@@ -125,7 +126,7 @@ export function openVehicleDetail(app, id) {
       body.appendChild(el('div.row-actions', null, el('span.muted.small', { text: 'Group' }), groupSel));
       // Refit (OpenTTD refit): only for a vehicle stopped in its depot; options = cargos its model supports
       const refitRow = el('div.refit-row');
-      const refitSel = /** @type {HTMLSelectElement} */ (el('select.input.refit-sel', { title: 'Cargo to carry after refit (vehicle must be in a depot and empty)' }));
+      const refitSel = /** @type {HTMLSelectElement} */ (el('select.input.refit-sel', { title: 'Cargo to carry after refit (vehicle must be in a depot)' }));
       const refitBtn = el('button.btn.sm', { type: 'button', text: 'Refit' });
       const refitNote = el('span.muted.small');
       const v0 = app.findVehicle(id);
@@ -228,10 +229,11 @@ export function openVehicleDetail(app, id) {
         setText(svcLabel, v.serviceIntervalDays ? 'Service interval' : 'Service: off');
         const inDepot = v.state === 'depot';
         const loaded = (v.load ? v.load.amount || 0 : 0) > 0;
+        const partial = getSetting(g().state, 'partialRefit') === true;
         // follow the vehicle's cargo only when it changes; keep a pending choice the user made meanwhile
         if (refitSel.dataset.cargo !== v.cargoId) { refitSel.dataset.cargo = v.cargoId; refitSel.value = v.cargoId; }
-        refitBtn.disabled = !inDepot || loaded || refitSel.disabled || refitSel.value === v.cargoId;
-        setText(refitNote, !cargos.length ? '' : !inDepot ? 'Depot only' : loaded ? 'Unload first' : '');
+        refitBtn.disabled = !inDepot || (loaded && !partial) || refitSel.disabled || refitSel.value === v.cargoId;
+        setText(refitNote, !cargos.length ? '' : !inDepot ? 'Depot only' : loaded && !partial ? 'Unload first' : '');
       };
     },
   });
