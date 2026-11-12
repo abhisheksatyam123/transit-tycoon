@@ -118,6 +118,18 @@ export function greyToHeight(g, levels = HEIGHTMAP_LEVELS) {
 }
 
 /**
+ * Clamp a dialog-supplied heightmap height (U6) to the supported 1..HEIGHTMAP_LEVELS range.
+ * The default 7 keeps the historic import byte-for-byte.
+ * @param {number} [levels=HEIGHTMAP_LEVELS]
+ * @returns {number} integer 1..HEIGHTMAP_LEVELS
+ */
+export function clampHeightmapLevels(levels = HEIGHTMAP_LEVELS) {
+  const n = Math.round(Number(levels));
+  if (!Number.isFinite(n)) return HEIGHTMAP_LEVELS;
+  return Math.max(1, Math.min(HEIGHTMAP_LEVELS, n));
+}
+
+/**
  * Greyscale map (already sized to the map) -> height levels per tile (Uint8Array, 0 = water).
  * @param {Uint8Array} grey
  * @param {number} [levels]
@@ -137,10 +149,11 @@ export function greyToHeights(grey, levels = HEIGHTMAP_LEVELS) {
  * @param {number} mapW
  * @param {number} mapH
  * @param {string} [rotation] one of HEIGHTMAP_ROTATIONS (applied after stretching; default 'none')
- * @returns {Uint8Array} mapW*mapH heights 0..7
+ * @param {number} [levels=HEIGHTMAP_LEVELS] highest land level (U6 heightmap height, clamped 1..7)
+ * @returns {Uint8Array} mapW*mapH heights 0..levels
  */
-export function heightsForMap(grey, imgW, imgH, mapW, mapH, rotation = 'none') {
-  const heights = greyToHeights(resampleGrey(grey, imgW, imgH, mapW, mapH));
+export function heightsForMap(grey, imgW, imgH, mapW, mapH, rotation = 'none', levels = HEIGHTMAP_LEVELS) {
+  const heights = greyToHeights(resampleGrey(grey, imgW, imgH, mapW, mapH), clampHeightmapLevels(levels));
   if (rotation === 'none') return heights;
   const r = rotateGrid(heights, mapW, mapH, rotation);
   return r.values;
