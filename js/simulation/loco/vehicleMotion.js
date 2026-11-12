@@ -37,7 +37,9 @@ export const AIR_MPH_TO_TILES_PER_TICK = 1 / 1024;
 export const KMH_TO_TILES_PER_TICK = MPH_TO_TILES_PER_TICK / KMH_PER_MPH;
 export const AIR_KMH_TO_TILES_PER_TICK = AIR_MPH_TO_TILES_PER_TICK / KMH_PER_MPH;
 
-const TRAIN_WAGON_WEIGHT = 25, ROAD_WEIGHT = 12;
+const TRAIN_WAGON_WEIGHT = 25;
+/** Empty road-vehicle body weight in tonnes (OpenLoco approximation; cargo adds 0.5 t per unit). */
+export const ROAD_WEIGHT = 12;
 const MAX_ACCEL_MPH = 0.5;
 const BRAKE_FLOOR_MPH = 5;
 const AIR_ACCEL_MPH = 2;

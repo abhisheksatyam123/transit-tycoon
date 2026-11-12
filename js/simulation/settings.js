@@ -88,6 +88,8 @@ export const DEFAULT_SETTINGS = {
   roadSlopeSteepness: 7,
   /** trainAcceleration: 'original' (current TT model, default) | 'realistic' (OTTD curve speed limits + tractive effort / drag / slope acceleration, loco/trainRealistic.js). Changes results; off by default. */
   trainAcceleration: 'original',
+  /** roadAcceleration: 'original' (current OpenLoco landSpeedStep, default) | 'realistic' (OTTD power / tractive effort / drag with the full loaded weight, plus the 75 % cardinal and 50 % reverse caps, loco/roadRealistic.js). Changes results; off by default. */
+  roadAcceleration: 'original',
   /** wagonSpeedLimits: OpenTTD vehicle.wagon_speed_limits (train_cmd.cpp ConsistChanged): a train is limited by
    * the slowest wagon with a nonzero speed; a wagon speed of 0 (or absent) = unlimited. Off = the engine speed only
    * (current behaviour). No wagon data has a nonzero speed yet, so even On is inert today. */
