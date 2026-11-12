@@ -8,7 +8,7 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
-import { replacementCandidates, isReplaceWhenOld } from '../../simulation/autoreplace.js';
+import { replacementCandidates, isReplaceWhenOld, autoreplaceWhenOldState } from '../../simulation/autoreplace.js';
 import { getSetting } from '../../simulation/settings.js';
 
 /**
@@ -68,12 +68,18 @@ export function openAutoreplace(app) {
               title: 'Replace only when old (off: replace at any age, the default)' });
             const cbLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' },
               title: 'Replace only when old' }, cb, 'when old');
+            // Group scope: tri-state select (inherit the company flag / force on / force off) instead of the company checkbox.
+            const wo = el('select.input', { 'aria-label': `When old for ${m.name}`, title: 'Replace only when old' });
+            const woLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, wo);
             const row = el('div.table-row', null,
-              el('span', null, el('span.name'), el('div.muted.small', { style: { fontSize: '0.85em' } })), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
+              el('span', null, el('span.name'), el('div.muted.small', { style: { fontSize: '0.85em' } })), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel, woLabel),
               el('button.btn.sm', { type: 'button', text: 'Stop', title: 'Stop replacing this model',
                 onclick: () => app.exec(setRule(m.id, null), { sound: 'click' }) }));
             row._sel = sel;
             row._cb = cb;
+            row._cbLabel = cbLabel;
+            row._wo = wo;
+            row._woLabel = woLabel;
             row._name = row.children[0].children[0];
             row._hint = row.children[0].children[1];
             return row;
@@ -94,9 +100,29 @@ export function openAutoreplace(app) {
               ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${kmhText(c2.speed)})` })));
             sel.value = cur;
             const cb = row._cb;
-            cb.checked = isReplaceWhenOld(g.state, m.id);
-            cb.disabled = !cur;
-            cb.onchange = () => app.exec(g.setAutoreplaceWhenOld(m.id, cb.checked), { sound: 'click' });
+            const wo = row._wo;
+            const groupScope = gid != null;
+            // Company scope shows the plain checkbox; group scope shows the tri-state (inherited / on / off).
+            row._cbLabel.style.display = groupScope ? 'none' : '';
+            row._woLabel.style.display = groupScope ? '' : 'none';
+            if (groupScope) {
+              const st = autoreplaceWhenOldState(g.state, gid, m.id);
+              wo.replaceChildren(
+                el('option', { value: '', text: `inherit company (${st.company ? 'on' : 'off'})` }),
+                el('option', { value: 'on', text: 'when old: on' }),
+                el('option', { value: 'off', text: 'when old: off' }));
+              wo.value = st.inherited ? '' : (st.value ? 'on' : 'off');
+              wo.disabled = !cur;
+              wo.onchange = () => {
+                const v = wo.value === '' ? null : wo.value === 'on';
+                app.exec(g.setGroupAutoreplaceWhenOld(gid, m.id, v), { sound: 'click' });
+                refresh();
+              };
+            } else {
+              cb.checked = isReplaceWhenOld(g.state, m.id);
+              cb.disabled = !cur;
+              cb.onchange = () => app.exec(g.setAutoreplaceWhenOld(m.id, cb.checked), { sound: 'click' });
+            }
             c[3].disabled = !cur;
           }, gid == null ? 'No vehicles yet — buy one first' : 'No vehicles in this group');
       };

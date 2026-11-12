@@ -4,6 +4,9 @@
  * state.company.autoreplace = { [oldModelId]: newModelId }; group rules in the lazy
  * state.company.groupAutoreplace = { [groupId]: { [oldModelId]: newModelId } }. Both keys are absent when empty, so
  * default games and saves are unchanged. Applied by autorenew.js when a vehicle of model A is stopped in a depot.
+ * Replace-when-old is per rule: company.autoreplaceWhenOld = { [oldModelId]: true } and, lazily per group,
+ * company.groupAutoreplaceWhenOld = { [groupId]: { [oldModelId]: true|false } }. A group entry overrides the company
+ * flag; an absent entry inherits the company flag live. `false` is meaningful (override an on company flag).
  *
  * Wagon rules are opt-in too: once a rule for a wagon model exists, replaceVehicle keeps the wagon count but maps the
  * wagon model through it, and a wagon rule alone qualifies a train for replacement (the engine stays put). Mixed
@@ -106,11 +109,25 @@ export function clearGroupAutoreplace(state, groupId, oldModelId = null, opts = 
 function clearGroupRules(company, groupId, oldModelId) {
   const all = company.groupAutoreplace;
   const rules = all && all[groupId];
-  if (!rules) return;
+  if (rules) {
+    if (oldModelId == null) delete all[groupId];
+    else delete rules[oldModelId];
+    if (!Object.keys(rules).length) delete all[groupId];
+    if (!Object.keys(all).length) delete company.groupAutoreplace;
+  }
+  // Clearing a group rule also clears its replace-when-old entry (OpenTTD replace_when_old is a property of the rule).
+  clearGroupWhenOld(company, groupId, oldModelId);
+}
+
+/** Drop one group when-old entry (or the whole group table when `oldModelId` is null), lazily. */
+function clearGroupWhenOld(company, groupId, oldModelId) {
+  const all = company.groupAutoreplaceWhenOld;
+  const map = all && all[groupId];
+  if (!map) return;
   if (oldModelId == null) delete all[groupId];
-  else delete rules[oldModelId];
-  if (!Object.keys(rules).length) delete all[groupId];
-  if (!Object.keys(all).length) delete company.groupAutoreplace;
+  else delete map[oldModelId];
+  if (!Object.keys(map).length) delete all[groupId];
+  if (!Object.keys(all).length) delete company.groupAutoreplaceWhenOld;
 }
 
 /**
@@ -171,10 +188,62 @@ export function setAutoreplaceWhenOld(state, oldModelId, on, opts = {}) {
   return { ok: true, whenOld: !!on };
 }
 
-/** Is the rule for `modelId` set to replace only when old? */
+/** Is the rule for `modelId` set to replace only when old (company scope)? */
 export function isReplaceWhenOld(state, modelId) {
   const w = state.company && state.company.autoreplaceWhenOld;
   return !!(w && w[modelId]);
+}
+
+/**
+ * Is the rule for `modelId` on vehicle `v` set to replace only when old? The vehicle group's own entry wins when it
+ * exists; otherwise the company flag applies live (so a group rule keeps inheriting the company flag by default).
+ * Rival-owned vehicles never read the player's group table.
+ */
+export function isReplaceWhenOldFor(state, v, modelId = v.modelId) {
+  const company = state.company;
+  if (v && v.ownerId == null && v.groupId != null && company) {
+    const byGroup = company.groupAutoreplaceWhenOld && company.groupAutoreplaceWhenOld[v.groupId];
+    if (byGroup && Object.prototype.hasOwnProperty.call(byGroup, modelId)) return byGroup[modelId] === true;
+  }
+  return isReplaceWhenOld(state, modelId);
+}
+
+/**
+ * Tri-state view for the UI: `inherited` means the group has no entry and follows `company`; otherwise `value` is the
+ * group's explicit on/off. Company scope (groupId null) is always inherited-by-definition with the company value.
+ * @returns {{value:boolean, inherited:boolean, company:boolean}}
+ */
+export function autoreplaceWhenOldState(state, groupId, modelId) {
+  const company = state.company;
+  const byGroup = groupId != null && company
+    && company.groupAutoreplaceWhenOld && company.groupAutoreplaceWhenOld[groupId];
+  if (byGroup && Object.prototype.hasOwnProperty.call(byGroup, modelId)) {
+    return { value: byGroup[modelId] === true, inherited: false, company: isReplaceWhenOld(state, modelId) };
+  }
+  const c = isReplaceWhenOld(state, modelId);
+  return { value: c, inherited: true, company: c };
+}
+
+/**
+ * Set/clear one group's replace-when-old entry. `value` true/false is an explicit override; null removes the entry
+ * so the group follows the company flag again. Lazy: the map and group key are absent while unset. No SAVE_REVISION
+ * bump: the map rides along in state.company like the other lazy maps (and older saves simply lack it).
+ * @returns {{ok:true,whenOld:(boolean|null)}|{ok:false,error:string}}
+ */
+export function setGroupAutoreplaceWhenOld(state, groupId, oldModelId, value, opts = {}) {
+  const company = state.company;
+  if (!((company && company.groups) || []).some((g) => g.id === groupId)) return { ok: false, error: 'Unknown group' };
+  if (!MODEL_BY_ID[oldModelId]) return { ok: false, error: 'Unknown vehicle model' };
+  if (!opts.dryRun) {
+    if (value == null) {
+      clearGroupWhenOld(company, groupId, oldModelId);
+    } else {
+      company.groupAutoreplaceWhenOld ??= {};
+      company.groupAutoreplaceWhenOld[groupId] ??= {};
+      company.groupAutoreplaceWhenOld[groupId][oldModelId] = !!value;
+    }
+  }
+  return { ok: true, whenOld: value == null ? null : !!value };
 }
 
 function clearWhenOld(company, modelId) {

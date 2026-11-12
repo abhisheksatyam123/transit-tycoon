@@ -12,7 +12,7 @@
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { resolvePurchase, createVehicle, effectiveMaxAge, isVehicleOld } from './vehicles.js';
-import { isReplaceWhenOld, autoreplaceTarget, groupProtectBlocksAll } from './autoreplace.js';
+import { isReplaceWhenOldFor, autoreplaceTarget, groupProtectBlocksAll } from './autoreplace.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -52,7 +52,7 @@ function wagonRuleTarget(state, v, wagonModelId, cargoId) {
   const model = MODEL_BY_ID[to];
   if (!model || model.kind !== 'wagon') return undefined;
   if (cargoId && !model.cargos.includes(cargoId)) return undefined;
-  if (isReplaceWhenOld(state, wagonModelId) && !isVehicleOld(state, v)) return undefined;
+  if (isReplaceWhenOldFor(state, v, wagonModelId) && !isVehicleOld(state, v)) return undefined;
   return to;
 }
 
@@ -162,7 +162,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   const ro = { keepRoute: !!opts.serviceVisit };
   const target = autoreplaceTarget(state, v);
   // replace-when-old rules (autoreplace.js) wait until the vehicle is old; default rules replace at any age
-  if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) {
+  if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOldFor(state, v, v.modelId) || isVehicleOld(state, v))) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   } else if (wagonRuleApplies(state, v)) {
@@ -180,7 +180,7 @@ export function isAutoreplaceEligible(state, v) {
   if (groupProtectBlocksAll(state, v)) return false;
   const target = autoreplaceTarget(state, v);
   if (target && MODEL_BY_ID[target] && target!==v.modelId
-    && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) return true;
+    && (!isReplaceWhenOldFor(state, v, v.modelId) || isVehicleOld(state, v))) return true;
   if (wagonRuleApplies(state, v)) return true;
   return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
