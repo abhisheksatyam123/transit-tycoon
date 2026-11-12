@@ -78,6 +78,39 @@ describe('go to depot: service and resume', () => {
     expect(depot.id).toBeDefined();
   });
 
+  test('service-only + refit order is skipped when not due with depotRefitAlwaysVisits off (default)', () => {
+    const { g, L, v, depot } = trainSetup((L, d) => [{ depotId: d.id, serviceOnly: true, refit: 'IORE' }, { stationId: L.b.id, full: false }]);
+    v.serviceIntervalDays = 30; v.lastServiceDay = dayNumber(g.state.date); v.services = 0; // just serviced: not due
+    const before = g.state.company.money;
+    expect(g.startVehicle(v.id).ok).toBe(true);
+    expect(v.orderIndex).toBe(1); // skipped, exactly as today
+    expect(v.cargoId).toBe('COAL'); // no refit
+    expect(g.state.company.money).toBe(before); // no refit cost
+    expect(depot.id).toBeDefined();
+  });
+
+  test('depotRefitAlwaysVisits on: a not-due service-only + refit order is visited and refitted', () => {
+    const { g, L, v, depot } = trainSetup((L, d) => [{ depotId: d.id, serviceOnly: true, refit: 'IORE' }, { stationId: L.b.id, full: false }]);
+    setSetting(g.state, 'depotRefitAlwaysVisits', true);
+    v.serviceIntervalDays = 30; v.lastServiceDay = dayNumber(g.state.date); v.services = 0; // not due for service
+    const before = g.state.company.money;
+    expect(g.startVehicle(v.id).ok).toBe(true);
+    expect(runUntil(g, () => v.orderIndex === 1)).toBe(true);
+    expect(v.cargoId).toBe('IORE'); // the refit ran
+    expect(g.state.company.money).toBeLessThan(before); // refit cost charged
+    expect(depot.id).toBeDefined();
+  });
+
+  test('depotRefitAlwaysVisits on: a not-due service-only order without refit still skips', () => {
+    const { g, L, v, depot } = trainSetup((L, d) => [{ depotId: d.id, serviceOnly: true }, { stationId: L.b.id, full: false }]);
+    setSetting(g.state, 'depotRefitAlwaysVisits', true);
+    v.serviceIntervalDays = 30; v.lastServiceDay = dayNumber(g.state.date); v.services = 0; // not due
+    expect(g.startVehicle(v.id).ok).toBe(true);
+    expect(v.orderIndex).toBe(1); // still skipped: there is no refit to run
+    expect(v.services || 0).toBe(0);
+    expect(depot.id).toBeDefined();
+  });
+
   test('service-only order is visited once the vehicle is due', () => {
     const { g, L, v } = trainSetup((L, d) => [{ depotId: d.id, serviceOnly: true }, { stationId: L.b.id, full: false }]);
     v.serviceIntervalDays = 5; v.lastServiceDay = 0; v.services = 0;

@@ -158,9 +158,15 @@ export function replan(ctx, v) {
   return false;
 }
 
-/** A service-only go-to-depot order whose vehicle is not due for service is skipped (advance past it). */
+/**
+ * A service-only go-to-depot order whose vehicle is not due for service is skipped (advance past it).
+ * Exception (opt-in depotRefitAlwaysVisits, OpenTTD order_cmd.cpp:1665-1669): an order that also carries a
+ * refit always visits, so the refit runs even when service is not due.
+ */
 function depotOrderNotDue(state, v, o) {
-  return isDepotOrder(o) && o.serviceOnly && !serviceDueNow(state, v);
+  if (!isDepotOrder(o) || !o.serviceOnly || serviceDueNow(state, v)) return false;
+  if (o.refit != null && getSetting(state, 'depotRefitAlwaysVisits') === true) return false;
+  return true;
 }
 
 /**
