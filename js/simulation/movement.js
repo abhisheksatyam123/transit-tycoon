@@ -39,7 +39,7 @@ import { unbunchArrive, unbunchWaits, unbunchDepart } from './unbunch.js';
 import { resolveConditionals } from './condOrders.js';
 import { notify } from './news.js';
 import { dirBetween } from './constants.js';
-import { BLOCK_TIMEOUT_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock, bayInUse } from './blocking.js';
+import { BLOCK_TIMEOUT_TICKS, DRIVE_THROUGH_TICKS, occupancyLayer, blockerOn, vehiclesOn, trainInBlock, bayInUse } from './blocking.js';
 import { articParts } from './articulated.js';
 import { guardedBlock } from './signals.js';
 import { typedGate, releaseReservations } from './pathSignals.js';
@@ -370,7 +370,11 @@ function move(ctx, v) {
     // and with roadvehQueue off it does not queue for it either: it backs off and keeps driving (OTTD
     // roadveh_cmd.cpp reverses when the bay stop is unreachable).
     if (v.kind === 'road' && v.progress + v.speed >= 1 && bayEntryRefused(ctx, v)) { turnAround(ctx, v); return; }
-    if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) { hold(ctx, v, blocker, atSignal); return; }
+    if (blocker && v.progress + v.speed >= 1 && !breaksCycle(ctx, v)) {
+      // roadvehDriveThrough (off = current): blocked too long by a moving vehicle, drive through it
+      if (!shouldDriveThrough(ctx.state, v, blocker)) { hold(ctx, v, blocker, atSignal); return; }
+      clearBlock(v); // blockedTicks restarts, so the next drive-through waits the full threshold again
+    }
     v.progress += v.speed;
   }
   if (v.blockedTicks) clearBlock(v);
@@ -513,6 +517,18 @@ function bayEntryRefused(ctx, v) {
 }
 
 /**
+ * True when a road vehicle blocked by a moving (not loading) vehicle for DRIVE_THROUGH_TICKS should pass
+ * through it (OpenTTD roadveh_cmd.cpp:698) instead of turning around. Inert by default: the setting check runs
+ * only once the long threshold is reached, and only `roadvehDriveThrough` turns it on. Loading vehicles are
+ * excluded both ways so the bay-freeing behaviour (tryFreeBay) is unchanged.
+ */
+function shouldDriveThrough(state, v, blocker) {
+  if (v.kind !== 'road' || blocker.state === 'loading') return false;
+  if ((v.blockedTicks || 0) + 1 < DRIVE_THROUGH_TICKS) return false;
+  return getSetting(state, 'roadvehDriveThrough') === true;
+}
+
+/**
  * Hold a vehicle at the boundary of its current tile while the next tile is occupied. A vehicle held at the
  * last tile of a stop with a loading vehicle in its bay tries another free bay of the same stop. Trains and
  * vehicles blocked by a moving vehicle for BLOCK_TIMEOUT_TICKS turn around and re-plan (cooldown: the timeout
@@ -526,6 +542,8 @@ function hold(ctx, v, blocker, atSignal = false) {
   if (last && blocker.state === 'loading' && v.blockedTicks % 8 === 1) tryFreeBay(ctx, v);
   // blocked for a full timeout by a moving vehicle: turn around once (blockedTicks restarts from 0 in turnAround)
   if (v.blockedTicks === BLOCK_TIMEOUT_TICKS && blocker.state !== 'loading') {
+    // roadvehDriveThrough on: keep waiting for the longer OpenTTD drive-through threshold (shouldDriveThrough)
+    if (v.kind === 'road' && getSetting(ctx.state, 'roadvehDriveThrough') === true) return;
     // reverseAtSignals (default true = TT current): off, a train held at a red signal waits instead of turning
     if (atSignal && !getSetting(ctx.state, 'reverseAtSignals')) return;
     turnAround(ctx, v);

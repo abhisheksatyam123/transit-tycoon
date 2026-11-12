@@ -25,6 +25,14 @@ import { getSetting } from './settings.js';
 export const BLOCK_TIMEOUT_TICKS = 3 * TICKS_PER_DAY;
 
 /**
+ * OpenTTD anti-deadlock backup: a road vehicle blocked by a moving vehicle for 1480 OpenTTD ticks drives
+ * through it instead of turning around (roadveh_cmd.cpp:698). 1480 ticks / 74 ticks-per-day = 20 OpenTTD
+ * days, so in TT ticks (96/day) the equivalent is 20 * TICKS_PER_DAY = 1920 (see the `roadvehDriveThrough`
+ * setting; off by default keeps the 3-day turn-around above).
+ */
+export const DRIVE_THROUGH_TICKS = 20 * TICKS_PER_DAY;
+
+/**
  * Occupancy layer of a vehicle ('rail' for trains, 'road' for road vehicles) or null.
  * Trams are normally unindexed (own tram layer); with `tramQueue` on they join the road layer, so they queue
  * behind buses/trams in the same lane and use the bay logic like any road vehicle (roadveh_cmd.cpp:634-701).

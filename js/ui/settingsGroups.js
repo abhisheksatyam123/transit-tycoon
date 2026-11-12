@@ -32,6 +32,8 @@ export const SETTING_META = [
     help: 'Trams slow to OpenTTD corner limits on curves (61 km/h for a square corner, 88 km/h for tight 45-degree corners). Off = trams use the road curve fraction like buses and trucks.' },
   { key: 'tramQueue', group: 'vehicles', label: 'Trams queue behind road vehicles', type: 'check',
     help: 'OpenTTD roadveh_cmd.cpp (RoadVehFindCloseTo): a tram waits behind a loading or blocked tram or bus in the same lane, and buses wait behind trams; a stop bay in use is covered for trams too. Oncoming traffic still passes. Off = trams pass through each other and are not seen at stop bays.' },
+  { key: 'roadvehDriveThrough', group: 'vehicles', label: 'Road vehicles drive through after 20 days', type: 'check',
+    help: 'OpenTTD roadveh_cmd.cpp:698 anti-deadlock backup: a road vehicle or tram blocked by a moving vehicle for 1480 OpenTTD ticks (20 days) drives through it and carries on instead of turning around. Blocked behind a loading vehicle it still waits and tries another bay. Off = the Transit Tycoon 3-day turn-around and re-plan.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'partialRefit', group: 'vehicles', label: 'Refit loaded vehicles', type: 'check',
