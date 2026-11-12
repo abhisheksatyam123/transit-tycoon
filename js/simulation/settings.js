@@ -160,6 +160,8 @@ export const DEFAULT_SETTINGS = {
   timetableSeparation: false,
   /** timetable lateness (OpenTTD lateness counter): early vehicles wait longer, late ones shorter, cumulative over the round, seeded by the start date. Off by default. */
   timetableLateness: false,
+  /** timetable estimates (OpenTTD estimated vs timetabled travel/wait times): measured times are kept per order as display-only estimates and autofill can keep longer waits (Ctrl). Off by default. */
+  timetableEstimates: false,
   /** freight distribution (OpenTTD linkgraph distribution_default for cargo other than pax/mail): 'manual' (default, classic) | 'asymmetric' (acceptance-weighted destinations, no return demand) */
   freightDistribution: 'manual',
   /** capacity-constrained routing (OpenTTD MCF, simplified) for the cargodist link graphs. Off by default. */

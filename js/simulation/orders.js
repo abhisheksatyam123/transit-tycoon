@@ -27,7 +27,7 @@ import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
-import { departureHoldUntil, timetableSeparationOn, timetableLatenessOn, lateTicksOf, bookLateness, latenessWaitTicks } from './ttSchedule.js';
+import { departureHoldUntil, timetableSeparationOn, timetableLatenessOn, timetableEstimatesOn, lateTicksOf, bookLateness, latenessWaitTicks } from './ttSchedule.js';
 import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { updatePlatFit, loadingTicksFor } from './platformLength.js';
@@ -740,7 +740,8 @@ function recordArrival(ctx, v, order) {
   const { state } = ctx;
   if (!order) return;
   const latenessOn = timetableLatenessOn(state);
-  if (latenessOn || order.waitDays > 0 || v.autofill || (v.orderGroup != null && timetableSeparationOn(state))) v.arriveTick = state.tick;
+  const estimatesOn = timetableEstimatesOn(state);
+  if (latenessOn || estimatesOn || order.waitDays > 0 || v.autofill || (v.orderGroup != null && timetableSeparationOn(state))) v.arriveTick = state.tick;
   else delete v.arriveTick;
   // Timetable start date (OpenTTD timetable_cmd.cpp:485-501): the first arrival at the first order seeds the
   // lateness counter from the start tick and consumes it. The first round does not measure (:516).
@@ -753,7 +754,7 @@ function recordArrival(ctx, v, order) {
     if (d) v.lateDays = d; else delete v.lateDays;
     return;
   }
-  if (v.departTick == null || !(order.travelDays > 0 || v.autofill)) return;
+  if (v.departTick == null || !(order.travelDays > 0 || v.autofill || estimatesOn)) return;
   const idx = v.orderIndex % v.orders.length;
   const actualTicks = state.tick - v.departTick;
   const actual = Math.round(actualTicks / TICKS_PER_DAY);
@@ -761,7 +762,12 @@ function recordArrival(ctx, v, order) {
   if (v.autofill) {
     scheduled = Math.max(1, actual);
     setOrderField(state, v, idx, { travelDays: scheduled });
+  } else if (estimatesOn && !(order.travelDays > 0)) {
+    // G3: measured travel estimate, display-only (never used for holds or lateness; lazy, absent when 0)
+    setOrderField(state, v, idx, { estTravelDays: actual });
   }
+  // estimate-only leg: no timetabled travel, so no lateness or legacy lateDays booking (OpenTTD :554)
+  if (!(order.travelDays > 0 || v.autofill)) return;
   if (latenessOn) {
     bookLateness(v, actualTicks - scheduled * TICKS_PER_DAY, v.orders);
     return;
@@ -858,17 +864,24 @@ function recordDeparture(ctx, v, order) {
     && (order.waitDays > 0 || lateTicksOf(v) > 0)) {
     bookLateness(v, (state.tick - v.arriveTick) - (order.waitDays || 0) * TICKS_PER_DAY, v.orders);
   }
+  if (order && v.arriveTick != null && timetableEstimatesOn(state) && !v.autofill && !(order.waitDays > 0)) {
+    // G3: measured station-wait estimate, display-only (lazy, absent when 0)
+    setOrderField(state, v, idx, { estWaitDays: Math.round((state.tick - v.arriveTick) / TICKS_PER_DAY) });
+  }
   if (v.autofill && order && v.arriveTick != null) {
     const waited = Math.round((state.tick - v.arriveTick) / TICKS_PER_DAY);
-    setOrderField(state, v, idx, { waitDays: waited });
+    // G4: Ctrl-autofill "preserve wait" only lengthens an existing timetabled wait (OpenTTD :439-440)
+    if (!(timetableEstimatesOn(state) && v.autofillPreserve && order.waitDays > waited)) {
+      setOrderField(state, v, idx, { waitDays: waited });
+    }
   }
   if (v.autofill) {
     v.autofillLeft = (v.autofillLeft || 0) - 1;
-    if (v.autofillLeft <= 0) { delete v.autofill; delete v.autofillLeft; }
+    if (v.autofillLeft <= 0) { delete v.autofill; delete v.autofillLeft; delete v.autofillPreserve; }
   }
   delete v.arriveTick;
   const next = n ? v.orders[(idx + 1) % n] : null;
-  if (next && (next.travelDays > 0 || v.autofill)) v.departTick = state.tick;
+  if (next && (next.travelDays > 0 || v.autofill || timetableEstimatesOn(state))) v.departTick = state.tick;
   else delete v.departTick;
 }
 

@@ -25,7 +25,7 @@ const COND_VAR_HELP = {
   drivingBackwards: 'Skip when a train is driving backwards (reversed consist)',
 };
 import { cargoName } from '../../simulation/orders.js';
-import { timetableComplete, roundTicks } from '../../simulation/ttSchedule.js';
+import { timetableComplete, roundTicks, timetableEstimatesOn } from '../../simulation/ttSchedule.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 import { depotDisplayName, waypointDisplayName, isWaypointRecord } from '../../simulation/cmdRename.js';
@@ -105,9 +105,9 @@ export function openOrders(app, id) {
       const hint = el('div.muted.small', { text: 'Add stations in the order the vehicle should visit them. "Full load" waits until full.' });
       const needs2 = el('div.warn.small', { text: 'Needs 2+ orders (stations) to run a route.' });
       needs2.hidden = true;
-      const autofillBtn = el('button.btn.sm', { type: 'button', text: 'Autofill timetable', title: 'Record the measured wait and travel times over one round of orders', onclick: () => {
+      const autofillBtn = el('button.btn.sm', { type: 'button', text: 'Autofill timetable', title: 'Record the measured wait and travel times over one round of orders (Ctrl+click: keep longer existing waits)', onclick: (e) => {
         const v = app.findVehicle(id);
-        if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill), { quiet: true, sound: 'click' });
+        if (v) app.exec(app.game.setTimetableAutofill(id, !v.autofill, { preserveWait: !!(e && e.ctrlKey) }), { quiet: true, sound: 'click' });
       } });
       const resetBtn = el('button.btn.sm', { type: 'button', text: 'Reset late', title: 'Clear recorded lateness for this vehicle (and shared-order group)', onclick: (e) => { const v = app.findVehicle(id); const applyToGroup = (v && v.orderGroup != null) || (e && e.ctrlKey); app.exec(app.game.resetLateness(id, { applyToGroup }), { quiet: true, sound: 'click' }); } });
       const pickSel = el('select.input', { 'aria-label': 'Station to add', title: 'Pick a station this vehicle can use', style: { flex: '1', minWidth: '0' } });
@@ -285,7 +285,7 @@ export function openOrders(app, id) {
         sharedLabel.hidden = !n;
         unshareBtn.hidden = !n;
         setText(sharedLabel, n ? `Shared with ${n} other vehicle${n === 1 ? '' : 's'}` : '');
-        setText(autofillBtn, v.autofill ? 'Autofill: on (recording)' : 'Autofill timetable');
+        setText(autofillBtn, v.autofill ? (v.autofillPreserve ? 'Autofill: on (keeping waits)' : 'Autofill: on (recording)') : 'Autofill timetable');
         autofillBtn.classList.toggle('active', !!v.autofill);
         resetBtn.hidden = v.lateDays == null;
         const st = app.game.state;
@@ -298,7 +298,8 @@ export function openOrders(app, id) {
         spreadBtn.title = tc ? spreadBtn.title : 'Needs a complete timetable: every order needs a travel time';
         const late = v.lateDays;
         setText(lateLine, !v.orders.some(hasTimetable) ? '' : late == null ? 'This vehicle is on time' : late > 0 ? `This vehicle is running ${late} day${late === 1 ? '' : 's'} late` : `This vehicle is running ${-late} day${late === -1 ? '' : 's'} early`);
-        const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId }));
+        const estOn = timetableEstimatesOn(st);
+        const items = v.orders.map((o, i) => ({ o, i, key: i + ':' + o.stationId + (estOn ? `:${o.estWaitDays ?? ''}:${o.estTravelDays ?? ''}` : '') }));
         listOrEmpty(list, items, (it) => it.key,
           (it) => isCond(it.o) ? condRow() : el('div.order-row', null,
             el('span.order-idx.mono'), el('span.name'),
@@ -310,10 +311,10 @@ export function openOrders(app, id) {
                 ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               stopSel(it),
               ...(app.findVehicle(id)?.kind === 'train' && !isCond(it.o) && !it.o.depotId ? [stopAtSel(it)] : []),
-              el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Wait days: minimum days to wait at this stop (blank = auto)', placeholder: 'auto', style: 'width:5em',
+              el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: `Wait days: minimum days to wait at this stop (blank = auto${estOn && it.o.estWaitDays > 0 ? `, estimated ~${it.o.estWaitDays} d` : ''})`, placeholder: estOn && it.o.estWaitDays > 0 ? `~${it.o.estWaitDays}` : 'auto', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),
-              el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: 'Travel days: scheduled days from the previous stop (blank = auto)', placeholder: 'auto', style: 'width:5em',
+              el('label.small', { text: ' travel ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: `Travel days: scheduled days from the previous stop (blank = auto${estOn && it.o.estTravelDays > 0 ? `, estimated ~${it.o.estTravelDays} d` : ''})`, placeholder: estOn && it.o.estTravelDays > 0 ? `~${it.o.estTravelDays}` : 'auto', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { travelDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
                 el('span', { text: ' d' })),
               el('label.small', { text: ' speed ' }, el('input.input', { type: 'number', min: '1', step: '1', title: 'Speed limit: max speed while travelling to this order (blank = no limit)', 'aria-label': 'Speed limit', placeholder: 'none', style: 'width:5em',
