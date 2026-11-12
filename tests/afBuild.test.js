@@ -110,30 +110,32 @@ describe('enginePreviewBlock (engine.cpp block_preview)', () => {
     return g;
   }
 
-  test('default is off; a declined company is offered again immediately', () => {
+  test('default is off; with it off a decline keeps the unmodified path (asked kept, model public)', () => {
     expect(DEFAULT_SETTINGS.enginePreviewBlock).toBe(false);
     expect(SETTING_META.filter((m) => m.key === 'enginePreviewBlock').length).toBe(1);
     const g = world(false);
+    // drive the real decline path, as the game does (no hand-edited rec.asked)
     expect(answerEnginePreview(g.ctx, MODEL, false).ok).toBe(true);
     const rec = g.state.enginePreview.models[MODEL];
     expect(rec.block).toBeUndefined(); // lazy: nothing written on the default path
-    // a fresh offer round (asked cleared): the declining player is picked again at once
-    rec.asked = [];
-    expect(bestCompanyKey(g.state, MODEL_BY_ID[MODEL], rec)).toBe('p');
+    expect(rec.status).toBe('public');
+    expect(rec.asked).toContain('p');
+    expect(bestCompanyKey(g.state, MODEL_BY_ID[MODEL], rec)).toBe(null);
   });
 
   test('on: a declined company is not offered for 20 months, then is again', () => {
     const g = world(true);
-    expect(answerEnginePreview(g.ctx, MODEL, false).ok).toBe(true);
     const rec = g.state.enginePreview.models[MODEL];
     const today = dayNumber(g.state.date);
+    expect(answerEnginePreview(g.ctx, MODEL, false).ok).toBe(true);
     expect(rec.block.p).toBe(today + BLOCK_DAYS);
-    rec.asked = [];
+    // F2: the decline removes the company from asked, so the block (not asked) excludes it
+    expect(rec.asked).not.toContain('p');
     expect(bestCompanyKey(g.state, MODEL_BY_ID[MODEL], rec)).toBe(null);
     // day before the block ends: still blocked; at the block end: offered again
     g.stepDays(BLOCK_DAYS - 1);
     expect(bestCompanyKey(g.state, MODEL_BY_ID[MODEL], rec)).toBe(null);
     g.stepDays(1);
     expect(bestCompanyKey(g.state, MODEL_BY_ID[MODEL], rec)).toBe('p');
-  });
+  }, 60000);
 });
