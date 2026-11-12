@@ -15,6 +15,7 @@ const TAXI_TILES = 20 * AIR_MPH_TO_TILES_PER_TICK;
 /** OL VehicleHead.cpp:2858-2866: broken-down ships target 5 mph. */
 const BROKEN_SHIP_MPH = 5;
 import { curveSpeedLimitKmh, roadCurveTargetTiles, tramCurveTargetTiles, realisticTrainSpeedStep } from './loco/trainRealistic.js';
+import { realisticRoadSpeedStep, roadAccelerationCapTiles, roadCardinalStep, roadReversing } from './loco/roadRealistic.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { bridgeType } from '../config/bridges.js';
 import { connected } from './network.js';
@@ -369,8 +370,18 @@ function move(ctx, v) {
       } else {
         v.speed = landSpeedStep(v, vehicleModel(v), target, grade);
       }
+    } else if (v.kind === 'road') {
+      maxTiles = Math.min(maxTiles, v.roadType === 'tram' && getSetting(state, 'tramCurveCap') ? tramCurveTargetTiles(v, v.maxSpeed) : roadCurveTargetTiles(v, v.maxSpeed));
+      if (getSetting(state, 'roadAcceleration') === 'realistic') {
+        // Realistic opt-in (roadRealistic.js): OTTD power/TE/drag model plus the 75 % cardinal / 50 % reverse caps.
+        const reversing = roadReversing(v);
+        const cap = roadAccelerationCapTiles(v, reversing, roadCardinalStep(v));
+        if (cap < maxTiles) maxTiles = cap;
+        v.speed = realisticRoadSpeedStep(v, vehicleModel(v), maxTiles, grade);
+      } else {
+        v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade); // default: the original OpenLoco path
+      }
     } else {
-      if (v.kind === 'road') maxTiles = Math.min(maxTiles, v.roadType === 'tram' && getSetting(state, 'tramCurveCap') ? tramCurveTargetTiles(v, v.maxSpeed) : roadCurveTargetTiles(v, v.maxSpeed));
       v.speed = landSpeedStep(v, vehicleModel(v), maxTiles, grade);
     }
     if (v.overtakeId !== undefined) v.speed = overtakeSpeed(v, prevSpeed, v.speed, maxTiles); // OTTD 512 vs 256
