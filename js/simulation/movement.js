@@ -200,7 +200,9 @@ function ftaReplan(ctx, v) {
   delete v.hold;
   if (st.id === here.id) { // at its own airport: taxi to a terminal (free one if there is one)
     const terms = ftaPartTiles(state, here, 'terminal');
-    const free = terms.filter((t) => !ftaClaimed(state, v, t.x, t.y));
+    // Single pass instead of filter(): same order, one array allocation fewer.
+    const free = [];
+    for (const t of terms) if (!ftaClaimed(state, v, t.x, t.y)) free.push(t);
     if (!free.length) return false; // all terminals taken: the old flight rules (circle until a slot frees)
     const p = taxiPath(state, here, v.tx, v.ty, free, (x, y) => ftaParked(state, v, x, y));
     if (!p) return false;
@@ -253,7 +255,9 @@ function heliReplan(ctx, v, b) {
 function ftaLand(ctx, v, st, b) {
   const { state } = ctx;
   if (ftaRunwayBusy(state, st, v)) { holdFlyLeg(state, v, v.tx, v.ty); return true; }
-  const free = ftaPartTiles(state, st, 'terminal').filter((t) => !ftaClaimed(state, v, t.x, t.y));
+  const terms = ftaPartTiles(state, st, 'terminal');
+  const free = [];
+  for (const t of terms) if (!ftaClaimed(state, v, t.x, t.y)) free.push(t);
   const p = free.length ? taxiPath(state, st, v.tx, v.ty, free, (x, y) => ftaParked(state, v, x, y)) : null;
   if (!p) { holdFlyLeg(state, v, v.tx, v.ty); return true; }
   delete v.hold;
@@ -574,7 +578,15 @@ function tryFreeBay(ctx, v) {
   const { state } = ctx;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) return;
   const layer = occupancyLayer(v, ctx.state);
-  const goals = orderGoals(state, v).filter((g) => !vehiclesOn(ctx, layer, g.x, g.y)?.some((o) => o !== v));
+  // Keep every goal tile with no other vehicle on it, in the original order (same as filter()+some()).
+  const all = orderGoals(state, v);
+  const goals = [];
+  for (const g of all) {
+    const on = vehiclesOn(ctx, layer, g.x, g.y);
+    let taken = false;
+    if (on) for (const o of on) if (o !== v) { taken = true; break; }
+    if (!taken) goals.push(g);
+  }
   if (goals.length) planRoute(state, v, goals);
 }
 
