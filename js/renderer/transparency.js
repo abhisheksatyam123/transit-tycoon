@@ -26,7 +26,10 @@ export const TRANSPARENCY_OPTIONS = [
   { id: 'text', label: 'Text' },
 ];
 
-/** @type {Record<string, boolean>|null|undefined} undefined = not loaded yet */
+/** Stored value of a class that is HIDDEN (OpenTTD invisibility; only set when the transparencyInvisibleHides setting is on). */
+export const TRANSPARENCY_HIDDEN = 'hidden';
+
+/** @type {Record<string, boolean|string>|null|undefined} value: false = normal, true = faded, 'hidden' = hidden; undefined = not loaded yet */
 let cache;
 
 function parse(raw) {
@@ -35,7 +38,8 @@ function parse(raw) {
   const out = {};
   let any = false;
   for (const { id } of TRANSPARENCY_OPTIONS) {
-    out[id] = !!(o && o[id] === true);
+    const v = o ? o[id] : undefined;
+    out[id] = v === TRANSPARENCY_HIDDEN ? TRANSPARENCY_HIDDEN : v === true;
     if (out[id]) any = true;
   }
   return any ? out : null;
@@ -50,10 +54,15 @@ export function loadTransparency() {
   return cache;
 }
 
-/** Turn one toggle on or off. Returns the new state (null when all off). */
+/** Turn one toggle on or off (faded). Returns the new state (null when all off). */
 export function setTransparency(id, on) {
+  return setTransparencyValue(id, !!on);
+}
+
+/** Set one class to normal (false), faded (true) or hidden ('hidden'). Returns the new state (null when all off). */
+export function setTransparencyValue(id, value) {
   const cur = loadTransparency() || Object.fromEntries(TRANSPARENCY_OPTIONS.map((o) => [o.id, false]));
-  const next = { ...cur, [id]: !!on };
+  const next = { ...cur, [id]: value };
   const any = TRANSPARENCY_OPTIONS.some((o) => next[o.id]);
   cache = any ? next : null;
   try { if (typeof localStorage !== 'undefined') localStorage.setItem(TRANSPARENCY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -71,13 +80,13 @@ export function resetTransparencyCache() { cache = undefined; }
 export function tileTransparency(tile, tr) {
   const b = tile.building;
   if (b) {
-    if (b.type === 'house' && tr.buildings) return TRANSPARENT_ALPHA;
-    if (b.type === 'industry' && tr.industries) return TRANSPARENT_ALPHA;
-    if (b.type === 'station' && tr.stations) return TRANSPARENT_ALPHA;
+    if (b.type === 'house' && tr.buildings) return classFade(tr.buildings);
+    if (b.type === 'industry' && tr.industries) return classFade(tr.industries);
+    if (b.type === 'station' && tr.stations) return classFade(tr.stations);
     return 1;
   }
   // OpenTTD TO_STRUCTURES: map objects (cmdObject.js) are drawn by layers/objects.js drawObjectTile.
-  if (tile.object && tr.structures) return TRANSPARENT_ALPHA;
+  if (tile.object && tr.structures) return classFade(tr.structures);
   if (tile.terrain === 'forest' && tr.trees && !tile.rail && !tile.road) return 0;
   return 1;
 }
@@ -87,5 +96,20 @@ export function tileTransparency(tile, tr) {
  * @param {Record<string, boolean>|null} tr non-null toggles (or null)
  */
 export function catenaryAlpha(tr) {
-  return tr && tr.catenary ? TRANSPARENT_ALPHA : 1;
+  return tr && tr.catenary ? classFade(tr.catenary) : 1;
+}
+
+/** Alpha of a class value: hidden -> 0, faded -> TRANSPARENT_ALPHA. */
+function classFade(value) {
+  return value === TRANSPARENCY_HIDDEN ? 0 : TRANSPARENT_ALPHA;
+}
+
+/**
+ * Alpha for a non-tile class (bridges, signs) from the toggles: 1 = normal, TRANSPARENT_ALPHA = faded, 0 = hidden.
+ * @param {Record<string, boolean|string>|null} tr toggles or null
+ * @param {string} id TRANSPARENCY_OPTIONS id
+ */
+export function classAlpha(tr, id) {
+  const v = tr ? tr[id] : false;
+  return v ? classFade(v) : 1;
 }

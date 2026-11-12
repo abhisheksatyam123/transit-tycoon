@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS = {
   buildingEras: false,
   /** multi-tile houses (OpenTTD 1x2 / 2x2 temperate houses, largeHouses.js): towns may build them. Off = unchanged. */
   largeHouses: false,
+  /** OpenTTD invisibility: Ctrl+Shift+1..8 HIDES the matching transparency class instead of fading it (input.js). Off = Ctrl+Shift+digit is the same alias as Ctrl+digit (fade). Display only; never read by the simulation. */
+  transparencyInvisibleHides: false,
   inflation: true,
   /** loan interest rate in OpenLoco units (percent per year, charged monthly as loan*rate/1200; World/Company.cpp:724). Editor default 10 in OL; 5 here keeps existing games unchanged. */
   loanInterestRate: 5,

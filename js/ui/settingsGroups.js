@@ -291,6 +291,8 @@ export const SETTING_META = [
     help: 'OpenTTD raw industry construction. Normal: you fund a coal mine or forest at a site you pick. None: raw (primary) industries cannot be funded; processing industries still can. Prospect: funding a raw industry costs the same but places it at a random valid site only with the type chance (news reports success or failure); the Fund window button then says Prospect. Takes effect for new funds.' },
   { key: 'buildingEras', group: 'environment', label: 'Building eras', type: 'check', newGame: true,
     help: 'Towns build houses of their period: 1950s cottages and terraces, then 1960s+ office blocks and flats, 1970s+ tower blocks. Old houses are rebuilt as newer types. Off = the classic house mix.' },
+  { key: 'transparencyInvisibleHides', group: 'interface', label: 'Ctrl+Shift+1..8 hides instead of fades', type: 'check',
+    help: 'Ctrl+Shift+1..8 hides the class instead of fading it (OpenTTD invisibility). Off = current alias behaviour (Ctrl+Shift+digit fades like Ctrl+digit). Display only.' },
   { key: 'largeHouses', group: 'environment', label: 'Large houses (2x1, 2x2)', type: 'check', newGame: true,
     help: 'Towns sometimes build multi-tile houses (1x2 and 2x2, OpenTTD style) on free flat land inside the town. Off = 1x1 houses only.' },
   { key: 'autosaveInterval', group: 'interface', label: 'Autosave interval', type: 'select', options: [['off', 'Off (default)'], ['1min', 'Every 1 minute'], ['5min', 'Every 5 minutes'], ['10min', 'Every 10 minutes'], ['15min', 'Every 15 minutes']], help: 'OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background.' },

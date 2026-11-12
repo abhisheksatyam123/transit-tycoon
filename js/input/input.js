@@ -9,7 +9,8 @@ import { netActive, setNetActive } from '../renderer/net/state.js';
 import { labelAt } from '../renderer/layers/labels.js';
 import { openSignPrompt } from '../ui/tools/sign.js';
 import { findSign } from '../simulation/cmdSign.js';
-import { TRANSPARENCY_OPTIONS, loadTransparency, setTransparency } from '../renderer/transparency.js';
+import { TRANSPARENCY_OPTIONS, TRANSPARENCY_HIDDEN, loadTransparency, setTransparency, setTransparencyValue } from '../renderer/transparency.js';
+import { getSetting } from '../simulation/settings.js';
 import { runFixedShortcut } from './fixedShortcuts.js';
 import { keyFromEvent } from '../ui/hotkeys.js';
 
@@ -175,7 +176,17 @@ export function setupInput(app, canvas, shortcuts) {
     }
     if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-9]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..9 too, browsers keep Ctrl+1..9 for tabs
       e.preventDefault();
-      const opt = TRANSPARENCY_OPTIONS[Number(e.code.slice(5)) - 1];
+      const digit = Number(e.code.slice(5));
+      const opt = TRANSPARENCY_OPTIONS[digit - 1];
+      // OpenTTD invisibility (setting transparencyInvisibleHides, default off): Ctrl+Shift+1..8 hides the class.
+      // Off (default) and Ctrl+digit keep the fade toggle below unchanged.
+      if (e.shiftKey && digit <= 8 && getSetting(app.game?.state, 'transparencyInvisibleHides') === true) {
+        const hide = (loadTransparency() || {})[opt.id] !== TRANSPARENCY_HIDDEN;
+        setTransparencyValue(opt.id, hide ? TRANSPARENCY_HIDDEN : false);
+        app.renderer.invalidateGround();
+        app.toast?.(`${opt.label} ${hide ? 'hidden' : 'shown'}`, 'info');
+        return;
+      }
       const on = !(loadTransparency() || {})[opt.id];
       setTransparency(opt.id, on);
       app.renderer.invalidateGround();
