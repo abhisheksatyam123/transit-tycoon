@@ -7,7 +7,7 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
-import { replacementCandidates } from '../../simulation/autoreplace.js';
+import { replacementCandidates, isReplaceWhenOld } from '../../simulation/autoreplace.js';
 import { getSetting } from '../../simulation/settings.js';
 
 /**
@@ -33,11 +33,16 @@ export function openAutoreplace(app) {
         listOrEmpty(list, models, (m) => m.id,
           (m) => {
             const sel = el('select.input', { 'aria-label': `Replace ${m.name} with` });
+            const cb = el('input', { type: 'checkbox', 'aria-label': `Replace ${m.name} only when old`,
+              title: 'Replace only when old (off: replace at any age, the default)' });
+            const cbLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' },
+              title: 'Replace only when old' }, cb, 'when old');
             const row = el('div.table-row', null,
-              el('span'), el('span.mono.num'), sel,
+              el('span'), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
               el('button.btn.sm', { type: 'button', text: 'Stop', title: 'Stop replacing this model',
                 onclick: () => app.exec(g.setAutoreplace(m.id, null), { sound: 'click' }) }));
             row._sel = sel;
+            row._cb = cb;
             return row;
           },
           (row, m) => {
@@ -54,6 +59,10 @@ export function openAutoreplace(app) {
             sel.replaceChildren(el('option', { value: '', text: '— keep (no rule) —' }),
               ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${kmhText(c2.speed)})` })));
             sel.value = cur;
+            const cb = row._cb;
+            cb.checked = isReplaceWhenOld(g.state, m.id);
+            cb.disabled = !cur;
+            cb.onchange = () => app.exec(g.setAutoreplaceWhenOld(m.id, cb.checked), { sound: 'click' });
             c[3].disabled = !cur;
           }, 'No vehicles yet — buy one first');
       };
