@@ -182,6 +182,8 @@ export const SETTING_META = [
     help: 'OpenTTD order.no_servicing_if_no_breakdowns: when breakdowns are disabled, vehicles do not need depot servicing. Off = they still service at their interval.' },
   { key: 'shipBreakdownReduced', group: 'vehicles', label: 'Ships break down less', type: 'check',
     help: 'OpenTTD: ships are less likely to break down (reliability boosted by 0.4 when rolling breakdowns). Off = as before.' },
+  { key: 'shipTurnCost', group: 'vehicles', label: 'Ships pay turn cost (OpenTTD)', type: 'check',
+    help: 'OpenTTD yapf_ship curve penalty: ship routing adds the cost of 6 tile steps for each 90-degree turn, so ships prefer straighter routes. Movement stays 4-connected (no diagonal moves). Off = shortest tile path only (current).' },
   { key: 'breakdownStop', group: 'vehicles', label: 'Broken-down vehicles stop (OpenTTD)', type: 'check',
     help: 'OpenTTD: a broken-down road vehicle, train or ship stops completely until repaired and blocks the traffic behind it; the breakdown lasts its full time even at a stop. Off = it crawls at a quarter speed (OpenLoco, current). Aircraft are unaffected.' },
   { key: 'ageDecayOttd', group: 'vehicles', label: 'Old vehicles wear out faster (OpenTTD)', type: 'check',

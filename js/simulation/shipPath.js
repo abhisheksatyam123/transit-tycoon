@@ -75,13 +75,27 @@ class Heap {
 function less(p, q) { return p[0] < q[0] || (p[0] === q[0] && p[1] < q[1]); }
 
 /**
+ * OpenTTD yapf_ship.cpp:339-352 `ship_curve90_penalty` default 6 x YAPF_TILE_LENGTH. A tile step is roughly one
+ * YAPF_TILE_LENGTH (100), and TT's step cost is 1, so a 90-degree turn costs 6 tile steps. A 4-connected grid has
+ * no 45-degree turns, so OpenTTD's `ship_curve45_penalty` (1 x YAPF_TILE_LENGTH) has no equivalent here.
+ */
+export const SHIP_CURVE90_COST = 6;
+
+/**
  * Shortest water route from start to the nearest goal tile.
+ *
+ * By default this is the historical unit-cost 4-connected A* (no turn state), so route choices and world hashes are
+ * unchanged. With `opts.turnCost` the search is direction-aware and adds SHIP_CURVE90_COST at each 90-degree turn,
+ * matching OpenTTD's ship YAPF curve penalty (the tile count stays the primary cost; the heuristic stays admissible
+ * because a step costs at least 1).
  * @param {{width:number,height:number,tiles:object[]}} map
  * @param {{x:number,y:number}} start ship head tile (need not be passable: a ship may leave a dock)
  * @param {{x:number,y:number}[]} goals
+ * @param {{turnCost?:boolean}} [opts]
  * @returns {{x:number,y:number}[]|null} tiles from start (inclusive) to the goal (inclusive), or null
  */
-export function findShipPath(map, start, goals) {
+export function findShipPath(map, start, goals, opts) {
+  if (opts && opts.turnCost) return findShipPathTurnCost(map, start, goals);
   if (!goals || !goals.length) return null;
   const W = map.width, H = map.height;
   const goalSet = new Set(goals.map((g) => g.y * W + g.x));
@@ -124,6 +138,68 @@ export function findShipPath(map, start, goals) {
   if (goal < 0) return null;
   const out = [];
   for (let i = goal; i !== -1; i = i === s0 ? -1 : parent[i]) {
+    out.push({ x: i % W, y: (i - (i % W)) / W });
+  }
+  return out.reverse();
+}
+
+/**
+ * Direction-aware variant of findShipPath used by the opt-in `shipTurnCost` setting. Node = tile x incoming
+ * direction (5 slots per tile: 0..3 = DIRS index of the step just taken, 4 = the start's unknown heading).
+ * A straight step costs 1; a 90-degree turn costs 1 + SHIP_CURVE90_COST. Goals keep the historical tile semantics,
+ * so docks, buoys, canals, locks and aqueducts behave exactly as in the default search. No diagonal moves.
+ */
+function findShipPathTurnCost(map, start, goals) {
+  if (!goals || !goals.length) return null;
+  const W = map.width, H = map.height;
+  const goalSet = new Set(goals.map((g) => g.y * W + g.x));
+  const s0 = start.y * W + start.x;
+  if (goalSet.has(s0)) return [{ x: start.x, y: start.y }];
+  const N = W * H;
+  const STRIDE = 5; // tile * 5 + incoming direction (4 = start)
+  const g = new Float64Array(N * STRIDE).fill(Infinity);
+  const parent = new Int32Array(N * STRIDE).fill(-1);
+  const closed = new Uint8Array(N * STRIDE);
+  const h = (i) => {
+    const x = i % W, y = (i - x) / W;
+    let best = Infinity;
+    for (const q of goals) best = Math.min(best, Math.abs(q.x - x) + Math.abs(q.y - y));
+    return best;
+  };
+  const open = new Heap();
+  const startState = s0 * STRIDE + 4;
+  g[startState] = 0;
+  open.push(h(s0), startState);
+  let goalState = -1;
+  while (open.size) {
+    const [, si] = open.pop();
+    if (closed[si]) continue;
+    closed[si] = 1;
+    const i = (si / STRIDE) | 0;
+    if (goalSet.has(i)) { goalState = si; break; }
+    const x = i % W, y = (i - x) / W;
+    const inDir = si - i * STRIDE;
+    for (let di = 0; di < DIRS.length; di++) {
+      const d = DIRS[di];
+      const nx = x + d.dx, ny = y + d.dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (!goalSet.has(j) && !shipPassable(map, j)) continue;
+      if (!shipStepOk(map, i, j)) continue;
+      const sj = j * STRIDE + di;
+      if (closed[sj]) continue;
+      const turn = inDir !== 4 && inDir !== di ? SHIP_CURVE90_COST : 0;
+      const ng = g[si] + 1 + turn;
+      if (ng < g[sj]) {
+        g[sj] = ng; parent[sj] = si;
+        open.push(ng + h(j), sj);
+      }
+    }
+  }
+  if (goalState < 0) return null;
+  const out = [];
+  for (let si = goalState; si !== -1; si = si === startState ? -1 : parent[si]) {
+    const i = (si / STRIDE) | 0;
     out.push({ x: i % W, y: (i - (i % W)) / W });
   }
   return out.reverse();

@@ -16,6 +16,7 @@ import { buildDock, buildShipDepot, DOCK_RADIUS } from './cmdShip.js';
 import { buyVehicle, setOrders, startVehicle } from './cmdVehicle.js';
 import { listModels } from './queries.js';
 import { findShipPath, shipPassable } from './shipPath.js';
+import { getSetting } from './settings.js';
 import { tileAcceptance } from './stations.js';
 import { pushNews } from './news.js';
 
@@ -146,7 +147,7 @@ function waterRoute(state, sas, sbs) {
   for (const sa of sas) {
     for (const sb of sbs) {
       if (!sa.water.length || !sb.water.length) continue;
-      const path = findShipPath(state.map, sa.water[0], sb.water);
+      const path = findShipPath(state.map, sa.water[0], sb.water, { turnCost: getSetting(state, 'shipTurnCost') });
       if (!path || path.length < SHIP_MIN_DIST || path.length > SHIP_MAX_DIST) continue;
       return { sa, sb, path };
     }
