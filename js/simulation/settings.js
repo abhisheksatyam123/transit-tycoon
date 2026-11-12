@@ -60,6 +60,12 @@ export const DEFAULT_SETTINGS = {
    * ORDER refit rule is unchanged.
    */
   partialRefit: false,
+  /**
+   * OpenTTD order_cmd.cpp:1665-1669: a depot order that carries a refit always goes to the depot, even when it is
+   * also "service if needed" and service is not due. Off = today's rule: a not-due service-only order is skipped,
+   * so a refit on that order never runs.
+   */
+  depotRefitAlwaysVisits: false,
   /** OpenTTD difficulty.infinite_money (def false): companies can always pay; affordability and bankruptcy checks are skipped (settings.js infiniteMoney). */
   infiniteMoney: false,
   /** OpenTTD economy.cargo_aging_rate (percent, def 100): scales the transit days used for cargo payment (economy.cpp GetTransportedGoodsIncome). */
