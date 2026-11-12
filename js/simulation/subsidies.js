@@ -135,14 +135,20 @@ export function updateMonthly(game) {
  * @param {number} fromY cargo source y
  * @param {{x:number,y:number}} toStation destination station
  * @param {{state:object,emit?:Function}} [ctx] when given, awarding posts news
+ * @param {{id?:number,name?:string}} [payee] company paid for the delivery (default: the player). Awards are
+ *   owner-scoped: a rival delivery can neither consume the player's open offer nor earn its multiplier.
  * @returns {number} 1 = no subsidy
  */
-export function subsidyMultiplier(state, cargoId, fromX, fromY, toStation, ctx) {
+export function subsidyMultiplier(state, cargoId, fromX, fromY, toStation, ctx, payee = state.company) {
   const sub = state.subsidies;
   if (!sub) return 1;
-  const hit = (s) => s.cargoId === cargoId && near(state, s.src, fromX, fromY) && near(state, s.dst, toStation.x, toStation.y);
+  // null = the player (state.company has no id); rivals carry the id from ensureRivals().
+  const owner = payee && payee.id != null ? payee.id : null;
+  const hit = (s) => (s.companyId ?? null) === owner
+    && s.cargoId === cargoId && near(state, s.src, fromX, fromY) && near(state, s.dst, toStation.x, toStation.y);
   const active = sub.awarded.find(hit);
   if (active) return active.multiplier;
+  if (owner !== null) return 1; // only the player company is eligible to win an offer (single-player: unchanged)
   const i = sub.offers.findIndex(hit);
   if (i < 0) return 1;
   const [o] = sub.offers.splice(i, 1);
@@ -150,6 +156,7 @@ export function subsidyMultiplier(state, cargoId, fromX, fromY, toStation, ctx) 
   const months = getSetting(state, 'subsidyMonths');
   const award = { ...o, companyAwarded: true, multiplier, remainingMonths: months };
   delete award.expiresMonths;
+  if (owner !== null) award.companyId = owner; // player awards keep the old shape (owner is implicitly null)
   sub.awarded.push(award);
   if (ctx) notify(ctx, `Subsidy awarded to ${state.company.name}: ${describe(state, award)} (payments x${award.multiplier} for ${award.remainingMonths} months)`, 'good', 'subsidy');
   return award.multiplier;

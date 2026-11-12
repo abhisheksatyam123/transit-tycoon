@@ -95,8 +95,10 @@ export function updateMonthly(game) {
     if (r.bankrupt) continue;
     r.vehicles = r.vehicles.filter((id) => state.vehicles.some((v) => v.id === id));
     for (const v of state.vehicles) if (v.ownerId === r.id) updateNegMonths(v);
-    closeRivalLedger(r, ended);
+    // Player parity (CompanyManager::updateMonthly1): interest is charged before the month's ledger closes, so it
+    // is booked in the month it accrues instead of the next one.
     chargeInterest(state, r);
+    closeRivalLedger(r, ended);
     manageLoan(state, r);
     sellUnprofitable(ctx, r);
     const passes = thinkPasses(state, monthIndex(state));

@@ -12,11 +12,15 @@ import { manhattan } from '../state.js';
 import { tickTown, updateMonthlyTown, adjustCompanyRating, ensureTown, pushTownHistory } from './town.js';
 import { updateAuthorityMonthly, FUND_BUILD_SPEED } from '../townAuthority.js';
 
-/** TownManager::tick: every 8th scenario tick one town (slot (ticks/8) % 0x7F) updates. */
+/**
+ * TownManager::tick: every 8th scenario tick one town updates (slot (ticks/8) % N). OpenLoco uses a fixed
+ * 0x7F-slot table, but this game's town list is variable: keep the 127-slot cycle (identical pace for ordinary
+ * maps) and only widen it when the list is larger, so towns at index >= 127 are not permanently skipped.
+ */
 export function tick(game) {
   const ticks = game.state.scenarioTicks || 0;
   if (ticks % 8 !== 0) return;
-  const town = game.state.towns[(ticks / 8) % 0x7f];
+  const town = game.state.towns[(ticks / 8) % Math.max(0x7f, game.state.towns.length)];
   if (town) tickTown(game, town);
 }
 

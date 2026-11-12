@@ -50,8 +50,10 @@ export function deliverToStations(state, stations, cargoId, amount, sx, sy) {
   if (stations.length === 1) return addToStation(state, stations[0], cargoId, moved, sx, sy);
   const r0 = stations[0].rating[cargoId] ?? 50, r1 = stations[1].rating[cargoId] ?? 50;
   const first = Math.round((moved * r0) / Math.max(1, r0 + r1));
-  return addToStation(state, stations[0], cargoId, first, sx, sy)
-    + addToStation(state, stations[1], cargoId, moved - first, sx, sy);
+  // Offer the first station's rejected part (it may be at MAX_WAITING) to the second one, so production is not
+  // lost while station 1 still has room. Identical whenever station 0 accepts its full share.
+  const got0 = addToStation(state, stations[0], cargoId, first, sx, sy);
+  return got0 + addToStation(state, stations[1], cargoId, Math.max(0, moved - got0), sx, sy);
 }
 
 /**
