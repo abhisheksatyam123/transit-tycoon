@@ -3,6 +3,7 @@
  * window (set start year, save, play) and the "Scenario editor" banner. Logic lives in simulation/scenarioEditor.js.
  */
 import { el } from '../dom.js';
+import { openConfirm } from '../modal.js';
 import { field } from './newGame.js';
 import { exportToFile } from '../storage.js';
 import { money } from '../format.js';
@@ -119,16 +120,7 @@ export function openScenarioEditor(app) {
 
 /** Modal yes/no for destructive editor actions (OpenTTD asks before removing all towns/industries). */
 function confirmRemove(app, question, onYes) {
-  const backdrop = el('div.prompt-backdrop');
-  const close = () => backdrop.remove();
-  backdrop.appendChild(el('section.prompt', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Confirm' },
-    el('div.win-header', null, el('span.win-title', { text: 'Confirm' })),
-    el('div.prompt-body', null,
-      el('p', { text: question }),
-      el('div.btn-row', null,
-        el('button.btn', { type: 'button', text: 'Cancel', onclick: close }),
-        el('button.btn.danger', { type: 'button', text: 'Yes', onclick: () => { close(); onYes(); } })))));
-  document.body.appendChild(backdrop);
+  openConfirm({ question, onYes });
 }
 
 /**
