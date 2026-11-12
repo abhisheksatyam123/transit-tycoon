@@ -32,11 +32,6 @@ export const MINIMAP = {
 };
 
 /** Fallback cargo colours (core data may supply its own `color`). */
-export const CARGO_FALLBACK = {
-  PASS: '#e2e8f0', MAIL: '#f5d142', COAL: '#2b2b2b', WOOD: '#8b5a2b', OIL: '#1f2937', GRAI: '#e5c158',
-  LVST: '#b45309', IORE: '#9f4b32', STEL: '#94a3b8', GOOD: '#d97706',
-  STON: '#a8a29e', BMAT: '#b45f3c', PAPR: '#e7e5e4', FOOD: '#f97316',
-};
 
 /** Company livery. `primary`/`dark` follow the player's chosen colour (setPlayerColour); default blue. */
 export const COMPANY = { primary: '#1e6fd9', secondary: '#f2c230', dark: '#123f7a' };

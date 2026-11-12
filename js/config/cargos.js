@@ -45,4 +45,3 @@ export const CARGOS = [
 export const CARGO_BY_ID = Object.fromEntries(CARGOS.map((c) => [c.id, c]));
 
 /** Ids of all cargos. */
-export const CARGO_IDS = CARGOS.map((c) => c.id);

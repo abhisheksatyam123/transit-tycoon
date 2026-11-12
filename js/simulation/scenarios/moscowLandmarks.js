@@ -39,9 +39,6 @@ export const LANDMARK_SPECS = [
 export const PARK = { mapId: 'gorky_park', w: 3, h: 4, title: 'Gorky Park' };
 
 /** Landmark titles by id (for the Query tool). */
-export const LANDMARK_TITLES = Object.fromEntries(
-  [...LANDMARK_SPECS.map((s) => [s.id, s.title]), ['gorky_park', PARK.title], ...Object.values(LM3D).map((e) => [e.id, e.title])],
-);
 
 /** Map landmark position by id; null when the baked map has none. */
 function mapPos(map, mapId, lat, lon) {

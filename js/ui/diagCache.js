@@ -10,7 +10,6 @@ let loading = null;
 /** @type {{game:any, at:number, month:number, issues:any[]|null, error:string|null, summary:any, available:boolean}|null} */
 let cache = null;
 /** @deprecated kept for compatibility; see MAX_AGE_MS. */
-export const SCAN_INTERVAL_MS = 2000;
 
 /** Load the diagnostics module once. @returns {Promise<any>} */
 function loadModule() {

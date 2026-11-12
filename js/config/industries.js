@@ -22,7 +22,6 @@ export const INDUSTRY_TYPES = [
  * Primary industries (no accepts) may raise/lower production (canIncrease/DecreaseProduction); requiresAllCargo is false for all.
  */
 /** builtInClusters: a new one must lie near an existing one once 3 of the type exist. */
-export const INDUSTRY_DEFAULT_YEARS = { designedYear: 0, obsoleteYear: 9999 };
 
 /**
  * T29 extra types (OpenTTD temperate bank: produces and accepts Valuables, built inside a town of 1200+ people).

@@ -7,7 +7,6 @@ import { P } from './shapes.js';
 import { shade } from '../palette.js';
 
 export const GOLD = '#f5c542';
-export const GOLD_DARK = '#b8860b';
 
 /**
  * Onion dome on a base centre (u,v,z); r = base radius px, h = height px.

@@ -612,9 +612,6 @@ export function limitSlopes(map, cap = 1) {
 }
 
 /** True if tile is land without anything built on it (forest counts as free). */
-export function isFreeLand(tile) {
-  return !!tile && tile.terrain !== 'water' && !tile.building && !tile.rail && !tile.road;
-}
 
 /**
  * Clear a rectangle of tiles to grass (removes houses, industries touching it, track).

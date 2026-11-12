@@ -14,7 +14,6 @@ const BITS = [1, 2, 4, 8];
 /** Max path length (edges) between the ends of a road edge that closes a cycle we drop. */
 export const ROAD_SMALL_CYCLE = tl(8);
 /** Max dead-end spur length (tiles) pruned. */
-export const ROAD_SPUR_MAX = tl(2);
 const ALWAYS_KEEP = 1e6;
 /** R10a: longest dead-end spur (tiles) pruned, iterated. */
 const ROAD_SPUR_MAX_R10 = tl(5);
@@ -411,35 +410,3 @@ export function cleanRoad(state) {
  * Road geometry metrics (same definitions as scratchpad/r8/probe.mjs).
  * @returns {{road:number,roadJ3:number,roadJ4:number,roadBlocks2x2:number,roadRingHoles1:number,components:number}}
  */
-export function roadMetrics(map) {
-  const W = map.width, H = map.height;
-  const pc = (b) => { let c = 0; while (b) { c += b & 1; b >>= 1; } return c; };
-  let road = 0, j3 = 0, j4 = 0;
-  map.tiles.forEach((t) => { if (!t.road) return; road++; const k = pc(t.road); if (k === 3) j3++; if (k === 4) j4++; });
-  let blocks = 0;
-  for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) {
-    const a = map.tiles[y * W + x], b = map.tiles[y * W + x + 1];
-    const c = map.tiles[(y + 1) * W + x], d = map.tiles[(y + 1) * W + x + 1];
-    if (a.road && b.road && c.road && d.road) blocks++;
-  }
-  let holes = 0;
-  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-    if (map.tiles[y * W + x].road) continue;
-    let n = 0;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && map.tiles[(y + dy) * W + x + dx].road) n++;
-    if (n === 8) holes++;
-  }
-  // connected components of the road graph
-  const seen = new Uint8Array(W * H);
-  let components = 0;
-  for (let s = 0; s < W * H; s++) {
-    if (seen[s] || !map.tiles[s].road) continue;
-    components++;
-    const stack = [s]; seen[s] = 1;
-    while (stack.length) {
-      const i = stack.pop();
-      for (const { j } of links(map, i)) if (!seen[j]) { seen[j] = 1; stack.push(j); }
-    }
-  }
-  return { road, roadJ3: j3, roadJ4: j4, roadBlocks2x2: blocks, roadRingHoles1: holes, roadJogs: countJogs(map), components };
-}

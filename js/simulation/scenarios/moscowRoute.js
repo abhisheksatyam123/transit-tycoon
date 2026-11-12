@@ -186,14 +186,6 @@ export function stationAxis(map, i) {
 }
 
 /** True when `path` runs straight through index k (prev and next on one axis). */
-export function straightAt(map, path, k) {
-  if (k <= 0 || k >= path.length - 1) return null;
-  const W = map.width;
-  const [a, b, c] = [path[k - 1], path[k], path[k + 1]];
-  if (Math.floor(a / W) === Math.floor(b / W) && Math.floor(b / W) === Math.floor(c / W)) return 'x';
-  if (a % W === b % W && b % W === c % W) return 'y';
-  return null;
-}
 
 /**
  * Index in `path` nearest to `target` (tile index) that is a straight, station-capable tile.

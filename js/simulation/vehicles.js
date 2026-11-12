@@ -226,9 +226,6 @@ export function vehicleModel(v) {
 }
 
 /** Speed of a vehicle in km/h (for display and ratings). */
-export function speedKmh(v) {
-  return Math.round(v.speed / (v.kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK));
-}
 
 /**
  * OpenTTD holding ring position of a holding plane (display only): the sim holds on its square loop of corners

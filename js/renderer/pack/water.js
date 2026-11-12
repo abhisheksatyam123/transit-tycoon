@@ -52,25 +52,3 @@ function spriteCanvas(id, rot) {
  * @param {number[]} c corner heights [hN,hE,hS,hW]
  * @returns {boolean} false when no shore sprite applies
  */
-export function drawOgfxShore(ctx, mask, sx, sy, c) {
-  if (!packState.pack || !mask) return false;
-  const min = Math.min(c[0], c[1], c[2], c[3]);
-  const top = sy - HALF_H - S * min;
-  const ids = [];
-  if ((mask & (EDGE_S | EDGE_E)) === (EDGE_S | EDGE_E)) ids.push([4065, 0]);
-  else {
-    if (mask & EDGE_S) ids.push([4062, 0]);
-    if (mask & EDGE_E) ids.push([4063, 0]);
-  }
-  if (mask & EDGE_N) ids.push([4062, 1]);
-  if (mask & EDGE_W) ids.push([4063, 1]);
-  let drawn = false;
-  for (const [id, rot] of ids) {
-    const cv = spriteCanvas(id, rot);
-    if (!cv) continue;
-    const s = packState.pack.sprites[id];
-    ctx.drawImage(cv, sx + s[5], top + s[6]);
-    drawn = true;
-  }
-  return drawn;
-}

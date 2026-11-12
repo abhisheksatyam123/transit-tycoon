@@ -68,9 +68,6 @@ export function pruneOneWay(t) {
 }
 
 /** Rail connectivity between adjacent tiles. */
-export function railConnected(map, ax, ay, bx, by) {
-  return connected(map, 'rail', ax, ay, bx, by);
-}
 
 /** Road connectivity between adjacent tiles. */
 export function roadConnected(map, ax, ay, bx, by) {

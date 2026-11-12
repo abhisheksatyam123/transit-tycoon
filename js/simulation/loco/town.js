@@ -24,7 +24,6 @@ export const HISTORY_LEN = 20 * 12;
 export const MIN_COMPANY_RATING = -1000;
 export const MAX_COMPANY_RATING = 1000;
 /** TownSize: hamlet, village, town, city, metropolis. */
-export const TOWN_SIZE_NAMES = ['hamlet', 'village', 'town', 'city', 'metropolis'];
 /** 0x004FF714 */
 const POPULATIONS = [0, 150, 500, 2500, 8000];
 

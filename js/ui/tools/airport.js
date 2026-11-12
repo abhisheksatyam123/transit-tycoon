@@ -6,8 +6,6 @@ import { createPlacementTool } from './placement.js';
 import { AIRPORT_TYPES, airportType } from '../../simulation/airportTypes.js';
 
 /** Footprint size (tiles) of the City airport (kept for existing callers). */
-export const AIRPORT_W = AIRPORT_TYPES.city.w;
-export const AIRPORT_H = AIRPORT_TYPES.city.h;
 
 /** Tool ids for the airport types. */
 export const AIRPORT_TOOL_TYPE = {

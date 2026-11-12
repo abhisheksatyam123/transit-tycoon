@@ -118,6 +118,3 @@ export function clearFarmFields(state, ind) {
 }
 
 /** Price to clear a field before building on it (OpenTTD: clearing a farm field, small). */
-export function fieldClearingCost(tile) {
-  return tile && tile.field !== undefined ? COSTS.clearField : 0;
-}

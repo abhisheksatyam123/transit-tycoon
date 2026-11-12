@@ -53,12 +53,6 @@ export function setA11y(patch) {
 export function uiScaleFactor() { return loadA11y().uiScale / 100; }
 
 /** @returns {boolean} true when the setting or the OS asks for reduced motion */
-export function reduceMotionActive() {
-  if (loadA11y().reduceMotion) return true;
-  try {
-    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch { return false; }
-}
 
 /**
  * Apply the prefs to the document (idempotent; call after any change).

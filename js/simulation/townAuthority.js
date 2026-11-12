@@ -287,33 +287,6 @@ const ADVERTISE = {
 };
 
 /** HTML for the Local authority tab of the town window. */
-export function renderAuthorityTab(state, town) {
-  const r = townRating(town);
-  const pct = Math.round(((r - MIN_COMPANY_RATING) / (MAX_COMPANY_RATING - MIN_COMPANY_RATING)) * 100);
-  const actions = actionList(state, town);
-  const funded = town.fundMonths > 0 ? `<span style="opacity:.7;margin-left:6px">funded ${town.fundMonths}mo</span>` : '';
-  const statue = town.statue ? `<span style="opacity:.7;margin-left:6px">statue built</span>` : '';
-  const roadw = town.roadWorksMonths > 0 ? `<span style="opacity:.7;margin-left:6px">road works ${town.roadWorksMonths}mo</span>` : '';
-  const rights = town.exclusiveMonths > 0 ? `<span style="opacity:.7;margin-left:6px">exclusive rights ${town.exclusiveMonths}mo</span>` : '';
-  const unwanted = town.unwantedMonths > 0 ? `<span style="color:rgba(255,150,150,.95);margin-left:6px">hostile ${town.unwantedMonths}mo</span>` : '';
-  const rows = actions.map((a) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)">
-      <div style="flex:1">
-        <div style="font-size:12px">${a.label}</div>
-        <div style="font-size:10px;opacity:.6">${a.hint}</div>
-      </div>
-      <button class="btn" data-taction="${a.id}" ${a.ok ? '' : 'disabled'}>£${a.cost.toLocaleString('en-GB')}</button>
-    </div>`).join('');
-  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-      <span style="font-size:11px;opacity:.7">Company rating</span>
-      <b style="font-size:12px;color:${rankCss(r)}">${r}</b>${funded}${statue}${roadw}${rights}${unwanted}
-    </div>
-    <div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:10px">
-      <div style="height:100%;width:${pct}%;background:${rankCss(r)};opacity:.85"></div>
-    </div>
-    <div style="font-size:10px;opacity:.55;margin-bottom:6px">A rating below ${refuseBelow(state)} makes this town refuse your stations and demolition. Serve nearby stations to improve it.</div>
-    ${rows}`;
-}
 
 
 /** Backwards-compatible aliases for callers expecting older API names. */
@@ -327,19 +300,6 @@ export function getTownRating(state, townId, companyId = null) {
   if (town.ratings && typeof town.ratings[key] === 'number') return town.ratings[key];
   if (key === 'player') return townRating(town);
   return RATING_NEUTRAL;
-}
-export function actionCost(state, key) {
-  // legacy helper: return base cost estimate for action key
-  const pop = 100;
-  if (key === 'advertise_small') return constructionTotal(state, Math.round(pop * 4), 'property');
-  if (key === 'advertise_medium') return constructionTotal(state, Math.round(pop * 9), 'property');
-  if (key === 'advertise_large') return constructionTotal(state, Math.round(pop * 18), 'property');
-  if (key === 'fund') return constructionTotal(state, Math.max(COSTS.fundBuildings, Math.round(pop * 40)), 'property');
-  if (key === 'statue') return constructionTotal(state, Math.max((COSTS.buildStatue ?? 45000), Math.round(pop * 60)), 'property');
-  if (key === 'roadworks') return constructionTotal(state, Math.max(COSTS.roadRebuild, Math.round(pop * 25)), 'property');
-  if (key === 'rights') return constructionTotal(state, Math.max(EXCLUSIVE_BASE, Math.round(pop * 120)), 'property');
-  if (key === 'bribe') return constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property');
-  return 0;
 }
 export function demolishRefusal(state, jobs) {
   // Check authority at any demolished tile; return refusal reason or null

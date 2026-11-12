@@ -29,7 +29,6 @@ import { dailyDisasters, tickDisasters } from '../disasters.js'; // disasters se
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
 export const DAY_INCREMENT = 682;
 /** Ticks per game day (65536 / 682), for rates expressed per day. */
-export const TICKS_PER_LOCO_DAY = 65536 / DAY_INCREMENT;
 
 /**
  * Date.cpp updateDayCounter: advance the 16-bit day counter; true when it wraps (a new day starts).

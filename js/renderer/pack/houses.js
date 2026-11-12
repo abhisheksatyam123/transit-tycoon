@@ -23,7 +23,6 @@ const SPR_CONCRETE = 1420;
 let gameYear = 2000;
 
 /** @param {number} y */
-export function setOgfxYear(y) { gameYear = y | 0; }
 
 /**
  * Candidate OpenTTD house ids per our house class (level 1..4 or Moscow style).

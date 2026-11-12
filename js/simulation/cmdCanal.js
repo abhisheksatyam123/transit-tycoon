@@ -199,10 +199,3 @@ export function buildLock(ctx, x, y, opts = {}) {
 }
 
 /** Demolition helper used by cmdTrack.demolish: the canal/lock tiles to remove for a touched cell. */
-export function canalCells(map, x, y) {
-  const t = getTile(map, x, y);
-  if (t && t.lock) return lockParts(map, x, y);
-  return null;
-}
-
-export { lockError as lockValidationError };

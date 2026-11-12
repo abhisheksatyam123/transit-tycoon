@@ -99,10 +99,8 @@ export function drawLm3dGround(ctx, id, x, y, sx, sy, rect) { const e = LM3D[id]
 export function drawLm3dObjects(ctx, id, x, y, sx, sy, rect) { const e = LM3D[id]; if (e) blit(ctx, e, x, y, sx, sy, false, rect); }
 
 /** True when a landmark id is a baked 3D ensemble. */
-export function isLm3d(id) { return !!LM3D[id]; }
 
 /** Preload all level images (call once when a Moscow game starts). */
-export function preloadLm3d() { for (const e of Object.values(LM3D)) for (const lv of e.levels) { levelImage(lv); if (lv.g) levelImage(lv.g); } }
 
 /**
  * Draw ensemble `id` from its front tile (x,y) whose world-screen centre is (sx,sy) (includes terrain height).

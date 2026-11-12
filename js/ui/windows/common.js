@@ -40,12 +40,6 @@ export function heading(text) {
  * @param {string} [emptyText]
  * @param {(id:string)=>string} [suffix]
  */
-export function cargoAmounts(container, amounts, emptyText = 'None', suffix) {
-  const items = Object.keys(amounts || {}).filter((k) => amounts[k] > 0).map((k) => ({ id: k, n: amounts[k] }));
-  listOrEmpty(container, items, (i) => i.id,
-    (i) => el('div.cargo-row', null, cargoChip(i.id), el('span.mono.num')),
-    (row, i) => setText(row.lastChild, num(i.n) + (suffix ? suffix(i.id) : '')), emptyText);
-}
 
 /**
  * Sum a station waiting-cargo packet list.

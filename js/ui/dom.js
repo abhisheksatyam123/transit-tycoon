@@ -113,11 +113,6 @@ export function button(label, onClick, cls = '') {
  * @param {string|Node} [value]
  * @returns {{row:HTMLElement, value:HTMLElement}}
  */
-export function kvRow(label, value = '') {
-  const v = el('span.kv-value.mono', null, value);
-  const row = el('div.kv', null, el('span.kv-label', { text: label }), v);
-  return { row, value: v };
-}
 
 /**
  * Horizontal bar (0..1) element with fill colour.

@@ -29,11 +29,6 @@ export function isCond(o) {
 }
 
 /** Number of unconditional (station or depot) orders in a list. */
-export function plainOrderCount(orders) {
-  let n = 0;
-  for (const o of orders) if (!isCond(o)) n++;
-  return n;
-}
 
 /**
  * Validate and normalise one conditional entry. `to` is checked against the final list length by the caller.

@@ -291,9 +291,6 @@ export function recordCarrier(st, cargoId, speedKmh, ageDays) {
 }
 
 /** Tiles of the station of the given kind. */
-export function stationTilesOfKind(st, kind) {
-  return st.tiles.filter((t) => t.kind === kind);
-}
 
 /** Max bounding-box side (tiles) of one station (OpenTTD station_spread default). */
 export const STATION_SPREAD = 12;

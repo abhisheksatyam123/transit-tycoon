@@ -26,9 +26,6 @@ export function formatDate(date) {
 }
 
 /** Days in the month of the given date. */
-export function daysInMonth(date) {
-  return MONTH_DAYS[date.month];
-}
 
 /** Absolute day number of a date (365-day years): used for service intervals. */
 export function dayNumber(date) {

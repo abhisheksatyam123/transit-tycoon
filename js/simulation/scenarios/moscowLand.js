@@ -63,21 +63,6 @@ export function clearFootprint(state, x0, y0, w, h, keepLinks = false) {
  * and no major road (local streets may be cleared). Does not modify the map.
  * @returns {{x:number,y:number}|null}
  */
-export function findFootprint(state, w, h, cx, cy, maxR = tl(8), major = null) {
-  const { map } = state;
-  for (let r = 0; r <= maxR; r++) {
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const x = cx + dx, y = cy + dy;
-      let ok = true;
-      for (let yy = y; ok && yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
-        if (!inBounds(map, xx, yy) || !clearable(map, yy * map.width + xx) || map.tiles[yy * map.width + xx].rail || (major && major[yy * map.width + xx])) { ok = false; break; }
-      }
-      if (ok) return { x, y };
-    }
-  }
-  return null;
-}
 
 /** Tile free for a spur or depot: land, no track, no building except houses (demolished on use). */
 function spurFree(map, x, y) {

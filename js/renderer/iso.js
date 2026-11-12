@@ -56,22 +56,6 @@ export function pointInTile(sx, sy, tx, ty, h) {
  * @param {(x:number,y:number)=>number} heightAt returns height or -1 if out of bounds
  * @returns {{x:number,y:number}} may be outside the map
  */
-export function pickTile(sx, sy, heightAt) {
-  const f = screenToTileFloat(sx, sy);
-  const bx = Math.round(f.x);
-  const by = Math.round(f.y);
-  for (let k = 5; k >= 0; k--) {
-    for (let o = 0; o < 3; o++) {
-      const tx = bx + k + (o === 1 ? 1 : 0);
-      const ty = by + k + (o === 2 ? 1 : 0);
-      const h = heightAt(tx, ty);
-      if (h < 0) continue;
-      if (h * HEIGHT_STEP < (k - 0.5) * TILE_H) continue;
-      if (pointInTile(sx, sy, tx, ty, h)) return { x: tx, y: ty };
-    }
-  }
-  return { x: bx, y: by };
-}
 
 /** Signed area test: is point p inside triangle a,b,c (any winding)? */
 const PICK_EPS = 0.5; // px^2 tolerance so points on a shared edge (diagonal) count for both triangles

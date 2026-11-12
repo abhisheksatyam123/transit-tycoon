@@ -11,7 +11,6 @@ import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
 import { getSetting } from './settings.js';
 
 /** Days of the month on which a production chunk is distributed. */
-export const DISTRIBUTION_DAYS = [1, 8, 15, 22];
 
 /**
  * Pick up to 2 stations (best rating first) covering any of the given tile indices

@@ -50,9 +50,6 @@ export function altitudeAt(v, heli = false) {
  * @param {string} [typeId]
  * @returns {{dx:number,dy:number,part:string}[]}
  */
-export function airportLayout(typeId) {
-  return airportLayoutFor(typeId || 'city');
-}
 
 /**
  * True when a tile is the goal of an airport type (runway centre, or the heliport's helipad).

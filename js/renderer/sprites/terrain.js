@@ -240,6 +240,3 @@ export function treeCluster(variant, snowy = false) {
 }
 
 /** Drop all cached terrain sprites. */
-export function clearTerrainCache() {
-  cache.clear();
-}

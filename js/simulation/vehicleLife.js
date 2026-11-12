@@ -8,7 +8,6 @@ import { getSetting } from './settings.js';
 import { effectiveMaxAge } from './vehicles.js'; // re-exported for callers (extendVehicleLife)
 
 
-export { BREAKDOWN_DAYS } from './loco/vehicle.js';
 export { effectiveMaxAge };
 
 /**

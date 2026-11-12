@@ -24,7 +24,6 @@ export const RAIL_TYPES = {
 };
 
 /** Track-type ids with a non-zero id (monorail, maglev). */
-export const SPECIAL_RAIL_TYPES = [RAIL_TYPE_MONO, RAIL_TYPE_MAGLEV];
 
 /** Selector cycle of the rail tool: plain rail, electric (catenary flag), then the special track types. */
 export const RAIL_SELECTOR = ['rail', 'electric', 'mono', 'maglev'];

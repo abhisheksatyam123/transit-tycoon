@@ -110,14 +110,8 @@ function airportName(state, x, y, typeName) {
 }
 
 /** Origin (top-left corner) of the airport a station-tile building belongs to. */
-export function airportOrigin(b, x, y) {
-  return { x: x - b.dx, y: y - b.dy };
-}
 
 /** True when an air depot (hangar) at origin (ox,oy) holds stopped aircraft. */
-export function hangarBusy(state, ox, oy) {
-  return state.vehicles.some((v) => v.state === 'depot' && v.tx === ox && v.ty === oy);
-}
 
 /**
  * Remove a whole airport: all footprint station tiles, the air depot record and the tiles' building.
@@ -125,20 +119,6 @@ export function hangarBusy(state, ox, oy) {
  * @param {number} ox origin x
  * @param {number} oy origin y
  */
-export function demolishAirport(ctx, ox, oy) {
-  const { state } = ctx;
-  const map = state.map;
-  const origin = map.tiles[oy * map.width + ox].building;
-  const type = airportType(airportTypeId(origin));
-  for (const p of type.layout) {
-    const x = ox + p.dx, y = oy + p.dy;
-    const t = map.tiles[y * map.width + x];
-    if (!t.building || t.building.type !== 'station' || t.building.kind !== 'airport') continue;
-    removeStationTile(ctx, x, y);
-    t.building = null; t.owner = null;
-  }
-  for (const d of state.depots.filter((q) => q.kind === 'air' && q.x >= ox && q.x < ox + type.w && q.y >= oy && q.y < oy + type.h)) removeDepot(ctx, d.id);
-}
 
 /**
  * Open or close an airport to incoming aircraft (OpenTTD CmdOpenCloseAirport, station_cmd.cpp:2834, which

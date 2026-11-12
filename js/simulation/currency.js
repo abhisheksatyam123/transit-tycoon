@@ -15,7 +15,6 @@ export const CURRENCIES = {
   JPY: { id: 'JPY', name: 'Japanese yen (¥)', rate: 220, prefix: '¥', suffix: '' },
   RUB: { id: 'RUB', name: 'Russian rouble (₽)', rate: 80, prefix: '', suffix: NBSP + '₽' },
 };
-export const CURRENCY_IDS = Object.keys(CURRENCIES);
 
 /** Speed units: factor converts km/h into the unit. */
 export const SPEED_UNITS = {

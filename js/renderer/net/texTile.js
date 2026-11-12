@@ -34,7 +34,6 @@ function spritePixels(id) {
 }
 
 /** Drop sampled sprites (pack reload). */
-export function clearNetTex() { pixCache.clear(); }
 
 /** Whether OpenGFX sprites needed for textured net tiles are available. */
 let _netTexReady = false, _netTexPack = undefined;

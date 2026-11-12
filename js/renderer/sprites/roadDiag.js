@@ -37,11 +37,6 @@ export function reflectMask(m) {
  * n = tile to the north (y-1), e = east (x+1), s = south (y+1), w = west (x-1).
  * @returns {number} 1 chamfer, 0 arc / not a corner
  */
-export function chamferFlag(mask, n, e, s, w) {
-  if (CORNER[mask] === undefined) return 0;
-  const r = reflectMask(mask);
-  return n === r || e === r || s === r || w === r ? 1 : 0;
-}
 
 /**
  * Centre line of a corner in tile space: a 2-point chord (chamfer, extended past both midpoints)

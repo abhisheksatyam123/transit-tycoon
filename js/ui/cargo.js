@@ -8,7 +8,6 @@ const BY_ID = {};
 for (const c of CARGOS) BY_ID[c.id] = c;
 
 /** All cargo records in table order. */
-export const CARGO_LIST = CARGOS;
 
 /**
  * Display name of a cargo id.
@@ -33,9 +32,6 @@ export function cargoColor(id) {
  * @param {string} id
  * @returns {string}
  */
-export function cargoUnit(id) {
-  return (BY_ID[id] && BY_ID[id].unit) || '';
-}
 
 /**
  * Map of id -> colour (for sprite tinting).

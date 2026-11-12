@@ -47,6 +47,3 @@ export function holdDrawPos(typeId, ax, ay, from, target, f) {
 }
 
 /** True when an aircraft's sim holding applies to the OTTD ring (plane at a plane-airport with a ring). */
-export function usesHoldRing(v, building) {
-  return !!v && v.kind === 'aircraft' && !!v.hold && !isHelicopter(v) && !!building && holdRing(airportTypeId(building)) !== null;
-}

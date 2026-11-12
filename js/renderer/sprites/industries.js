@@ -362,6 +362,3 @@ export function industrySprite(style, piece, variant) {
  * @param {string} style
  * @returns {string}
  */
-export function industryColor(style) {
-  return shade(GROUND[style] || '#8a8a84', 1.3);
-}
