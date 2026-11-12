@@ -61,32 +61,112 @@ export function vehicleDir(v) {
 }
 
 /**
- * Body cells of a vehicle as tile keys (see module comment). `reuse` (an array no longer indexed) is
- * refilled in place when its length matches, so re-indexing a moving vehicle does not allocate. `layer` is
- * the caller's occupancyLayer result (one settings read per vehicle per tick).
+ * Body-key array of exactly `n` slots from the index's scratch pool, or null. Only same-length arrays are
+ * taken back: a key array's length is fixed once allocated, so reusing it keeps allocation/order unchanged.
  */
-function bodyKeys(state, v, reuse, layer) {
+function takeKeyArray(pool, n) {
+  for (let i = pool.length - 1; i >= 0; i--) {
+    if (pool[i].length !== n) continue;
+    const arr = pool[i];
+    pool[i] = pool[pool.length - 1]; // swap-pop: no splice result array allocated
+    pool.pop();
+    return arr;
+  }
+  return null;
+}
+
+/** Empty scratch array for a tile's vehicle list (lists are cleared on release, never shared while live). */
+function takeList(pool) {
+  const a = pool.length ? pool.pop() : [];
+  a.length = 0;
+  return a;
+}
+
+/**
+ * Body cells of a vehicle as tile keys (see module comment). `pool` (the occupancy index's scratch pool)
+ * supplies a same-length array no longer indexed, so re-indexing a moving vehicle does not allocate; `layer`
+ * is the caller's occupancyLayer result (one settings read per vehicle per tick).
+ */
+function bodyKeys(state, v, pool, layer) {
   if (!layer || v.state === 'depot') return null;
   const w = state.map.width;
-  const h = v.history && v.history.length ? v.history : [{ x: v.tx, y: v.ty }];
+  const h = v.history && v.history.length ? v.history : null;
+  // no history yet (e.g. just built): a single head cell; both cases below give n = 1 when h.length is 1
+  if (!h) {
+    const keys = takeKeyArray(pool, 1) || new Array(1);
+    keys[0] = v.ty * w + v.tx;
+    return keys;
+  }
   // articulated road vehicles cover every tile their parts span (articulated.js); plain ones the head and the tile behind
   const n = layer === 'road' ? Math.min(articSpan(v) ? Math.ceil(articSpan(v)) + 2 : 2, h.length) : h.length;
-  const keys = reuse && reuse.length === n ? reuse : new Array(n);
+  const keys = takeKeyArray(pool, n) || new Array(n);
   for (let i = 0; i < n; i++) keys[i] = h[i].y * w + h[i].x;
   return keys;
 }
 
-function addTo(map, k, v) {
+function addTo(map, k, v, pool) {
   const list = map.get(k);
-  if (list) list.push(v); else map.set(k, [v]);
+  if (list) { list.push(v); return; }
+  const fresh = takeList(pool);
+  fresh.push(v);
+  map.set(k, fresh);
 }
 
-function removeFrom(map, k, v) {
+function removeFrom(map, k, v, pool) {
   const list = map.get(k);
   if (!list) return;
   const i = list.indexOf(v);
   if (i >= 0) list.splice(i, 1);
-  if (!list.length) map.delete(k);
+  // the list is empty and no longer reachable from the map: recycle it for a tile added later this tick
+  if (!list.length) { map.delete(k); pool.push(list); }
+}
+
+/**
+ * Pool of occupancy index objects reused across ticks and path searches (this module's only per-tick
+ * structure that would otherwise allocate fresh Maps/arrays every time). An index is derived, single-owner
+ * scratch data: the tick owns it from beginOccupancy until VehicleManager.tick ends, and a path search owns
+ * the search-local index until findPath returns. releaseOccupancy is called at those two points only, so a
+ * live index is never handed to anyone else. On release the scratch arrays are harvested and the Maps are
+ * cleared in place; the next build re-inserts the same keys in the same order, so reuse cannot change the
+ * index (iteration order included) and nothing can leak between ticks or games.
+ */
+const occPool = [];
+
+/** Empty index with its scratch pools: freed body-key arrays and freed tile vehicle lists. */
+function createOcc() {
+  return {
+    rail: new Map(), road: new Map(), keys: new Map(), blocks: new Map(), blockIds: new Map(),
+    keyPool: [], listPool: [],
+  };
+}
+
+/** Take a pooled (already cleared) index, or a fresh one when no index has been released yet. */
+function acquireOccupancy() {
+  const occ = occPool.pop();
+  if (!occ) return createOcc();
+  occ.released = false;
+  return occ;
+}
+
+/**
+ * Return an index once nothing references it any more: harvest its scratch arrays for the next acquire and
+ * clear the Maps in place (keeping their capacity). Idempotent; safe to call on a null index.
+ */
+export function releaseOccupancy(occ) {
+  if (!occ || occ.released) return;
+  occ.released = true;
+  // movement.breaksCycle lazily caches vehicle-id -> vehicle on the index (movement.js blockTS); that cache is
+  // only valid for the state snapshot it was built from, so drop it with the rest of the scratch data.
+  occ.byId = null;
+  for (const keys of occ.keys.values()) occ.keyPool.push(keys);
+  for (const ids of occ.blockIds.values()) occ.listPool.push(ids);
+  for (const map of [occ.rail, occ.road, occ.blocks]) {
+    for (const list of map.values()) { list.length = 0; occ.listPool.push(list); }
+    map.clear();
+  }
+  occ.keys.clear();
+  occ.blockIds.clear();
+  occPool.push(occ);
 }
 
 /**
@@ -94,13 +174,13 @@ function removeFrom(map, k, v) {
  * @returns {{rail:Map, road:Map, keys:Map}} keys: vehicle -> body keys it is indexed under
  */
 export function beginOccupancy(state) {
-  const occ = { rail: new Map(), road: new Map(), keys: new Map(), blocks: new Map(), blockIds: new Map() };
+  const occ = acquireOccupancy();
   for (const v of state.vehicles) {
     const layer = occupancyLayer(v, state);
-    const keys = bodyKeys(state, v, null, layer);
+    const keys = bodyKeys(state, v, occ.keyPool, layer);
     if (!keys) continue;
     occ.keys.set(v, keys);
-    for (const k of keys) addTo(occ[layer], k, v);
+    for (const k of keys) addTo(occ[layer], k, v, occ.listPool);
     indexBlocks(state, occ, v, keys);
   }
   return occ;
@@ -112,14 +192,14 @@ export function beginOccupancy(state) {
  */
 function indexBlocks(state, occ, v, keys) {
   if (v.kind !== 'train' || !blockIndex(state)) return;
-  const ids = [];
+  const ids = takeList(occ.listPool);
   for (const k of keys) {
     const b = guardedBlock(state, k);
     if (b >= 0 && !ids.includes(b)) ids.push(b);
   }
-  if (!ids.length) return;
+  if (!ids.length) { occ.listPool.push(ids); return; }
   occ.blockIds.set(v, ids);
-  for (const b of ids) addTo(occ.blocks, b, v);
+  for (const b of ids) addTo(occ.blocks, b, v, occ.listPool);
 }
 
 /** Train (not v) with a body cell in signal block `b`, or null. */
@@ -138,23 +218,28 @@ export function syncOccupancy(ctx, v) {
   const layer = occupancyLayer(v, ctx.state);
   const old = occ.keys.get(v);
   if (old) {
-    for (const k of old) removeFrom(occ[layer], k, v);
+    for (const k of old) removeFrom(occ[layer], k, v, occ.listPool);
     occ.keys.delete(v);
+    occ.keyPool.push(old); // no longer indexed: its array can hold the new body cells
   }
-  // `old` is no longer indexed, so its array can hold the new body cells
-  const keys = bodyKeys(ctx.state, v, old, layer);
+  const keys = bodyKeys(ctx.state, v, occ.keyPool, layer);
   const oldBlocks = occ.blockIds.get(v);
   if (oldBlocks) {
-    for (const b of oldBlocks) removeFrom(occ.blocks, b, v);
+    for (const b of oldBlocks) removeFrom(occ.blocks, b, v, occ.listPool);
     occ.blockIds.delete(v);
+    occ.listPool.push(oldBlocks);
   }
   if (!keys) return;
   occ.keys.set(v, keys);
-  for (const k of keys) addTo(occ[layer], k, v);
+  for (const k of keys) addTo(occ[layer], k, v, occ.listPool);
   indexBlocks(ctx.state, occ, v, keys);
 }
 
-/** Index for the current call: the tick index, or a fresh build when called outside a tick. */
+/**
+ * Index for the current call: the tick index, or one built on demand when called outside a tick. The
+ * on-demand build is not released (the caller keeps the returned list); it is a one-off derived index, the
+ * same as before pooling, and never enters the pool so it cannot be mistaken for a free index.
+ */
 function indexOf(ctx) {
   return ctx.occupancy || beginOccupancy(ctx.state);
 }

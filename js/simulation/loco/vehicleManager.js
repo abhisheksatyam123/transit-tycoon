@@ -4,7 +4,7 @@
  * logic in ./vehicle.js. Vehicle motion stays transit-tycoon's (movement.js).
  */
 import { vehicleTick } from '../movement.js';
-import { beginOccupancy, syncOccupancy } from '../blocking.js';
+import { beginOccupancy, syncOccupancy, releaseOccupancy } from '../blocking.js';
 import { vehiclesYearly } from '../vehicleLife.js';
 import { trafficTick, trafficDaily } from '../traffic.js';
 import { refreshBarred } from '../levelCrossing.js';
@@ -17,7 +17,9 @@ import { vehicleDaily, vehicleMonthly, vehicleBreakdownTick, chargeRunning } fro
 /** VehicleManager::tick: VehicleHead::updateBreakdown + motion for every vehicle (plus background road traffic). */
 export function tick(game) {
   const ctx = game.ctx;
-  ctx.occupancy = beginOccupancy(game.state); // queueing index (blocking.js), derived, never saved
+  // queueing index (blocking.js), derived, never saved: a pooled object reused across ticks
+  const occ = beginOccupancy(game.state);
+  ctx.occupancy = occ;
   refreshBarred(ctx, game.state); // level crossings barred this tick (levelCrossing.js; setting off = null)
   if (ctx.barredNew) for (const i of ctx.barredNew) ctx.emit('levelCrossingClosed', { i });
   // vehicleCollisions (trainCollision.js): train-train and train-road; one setting read per tick
@@ -31,6 +33,7 @@ export function tick(game) {
   if (ctx.wrecked) { for (const v of ctx.wrecked) removeVehicle(game.state, v); ctx.wrecked = null; }
   ctx.collide = false;
   ctx.occupancy = null;
+  releaseOccupancy(occ); // nothing reads the index after this point: clear in place for the next tick
   trafficTick(ctx);
   ctx.barredNew = null;
 }
