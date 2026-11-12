@@ -275,7 +275,7 @@ export function openVehicleList(app) {
           return el('div.table-row.group-row', { style: { cursor: 'pointer' }, onclick: () => {
             if (state.open.has(item.b.key)) state.open.delete(item.b.key); else state.open.add(item.b.key);
             refresh();
-          } }, el('span.bucket-label'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num'), el('span'), el('span'));
+          } }, el('span.bucket-label'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num'), el('span.mono.num'));
         }
         return el('div.table-row.group-member', { style: { paddingLeft: '18px' } },
           el('button.link', { type: 'button', onclick: () => app.open('vehicle', item.v.id) }),
