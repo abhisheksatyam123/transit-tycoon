@@ -30,6 +30,7 @@ export function setAutoreplace(state, oldModelId, newModelId, opts = {}) {
       if (!opts.dryRun) {
         delete company.autoreplace[oldModelId];
         if (!Object.keys(company.autoreplace).length) delete company.autoreplace;
+        clearWhenOld(company, oldModelId);
       }
     }
     return { ok: true, rule: null };
@@ -48,4 +49,36 @@ export function setAutoreplace(state, oldModelId, newModelId, opts = {}) {
     company.autoreplace[oldModelId] = newModelId;
   }
   return { ok: true, rule: { from: oldModelId, to: newModelId } };
+}
+
+/**
+ * Per-rule "replace when old" (OpenTTD autoreplace replace_when_old): when on, a vehicle of `oldModelId` matched by
+ * its rule is replaced only once it is old (vehicles.js isVehicleOld), not at any age. Stored lazily as
+ * company.autoreplaceWhenOld = { [oldModelId]: true }; absent unless set, so default games never write it.
+ * A same-model rule does not exist in TT (setAutoreplace rejects it), so there is no same-model case here.
+ * @returns {{ok:true,whenOld:boolean}|{ok:false,error:string}}
+ */
+export function setAutoreplaceWhenOld(state, oldModelId, on, opts = {}) {
+  const old = MODEL_BY_ID[oldModelId];
+  if (!old || old.kind === 'wagon') return { ok: false, error: 'Unknown vehicle model' };
+  const company = state.company;
+  if (!opts.dryRun) {
+    if (on) {
+      company.autoreplaceWhenOld ??= {};
+      company.autoreplaceWhenOld[oldModelId] = true;
+    } else clearWhenOld(company, oldModelId);
+  }
+  return { ok: true, whenOld: !!on };
+}
+
+/** Is the rule for `modelId` set to replace only when old? */
+export function isReplaceWhenOld(state, modelId) {
+  const w = state.company && state.company.autoreplaceWhenOld;
+  return !!(w && w[modelId]);
+}
+
+function clearWhenOld(company, modelId) {
+  if (!company.autoreplaceWhenOld) return;
+  delete company.autoreplaceWhenOld[modelId];
+  if (!Object.keys(company.autoreplaceWhenOld).length) delete company.autoreplaceWhenOld;
 }

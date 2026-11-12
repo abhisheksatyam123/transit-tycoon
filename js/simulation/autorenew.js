@@ -10,7 +10,8 @@
  */
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
-import { resolvePurchase, createVehicle, effectiveMaxAge } from './vehicles.js';
+import { resolvePurchase, createVehicle, effectiveMaxAge, isVehicleOld } from './vehicles.js';
+import { isReplaceWhenOld } from './autoreplace.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -120,7 +121,8 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   const ro = { keepRoute: !!opts.serviceVisit };
   const rules = state.company && state.company.autoreplace;
   const target = rules && rules[v.modelId];
-  if (target && MODEL_BY_ID[target] && target !== v.modelId) {
+  // replace-when-old rules (autoreplace.js) wait until the vehicle is old; default rules replace at any age
+  if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
@@ -133,7 +135,8 @@ export function autorenewVehicle(ctx, v, opts = {}) {
 export function isAutoreplaceEligible(state, v) {
   if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
   const rules = state.company && state.company.autoreplace;
-  if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId) return true;
+  if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId
+    && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) return true;
   return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
 /**
