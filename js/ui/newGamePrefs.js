@@ -7,6 +7,7 @@
 import { SETTING_META } from './settingsGroups.js';
 import { DEFAULT_SETTINGS } from '../simulation/settings.js';
 import { MAPGEN_DEFAULTS } from '../simulation/game.js';
+import { HEIGHTMAP_ROTATIONS } from '../simulation/heightmap.js';
 
 export const NEW_GAME_KEY = 'tt.newGameSettings';
 
@@ -85,6 +86,7 @@ export const MAPGEN_PREF_VALUES = Object.freeze({
   industryDensity: ['normal', 'low', 'high'],
   climate: ['temperate', 'arctic', 'tropic', 'toyland'],
   snowLine: [3, 5, 7],
+  heightmapRotation: [...HEIGHTMAP_ROTATIONS],
 });
 
 /**
