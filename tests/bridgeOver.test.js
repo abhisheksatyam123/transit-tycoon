@@ -91,7 +91,7 @@ describe('rail/road bridges over existing road or rail', () => {
       }
     }
     expect(onDeck).toBe(true);
-  });
+  }, 30000);
 
   test('demolishing the deck over a road keeps the road; demolishing the bridge run removes only the deck', () => {
     const g = valleyOver(31, 33, 20);

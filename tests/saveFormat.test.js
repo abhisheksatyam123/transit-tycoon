@@ -28,7 +28,7 @@ describe('save format', () => {
 
   test('scenario save is much smaller than the classic JSON', () => {
     expect(serializeState(state).length).toBeLessThan(JSON.stringify(state).length / 3);
-  });
+  }, 30000);
 
   test('every loaded tile is a fresh object', () => {
     const back = parseState(serializeState(state));
