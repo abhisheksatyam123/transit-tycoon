@@ -200,8 +200,10 @@ export function openVehicleDetail(app, id) {
         set['Profit last year'](money(v.profitLastYear));
         if (v.transferCredits) set['Transfer credits'](`${money(v.transferCredits)} (virtual, not cash)`);
         set['Value'](money(v.value));
-        const groups = groupList(app.game.state);
-        const sig = groups.map((x) => x.id + ':' + x.name).join('|');
+        // per-type groups (strictGroupKind on): only groups of this vehicle's kind (a mixed legacy group too)
+        const strict = getSetting(app.game.state, 'strictGroupKind') === true;
+        const groups = groupList(app.game.state).filter((x) => !strict || x.kind == null || x.kind === v.kind || x.id === v.groupId);
+        const sig = (strict ? 'k:' : '') + groups.map((x) => x.id + ':' + x.name).join('|');
         if (sig !== groupSig) {
           groupSig = sig;
           groupSel.replaceChildren(el('option', { value: 'none', text: 'Ungrouped' }),

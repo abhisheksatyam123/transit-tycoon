@@ -9,6 +9,7 @@ import { listOrEmpty } from './common.js';
 import { hasTimetable } from '../../simulation/orders.js';
 import { openPrompt } from '../prompt.js';
 import { groupList } from '../../simulation/cmdGroup.js';
+import { getSetting } from '../../simulation/settings.js';
 import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
@@ -93,6 +94,26 @@ export function inGroup(v, group) {
   if (group === undefined || group === 'all') return true;
   if (group === 'none') return v.groupId == null;
   return v.groupId === group;
+}
+
+/** Nested group depth (0 = top level). Cycle-safe: stops after group count steps. */
+export function groupDepth(groups, g) {
+  let depth = 0, cur = g;
+  while (cur && cur.parentId != null && depth < groups.length) {
+    cur = groups.find((x) => x.id === cur.parentId);
+    depth++;
+  }
+  return depth;
+}
+
+/** True when `descId` is `id` or a descendant of it (an invalid parent for `id`). */
+export function isGroupDescendant(groups, id, descId) {
+  let cur = groups.find((g) => g.id === descId) || null;
+  for (let steps = 0; cur && steps <= groups.length; steps++) {
+    if (cur.id === id) return true;
+    cur = cur.parentId == null ? null : groups.find((g) => g.id === cur.parentId);
+  }
+  return false;
 }
 
 /** Sort keys compared as strings (the rest are numeric). */
@@ -193,7 +214,10 @@ export function openVehicleList(app) {
       } });
       const newGroupBtn = el('button.btn.sm', { type: 'button', text: 'New group…', title: 'Create an empty vehicle group', onclick: () => {
         openPrompt({ title: 'New group', label: 'Name', value: '', onSubmit: (text) => {
-          const r = app.game.createGroup(text);
+          // per-type groups (strictGroupKind): a group created from a kind filter takes that kind
+          const opts = {};
+          if (getSetting(app.game.state, 'strictGroupKind') === true && ['train', 'road', 'aircraft', 'ship'].includes(state.filter)) opts.kind = state.filter;
+          const r = app.game.createGroup(text, opts);
           if (r && r.ok) { state.group = r.group ? r.group.id : state.group; app.wm.updateAll(); }
           return r;
         } });
@@ -224,8 +248,17 @@ export function openVehicleList(app) {
         el('span.kv-label', { text: 'Profit this year' }), gStatsValue[0],
         el('span.kv-label', { text: 'Profit last year' }), gStatsValue[1],
         el('span.kv-label', { text: 'Current usage' }), gStatsValue[2]);
+      // nested groups: parent selector for the group shown by the filter (self/descendants excluded)
+      const parentSel = el('select.input', { style: { width: 'auto', display: 'none' }, 'aria-label': 'Parent group', title: 'Parent group (nested groups)' });
+      const parentLabel = el('span.muted', { text: 'Parent', style: { display: 'none' } });
+      parentSel.onchange = () => {
+        if (typeof state.group !== 'number') return;
+        const pid = parentSel.value === 'none' ? null : Number(parentSel.value);
+        app.exec(app.game.alterGroupParent(state.group, pid), { sound: 'click' });
+        refresh();
+      };
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, protectLabel);
+        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, parentLabel, parentSel, protectLabel);
       // group-by dropdown (OpenTTD vehicle_gui.cpp GB_NONE / GB_SHARED_ORDERS / GB_GROUP). Grouped: the sort box sorts buckets.
       const sortKeyed = { sig: null };
       const sortOptions = (grouped) => {
@@ -334,7 +367,7 @@ export function openVehicleList(app) {
           return `${label} (${members.length}) · ${money(ty)} / ${money(ly)}`;
         };
         const opts = [['all', optLabel('all', 'All vehicles')], ['none', optLabel('none', 'Ungrouped')],
-          ...groups.map((g) => [g.id, optLabel(g.id, g.name)])];
+          ...groups.map((g) => [g.id, optLabel(g.id, '\u00a0\u00a0'.repeat(groupDepth(groups, g)) + g.name)])];
         const sig = opts.map(([k, l]) => `${groupOpt(k)}=${l}`).join('|');
         if (groupSel.dataset.sig !== sig) {
           groupSel.dataset.sig = sig;
@@ -345,6 +378,19 @@ export function openVehicleList(app) {
         renameGroupBtn.disabled = !hasGroup;
         deleteGroupBtn.disabled = !hasGroup;
         const selG = hasGroup ? groupList(app.game.state).find((x) => x.id === state.group) : null;
+        // parent selector: every group except selG and its descendants (a cycle); '— top level —' clears parentId
+        parentLabel.style.display = selG ? 'inline-flex' : 'none';
+        parentSel.style.display = selG ? '' : 'none';
+        if (selG) {
+          const choices = groups.filter((g) => !isGroupDescendant(groups, selG.id, g.id));
+          const psig = choices.map((g) => `${g.id}:${g.name}`).join('|');
+          if (parentSel.dataset.sig !== psig) {
+            parentSel.dataset.sig = psig;
+            parentSel.replaceChildren(el('option', { value: 'none', text: '— top level —' }),
+              ...choices.map((g) => el('option', { value: String(g.id), text: '\u00a0\u00a0'.repeat(groupDepth(groups, g)) + g.name })));
+          }
+          parentSel.value = selG.parentId == null ? 'none' : String(selG.parentId);
+        }
         livery.style.display = selG ? 'flex' : 'none';
         protectCb.checked = !!(selG && selG.replaceProtect);
         protectLabel.style.display = selG ? 'inline-flex' : 'none';
@@ -374,6 +420,12 @@ export function openVehicleList(app) {
           // one pass over the filtered vehicles (name order, so the first member labels a shared-orders bucket), then buckets
           const vs = sortVehicles(all, { ...state, sort: 'name', dir: 1 });
           const buckets = sortBuckets(bucketVehicles(vs, { by: state.by, groups }), { sort: state.bsort, dir: state.dir });
+          // nested groups: indent a group bucket by its depth in the parent chain
+          if (state.by === 'group') for (const b of buckets) {
+            if (!String(b.key).startsWith('g:')) continue;
+            const g = groups.find((x) => x.id === Number(String(b.key).slice(2)));
+            if (g) b.label = '  '.repeat(groupDepth(groups, g)) + b.label;
+          }
           const items = [];
           for (const b of buckets) {
             items.push({ kind: 'bucket', key: 'b:' + b.key, b });

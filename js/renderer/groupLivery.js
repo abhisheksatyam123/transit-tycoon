@@ -6,6 +6,26 @@
 let cache = { state: null, groups: null, len: -1, rev: -1, map: null };
 
 /**
+ * Effective livery of a group (OpenTTD group_cmd.cpp GetParentLivery): a group without its own colour
+ * inherits its parent's, walking up the lazy `group.parentId` chain to the company colour (undefined).
+ * Flat games (every parentId absent) return `g.colour` with no lookup, so nothing changes for them.
+ * @param {{id:number,parentId?:number,colour?:string}[]} groups
+ * @param {any} g
+ * @returns {string|undefined}
+ */
+export function effectiveGroupColour(groups, g) {
+  if (!g) return undefined;
+  if (g.parentId == null) return g.colour || undefined;
+  let cur = g;
+  // max depth = group count: a corrupt save with a cycle still terminates.
+  for (let steps = 0; cur && steps <= groups.length; steps++) {
+    if (cur.colour) return cur.colour;
+    cur = cur.parentId == null ? null : groups.find((x) => x.id === cur.parentId);
+  }
+  return undefined;
+}
+
+/**
  * @param {any} state
  * @returns {Map<number,string>|null}
  */
@@ -17,9 +37,10 @@ export function groupColourMap(state) {
   if (cache.state === state && cache.groups === groups && cache.len === groups.length && cache.rev === rev) return cache.map;
   let map = null;
   for (const g of groups) {
-    if (!g.colour) continue;
+    const colour = g.parentId == null ? g.colour : effectiveGroupColour(groups, g);
+    if (!colour) continue;
     if (!map) map = new Map();
-    map.set(g.id, g.colour);
+    map.set(g.id, colour);
   }
   cache = { state, groups, len: groups.length, rev, map };
   return map;

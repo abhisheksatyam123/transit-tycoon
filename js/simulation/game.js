@@ -351,6 +351,8 @@ export class Game {
   createGroup(name, opts) { return gcmd.createGroup(this.ctx, name, opts); }
   renameGroup(id, name, opts) { return gcmd.renameGroup(this.ctx, id, name, opts); }
   deleteGroup(id, opts) { return gcmd.deleteGroup(this.ctx, id, opts); }
+  /** Nested groups: move a group under another group, or to the top level with null (cmdGroup.js alterGroupParent). */
+  alterGroupParent(id, parentId, opts) { return gcmd.alterGroupParent(this.ctx, id, parentId, opts); }
   /** Group livery: colour hex from COMPANY_COLOURS, or null = company colour (cmdGroup.js setGroupColour). */
   setGroupColour(id, colour, opts) { return gcmd.setGroupColour(this.ctx, id, colour, opts); }
   setGroupFlag(id, flag, value, opts) { return gcmd.setGroupFlag(this.ctx, id, flag, value, opts); }

@@ -279,6 +279,10 @@ export const DEFAULT_SETTINGS = {
   industryAbandonment: false,
   /** OpenTTD last-instance closure protection (industry_cmd.cpp:2758-2766; CanCloseLastInstance behaviour flag, not a setting): the last instance of an industry type cannot close. TT default off = it may close (current). */
   protectLastIndustry: false,
+  /** OpenTTD per-vehicle-type groups (group_cmd.cpp: a group has a vehicle_type). On: createGroup/addVehicleToGroup set
+   * and enforce group.kind ('train'|'road'|'aircraft'|'ship'); off = mixed groups stay allowed (current). Lazy: group.kind
+   * is written only while this is on. */
+  strictGroupKind: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */

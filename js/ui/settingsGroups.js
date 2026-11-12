@@ -274,6 +274,8 @@ export const SETTING_META = [
   { key: 'competitorSpeed', group: 'companies', label: 'Competitor speed', type: 'select',
     options: [['0', 'Very slow'], ['1', 'Slow'], ['2', 'Medium (default)'], ['3', 'Fast'], ['4', 'Very fast']],
     help: 'How often AI rivals take build and think actions (OpenTTD difficulty.competitor_speed). Medium = once a month, as before. Slow levels act less often, fast levels act more often. Applies with AI competitors.' },
+  { key: 'strictGroupKind', group: 'companies', label: 'Per-type vehicle groups', type: 'check',
+    help: 'OpenTTD gives every group a vehicle type: a group accepts only vehicles of its type (trains, road vehicles, aircraft, ships) and a new group takes the type of the vehicle or filter it is made from. Off = one group may mix vehicle types (current).' },
   { key: 'enginePreview', group: 'companies', label: 'Engine preview', type: 'check',
     help: 'New vehicle models are first offered exclusively to one company for a year (OpenTTD engine preview). You get an offer dialog; a rival with AI competitors may take it. Off = models appear for everyone at once.' },
   { key: 'enginePreviewBlock', group: 'companies', label: 'Engine preview block (20 months)', type: 'check',
