@@ -76,6 +76,10 @@ export const DEFAULT_SETTINGS = {
   autoslope: false,
   /** gradients: OL pitch force (Vehicle2.cpp:193): uphill slopes subtract weight*sin*256 ebp from the tractive term, downhill adds it (vehicleMotion.gradeMph / landSpeedStep); heavy trains on steep grades stall. Off by default: changes deterministic results. */
   gradients: false,
+  /** trainSlopeSteepness: OpenTTD vehicle.train_slope_steepness (default 3 %, range 0-10). Scales the train grade term in gradeMph; only matters when gradients is on. */
+  trainSlopeSteepness: 3,
+  /** roadSlopeSteepness: OpenTTD vehicle.roadveh_slope_steepness (default 7 %, range 0-10). Scales the road-vehicle grade term in gradeMph; only matters when gradients is on. */
+  roadSlopeSteepness: 7,
   /** trainAcceleration: 'original' (current TT model, default) | 'realistic' (OTTD curve speed limits + tractive effort / drag / slope acceleration, loco/trainRealistic.js). Changes results; off by default. */
   trainAcceleration: 'original',
   /** roadOvertaking: OpenTTD road vehicle overtaking (roadOvertake.js): a faster road vehicle passes a slower one on a straight plain road when the opposite lane is free. Trams never. Off by default: changes results. */

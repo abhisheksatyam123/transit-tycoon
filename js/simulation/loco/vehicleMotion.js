@@ -1,3 +1,5 @@
+import { getSetting } from '../settings.js';
+
 /**
  * Vehicle speed -> distance per tick, acceleration and drag.
  * Ported from OpenLoco (MIT):
@@ -104,7 +106,7 @@ export function airSpeedStep(v, targetTiles) {
   return Math.min(target, mph + AIR_ACCEL_MPH) * k;
 }
 
-/** Gradient steepness in percent (OpenTTD slope_steepness: trains 3 %, road vehicles 7 %). */
+/** Default gradient steepness in percent (OpenTTD slope_steepness: trains 3 %, road vehicles 7 %). The live values are the trainSlopeSteepness / roadSlopeSteepness settings (DEFAULT_SETTINGS). */
 export const STEEPNESS_PCT = { train: 3, road: 7 };
 /** gradeMph returns 10x the physical slope ratio (its historical fraction scale). */
 export const GRADE_FORCE_PER_FRACTION = 10;
@@ -141,6 +143,6 @@ export function gradeMph(state, v) {
     }
   }
   if (!n) return 0;
-  const pct = STEEPNESS_PCT[v.kind === 'train' ? 'train' : 'road'];
+  const pct = getSetting(state, v.kind === 'train' ? 'trainSlopeSteepness' : 'roadSlopeSteepness');
   return (pct / 100) * GRADE_FORCE_PER_FRACTION * (sum / n);
 }
