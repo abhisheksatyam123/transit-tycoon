@@ -9,6 +9,7 @@ import { wagonList } from '../../simulation/consist.js';
 import { listOrEmpty } from './common.js';
 import { sortVehicles, VEHICLE_SORTS } from './vehicleList.js';
 import { openRename } from '../rename.js';
+import { openConfirm } from '../modal.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { isAutoreplaceEligible } from '../../simulation/autorenew.js';
 
@@ -88,18 +89,9 @@ export function sellAllDepotVehicles(game, vehicles) {
   return { sold, refund, failed };
 }
 
-/** Confirm dialog (same look as the scenario editor's confirmRemove). */
+/** Confirm before selling every vehicle in a depot (shared modal: Cancel is focused, Escape cancels). */
 function confirmSellAll(question, onYes) {
-  const backdrop = el('div.prompt-backdrop');
-  const close = () => backdrop.remove();
-  backdrop.appendChild(el('section.prompt', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Confirm' },
-    el('div.win-header', null, el('span.win-title', { text: 'Confirm' })),
-    el('div.prompt-body', null,
-      el('p', { text: question }),
-      el('div.btn-row', null,
-        el('button.btn', { type: 'button', text: 'Cancel', onclick: close }),
-        el('button.btn.danger', { type: 'button', text: 'Sell all', onclick: () => { close(); onYes(); } })))));
-  document.body.appendChild(backdrop);
+  openConfirm({ question, yesText: 'Sell all', onYes });
 }
 
 /**

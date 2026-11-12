@@ -39,15 +39,19 @@ export function joinChoices(state, kind, tiles) {
 export function openJoinPicker(app, { x, y, choices, onPick }) {
   document.querySelectorAll('.join-picker').forEach((n) => n.remove());
   let done = false;
+  let armTimer = 0;
+  // Always removes every listener it may have attached (the pointerdown one is armed a tick later).
   const close = () => {
     if (done) return;
     done = true;
+    clearTimeout(armTimer);
     root.remove();
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('pointerdown', onOutside, true);
   };
   const pick = (id) => { if (done) return; close(); onPick(id); };
-  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  // Escape cancels only the picker: stopPropagation keeps input.js from also cancelling the station tool or closing a window.
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
   const onOutside = (e) => { if (!root.contains(e.target)) close(); };
   const btn = (label, id) => el('button.btn', { type: 'button', text: label, onclick: () => pick(id) });
   const root = el('div.join-picker', { role: 'menu', 'aria-label': 'Join station' },
@@ -66,6 +70,6 @@ export function openJoinPicker(app, { x, y, choices, onPick }) {
   root.style.border = '1px solid #4b5563';
   document.body.appendChild(root);
   document.addEventListener('keydown', onKey, true);
-  setTimeout(() => document.addEventListener('pointerdown', onOutside, true), 0);
+  armTimer = setTimeout(() => { if (!done) document.addEventListener('pointerdown', onOutside, true); }, 0);
   return { close };
 }
