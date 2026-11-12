@@ -54,13 +54,14 @@ export function refreshKinds(st) {
  * Catchment radius of one station tile (the radius the catchment code uses).
  * Airport tiles take the radius of their airport type (city 6, small/heliport 4); rail/bus/truck use the
  * kind base plus style bonus; anything else falls back to CATCHMENT or 3.
+ * `mod` is the already-read modifiedCatchment setting (callers on hot paths read it once).
  * @returns {number}
  */
 /** OpenTTD CA_UNMODIFIED (station.modified_catchment off): radius of every station tile. */
 export const CATCHMENT_UNMODIFIED = 4;
 
-export function catchRadius(state, t) {
-  if (!getSetting(state, 'modifiedCatchment')) return CATCHMENT_UNMODIFIED;
+function tileCatchRadius(state, t, mod) {
+  if (!mod) return CATCHMENT_UNMODIFIED;
   const r = t.radius ?? tileRadius(t);
   if (r !== undefined) return r;
   if (t.kind === 'airport') {
@@ -71,6 +72,21 @@ export function catchRadius(state, t) {
   return CATCHMENT[t.kind] ?? 3;
 }
 
+export function catchRadius(state, t) {
+  return tileCatchRadius(state, t, getSetting(state, 'modifiedCatchment'));
+}
+
+/**
+ * Memo for catchmentTiles: station object -> { key, tiles } (WeakMap, so nothing is stored on the
+ * station record and nothing reaches a save file; a loaded station simply recomputes once).
+ * `key` is the exact resolved input set of the catchment loop - map bounds, the modifiedCatchment
+ * flag and every station tile's x/y/resolved radius - so the entry can never go stale: any change
+ * to a station tile list (build/remove/upgrade/style), to a tile's radius/kind, to an airport
+ * building type, to the setting or to the map bounds changes the key and forces a recompute.
+ * Callers must not mutate the returned array.
+ */
+const catchmentCache = new WeakMap();
+
 /**
  * Catchment tiles of a station (deduplicated, in scan order).
  * @returns {{x:number,y:number}[]}
@@ -78,9 +94,14 @@ export function catchRadius(state, t) {
 export function catchmentTiles(state, st) {
   const { map } = state;
   if (!st || st.tiles.length === 0) return [];
+  const mod = getSetting(state, 'modifiedCatchment');
+  let key = (mod ? '1' : '0') + ':' + map.width + ':' + map.height;
+  for (const t of st.tiles) key += ';' + t.x + ',' + t.y + ',' + tileCatchRadius(state, t, mod);
+  const hit = catchmentCache.get(st);
+  if (hit !== undefined && hit.key === key) return hit.tiles;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const t of st.tiles) {
-    const r = catchRadius(state, t);
+    const r = tileCatchRadius(state, t, mod);
     x0 = Math.min(x0, t.x - r); y0 = Math.min(y0, t.y - r);
     x1 = Math.max(x1, t.x + r); y1 = Math.max(y1, t.y + r);
   }
@@ -90,11 +111,12 @@ export function catchmentTiles(state, st) {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       for (const t of st.tiles) {
-        const r = catchRadius(state, t);
+        const r = tileCatchRadius(state, t, mod);
         if (Math.abs(t.x - x) <= r && Math.abs(t.y - y) <= r) { out.push({ x, y }); break; }
       }
     }
   }
+  catchmentCache.set(st, { key, tiles: out });
   return out;
 }
 
