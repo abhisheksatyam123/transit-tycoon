@@ -7,6 +7,7 @@
  * received FOOD last month). OpenTTD's snow line default is 10 of 15 height levels; ours is 0..7, so 5 (scaled).
  * GPL-2.0 (OpenTTD).
  */
+import { getSetting } from './settings.js';
 
 /** Default snow line in our height levels (0..7). */
 export const DEFAULT_SNOW_LINE = 5;
@@ -44,8 +45,13 @@ export function tileSnowDensity(state, z) {
 /**
  * OpenTTD town_cmd.cpp growth rule: a town centred at or above the snow line grows only if it received food
  * (FOOD cargo) in the last month. Towns below the line, and every town in temperate games, always may grow.
+ *
+ * climateGrowthOttd (opt-in, default false = the rule above, unchanged) uses OpenTTD UpdateTownGrowth exactly
+ * (src/town_cmd.cpp:3941-3946): a funded town (fund_buildings_months != 0) skips the goal checks, and the winter
+ * goal only blocks a town while population > 90 AND its activity is zero (old_act == 0). TT's equivalent of
+ * 'active' is the same food delivery the gate already uses, so FOOD last month > 0 counts as active.
  * @param {any} state
- * @param {{x:number,y:number,foodLastMonth?:number}} town
+ * @param {{x:number,y:number,population?:number,fundMonths?:number,foodLastMonth?:number}} town
  * @returns {boolean}
  */
 export function townGrowthAllowed(state, town) {
@@ -53,7 +59,12 @@ export function townGrowthAllowed(state, town) {
   const map = state.map;
   const t = map && map.tiles ? map.tiles[town.y * map.width + town.x] : null;
   if (!t || t.height < snowLineOf(state)) return true;
-  return (town.foodLastMonth || 0) > 0;
+  const fed = (town.foodLastMonth || 0) > 0;
+  if (getSetting(state, 'climateGrowthOttd') !== true) return fed;
+  // OpenTTD: "if (t->fund_buildings_months == 0) { ...goal checks... }"
+  if ((town.fundMonths || 0) > 0) return true;
+  // OpenTTD TOWN_GROWTH_WINTER: TileHeight >= GetSnowLine() && old_act == 0 && population > 90 -> no growth.
+  return fed || (town.population || 0) <= 90;
 }
 
 /** @returns {boolean} true only for an explicit toyland game (lazy, absent otherwise). Stage 1: ground, trees, houses. */
@@ -142,12 +153,20 @@ export function tropicZoneAt(map, x, y) {
 /**
  * Sub-tropical town growth rule (OpenTTD town_cmd.cpp: a town in the desert needs FOOD and WATER to grow). WATER (TP) is
  * the second half: a town centred in the desert grows only if it received FOOD and WATER last month. Towns outside the desert, and every town in other climates, always may grow.
+ *
+ * climateGrowthOttd (opt-in, default false = the rule above, unchanged) uses OpenTTD UpdateTownGrowth exactly
+ * (src/town_cmd.cpp:3941-3949): a funded town skips the goal checks, and TOWN_GROWTH_DESERT only blocks a desert
+ * town while population > 60 AND its activity is zero (old_act == 0; TT: FOOD+WATER delivered, the same activity
+ * the gate already uses).
  * @param {any} state
- * @param {{x:number,y:number,foodLastMonth?:number}} town
+ * @param {{x:number,y:number,population?:number,fundMonths?:number,foodLastMonth?:number,waterLastMonth?:number}} town
  * @returns {boolean}
  */
 export function tropicGrowthAllowed(state, town) {
   if (!isTropic(state) || !town) return true;
   if (tropicZoneAt(state.map, town.x, town.y) !== 1) return true;
-  return (town.foodLastMonth || 0) > 0 && (town.waterLastMonth || 0) > 0;
+  const supplied = (town.foodLastMonth || 0) > 0 && (town.waterLastMonth || 0) > 0;
+  if (getSetting(state, 'climateGrowthOttd') !== true) return supplied;
+  if ((town.fundMonths || 0) > 0) return true;
+  return supplied || (town.population || 0) <= 60;
 }

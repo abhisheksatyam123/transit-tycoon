@@ -11,6 +11,7 @@
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { COSTS } from '../config/costs.js';
 import { getSetting } from './settings.js';
+import { isArctic, snowLineOf } from './climate.js';
 
 /** Fields a farm aims for (OpenLoco farmNumFields); production is 255 at this count. */
 export const FARM_NUM_FIELDS = 8;
@@ -34,6 +35,14 @@ function flatAround(map, x, y, h) {
   return true;
 }
 
+/**
+ * OpenTTD PlantFarmField (src/industry_cmd.cpp:1052-1056): on an arctic map "if (GetTileZ(tile) + 2 >= GetSnowLine())
+ * return;" - no field this high. Only with climateGrowthOttd (opt-in); default games keep every flat free tile.
+ */
+function snowBlocksField(state, height) {
+  return getSetting(state, 'climateGrowthOttd') === true && isArctic(state) && height + 2 >= snowLineOf(state);
+}
+
 /** Ring tiles (outside the footprint) where a field of `ind` may go, in deterministic scan order. */
 function ringSites(state, ind) {
   const { map } = state;
@@ -44,6 +53,7 @@ function ringSites(state, ind) {
       if (x >= ind.x && y >= ind.y && x < ind.x + ind.w && y < ind.y + ind.h) continue;
       const t = map.tiles[y * map.width + x];
       if (t.terrain === 'water' || t.building || t.rail || t.road || t.field !== undefined) continue;
+      if (snowBlocksField(state, t.height)) continue; // arctic + climateGrowthOttd: no fields at/above the snow line
       if (!flatAround(map, x, y, t.height)) continue; // the field sprite is flat: only tiles with flat corners
       out.push({ x, y });
     }
