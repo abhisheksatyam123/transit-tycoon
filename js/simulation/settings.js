@@ -252,6 +252,8 @@ export const DEFAULT_SETTINGS = {
   distLocalAuthority: 20,
   /** OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing disabled. */
   allowTownBribe: true,
+  /** TT opt-in town action: donate money to the local authority for a rating gain (no random failure). OpenTTD 16.x has no give-money town action; economy.give_money is company-to-company. Default off = action hidden and refused. */
+  localGiveMoney: false,
   /** OpenTTD economy.feeder_payment_share: percent of a transfer leg's income credited to the feeder (orders.js transferCredit). Default 75. */
   feederPaymentShare: 75,
   /** OpenTTD station.station_spread: max bounding-box side (tiles) of one player station (default 12 = STATION_SPREAD). */

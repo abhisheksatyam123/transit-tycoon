@@ -101,6 +101,8 @@ export const SETTING_META = [
     help: 'OpenTTD economy.initial_city_size: how large generated cities start. Only matters when cities are enabled. Applies to new maps.' },
   { key: 'spawnPrimaryIndustryOnly', group: 'economy', label: 'Primary industries only', type: 'check', newGame: true, help: 'OpenTTD economy.spawn_primary_industry_only: new and generated industries are raw producers only (no processing industries). Existing industries are kept.' },
   { key: 'allowTownBribe', group: 'difficulty', label: 'Allow bribing the town council', type: 'check', help: 'OpenTTD economy.bribe: allow bribing the local town authority to improve rating. Off = bribing is disabled.' },
+  { key: 'localGiveMoney', group: 'economy', label: 'Allow giving money to towns', type: 'check',
+    help: 'Opt-in TT town action: donate a sum to the local authority for a rating gain, with no chance of refusal. OpenTTD economy.give_money covers company-to-company gifts only; its town actions have no equivalent. Off (default) = the action is hidden and refused.' },
   { key: 'feederPaymentShare', group: 'economy', label: 'Feeder payment share (%)', type: 'select',
     options: [['0', '0'], ['25', '25'], ['50', '50'], ['75', '75 (default)'], ['100', '100']],
     help: 'Percent of a transfer leg\'s income credited to the feeder vehicle at a transfer (OpenTTD economy.feeder_payment_share). Delivery still pays the full trip.' },
