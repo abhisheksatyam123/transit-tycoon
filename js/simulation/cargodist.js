@@ -20,6 +20,7 @@
  */
 import { getSetting } from './settings.js';
 import { manhattan } from './state.js';
+import { dayNumber } from './date.js';
 import { CARGOS } from '../config/cargos.js';
 import { catchmentTiles, tileAcceptance } from './stations.js';
 import { ACCEPT_THRESHOLD } from './constants.js';
@@ -49,6 +50,16 @@ export function freightMode(state) {
 /** Capacity-constrained routing (OpenTTD MCF passes) on (setting cargodistMcf). */
 export function cdMcfOn(state) {
   return getSetting(state, 'cargodistMcf') === true;
+}
+
+/** Days between link graph job starts (setting linkgraphIntervalDays; 0 = month schedule, the default). */
+export function linkgraphIntervalDays(state) {
+  return Math.max(0, Math.round(getSetting(state, 'linkgraphIntervalDays') || 0));
+}
+
+/** Minimum days a job runs before it is applied (setting linkgraphTimeDays; 0 = apply at once). */
+export function linkgraphTimeDays(state) {
+  return Math.max(0, Math.round(getSetting(state, 'linkgraphTimeDays') || 0));
 }
 
 /**
@@ -346,14 +357,25 @@ function clearStranded(state, cargoId, g) {
  * Starts the job: edge clock, supply counters and the routing result are computed here and returned; the caller
  * applies them (now, or after the recalc time: applyJob). @returns {{nodes:number[], dem:object, nh:object, nhs:object}}
  */
-function computeJob(state, cargoId, mode) {
+function computeJob(state, cargoId, mode, opts = {}) {
   const g = ensureGraph(state, cargoId);
+  const day = opts.day; // days-based schedule (setting linkgraphIntervalDays > 0); undefined = month schedule
   g.month++;
+  // day mode: edge expiry counts days since last use (OpenTTD 32 + manhattan/8 days); month mode is unchanged
+  const stPos = day === undefined ? null : new Map(state.stations.map((st) => [st.id, [st.x, st.y]]));
   for (const k of Object.keys(g.edges)) {
     const e = g.edges[k];
-    if (e.used > 0) e.cap = e.used;
+    if (e.used > 0) {
+      e.cap = e.used;
+      if (day !== undefined) e.lastDay = day;
+    }
     e.used = 0;
-    if (g.month - e.last > EDGE_EXPIRE_MONTHS) delete g.edges[k];
+    if (day !== undefined) {
+      if (e.lastDay === undefined) e.lastDay = day;
+      const pa = stPos.get(e.a), pb = stPos.get(e.b);
+      const expire = 32 + (pa && pb ? Math.floor(manhattan(pa[0], pa[1], pb[0], pb[1]) / 8) : 0);
+      if (day - e.lastDay > expire) delete g.edges[k];
+    } else if (g.month - e.last > EDGE_EXPIRE_MONTHS) delete g.edges[k];
   }
   const adj = new Map(), pos = new Map(), nodeSet = new Set(), capMap = new Map();
   for (const e of Object.values(g.edges)) {
@@ -480,6 +502,7 @@ function acceptanceOf(state, cargoId, nodeSet) {
  * Defaults (1 and 0) rebuild every month, as before. The pending job is lazy (g.pending = { res, due }) and saved with the state (plain JSON; tests/cargodistJobSave.test.js).
  */
 export function updateMonthly(state) {
+  if (linkgraphIntervalDays(state) > 0) return; // days-based schedule (updateDaily) takes over
   const now = state.date.year * 12 + state.date.month;
   const interval = Math.max(1, Math.round(getSetting(state, 'linkgraphRecalcInterval')));
   const delay = Math.max(0, Math.round(getSetting(state, 'linkgraphRecalcTime')));
@@ -495,6 +518,50 @@ export function updateMonthly(state) {
       else g.pending = { res, due: now + delay };
     }
   }
+}
+
+/**
+ * Days-based link graph schedule (setting linkgraphIntervalDays > 0; 0 = off and nothing here runs). OpenTTD
+ * linkgraphschedule.cpp: a job starts when day % interval == 0, and is joined (applied) on the mid-interval day
+ * (day % interval == interval/2) once its minimum run time (linkgraphTimeDays) has elapsed. With the OpenTTD
+ * defaults (4 and 16) a job spawned on day 0 is applied on day 18, not 16. One cargo graph starts per spawn,
+ * round-robin over the active cargos (the graph that ran longest ago, ties in cdCargoList order), so a given
+ * cargo is refreshed about every N*interval days. Month-schedule fields (g.month, pending.due) are not used here;
+ * the days fields (g.day, pending.dueDay, edge.lastDay) are only created in this mode.
+ */
+export function updateDaily(state) {
+  const intervalDays = linkgraphIntervalDays(state);
+  if (!(intervalDays > 0)) return; // default: the month schedule in updateMonthly is authoritative
+  const interval = Math.max(1, intervalDays);
+  const delay = linkgraphTimeDays(state);
+  const now = dayNumber(state.date);
+  const cargos = cdCargoList(state);
+  const graphs = cargos.map((c) => ensureGraph(state, c));
+  // join elapsed jobs on the mid-interval day (OpenTTD linkgraphschedule.cpp SpawnNext/join)
+  if (now % interval === Math.floor(interval / 2)) {
+    for (let i = 0; i < cargos.length; i++) {
+      const g = graphs[i];
+      if (g.pending && g.pending.dueDay <= now) {
+        applyJob(state, cargos[i], g.pending.res);
+        delete g.pending;
+      }
+    }
+  }
+  if (now % interval !== 0) return;
+  // one component per spawn: the eligible cargo whose graph last ran longest ago (round-robin, deterministic)
+  let pick = -1, pickDay = Infinity;
+  for (let i = 0; i < cargos.length; i++) {
+    const g = graphs[i];
+    if (g.pending) continue;
+    const last = g.day === undefined ? -Infinity : g.day;
+    if (last < pickDay) { pickDay = last; pick = i; }
+  }
+  if (pick < 0) return;
+  const c = cargos[pick], g = graphs[pick];
+  const res = computeJob(state, c, FREIGHT_CARGOS.includes(c) ? 'asymmetric' : cdMode(state, c), { day: now });
+  g.day = now;
+  if (delay === 0) applyJob(state, c, res);
+  else g.pending = { res, dueDay: now + delay };
 }
 
 /**

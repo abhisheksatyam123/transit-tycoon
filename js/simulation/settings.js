@@ -166,6 +166,10 @@ export const DEFAULT_SETTINGS = {
   linkgraphRecalcInterval: 1,
   /** months a link graph job runs before its routing is applied (OpenTTD linkgraph.recalc_time; default 32 economy seconds x 2 = 16 days, linkgraph_settings.ini:58). Not the OpenTTD delay: TT counts months (known gap, see GAPS.md). 0 = applied at once (current). */
   linkgraphRecalcTime: 0,
+  /** days-based link graph interval (OpenTTD linkgraph.recalc_interval: default 4 days, linkgraph_settings.ini:45). 0 (default) = keep the month schedule above (current behaviour); 1..90 = start one link graph job every N days and ignore the month keys. */
+  linkgraphIntervalDays: 0,
+  /** minimum days a link graph job runs before its routing is applied (OpenTTD linkgraph.recalc_time: default 16 days, linkgraph_settings.ini:58; the join slot makes the effective default delay 18 days). 0 (default) = applied at once, as today. Only read when linkgraphIntervalDays > 0. */
+  linkgraphTimeDays: 0,
   /** pax distribution: 'follow' (= cargodist setting) | 'manual' | 'asymmetric' | 'symmetric' (OpenTTD distribution_pax). */
   linkgraphDistributionPax: 'follow',
   /** mail distribution (OpenTTD distribution_mail). */
