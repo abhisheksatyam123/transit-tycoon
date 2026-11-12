@@ -81,6 +81,8 @@ export const SETTING_META = [
   { key: 'maxTrainWagons', group: 'vehicles', label: 'Max wagons per train', type: 'select',
     options: [['4', '4'], ['8', '8'], ['12', '12 (default)'], ['16', '16'], ['20', '20'], ['24', '24'], ['32', '32']],
     help: 'Most wagons a player train may have (OpenTTD vehicle.max_train_length; counted as wagons here). Applies to purchases and added wagons.' },
+  { key: 'multiEngineConsists', group: 'vehicles', label: 'Multiple engines per train', type: 'check',
+    help: 'OpenTTD-style extra locomotives in the lead block of one train (up to 4 engines): power and weight are summed and the train runs at the slowest engine\'s speed, with no extra capacity. Off = Transit Tycoon single-engine consists (current); existing saves are unchanged.' },
   { key: 'maxTrainLength', group: 'vehicles', label: 'Max train length (tiles)', type: 'select',
     options: [['1', '1 tile'], ['2', '2 tiles'], ['3', '3 tiles'], ['4', '4 tiles'], ['5', '5 tiles'], ['7', '7 tiles (default)'], ['10', '10 tiles'], ['16', '16 tiles'], ['32', '32 tiles'], ['64', '64 tiles']],
     help: 'Most tiles long a player train may be (OpenTTD vehicle.max_train_length). Limits train purchases and added wagons.' },

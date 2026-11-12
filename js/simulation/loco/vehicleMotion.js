@@ -1,5 +1,5 @@
 import { getSetting } from '../settings.js';
-import { engineList, engineWeightById } from '../consistEngines.js';
+import { engineList, engineWeightById, extraEngineCount } from '../consistEngines.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 
 /**
@@ -143,7 +143,7 @@ export function gradeMph(state, v) {
   let sum = 0, n = 0;
   if (v.kind === 'train' && v.history && v.history.length > 1) {
     const hist = v.history;
-    const len = Math.min(hist.length - 1, Math.max(1, (v.wagons || 0) * 2 + 2));
+    const len = Math.min(hist.length - 1, Math.max(1, ((v.wagons || 0) + extraEngineCount(v)) * 2 + 2));
     for (let i = 0; i < len; i++) {
       const a = hist[i], b = hist[i + 1]; // b is the older cell; the train moves b -> a
       const d = tiles[a.y * W + a.x].height - tiles[b.y * W + b.x].height;

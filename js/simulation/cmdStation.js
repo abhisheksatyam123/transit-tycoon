@@ -17,6 +17,7 @@ import { refusalAt } from './townAuthority.js';
 import { getSetting } from './settings.js';
 import { invalidateBlocks } from './signals.js';
 import { deleteOrdersMatching } from './condOrders.js';
+import { extraEngineCount } from './consistEngines.js';
 
 /** Player station spread limit (settings.stationSpread; default = STATION_SPREAD). */
 export function spreadLimit(state) {
@@ -56,7 +57,7 @@ export function joinTarget(state, opts, kind, tiles) {
 export function vehicleOnTile(state, x, y) {
   for (const v of state.vehicles) {
     if (v.state === 'depot' || (v.kind === 'aircraft' && v.alt > 0)) continue;
-    const n = v.kind === 'train' ? Math.ceil(v.wagons * 0.5) + 1 : 1;
+    const n = v.kind === 'train' ? Math.ceil(((v.wagons || 0) + extraEngineCount(v)) * 0.5) + 1 : 1;
     for (let i = 0; i < Math.min(n, v.history.length); i++) {
       if (v.history[i].x === x && v.history[i].y === y) return true;
     }

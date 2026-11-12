@@ -19,6 +19,7 @@
  */
 import { KMH_TO_TILES_PER_TICK, MPH_TO_TILES_PER_TICK, totalWeight, totalPower, landSpeedStep } from './vehicleMotion.js';
 import { engineList, engineWeightById, DEFAULT_ENGINE_WEIGHT } from '../consistEngines.js';
+import { MODEL_BY_ID } from '../../config/vehicles.js';
 
 /** OpenTTD GROUND_ACCELERATION (vehicle_type.h:19), N per tonne. */
 export const GROUND_ACCELERATION = 9800;
@@ -29,6 +30,8 @@ const TRAIN_AIR_DRAG_AREA = 14;     // train.h:272
 const AXLE_PER_TONNE = 10;          // ground_vehicle.cpp:94
 export const WATTS_PER_HP = 746;
 export const ENGINE_TONNES = DEFAULT_ENGINE_WEIGHT; // TT engine weight when the model has none (consistEngines.js)
+/** Symbol-keyed cache stamp for the engine list: JSON.stringify ignores symbol keys, so saves are unchanged. */
+const ENGINE_LIST_STAMP = Symbol('engineList');
 
 /** OpenTTD curve constants (train_cmd.cpp). */
 export const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67
@@ -158,14 +161,24 @@ export function consistMotion(v, model) {
   const cargo = v.load ? v.load.amount || 0 : 0;
   const wagons = v.wagons || 0;
   let c = v.motionCache;
-  const engines = v.engines ? v.engines.length : 0; // extra engines (phase 2); absent = none
-  if (c && c.modelId === v.modelId && c.engines === engines && c.wagons === wagons && c.cargo === cargo) return c;
+  const ids = engineList(v);
+  const engines = ids.length - 1; // extra engines (phase 2); absent = none
+  // Key includes the engine list itself (identity-stable frozen list), not just its length, so swapping an
+  // extra engine for a different model invalidates the cache. Symbol stamp keeps the key out of saves.
+  if (c && c.modelId === v.modelId && c.engines === engines && c[ENGINE_LIST_STAMP] === ids
+    && c.wagons === wagons && c.cargo === cargo) return c;
   const mass = Math.max(1, totalWeight(v));
   const power = totalPower(v, model) * WATTS_PER_HP;
   let tonnes = 0;
-  for (const id of engineList(v)) tonnes += engineWeightById(id);
+  for (let i = 0; i < ids.length; i++) tonnes += engineWeightById(ids[i]);
   const te = tonnes * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256;
-  const maxKmh = model ? model.speed : 100;
+  // OpenTTD train_cmd.cpp:194-199: the consist is limited by the slowest engine (wagons are skipped unless
+  // wagon_speed_limits, which consist.js applies separately). One engine = the model's speed as before.
+  let maxKmh = model ? model.speed : 100;
+  for (let i = 1; i < ids.length; i++) {
+    const m = MODEL_BY_ID[ids[i]];
+    if (m && m.speed > 0 && m.speed < maxKmh) maxKmh = m.speed;
+  }
   const airDrag = maxKmh <= 10 ? 192 : Math.max(Math.trunc(2048 / maxKmh), 1);
   const parts = 1 + wagons;
   const cachedAir = airDrag + Math.trunc(3 * airDrag * parts / 20);
@@ -175,6 +188,7 @@ export function consistMotion(v, model) {
     airCoef: TRAIN_AIR_DRAG_AREA * cachedAir / 1000,
     axle: AXLE_PER_TONNE * mass,
   };
+  c[ENGINE_LIST_STAMP] = ids;
   v.motionCache = c;
   return c;
 }

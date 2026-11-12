@@ -19,6 +19,7 @@ import { checkMoney } from './trackRules.js';
 import { companyOf, companyById, stampOwner } from './owner.js';
 import { notify } from './news.js';
 import { dayNumber } from './date.js';
+import { MAX_EXTRA_ENGINES } from './consistEngines.js';
 
 const NAG_DAYS = 30;
 
@@ -46,7 +47,7 @@ function renewDelayDays(state) {
  * @returns {{ok:true,vehicle:object,cost:number}|{ok:false,error:string}}
  */
 /** Fields a replacement takes from its own model / purchase (everything else moves over when keepRoute). */
-const OWN_FIELDS = new Set(['id', 'name', 'unitNumber', 'kind', 'roadType', 'modelId', 'wagonModelId', 'wagons',
+const OWN_FIELDS = new Set(['id', 'name', 'unitNumber', 'kind', 'roadType', 'modelId', 'wagonModelId', 'wagons', 'engines',
   'cargoId', 'capacity', 'maxSpeed', 'runningCost', 'value', 'age', 'maxAge', 'reliability', 'baseReliability',
   'breakdownTicks', 'depotId', 'orders', 'orderIndex', 'orderGroup', 'profitThisYear', 'profitLastYear', 'alt']);
 
@@ -65,6 +66,27 @@ function wagonRuleTarget(state, v, wagonModelId, cargoId) {
   if (cargoId && !model.cargos.includes(cargoId)) return undefined;
   if (isReplaceWhenOldFor(state, v, wagonModelId) && !isVehicleOld(state, v)) return undefined;
   return to;
+}
+
+/**
+ * Replacement model for one EXTRA lead-block engine under the current group/company rules, or undefined when no
+ * rule applies (multiEngineConsists phase 3). Same when-old gate as wagons; the lead engine keeps its own path.
+ */
+function engineRuleTarget(state, v, modelId) {
+  if (!v || v.kind !== 'train' || v.ownerId != null || !v.engines || !v.engines.length || !modelId) return undefined;
+  if (getSetting(state, 'multiEngineConsists') !== true) return undefined;
+  const to = autoreplaceTarget(state, v, modelId);
+  if (!to || to === modelId) return undefined;
+  const model = MODEL_BY_ID[to];
+  if (!model || model.kind !== 'engine') return undefined;
+  if (isReplaceWhenOldFor(state, v, modelId) && !isVehicleOld(state, v)) return undefined;
+  return to;
+}
+
+/** Does any extra engine have an applicable replacement rule? */
+function engineRuleApplies(state, v) {
+  if (!v.engines || !v.engines.length) return false;
+  return v.engines.some((id) => engineRuleTarget(state, v, id) !== undefined);
 }
 
 /** Does any wagon of `v` (uniform model, or each mixed-consist wagon) have an applicable replacement rule? */
@@ -102,6 +124,12 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
       else wagons = keep;
     }
   }
+  // Extra engines: map each through its own rule, no rule = keep. Gated on the setting so a turned-off game
+  // never reads the lazy field.
+  let engines;
+  if (v.engines && v.engines.length && getSetting(state, 'multiEngineConsists') === true) {
+    engines = v.engines.map((id) => engineRuleTarget(state, v, id) || id);
+  }
   const spec = {
     modelId: newModelId,
     wagonModelId: (remapWagon || v.wagonModelId) || undefined,
@@ -109,14 +137,16 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
     cargoId: v.cargoId || undefined,
     consist,
   };
+  if (engines) spec.engines = engines;
   // road vehicles keep their cargo when the new model carries it; otherwise the model's default cargo
   if (v.kind === 'road' && MODEL_BY_ID[newModelId] && !MODEL_BY_ID[newModelId].cargos.includes(v.cargoId)) spec.cargoId = undefined;
   // A wagon-only rule keeps the engine, so an out-of-production engine may still be rebuilt (the wagon models have no
   // obsolete year); same-model autorenew keeps the old purchasable check.
   const neverExpire = getSetting(state, 'neverExpireVehicles')
     || (reason === 'autoreplace' && newModelId === v.modelId && v.kind === 'train');
+  const maxEngines = getSetting(state, 'multiEngineConsists') === true ? MAX_EXTRA_ENGINES : 0;
   const r = resolvePurchase(depot, spec, state.date.year, neverExpire, getSetting(state, 'maxTrainWagons'),
-    keepLength ? getSetting(state, 'maxTrainLength') : null);
+    keepLength ? getSetting(state, 'maxTrainLength') : null, maxEngines);
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);
@@ -192,8 +222,9 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOldFor(state, v, v.modelId) || isVehicleOld(state, v))) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
-  } else if (wagonRuleApplies(state, v)) {
-    // D4: no engine rule (or it is waiting for old age), but a wagon rule applies: keep the engine, replace the wagons.
+  } else if (wagonRuleApplies(state, v) || engineRuleApplies(state, v)) {
+    // D4: no lead-engine rule (or it is waiting for old age), but a wagon or extra-engine rule applies: keep the
+    // lead engine, replace the wagons/extra engines that have rules.
     const r = replaceVehicle(ctx, v, v.modelId, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
@@ -208,7 +239,7 @@ export function isAutoreplaceEligible(state, v) {
   const target = autoreplaceTarget(state, v);
   if (target && MODEL_BY_ID[target] && target!==v.modelId
     && (!isReplaceWhenOldFor(state, v, v.modelId) || isVehicleOld(state, v))) return true;
-  if (wagonRuleApplies(state, v)) return true;
+  if (wagonRuleApplies(state, v) || engineRuleApplies(state, v)) return true;
   return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
 /**

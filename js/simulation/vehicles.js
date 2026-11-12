@@ -7,6 +7,7 @@ import { getSetting } from './settings.js';
 import { isTropic, isToyland } from './climate.js';
 import { KMH_TO_TILES_PER_TICK, AIR_KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { SEGMENT_SPACING, MAX_WAGONS, dirBetween } from './constants.js';
+import { extraEngineCount } from './consistEngines.js';
 import { allocId } from './state.js';
 import { defaultServiceFields } from './service.js';
 import { previewBlocks } from './enginePreview.js';
@@ -79,11 +80,13 @@ function classOf(model) {
 /**
  * Resolve and validate a purchase spec into a vehicle template (no state mutation).
  * @param {object} depot depot record
- * @param {{modelId:string,wagonModelId?:string,wagons?:number,cargoId?:string}} spec
+ * @param {{modelId:string,wagonModelId?:string,wagons?:number,cargoId?:string,engines?:string[],consist?:Array}} spec
  * @param {number} year current year
+ * @param {number} maxEngines max EXTRA engines allowed behind the lead engine (0 = multiEngineConsists off,
+ *   spec.engines is then ignored and no engine list is stored)
  * @returns {{ok:true,cost:number,template:object}|{ok:false,error:string}}
  */
-export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null) {
+export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null, maxEngines = 0) {
   const model = MODEL_BY_ID[spec && spec.modelId];
   if (!model || model.kind === 'wagon') return { ok: false, error: 'Unknown vehicle model' };
   if (model.introYear > year) return { ok: false, error: 'Model not yet available' };
@@ -94,11 +97,34 @@ export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagon
   if (depot.kind !== depotFor) return { ok: false, error: 'Wrong depot type for this vehicle' };
   let cost = model.cost, running = model.running, capacity = model.capacity, cargoId = null;
   let wagonModelId = null, wagons = 0;
+  let engines = null;
   if (isTrain) {
-    if (Array.isArray(spec.consist) && spec.consist.length) return resolveMixed(model, spec.consist, year, cost, running, neverExpire, maxWagons, maxTrainLength);
+    // Extra lead-block engines (multiEngineConsists, opt-in). When maxEngines is 0 the spec's engines are
+    // ignored, so a default-off purchase writes no v.engines and costs exactly the same. Engines add power,
+    // weight and running cost but no capacity in phase 2 (all engine models have capacity 0).
+    if (maxEngines > 0 && Array.isArray(spec.engines) && spec.engines.length) {
+      if (spec.engines.length > maxEngines) return { ok: false, error: `A train can have at most ${maxEngines + 1} engines` };
+      engines = [];
+      for (const id of spec.engines) {
+        const em = MODEL_BY_ID[id];
+        if (!em || em.kind !== 'engine') return { ok: false, error: 'Unknown engine model' };
+        if (em.introYear > year) return { ok: false, error: `${em.name} is not yet available` };
+        if (!purchasable(em, year, neverExpire)) return { ok: false, error: `${em.name} is obsolete` };
+        engines.push(em.id);
+        cost += em.cost;
+        running += em.running;
+      }
+    }
+    const unitCount = (extra) => (extra ? extra.length : 0) + 1;
+    if (Array.isArray(spec.consist) && spec.consist.length) {
+      const r = resolveMixed(model, spec.consist, year, cost, running, neverExpire, maxWagons, maxTrainLength, unitCount(engines));
+      if (!r.ok) return r;
+      if (engines) r.template.engines = engines;
+      return r;
+    }
     wagons = spec.wagons === undefined ? 3 : Math.floor(spec.wagons);
     if (!(wagons >= 0 && wagons <= maxWagons)) return { ok: false, error: `Wagons must be 0..${maxWagons}` };
-    if (maxTrainLength != null && ((wagons + 1) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
+    if (maxTrainLength != null && ((wagons + unitCount(engines)) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
     if (wagons > 0) {
       let wagon = spec.wagonModelId ? MODEL_BY_ID[spec.wagonModelId] : null;
       if (!wagon && spec.cargoId) wagon = Object.values(MODEL_BY_ID).find((m) => m.kind === 'wagon' && m.cargos.includes(spec.cargoId));
@@ -117,14 +143,16 @@ export function resolvePurchase(depot, spec, year, neverExpire = false, maxWagon
     cargoId = spec.cargoId || model.cargos[0];
     if (!model.cargos.includes(cargoId)) return { ok: false, error: `${model.name} cannot carry ${cargoId}` };
   }
-  return { ok: true, cost, template: { model, wagonModelId, wagons, cargoId, capacity, running } };
+  const template = { model, wagonModelId, wagons, cargoId, capacity, running };
+  if (engines) template.engines = engines;
+  return { ok: true, cost, template };
 }
 
 /**
  * Mixed consist (spec.consist = [{modelId, cargoId?}] per wagon, engine excluded): every wagon is checked like a
  * single-model purchase; the template carries the list so createVehicle can set v.consist.
  */
-function resolveMixed(model, list, year, cost, running, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null) {
+function resolveMixed(model, list, year, cost, running, neverExpire = false, maxWagons = MAX_WAGONS, maxTrainLength = null, engineCount = 1) {
   const consist = [];
   for (const w of list) {
     const wagon = MODEL_BY_ID[w && w.modelId];
@@ -138,7 +166,7 @@ function resolveMixed(model, list, year, cost, running, neverExpire = false, max
     running += wagon.running;
   }
   if (consist.length > maxWagons) return { ok: false, error: `Wagons must be 0..${maxWagons}` };
-  if (maxTrainLength != null && ((consist.length + 1) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
+  if (maxTrainLength != null && ((consist.length + engineCount) * SEGMENT_SPACING) > maxTrainLength + 1e-9) return { ok: false, error: 'Train is too long' };
   const capacity = consist.reduce((s, w) => s + MODEL_BY_ID[w.modelId].capacity, 0);
   const uniform = consist.every((w) => w.modelId === consist[0].modelId && w.cargoId === consist[0].cargoId);
   const first = consist[0] || {};
@@ -181,6 +209,15 @@ export function createVehicle(state, depot, template, cost) {
   const usedNums = new Set(state.vehicles.filter((v) => v.name.startsWith(prefix + ' ')).map((v) => v.unitNumber));
   let unit = 1;
   while (usedNums.has(unit)) unit++;
+  let maxSpeed = model.speed * (model.kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK);
+  if (template.engines && template.engines.length) {
+    // OpenTTD train_cmd.cpp:194-199: the consist speed is the slowest engine's speed.
+    for (const id of template.engines) {
+      const em = MODEL_BY_ID[id];
+      const s = em && em.speed > 0 ? em.speed * KMH_TO_TILES_PER_TICK : 0;
+      if (s > 0 && s < maxSpeed) maxSpeed = s;
+    }
+  }
   const v = {
     id: allocId(state), name: `${prefix} ${unit}`, unitNumber: unit,
     kind: model.kind === 'engine' ? 'train' : model.kind === 'aircraft' ? 'aircraft' : model.kind === 'ship' ? 'ship' : 'road',
@@ -189,7 +226,7 @@ export function createVehicle(state, depot, template, cost) {
     cargoId: template.cargoId, capacity: template.capacity,
     load: { amount: 0, sourceX: depot.x, sourceY: depot.y, sinceTick: state.tick, fromStationId: null },
     state: 'depot', tx: depot.x, ty: depot.y, path: [], pathIndex: 0, progress: 0,
-    speed: 0, maxSpeed: model.speed * (model.kind === 'aircraft' ? AIR_KMH_TO_TILES_PER_TICK : KMH_TO_TILES_PER_TICK),
+    speed: 0, maxSpeed,
     history: [{ x: depot.x, y: depot.y }], flipped: false,
     orders: [], orderIndex: 0, depotId: depot.id, goingToDepot: null,
     age: 0, maxAge: (model.kind === 'engine' ? 25 : 15) * 365,
@@ -200,6 +237,7 @@ export function createVehicle(state, depot, template, cost) {
     ...defaultServiceFields(state), // service interval (setting default; absent when off)
   };
   if (template.consist) { v.consist = template.consist.map((w) => ({ ...w })); } // mixed consist (resolveMixed)
+  if (template.engines && template.engines.length) v.engines = template.engines.slice(); // lazy: absent unless multi-engine
   state.vehicles.push(v);
   return v;
 }
@@ -244,7 +282,7 @@ function holdDrawPosFor(v) {
 
 /** Number of tiles of history a vehicle needs for its trailing segments. */
 export function historyNeeded(v) {
-  if (v.kind === 'train') return Math.ceil(v.wagons * SEGMENT_SPACING) + 3;
+  if (v.kind === 'train') return Math.ceil(((v.wagons || 0) + extraEngineCount(v)) * SEGMENT_SPACING) + 3;
   const span = articSpan(v); // articulated road vehicle: followers need the path behind the head
   return span ? Math.ceil(span) + 3 : 3;
 }
@@ -273,7 +311,9 @@ export function getVehicleSegments(v) {
   if (ap) return articSegments(v, ap, pts, headDir);
   const parts = [];
   if (v.kind === 'train') {
+    // Lead block: the lead engine then any extra engines (multiEngineConsists), then the wagons.
     parts.push('loco');
+    for (let i = 0; i < extraEngineCount(v); i++) parts.push('loco');
     for (let i = 0; i < v.wagons; i++) parts.push('wagon');
     if (v.flipped) parts.reverse();
   } else if (v.kind === 'aircraft') parts.push('aircraft');

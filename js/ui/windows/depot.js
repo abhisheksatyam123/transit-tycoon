@@ -12,6 +12,7 @@ import { openRename } from '../rename.js';
 import { openConfirm } from '../modal.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { isAutoreplaceEligible } from '../../simulation/autorenew.js';
+import { getSetting } from '../../simulation/settings.js';
 
 /**
  * Consist editor strip (T19): one block per engine/wagon and +/- wagon buttons. Only for trains in a depot.
@@ -28,6 +29,16 @@ function consistStrip(app, id) {
   const del = el('button.btn.sm.danger', { type: 'button', text: '− wagon', onclick: () => app.exec(app.game.removeWagons(id, 1), { sound: 'click' }) });
   const note = el('span.muted.small');
   const row = el('div.consist-row', null, blocks, pick, add, del, note);
+  // multiEngineConsists (opt-in): attach/detach an extra singlehead engine in the lead block.
+  if (getSetting(app.game.state, 'multiEngineConsists') === true) {
+    const epick = el('select.sm', { title: 'Engine model to add', 'aria-label': 'Engine model' });
+    const eadd = el('button.btn.sm', { type: 'button', text: '+ engine', onclick: () => {
+      const modelId = epick.value;
+      if (modelId) app.exec(app.game.addEngine(id, modelId), { sound: 'click' });
+    } });
+    const edel = el('button.btn.sm.danger', { type: 'button', text: '− engine', onclick: () => app.exec(app.game.removeEngine(id, null), { sound: 'click' }) });
+    row.append(epick, eadd, edel);
+  }
   row._pick = pick;
   return row;
 }
@@ -39,7 +50,7 @@ function wagonOptions(app) {
 
 /** Refresh a consist strip: per-wagon blocks (with move / sell), button labels (price / refund), disabled reasons. */
 function updateConsistStrip(strip, app, v) {
-  const [blocks, pick, add, del, note] = strip.children;
+  const [blocks, pick, add, del, note, epick, eadd, edel] = strip.children;
   const g = app.game;
   // picker: keep the current options (wagon models) and the last choice
   if (!pick.options.length || pick.dataset.n !== String(wagonOptions(app).length)) {
@@ -48,7 +59,12 @@ function updateConsistStrip(strip, app, v) {
     pick.dataset.n = String(wagonOptions(app).length);
   }
   blocks.textContent = '';
-  blocks.appendChild(el('span.consist-block.engine', { text: 'E', title: 'Engine' }));
+  blocks.appendChild(el('span.consist-block.engine', { text: 'E', title: 'Lead engine' }));
+  const extras = v.engines && v.engines.length ? v.engines : [];
+  extras.forEach((modelId, i) => {
+    const em = MODEL_BY_ID[modelId];
+    blocks.appendChild(el('span.consist-block.engine', { text: 'E', title: `Extra engine ${i + 1}: ${em ? em.name : modelId}` }));
+  });
   const list = wagonList(v);
   list.forEach((w, i) => {
     const m = MODEL_BY_ID[w.modelId];
@@ -69,8 +85,24 @@ function updateConsistStrip(strip, app, v) {
   del.textContent = r.ok ? `− last wagon (refund ${money(r.cost)})` : '− wagon';
   del.disabled = !r.ok;
   del.title = r.ok ? 'Sell the last wagon of this train' : r.error;
+  if (epick && eadd && edel) {
+    const engines = g.listModels('engine');
+    if (!epick.options.length || epick.dataset.n !== String(engines.length)) {
+      epick.textContent = '';
+      for (const m of engines) epick.appendChild(el('option', { value: m.id, text: `${m.name} (${money(m.cost)})` }));
+      epick.dataset.n = String(engines.length);
+    }
+    const ea = epick.value ? g.addEngine(v.id, epick.value, { dryRun: true }) : { ok: false, error: 'Pick an engine' };
+    const er = g.removeEngine(v.id, null, { dryRun: true });
+    eadd.textContent = ea.ok ? `+ engine (${money(ea.cost)})` : '+ engine';
+    eadd.disabled = !ea.ok;
+    eadd.title = ea.ok ? 'Attach this engine behind the lead engine' : ea.error;
+    edel.textContent = er.ok ? `− last engine (refund ${money(er.cost)})` : '− engine';
+    edel.disabled = !er.ok;
+    edel.title = er.ok ? 'Detach the last extra engine' : er.error;
+  }
   const mixed = !!v.consist;
-  setText(note, `${v.wagons || 0} wagon(s) · ${v.capacity || 0} capacity${mixed ? ' · mixed consist' : ''}`);
+  setText(note, `${(v.wagons || 0)} wagon(s) · ${v.capacity || 0} capacity${extras.length ? ` · ${extras.length + 1} engines` : ''}${mixed ? ' · mixed consist' : ''}`);
 }
 
 /**

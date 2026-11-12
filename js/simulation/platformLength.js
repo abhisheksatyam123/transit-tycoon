@@ -14,12 +14,13 @@
 import { SEGMENT_SPACING } from './constants.js';
 import { getSetting } from './settings.js';
 import { getTile, inBounds } from './map.js';
+import { consistUnits, extraEngineCount } from './consistEngines.js';
 
 const MAX_RUN = 64;
 
-/** Train length in tiles: the engine plus its wagons (v.wagons), SEGMENT_SPACING tiles each. */
+/** Train length in tiles: all engines plus its wagons (v.wagons), SEGMENT_SPACING tiles each. */
 export function trainLengthTiles(v) {
-  return ((v.wagons || 0) + 1) * SEGMENT_SPACING;
+  return ((v.wagons || 0) + 1 + extraEngineCount(v)) * SEGMENT_SPACING;
 }
 
 /** Maximum allowed train length in tiles from settings (OpenTTD vehicle.max_train_length). */
@@ -80,10 +81,10 @@ export function loadingTicksFor(state, v, st, base) {
   return Math.max(1, t);
 }
 
-/** Wagons (of `wagons`) that fit in a platform of `platTiles` tiles; the engine takes the first vehicle slot. */
-export function wagonsFitting(wagons, platTiles) {
+/** Wagons (of `wagons`) that fit in a platform of `platTiles` tiles; the engines take the first slots. */
+export function wagonsFitting(wagons, platTiles, engineCount = 1) {
   const vehicles = Math.floor(platTiles / SEGMENT_SPACING + 1e-9);
-  return Math.max(0, Math.min(wagons, vehicles - 1));
+  return Math.max(0, Math.min(wagons, vehicles - engineCount));
 }
 
 /**
@@ -96,7 +97,7 @@ export function platformFitOnArrival(state, v, st) {
   const wagons = v.wagons || 0;
   const plat = platformRun(state, st, v.tx, v.ty);
   if (plat <= 0) return null;
-  const fit = wagonsFitting(wagons, plat);
+  const fit = wagonsFitting(wagons, plat, consistUnits(v) - wagons);
   return fit < wagons ? fit : null;
 }
 
