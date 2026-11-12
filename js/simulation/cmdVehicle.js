@@ -28,7 +28,7 @@ import { refitCargos, refitCore } from './refit.js';
 import { DIRS, SEGMENT_SPACING } from './constants.js';
 import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
-import { timetableComplete, roundTicks, orderGroupMembers } from './ttSchedule.js';
+import { timetableComplete, roundTicks, orderGroupMembers, timetableEstimatesOn } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
 import { backupVehicleOrders, restoreVehicleOrders, clearDepotBackup } from './orderBackup.js';
@@ -418,8 +418,12 @@ export function setTimetableAutofill(ctx, id, on, opts = {}) {
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (opts.dryRun) return { ok: true, cost: 0 };
-  if (on && v.orders.length) { v.autofill = true; v.autofillLeft = v.orders.length; }
-  else { delete v.autofill; delete v.autofillLeft; }
+  if (on && v.orders.length) {
+    v.autofill = true; v.autofillLeft = v.orders.length;
+    // G4 (timetableEstimates only): Ctrl-autofill keeps an existing wait unless the measured one is longer
+    if (opts.preserveWait && timetableEstimatesOn(state)) v.autofillPreserve = true;
+    else delete v.autofillPreserve;
+  } else { delete v.autofill; delete v.autofillLeft; delete v.autofillPreserve; }
   return { ok: true, cost: 0 };
 }
 

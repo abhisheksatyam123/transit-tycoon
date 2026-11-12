@@ -77,6 +77,11 @@ export function timetableLatenessOn(state) {
   return !!getSetting(state, 'timetableLateness');
 }
 
+/** Timetable estimates setting (OpenTTD estimated travel/wait times; default off). */
+export function timetableEstimatesOn(state) {
+  return !!getSetting(state, 'timetableEstimates');
+}
+
 /**
  * Lazy signed lateness in ticks (positive = late, negative = early). Enabling the setting on an old save
  * seeds it once from the legacy rounded `lateDays` value (spec Q3). Absent = on time.

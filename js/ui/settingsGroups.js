@@ -204,6 +204,8 @@ export const SETTING_META = [
     help: 'Vehicles on a complete timetable with shared orders depart at evenly spaced slots (start date + round offsets), so buses on one line keep even gaps. Off = depart as soon as loaded.' },
   { key: 'timetableLateness', group: 'vehicles', label: 'Timetable lateness', type: 'check',
     help: 'OpenTTD lateness counter: a vehicle early against its timetable waits longer (timetabled wait minus lateness, floored at 0), a late one waits less; lateness accumulates over the round and is seeded by the start date. Off = a plain minimum wait (default).' },
+  { key: 'timetableEstimates', group: 'vehicles', label: 'Timetable estimates', type: 'check',
+    help: 'OpenTTD estimated times: measured wait and travel days are kept per order as display-only estimates (shown as ~ in the orders window) until a time is set. Ctrl+click Autofill keeps a longer existing wait. Off = no estimates recorded (default).' },
   { key: 'cargodist', group: 'economy', label: 'Cargo distribution (passengers/mail)', type: 'select',
     options: [['off', 'Off'], ['asymmetric', 'Asymmetric'], ['symmetric', 'Symmetric']],
     help: 'Passengers and mail get destinations (OpenTTD cargodist): a station routes them by the link graph of your vehicle routes, so they ride via transfers. Off = classic pickup from any vehicle.' },
