@@ -46,8 +46,12 @@ export function orderGoals(state, v) {
   if (kind === 'airport') return airGoals(state, st, v);
   if (kind === 'ship') return shipGoals(state.map, st);
   // waypoints (cmdWaypoint.js) are goal tiles too (go via: the path ends there): rail for trains, road for road vehicles
-  return st.tiles.filter((t) => stopKindOk(v, t.kind) || (t.kind === 'waypoint' && (kind === 'rail' ? !t.road : !!t.road && v.roadType !== 'tram')))
-    .map((t) => ({ x: t.x, y: t.y }));
+  // Single pass into one array: same predicate, same tile order as the old filter().map().
+  const out = [];
+  for (const t of st.tiles) {
+    if (stopKindOk(v, t.kind) || (t.kind === 'waypoint' && (kind === 'rail' ? !t.road : !!t.road && v.roadType !== 'tram'))) out.push({ x: t.x, y: t.y });
+  }
+  return out;
 }
 
 /**
@@ -68,7 +72,8 @@ function airGoals(state, st, v) {
   }
   if (!pads.length) return out;
   // helicopters: every helipad of the station; the free ones first (a busy pad is taken only when all are busy)
-  const free = pads.filter((p) => !ftaTileOccupied(state, v, p.x, p.y));
+  const free = [];
+  for (const p of pads) if (!ftaTileOccupied(state, v, p.x, p.y)) free.push(p);
   return free.length ? free : pads;
 }
 
@@ -83,9 +88,16 @@ export function depotGoals(state, v, depotId) {
   const kind = v.kind === 'train' ? 'rail' : v.kind === 'aircraft' ? 'air' : v.kind === 'ship' ? 'ship' : 'road';
   const model = v.kind === 'aircraft' ? MODEL_BY_ID[v.modelId] : null;
   const own = v.ownerId ?? null; // OpenTTD FindClosest*Depot: only the vehicle owner's depots (a fixed id was owner-checked when ordered)
-  return state.depots.filter((d) => d.kind === kind && (depotId === undefined ? (d.ownerId ?? null) === own : d.id === depotId)
-    && (!model || vehicleFitsAirport(model, airportTypeId(d))))
-    .map((d) => ({ x: d.x, y: d.y }));
+  // Single pass, same short-circuit order as the old filter().map(); the depot id / owner test is hoisted out of the loop.
+  const anyDepot = depotId === undefined;
+  const out = [];
+  for (const d of state.depots) {
+    if (d.kind !== kind) continue;
+    if (anyDepot ? (d.ownerId ?? null) !== own : d.id !== depotId) continue;
+    if (model && !vehicleFitsAirport(model, airportTypeId(d))) continue;
+    out.push({ x: d.x, y: d.y });
+  }
+  return out;
 }
 
 /**
@@ -145,14 +157,16 @@ function trainStopPath(state, v, path) {
   const j = Math.min(n - 1, Math.max(0, Math.ceil(h - 1e-9) - 1)); // head tile index from the entry end
   const k = j - back; // head tile offset from g along the travel direction (negative = behind g)
   if (k >= 0) {
-    const out = path.slice();
-    for (let i = 1; i <= k; i++) out.push({ x: g.x + dx * i, y: g.y + dy * i });
-    return out;
+    // Append in place: `path` is the freshly planned array owned by this call (extendAlongPlatform already
+    // mutates it the same way), so no defensive copy is needed; contents and order are unchanged.
+    for (let i = 1; i <= k; i++) path.push({ x: g.x + dx * i, y: g.y + dy * i });
+    return path;
   }
   // the head stops behind g: cut the path at that tile when it is on the path (else far end)
   const want = { x: g.x + dx * k, y: g.y + dy * k };
   const cut = path.findIndex((p) => p.x === want.x && p.y === want.y);
-  return cut >= 0 ? path.slice(0, cut + 1) : extendAlongPlatform(state, path);
+  if (cut >= 0) { path.length = cut + 1; return path; } // same prefix as slice(0, cut+1), no copy
+  return extendAlongPlatform(state, path);
 }
 
 /**
@@ -180,7 +194,11 @@ export function canFlipTrain(state, v) {
 export function flipTrain(v) {
   const k = Math.min(Math.ceil(v.wagons * 0.5), v.history.length - 1);
   if (k <= 0) { v.flipped = !v.flipped; return v.history[0]; }
-  const part = v.history.slice(0, k + 1).reverse();
+  // Build the reversed prefix directly. Must be a new array: planRoute keeps the old v.history in `saved`
+  // for rollback, so it must not be mutated or reused here.
+  const n = k + 1;
+  const part = new Array(n);
+  for (let i = 0; i < n; i++) part[i] = v.history[k - i];
   v.history = part;
   v.flipped = !v.flipped;
   v.tx = part[0].x; v.ty = part[0].y;
