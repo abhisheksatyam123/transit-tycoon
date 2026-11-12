@@ -4,6 +4,8 @@
  * Interface holds UI-only preferences (localStorage), not game settings.
  */
 
+import { effectiveKeys, currentOverrides, keyLabel } from './hotkeys.js';
+
 /** @type {{id:string,title:string,help:string}[]} */
 export const SETTING_GROUPS = [
   { id: 'interface', title: 'Interface', help: 'Display and sound preferences. Stored in this browser, not in the save.' },
@@ -335,8 +337,11 @@ export const SETTING_META = [
 ];
 
 /** UI-only preferences shown in the Interface group (not in the save; not counted as "changed from default"). */
+/** Current key label of a rebindable action, for hints (follows the user's binding). */
+const hotkeyHint = (id) => keyLabel(effectiveKeys(currentOverrides())[id]);
+
 export const PREF_META = [
-  { id: 'sound', group: 'interface', label: 'Sound effects', help: 'Build and vehicle sounds. Same as the toolbar sound button (M).' },
+  { id: 'sound', group: 'interface', label: 'Sound effects', get help() { return `Build and vehicle sounds. Same as the toolbar sound button (${hotkeyHint('sound')}).`; } },
   { id: 'fx', group: 'interface', label: 'Vehicle effects', help: 'Smoke, sparks and wakes from trains, buses, trucks and ships. Off = no vehicle particles.' },
   { id: 'townLabels', group: 'interface', label: 'Town names', help: 'Name signs on the map at each town centre (population from zoom 1). Same as the Town names checkbox here; stored in this browser.' },
   { id: 'stationLabels', group: 'interface', label: 'Station names', help: 'Name signs above stations, coloured by owner (rivals in their own colour). Hidden when zoomed far out. Stored in this browser.' },
@@ -350,7 +355,7 @@ export const PREF_META = [
   { id: 'tr:catenary', group: 'interface', label: 'Transparent catenary', help: 'Electric rail and tram overhead wires draw semi-transparent. Ctrl+8 or Ctrl+Shift+8. Stored in this browser.' },
   { id: 'tr:text', group: 'interface', label: 'Hide map text', help: 'Floating money popups on the map are not drawn (OpenTTD text transparency, which also covers loading text). Ctrl+9 or Ctrl+Shift+9. Stored in this browser.' },
   { id: 'pauseOnNewGame', group: 'interface', label: 'Pause on new game', help: 'A new game starts paused (press Space to run). Stored in this browser.' },
-  { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', help: 'Use the OpenGFX sprite pack. Off = procedural drawing. Same as K.' },
+  { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', get help() { return `Use the OpenGFX sprite pack. Off = procedural drawing. Same as ${hotkeyHint('graphics')}.`; } },
 ];
 
 /** @param {string} key @returns {string|undefined} group id */

@@ -8,6 +8,7 @@ import { el, setText } from '../dom.js';
 import { num } from '../format.js';
 import { listOrEmpty } from './common.js';
 import { waitingAmount } from '../../simulation/stations.js';
+import { effectiveKeys, currentOverrides, keyLabel } from '../hotkeys.js';
 
 /** Stations of a metro line that still exist, in line order. */
 function lineStations(app, line) {
@@ -35,7 +36,7 @@ export function openMetro(app) {
     width: 340,
     build(body) {
       const cb = el('input', { type: 'checkbox' });
-      const label = el('label.muted', null, cb, ' Show metro map (J)');
+      const label = el('label.muted', null, cb, ` Show metro map (${keyLabel(effectiveKeys(currentOverrides()).metroOverlay)})`);
       const list = el('div.list.scroll');
       body.append(label, list);
       cb.addEventListener('change', () => { if (app.renderer) app.renderer.showMetro = cb.checked; });
