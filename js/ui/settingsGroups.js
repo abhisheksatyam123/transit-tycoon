@@ -30,6 +30,8 @@ export const SETTING_META = [
     help: 'OpenTTD ModifyStationRatingAround(-160, radius 30): after a train crash, stations of the crashed train\'s company within 30 tiles lose 160 rating points (cargo rating, recovers over time). Needs Vehicle collisions. Off = crashes do not affect station ratings (current).' },
   { key: 'tramCurveCap', group: 'vehicles', label: 'Tram curve speed cap', type: 'check',
     help: 'Trams slow to OpenTTD corner limits on curves (61 km/h for a square corner, 88 km/h for tight 45-degree corners). Off = trams use the road curve fraction like buses and trucks.' },
+  { key: 'tramQueue', group: 'vehicles', label: 'Trams queue behind road vehicles', type: 'check',
+    help: 'OpenTTD roadveh_cmd.cpp (RoadVehFindCloseTo): a tram waits behind a loading or blocked tram or bus in the same lane, and buses wait behind trams; a stop bay in use is covered for trams too. Oncoming traffic still passes. Off = trams pass through each other and are not seen at stop bays.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
     help: 'Faster road vehicles pass slower ones on straight roads with a free opposite lane (not trams, junctions or stations).' },
   { key: 'roadvehQueue', group: 'vehicles', label: 'Road vehicles queue for a bay', type: 'check',

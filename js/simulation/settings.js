@@ -77,6 +77,11 @@ export const DEFAULT_SETTINGS = {
   roadvehQueue: true,
   /** tramCurveCap: OpenTTD tram corner speed limits (GetCurveSpeedLimit via RoadVeh tram): trams take corners at capped speed instead of the OpenLoco road fraction. Off = trams use the road curve fraction like buses/trucks. */
   tramCurveCap: false,
+  /** tramQueue: OpenTTD roadveh_cmd.cpp:634-701 (RoadVehFindCloseTo): trams are indexed in the road occupancy
+   * layer like buses/trucks, so a tram queues behind a loading/blocked tram or bus in its lane, buses queue
+   * behind trams, and the stop-bay rules (bayInUse / bayEntryRefused) cover trams. Oncoming trams still pass.
+   * Off = trams stay on their own unindexed layer and pass through each other (current behaviour). */
+  tramQueue: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
   enginePreview: false,
   /** OpenTTD engine.cpp block_preview (20 months): a company that declined or let an engine preview time out is not offered that model for 20 months. Off = offered again at once (current). Lazy: rec.block is written only when on. */

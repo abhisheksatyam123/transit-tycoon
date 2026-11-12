@@ -401,7 +401,7 @@ let heldAtSignal = false;
 /** Vehicle ahead on the next tile of the path that blocks v (see blocking.js), or null. */
 function nextBlocker(ctx, v) {
   heldAtSignal = false;
-  const layer = occupancyLayer(v);
+  const layer = occupancyLayer(v, ctx.state);
   const p = v.path, i = v.pathIndex;
   if (!layer || !p || i + 1 >= p.length) return null;
   const a = p[i], b = p[i + 1];
@@ -448,7 +448,7 @@ function signalBlocker(ctx, v, a, b, force) {
  */
 function startTie(ctx, v) {
   if (v.pathIndex !== 0 || v.progress !== 0 || !v.path.length) return null;
-  const layer = occupancyLayer(v);
+  const layer = occupancyLayer(v, ctx.state);
   const list = layer ? vehiclesOn(ctx, layer, v.tx, v.ty) : null;
   if (!list) return null;
   for (const o of list) if (o !== v && o.id < v.id && o.pathIndex === 0 && o.state === 'running') return o;
@@ -533,7 +533,7 @@ function hold(ctx, v, blocker, atSignal = false) {
 function tryFreeBay(ctx, v) {
   const { state } = ctx;
   if (v.goingToDepot !== null && v.goingToDepot !== undefined) return;
-  const layer = occupancyLayer(v);
+  const layer = occupancyLayer(v, ctx.state);
   const goals = orderGoals(state, v).filter((g) => !vehiclesOn(ctx, layer, g.x, g.y)?.some((o) => o !== v));
   if (goals.length) planRoute(state, v, goals);
 }
