@@ -26,6 +26,8 @@ import { getSetting } from './settings.js';
 /** OpenTTD ModifyStationRatingAround(tile, owner, -160, 30) (train_cmd.cpp ~3360), used by trainCrashStationRating. */
 const CRASH_RATING_PENALTY = 160;
 const CRASH_RATING_RADIUS = 30;
+/** OpenTTD Train::Crash (train_cmd.cpp:3209-3239): +2 victims for the driver (front engine) of each crashed consist. */
+const TRAIN_DRIVER_VICTIMS = 2;
 
 /** Mark v as wrecked (once) and queue it for removal after the vehicle loop. Returns its passengers. */
 function wreck(ctx, v) {
@@ -49,7 +51,8 @@ export function trainEnters(ctx, v, x, y) {
         if ((o.ownerId ?? null) !== (v.ownerId ?? null)) continue;
         const od = vehicleDir(o);
         if (!od || !dir || od === dir) continue; // same way (follower at blocking distance) or unknown: no crash
-        const victims = wreck(ctx, v) + wreck(ctx, o);
+        // per crashed consist: driver term (deterministic, OpenTTD +2) + the passengers on board (full load)
+        const victims = TRAIN_DRIVER_VICTIMS + wreck(ctx, v) + TRAIN_DRIVER_VICTIMS + wreck(ctx, o);
         if (getSetting(ctx.state, 'trainCrashStationRating')) crashStationRating(ctx.state, v.ownerId, x, y);
         notify(ctx, `Train crash! ${victims} die in collision`, 'bad', x, y, 'accident');
         if (ctx.emit) ctx.emit('crash', { x, y, victims });

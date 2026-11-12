@@ -47,8 +47,8 @@ describe('trainCollision (vehicleCollisions on: head-on crash)', () => {
     expect(a.wrecked).toBe(true);
     expect(b.wrecked).toBe(true);
     const crash = events.find(([n]) => n === 'crash');
-    expect(crash[1]).toEqual({ x: 5, y: 5, victims: 42 });
-    const news = events.filter(([n, e]) => n === 'news' && /Train crash! 42 die in collision/.test(e.text));
+    expect(crash[1]).toEqual({ x: 5, y: 5, victims: 46 }); // 2 drivers + 30 + 12 passengers
+    const news = events.filter(([n, e]) => n === 'news' && /Train crash! 46 die in collision/.test(e.text));
     expect(news.length).toBe(1);
   });
 
