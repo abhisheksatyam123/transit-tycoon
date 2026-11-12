@@ -12,7 +12,8 @@
  * Accepted: the holder alone can buy the model for EXCLUSIVE_DAYS (365); then it is public with news.
  *
  * State is lazy: state.enginePreview = { models: { [modelId]: rec } } exists only while the setting is on.
- * rec = { status: 'offer'|'exclusive'|'public', offer: key|null, holder: key|null, asked: key[], wait, until }.
+ * rec = { status: 'offer'|'exclusive'|'public', offer: key|null, holder: key|null, asked: key[], wait, until, block? }.
+ * block (enginePreviewBlock only): { [key]: dayNumber until which the company is not offered this model }.
  * key = 'p' (player) or 'r<rivalId>'. Nothing here draws from the game rng (determinism).
  */
 import { ALL_VEHICLE_MODELS } from '../config/vehicles.js';
@@ -23,6 +24,7 @@ import { dayNumber } from './date.js';
 
 export const PREVIEW_WAIT_DAYS = 20; // OpenTTD engine.cpp preview_wait = 20 days
 export const EXCLUSIVE_DAYS = 365; // one year of exclusive use
+export const BLOCK_DAYS = 600; // OpenTTD engine.cpp block_preview = 20 months (20 x 30 days); enginePreviewBlock setting
 
 /** Company key used in preview records: 'p' = player, 'r<id>' = rival. */
 export function ownerKey(ownerId) { return ownerId == null ? 'p' : 'r' + ownerId; }
@@ -64,13 +66,18 @@ export function pendingPlayerOffer(state) {
   return null;
 }
 
-/** Companies that may be offered a model, best performance first (OTTD GetPreviewCompany). */
-function bestCompanyKey(state, model, rec) {
+/**
+ * Companies that may be offered a model, best performance first (OTTD GetPreviewCompany).
+ * A company whose rec.block[key] date has not passed is skipped (enginePreviewBlock; block is only set when on).
+ */
+export function bestCompanyKey(state, model, rec) {
   const kind = vehicleKindOf(model);
   const keys = [ownerKey(null), ...(state.rivals || []).filter((r) => !r.bankrupt).map((r) => ownerKey(r.id))];
+  const today = dayNumber(state.date);
   let best = null, bestPerf = -1;
   for (const key of keys) {
     if (rec.asked.includes(key)) continue;
+    if (rec.block && rec.block[key] > today) continue;
     const owner = keyOwner(key);
     const co = companyById(state, owner);
     if (!co) continue;
@@ -80,6 +87,13 @@ function bestCompanyKey(state, model, rec) {
     if (perf > bestPerf) { best = key; bestPerf = perf; }
   }
   return best;
+}
+
+/** enginePreviewBlock: the company is not offered this model again for BLOCK_DAYS (OTTD block_preview). No-op when off. */
+function blockCompany(state, rec, key) {
+  if (!getSetting(state, 'enginePreviewBlock')) return;
+  if (!rec.block) rec.block = {};
+  rec.block[key] = dayNumber(state.date) + BLOCK_DAYS;
 }
 
 /** Make the model public: news once, then the rest of the world can buy it (OTTD NewVehicleAvailable). */
@@ -128,7 +142,7 @@ export function answerEnginePreview(ctx, modelId, accept) {
   const rec = model && state.enginePreview && state.enginePreview.models[modelId];
   if (!rec || rec.status !== 'offer' || rec.offer !== 'p') return { ok: false, error: 'No engine preview offer for this model' };
   if (accept) grant(ctx, model, rec, 'p');
-  else { rec.offer = null; offerNext(ctx, model, rec); }
+  else { blockCompany(state, rec, 'p'); rec.offer = null; offerNext(ctx, model, rec); }
   if (ctx.emit) ctx.emit('enginePreviewClosed', { modelId });
   return { ok: true };
 }
@@ -153,7 +167,7 @@ export function updateDaily(game) {
     if (!rec) continue;
     if (rec.status === 'offer' && rec.offer === 'p') {
       rec.wait -= 1;
-      if (rec.wait <= 0) { rec.offer = null; if (ctx.emit) ctx.emit('enginePreviewClosed', { modelId: m.id }); offerNext(ctx, m, rec); }
+      if (rec.wait <= 0) { blockCompany(state, rec, 'p'); rec.offer = null; if (ctx.emit) ctx.emit('enginePreviewClosed', { modelId: m.id }); offerNext(ctx, m, rec); }
     } else if (rec.status === 'exclusive' && dayNumber(state.date) >= rec.until) {
       makePublic(ctx, m, rec);
     }

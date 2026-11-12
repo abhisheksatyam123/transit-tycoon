@@ -79,6 +79,8 @@ export const DEFAULT_SETTINGS = {
   tramCurveCap: false,
   /** exclusive engine preview (OpenTTD engine.cpp): a new model is first offered to one company for a year. Off = unchanged. */
   enginePreview: false,
+  /** OpenTTD engine.cpp block_preview (20 months): a company that declined or let an engine preview time out is not offered that model for 20 months. Off = offered again at once (current). Lazy: rec.block is written only when on. */
+  enginePreviewBlock: false,
   /** shares: OpenTTD company shares (4 x 25%) in rival companies; the 4th share takes the company over (shares.js). Off by default. */
   shares: false,
   /** T29 OpenTTD temperate bank (produces/accepts Valuables) placed in towns of 1200+ people by the map generator. Off by default. */
@@ -229,6 +231,8 @@ export const DEFAULT_SETTINGS = {
   exclusiveRights: true,
   /** OpenTTD construction.road_stop_on_town_road (world_settings.ini, def true): road stops may be built on town-owned road tiles. Off = refused (station_cmd.cpp). TT default true = current. */
   roadStopOnTownRoad: true,
+  /** OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): road stops may be built on roads owned by another company. Off = refused (station_cmd.cpp). TT default true = current. */
+  roadStopOnCompetitorRoad: true,
   /** OpenTTD company.engine_renew_months (company_settings.ini, def 6): extra months past max age before autorenew (vehicle.cpp NeedsAutorenewing, 30 days each). TT default 0 = renew exactly past max age (current). */
   engineRenewMonths: 0,
   /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default 0 = only the purchase cost is checked (current). */

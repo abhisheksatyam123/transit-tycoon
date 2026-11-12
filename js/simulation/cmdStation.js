@@ -144,6 +144,9 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   return { ok: true, cost, stationId: st.id };
 }
 
+/** Owner id of a road tile: null = player ('company'), else the rival id ('rival' tiles, t.rivalId). */
+function roadOwnerId(t) { return t.owner === 'rival' ? (t.rivalId ?? null) : null; }
+
 /**
  * Build a drive-through bus/truck stop on a straight road tile (keeps road bits) or on
  * empty land (lays road along opts.axis, default 'x', linking to roads beyond each end).
@@ -164,6 +167,8 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (t.rail) return { ok: false, error: ERR.track };
   // OpenTTD construction.road_stop_on_town_road (station_cmd.cpp, def true): town roads are t.owner 'town' (as cmdOneWay.js); off = no bus/truck stop on them
   if (kind !== 'tram' && t.road && t.owner === 'town' && getSetting(state, 'roadStopOnTownRoad') === false) return { ok: false, error: 'Drive-through stops cannot be built on town roads (game settings)' };
+  // OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): a road owned by another company (t.owner 'rival' or 'company' with a different builder; rival id in t.rivalId, player = null) is refused when off
+  if (kind !== 'tram' && t.road && (t.owner === 'rival' || t.owner === 'company') && roadOwnerId(t) !== (opts.owner ?? null) && getSetting(state, 'roadStopOnCompetitorRoad') === false) return { ok: false, error: 'Drive-through stops cannot be built on competitor roads (game settings)' };
   let axis;
   if (kind === 'tram') {
     // tram stop: straight tram track only (trams stop there; buses do not); no road bits are added

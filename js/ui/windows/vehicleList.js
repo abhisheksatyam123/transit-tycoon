@@ -26,6 +26,7 @@ export const VEHICLE_SORTS = [
   ['age', 'Age'], ['reliability', 'Reliability'], ['lateDays', 'Lateness'],
   ['maxSpeed', 'Max speed'], ['value', 'Value'], ['model', 'Model'], ['length', 'Length (wagons)'],
   ['cargo', 'Cargo'], ['timeToLive', 'Time to live'],
+  ['number', 'Number'], ['capacity', 'Total capacity'], // OpenTTD vehicle_gui.cpp ADI sorts (vehicle number, total capacity); appended so existing indices are unchanged
 ];
 
 /** True when the vehicle runs to a timetable (any order with a wait or travel time). */
@@ -111,6 +112,8 @@ function sortKey(v, sort) {
     case 'length': return Number(v.wagons) || 0;
     case 'cargo': return [...vehicleCargos(v)].sort().join(',');
     case 'timeToLive': return (Number(v.maxAge) || 0) - (Number(v.age) || 0);
+    case 'number': return Number(v.id) || 0; // vehicle id ascending (display order)
+    case 'capacity': return Number(v.capacity) || (modelOf(v) && Number(modelOf(v).capacity)) || 0; // total capacity of all parts
     default: return String(v.name || ''); // name: string compare
   }
 }
