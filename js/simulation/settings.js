@@ -128,6 +128,8 @@ export const DEFAULT_SETTINGS = {
   levelCrossings: false,
   /** train vs road vehicle collisions at level crossings (OpenTTD train_cmd.cpp): a road vehicle on the crossing when a train enters it is destroyed. Off by default. */
   vehicleCollisions: false,
+  /** station rating penalty when a train crashes (OpenTTD train_cmd.cpp ~3360: ModifyStationRatingAround -160, radius 30): the crashed train's company's stations within 30 tiles lose 160 rating points. Needs vehicleCollisions. Off by default. */
+  trainCrashStationRating: false,
   /** cargo distribution for passengers and mail (OpenTTD cargodist, simplified): 'off' | 'asymmetric' | 'symmetric'. Off by default. */
   cargodist: 'off',
   /** timetable separation: vehicles on a complete timetable with shared orders depart at their evenly spaced slots. Off by default. */

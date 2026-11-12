@@ -26,6 +26,8 @@ export const SETTING_META = [
   { key: 'extendVehicleLife', group: 'vehicles', label: 'Extend vehicle life', type: 'select', options: [['0', '0 years (default)'], ['5', '+5 years'], ['10', '+10 years'], ['15', '+15 years'], ['20', '+20 years'], ['30', '+30 years']], help: 'OpenTTD vehicle.extend_vehicle_life: extends the maximum operational lifetime of all vehicle models by N years.' },
   { key: 'vehicleCollisions', group: 'vehicles', label: 'Vehicle collisions', type: 'check',
     help: 'Trains that meet head-on (or cross paths) on the same tile both crash, and a train entering a barred level crossing destroys a road vehicle on it; passengers die and the news reports it. Use signals to keep trains apart. Off = trains pass through each other.' },
+  { key: 'trainCrashStationRating', group: 'vehicles', label: 'Train crash lowers station rating', type: 'check',
+    help: 'OpenTTD ModifyStationRatingAround(-160, radius 30): after a train crash, stations of the crashed train\'s company within 30 tiles lose 160 rating points (cargo rating, recovers over time). Needs Vehicle collisions. Off = crashes do not affect station ratings (current).' },
   { key: 'tramCurveCap', group: 'vehicles', label: 'Tram curve speed cap', type: 'check',
     help: 'Trams slow to OpenTTD corner limits on curves (61 km/h for a square corner, 88 km/h for tight 45-degree corners). Off = trams use the road curve fraction like buses and trucks.' },
   { key: 'roadOvertaking', group: 'vehicles', label: 'Road vehicle overtaking', type: 'check',
