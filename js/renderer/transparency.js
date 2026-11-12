@@ -2,7 +2,7 @@
  * Transparency toggles (OpenTTD transparency_gui.cpp, TransparencyOption): display-only, stored in this browser
  * (localStorage 'tt.transparency'), never in the save. Buildings, industries, stations, bridges, signs,
  * structures (map objects) and catenary draw semi-transparent; trees are hidden (OTTD 'invisible').
- * Ctrl+1..8 toggle them (input/input.js).
+ * Ctrl+1..9 toggle them (input/input.js).
  * When every toggle is off, loadTransparency() returns null and the renderer does one null check per frame.
  */
 export const TRANSPARENCY_KEY = 'tt.transparency';
@@ -20,6 +20,10 @@ export const TRANSPARENCY_OPTIONS = [
   { id: 'structures', label: 'Structures' },
   // OpenTTD TransparencyOption TO_CATENARY: electrified rail and tram overhead wires.
   { id: 'catenary', label: 'Catenary' },
+  // OpenTTD TransparencyOption::Text (src/transparency.h:31, 'loading and cost/income text'), applied in
+  // src/texteff.cpp:120: hides the map text effects. TT has no per-vehicle loading text; its map text effects
+  // are the floating income popups (renderer/layers/overlays.js FloatingTexts).
+  { id: 'text', label: 'Text' },
 ];
 
 /** @type {Record<string, boolean>|null|undefined} undefined = not loaded yet */

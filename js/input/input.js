@@ -11,6 +11,7 @@ import { openSignPrompt } from '../ui/tools/sign.js';
 import { findSign } from '../simulation/cmdSign.js';
 import { TRANSPARENCY_OPTIONS, loadTransparency, setTransparency } from '../renderer/transparency.js';
 import { runFixedShortcut } from './fixedShortcuts.js';
+import { keyFromEvent } from '../ui/hotkeys.js';
 
 
 const PAN_SPEED = 700; // CSS px per second
@@ -172,7 +173,7 @@ export function setupInput(app, canvas, shortcuts) {
     if (e.ctrlKey && e.altKey && !e.metaKey && e.key.toLowerCase() === 'c') { // hidden cheats window (OpenTTD cheat_gui)
       e.preventDefault(); app.open('cheats'); return;
     }
-    if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-8]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..8 too, browsers keep Ctrl+1..8 for tabs
+    if (e.ctrlKey && !e.altKey && !e.metaKey && /^Digit[1-9]$/.test(e.code || '')) { // transparency toggles (renderer/transparency.js); Ctrl+Shift+1..9 too, browsers keep Ctrl+1..9 for tabs
       e.preventDefault();
       const opt = TRANSPARENCY_OPTIONS[Number(e.code.slice(5)) - 1];
       const on = !(loadTransparency() || {})[opt.id];
@@ -181,7 +182,14 @@ export function setupInput(app, canvas, shortcuts) {
       app.toast?.(`${opt.label} transparency: ${on ? 'on' : 'off'}`, 'info');
       return;
     }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      // A shortcut rebound to a modifier combination (ui/hotkeys.js, e.g. 'ctrl+shift+k'). The fixed
+      // Ctrl combinations above (transparency, cheats) win; browser-reserved ones never reach us.
+      const combo = keyFromEvent(e);
+      const fn = combo ? shortcuts[combo] : null;
+      if (fn) { e.preventDefault(); play('click'); fn(); }
+      return;
+    }
     const k = e.key.toLowerCase();
     if (k === 'escape') {
       if (app.tool) app.setTool(null);
