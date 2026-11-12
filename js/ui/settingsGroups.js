@@ -174,6 +174,8 @@ export const SETTING_META = [
     help: 'OpenTTD order.no_servicing_if_no_breakdowns: when breakdowns are disabled, vehicles do not need depot servicing. Off = they still service at their interval.' },
   { key: 'shipBreakdownReduced', group: 'vehicles', label: 'Ships break down less', type: 'check',
     help: 'OpenTTD: ships are less likely to break down (reliability boosted by 0.4 when rolling breakdowns). Off = as before.' },
+  { key: 'breakdownStop', group: 'vehicles', label: 'Broken-down vehicles stop (OpenTTD)', type: 'check',
+    help: 'OpenTTD: a broken-down road vehicle, train or ship stops completely until repaired and blocks the traffic behind it; the breakdown lasts its full time even at a stop. Off = it crawls at a quarter speed (OpenLoco, current). Aircraft are unaffected.' },
   { key: 'ageDecayOttd', group: 'vehicles', label: 'Old vehicles wear out faster (OpenTTD)', type: 'check',
     help: 'OpenTTD: reliability decay doubles each year past a vehicle\'s max age (up to 32x). Off = as before.' },
   { key: 'serviceOnDepotVisit', group: 'vehicles', label: 'Service on every depot visit (OpenTTD)', type: 'check',
