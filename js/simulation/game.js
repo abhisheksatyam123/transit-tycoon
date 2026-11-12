@@ -57,7 +57,7 @@ import { createObjective } from './objective.js';
 import { SCENARIOS } from './scenarios/index.js';
 import { setCompanyColour } from './companyColour.js';
 import { switchCompany as switchCompanyCheat, activeCompanyId as activeCompanyIdOf, moneyCheat, clearDebtCheat, acquireCompanyCheat } from './cheats.js';
-import { setAutoreplace, setAutoreplaceWhenOld } from './autoreplace.js';
+import { setAutoreplace, setAutoreplaceWhenOld, setGroupAutoreplace, clearGroupAutoreplace } from './autoreplace.js';
 import { massAutoreplace } from './autorenew.js';
 import * as gcmd from './cmdGroup.js';
 
@@ -418,6 +418,10 @@ export class Game {
   setAutoreplace(oldModelId, newModelId, opts) { return setAutoreplace(this.state, oldModelId, newModelId, opts); }
   /** Per-rule replace-when-old flag (opt-in; absent = replace at any age). */
   setAutoreplaceWhenOld(oldModelId, on, opts) { return setAutoreplaceWhenOld(this.state, oldModelId, on, opts); }
+  /** Per-group autoreplace rule (opt-in, lazy): group rule wins over the company rule; null clears one old model. */
+  setGroupAutoreplace(groupId, oldModelId, newModelId, opts) { return setGroupAutoreplace(this.state, groupId, oldModelId, newModelId, opts); }
+  /** Clear one group autoreplace rule (oldModelId) or all of them (null). */
+  clearGroupAutoreplace(groupId, oldModelId, opts) { return clearGroupAutoreplace(this.state, groupId, oldModelId, opts); }
   /** Mass autoreplace (r27): replace every eligible vehicle inside a depot via autorenew/autoreplace path. */
   massAutoreplace(depotId, opts) { return massAutoreplace(this.ctx, depotId, opts); }
   /** Stop mode of one order: 'non' (non-stop, default), 'all' (stop at all stations), 'via' (go via). */

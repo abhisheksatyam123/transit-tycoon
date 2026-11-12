@@ -2,7 +2,8 @@
  * Autoreplace / autorenew (OpenTTD autoreplace_cmd.cpp, simplified).
  *
  * A vehicle stopped in a depot is replaced by a new vehicle when:
- *  1. the company has an autoreplace rule for its model (state.company.autoreplace, see autoreplace.js), any age; or
+ *  1. a vehicle group rule or the company has an autoreplace rule for its model (state.company.groupAutoreplace /
+ *     state.company.autoreplace, see autoreplace.js), any age (or only when old if that rule says so); or
  *  2. setting `autorenew` is on and the vehicle is past its max age (same model).
  * The new vehicle keeps name, unit number, orders, shared order group, service interval, profit history, and for
  * trains the wagons, for road vehicles the cargo. The company pays the new price minus the resale value of the old
@@ -11,7 +12,7 @@
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { resolvePurchase, createVehicle, effectiveMaxAge, isVehicleOld } from './vehicles.js';
-import { isReplaceWhenOld } from './autoreplace.js';
+import { isReplaceWhenOld, autoreplaceTarget } from './autoreplace.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -43,9 +44,17 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   // keepRoute: a vehicle on a service visit to a depot (not stopped in it) is replaced in its current position
   const depot = state.depots.find((d) => d.id === (opts.keepRoute ? v.goingToDepot : v.depotId));
   if (!depot) return { ok: false, error: 'No depot' };
+  // Wagon-kind autoreplace (opt-in): map the plain train's wagon model through its group/company rule when one is
+  // set. The count stays the same; with no rule this is exactly the old `v.wagonModelId`. Applies to the player's
+  // trains only (rival AI replacements must not read the player's rule table). Mixed consists (`v.consist`) are left
+  // alone. Current protect semantics are handled inside autoreplaceTarget (protected group -> no rule).
+  const wagonTarget = v.kind === 'train' && v.wagonModelId && v.ownerId == null ? autoreplaceTarget(state, v, v.wagonModelId) : undefined;
+  const remapWagon = !!wagonTarget && wagonTarget !== v.wagonModelId
+    && MODEL_BY_ID[wagonTarget] && MODEL_BY_ID[wagonTarget].kind === 'wagon'
+    && (!isReplaceWhenOld(state, v.wagonModelId) || isVehicleOld(state, v));
   const spec = {
     modelId: newModelId,
-    wagonModelId: v.wagonModelId || undefined,
+    wagonModelId: (remapWagon ? wagonTarget : v.wagonModelId) || undefined,
     wagons: v.wagons || 0,
     cargoId: v.cargoId || undefined,
     consist: v.consist ? v.consist.map((w) => ({ ...w })) : undefined,
@@ -119,8 +128,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   if (v.groupId != null) { const g=(state.company.groups||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return null; }
   if (v.state !== 'depot' && !opts.serviceVisit) return null;
   const ro = { keepRoute: !!opts.serviceVisit };
-  const rules = state.company && state.company.autoreplace;
-  const target = rules && rules[v.modelId];
+  const target = autoreplaceTarget(state, v);
   // replace-when-old rules (autoreplace.js) wait until the vehicle is old; default rules replace at any age
   if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
@@ -134,8 +142,8 @@ export function autorenewVehicle(ctx, v, opts = {}) {
 /** Is `v` eligible for mass autoreplace (rule for its model, or autorenew past max age)? */
 export function isAutoreplaceEligible(state, v) {
   if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
-  const rules = state.company && state.company.autoreplace;
-  if (rules && rules[v.modelId] && MODEL_BY_ID[rules[v.modelId]] && rules[v.modelId]!==v.modelId
+  const target = autoreplaceTarget(state, v);
+  if (target && MODEL_BY_ID[target] && target!==v.modelId
     && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) return true;
   return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
