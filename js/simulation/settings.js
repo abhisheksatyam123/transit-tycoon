@@ -232,6 +232,9 @@ export const DEFAULT_SETTINGS = {
   placeHouses: true,
   /** OpenTTD economy.town_cargo_scale (percent 0..500, def 100): scales passengers and mail produced by town houses each production chunk. 100 = current. */
   townCargoScale: 100,
+  /** OpenTTD economy.town_cargogen_mode (TownCargoGenMode): 'original' = current OpenLoco-style per-house-visit (r>>2)+1 (default,
+   * unchanged). 'bitcount' = OpenTTD binomial popcount(r & mask) on 1/4 of house visits, rate-calibrated to the same monthly totals. */
+  townCargogenMode: 'original',
   /** OpenTTD economy.industry_cargo_scale (percent 0..500, def 100): scales cargo produced by industries each day. 100 = current. */
   industryCargoScale: 100,
   /** OpenTTD has no setting: it always keeps undelivered industry output in a waiting buffer (u16, cap 65535, gated by minimal_cargo). TT default false = undelivered output is discarded. On = kept per industry (cap 65535) and offered to stations in range at each monthly tick. */
