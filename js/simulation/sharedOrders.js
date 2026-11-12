@@ -6,6 +6,7 @@
  */
 import { replan } from './movement.js';
 import { resetUnbunch } from './unbunch.js';
+import { orderSlot } from './orders.js';
 
 /** Other vehicles that share v's order list. */
 export function sharers(state, v) {
@@ -13,14 +14,48 @@ export function sharers(state, v) {
   return state.vehicles.filter((w) => w !== v && w.orderGroup === v.orderGroup);
 }
 
+/** True when `next` is `prev` with some orders removed (same order, possibly fewer). */
+function onlyRemovals(prev, next) {
+  let j = 0;
+  for (let i = 0; i < prev.length && j < next.length; i++) {
+    if (orderSlot(prev[i]) === orderSlot(next[j])) j++;
+  }
+  return j === next.length;
+}
+
 /**
- * Copy v's orders to every other member of its group (each keeps its own index, clamped).
- * Running members re-route to their (possibly changed) current order.
+ * Position of `index` in `next` when `next` is `prev` with some orders removed. Each removed order before the
+ * index shifts it down; when the order at `index` itself was removed, the nearest following order is used.
  */
-export function syncSharers(ctx, v) {
+function remapOrderIndex(prev, next, index) {
+  if (!next.length) return 0;
+  if (index < 0 || index >= prev.length) return index % next.length;
+  let j = 0;
+  for (let i = 0; i < prev.length; i++) {
+    if (j < next.length && orderSlot(prev[i]) === orderSlot(next[j])) {
+      if (i === index) return j;
+      j++;
+    } else if (i === index) {
+      return Math.min(j, next.length - 1);
+    }
+  }
+  return Math.min(j, next.length - 1);
+}
+
+/**
+ * Copy v's orders to every other member of its group (each keeps its own current order).
+ * `prevOrders` (the list before the edit) lets a shrink keep each member on the same order: the index is
+ * shifted down by the removed orders before it instead of wrapping with `%`. Without it the old modulo
+ * clamp is kept. Running members re-route to their (possibly changed) current order.
+ */
+export function syncSharers(ctx, v, prevOrders) {
+  // Conditional targets are renumbered before this point (deleteOrderAt on delete, normaliseOrders on edit),
+  // so the copied list already carries valid targets.
+  const shift = prevOrders && prevOrders !== v.orders && onlyRemovals(prevOrders, v.orders);
   for (const w of sharers(ctx.state, v)) {
     w.orders = v.orders.map((o) => ({ ...o }));
-    w.orderIndex = w.orders.length ? w.orderIndex % w.orders.length : 0;
+    w.orderIndex = shift ? remapOrderIndex(prevOrders, v.orders, w.orderIndex)
+      : (w.orders.length ? w.orderIndex % w.orders.length : 0);
     resetUnbunch(w);
     if ((w.state === 'running' || w.state === 'lost') && w.goingToDepot == null) replan(ctx, w);
   }

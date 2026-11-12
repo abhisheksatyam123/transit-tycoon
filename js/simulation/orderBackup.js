@@ -10,6 +10,7 @@ import { findStation, findDepot } from './state.js';
 import { joinSharedOrders } from './sharedOrders.js';
 import { stopKindFor } from './routing.js';
 import { allocId } from './state.js';
+import { deleteOrdersMatching } from './condOrders.js';
 
 /** Vehicle kind compatibility (OpenTTD: a backup restores to vehicles of the same kind). */
 function kindKey(v) {
@@ -52,16 +53,17 @@ export function restoreVehicleOrders(state, depot, v, allocIdFn = (s) => allocId
     v.orders = sharer.orders.map((o) => ({ ...o }));
     v.orderIndex = Math.min(b.orderIndex, Math.max(0, v.orders.length - 1));
   } else {
-    // copy the orders; drop the ones whose station or depot is gone (OpenTTD: removed stations are dropped)
-    const orders = b.orders.filter((o) => {
-      if (o.depot === 'nearest' && o.cond == null) return true; // resolved when current: no fixed depot to lose
-      if (o.depotId != null && o.cond == null) return !!findDepot(state, o.depotId);
-      if (o.cond != null) return true;
-      return !!findStation(state, o.stationId);
-    });
-    if (orders.length) {
-      v.orders = orders;
-      v.orderIndex = Math.min(b.orderIndex, orders.length - 1);
+    // copy the orders; drop the ones whose station or depot is gone (OpenTTD: removed stations are dropped).
+    // deleteOrdersMatching keeps the restored current order and renumbers surviving conditional targets.
+    const r = deleteOrdersMatching(b.orders, (o) => {
+      if (o.depot === 'nearest' && o.cond == null) return false; // resolved when current: no fixed depot to lose
+      if (o.depotId != null && o.cond == null) return !findDepot(state, o.depotId);
+      if (o.cond != null) return false;
+      return !findStation(state, o.stationId);
+    }, b.orderIndex);
+    if (r.orders.length) {
+      v.orders = r.orders;
+      v.orderIndex = r.orderIndex;
     }
   }
   if (b.name && !state.vehicles.some((w) => w !== v && w.name === b.name)) v.name = b.name;

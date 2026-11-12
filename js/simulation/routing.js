@@ -38,7 +38,7 @@ export function stopKindOk(v, k) {
  * @returns {{x:number,y:number}[]}
  */
 export function orderGoals(state, v) {
-  const order = v.orders[v.orderIndex];
+  const order = v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
   if (!order) return [];
   const st = findStation(state, order.stationId);
   if (!st) return [];
@@ -121,7 +121,7 @@ function extendAlongPlatform(state, path) {
  * platform). Lazy: stopAt exists only on orders that set it; absent keeps the far-end path unchanged.
  */
 function trainStopPath(state, v, path) {
-  const order = v.orders && v.orders[v.orderIndex];
+  const order = v.orders && v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
   const stopAt = order && (order.stopLocation !== undefined ? order.stopLocation : (order.stopAt !== undefined ? order.stopAt : undefined));
   if (stopAt !== 'near' && stopAt !== 'middle') return extendAlongPlatform(state, path);
   if (path.length < 2) return path;
