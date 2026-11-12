@@ -1,15 +1,61 @@
 /**
  * Autoreplace window (OpenTTD autoreplace_gui, simplified): one row per model the company (or the selected vehicle
- * group) runs, with the number of vehicles, a select of compatible purchasable replacement models and "Stop replacing".
+ * group) runs, with the number of vehicles, a select of compatible purchasable replacement models and \"Stop replacing\".
  * Rules apply when a vehicle of that model is stopped in a depot (simulation/autorenew.js). The scope selector switches
  * between the company-wide rule table and a group's own rules (group rule wins for that group's vehicles).
+ * Two sections: the vehicles themselves (engines, buses, trucks...) and the wagons carried by trains. Wagon rules use
+ * the same storage and commands, keyed by the wagon model id (see simulation/autoreplace.js).
  */
 import { el, setText } from '../dom.js';
-import { listOrEmpty } from './common.js';
+import { listOrEmpty, heading } from './common.js';
 import { kmhText } from '../format.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { replacementCandidates, isReplaceWhenOld } from '../../simulation/autoreplace.js';
+import { wagonList } from '../../simulation/consist.js';
 import { getSetting } from '../../simulation/settings.js';
+
+/**
+ * Vehicle and wagon counts per model for the vehicles in scope (player vehicles; `groupId` null = all of them).
+ * A train counts once under its engine model and once per wagon under the wagon model (wagonList, so mixed consists
+ * are split). Pure: no DOM, no state writes.
+ * @param {Array<object>} vehicles
+ * @param {number|null} groupId
+ * @returns {{engines: Record<string, number>, wagons: Record<string, number>}}
+ */
+export function autoreplaceCounts(vehicles, groupId = null) {
+  const engines = {};
+  const wagons = {};
+  for (const v of vehicles) {
+    if (v.ownerId != null || (groupId != null && v.groupId !== groupId)) continue;
+    engines[v.modelId] = (engines[v.modelId] || 0) + 1;
+    if (v.kind === 'train') for (const w of wagonList(v)) wagons[w.modelId] = (wagons[w.modelId] || 0) + 1;
+  }
+  return { engines, wagons };
+}
+
+/** Wagon models (kind 'wagon') that appear in a wagon counts map, sorted by name. */
+export function wagonRowModels(wagons) {
+  return Object.keys(wagons).map((id) => MODEL_BY_ID[id]).filter((m) => m && m.kind === 'wagon')
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** One autoreplace row (static DOM; text and select options are filled by updateRow). Shared by both sections. */
+function createRow(m, app) {
+  const sel = el('select.input', { 'aria-label': `Replace ${m.name} with` });
+  const cb = el('input', { type: 'checkbox', 'aria-label': `Replace ${m.name} only when old`,
+    title: 'Replace only when old (off: replace at any age, the default)' });
+  const cbLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' },
+    title: 'Replace only when old' }, cb, 'when old');
+  const row = el('div.table-row', null,
+    el('span', null, el('span.name'), el('div.muted.small', { style: { fontSize: '0.85em' } })), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
+    el('button.btn.sm', { type: 'button', text: 'Stop', title: 'Stop replacing this model',
+      onclick: () => app.exec(row._setRule(m.id, null), { sound: 'click' }) }));
+  row._sel = sel;
+  row._cb = cb;
+  row._name = row.children[0].children[0];
+  row._hint = row.children[0].children[1];
+  return row;
+}
 
 /**
  * @param {import('../app.js').App} app
@@ -24,7 +70,10 @@ export function openAutoreplace(app) {
       const scope = el('select.input', { 'aria-label': 'Autoreplace rule scope' });
       const scopeRow = el('label.muted', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, 'Rules for ', scope);
       const list = el('div.list.scroll.table');
-      body.append(summary, scopeRow, list);
+      const wagonHead = heading('Train wagons');
+      const wagonHint = el('div.muted.small', { text: 'Replacing a wagon keeps the wagon count of the train and swaps only its wagon model. A wagon rule alone makes a train eligible; the engine stays.' });
+      const wagonListEl = el('div.list.scroll.table');
+      body.append(summary, scopeRow, heading('Vehicles'), list, wagonHead, wagonHint, wagonListEl);
       // Scope options: company, then every vehicle group. Rebuilt here (not in refresh) so a selection survives refreshes.
       const refreshScope = () => {
         const groups = app.game.state.company.groups || [];
@@ -38,9 +87,7 @@ export function openAutoreplace(app) {
         const company = g.state.company;
         const year = g.state.date.year;
         const gid = scope.value === '' ? null : Number(scope.value);
-        const inScope = (v) => v.ownerId == null && (gid == null || v.groupId === gid);
-        const counts = {};
-        for (const v of g.state.vehicles) if (inScope(v)) counts[v.modelId] = (counts[v.modelId] || 0) + 1;
+        const { engines: counts, wagons: wagonCounts } = autoreplaceCounts(g.state.vehicles, gid);
         const rules = gid == null ? (company.autoreplace || {})
           : ((company.groupAutoreplace && company.groupAutoreplace[gid]) || {});
         const setRule = (modelId, newModelId) => (gid == null
@@ -59,46 +106,38 @@ export function openAutoreplace(app) {
           const co = (company.autoreplace || {})[modelId];
           return co ? `Company rule applies (inherited) → ${MODEL_BY_ID[co]?.name || co}` : 'No group or company rule';
         };
+        // One section: rows for `models`, counts from `countMap`, rules shared by engines and wagons.
+        const fillSection = (container, models, countMap, emptyText) => {
+          listOrEmpty(container, models, (m) => m.id,
+            (m) => createRow(m, app),
+            (row, m) => {
+              const c = row.children;
+              setText(row._name, m.name);
+              setText(row._hint, effectiveHint(m.id));
+              setText(c[1], `×${countMap[m.id]}`);
+              const sel = row._sel;
+              row._setRule = setRule;
+              const cands = replacementCandidates(m.id, year, getSetting(g.state, 'neverExpireVehicles'));
+              sel.onchange = () => {
+                if (sel.value) app.exec(setRule(m.id, sel.value), { sound: 'click' });
+                refresh();
+              };
+              const cur = rules[m.id] || '';
+              sel.replaceChildren(el('option', { value: '', text: '— keep (no rule) —' }),
+                ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${kmhText(c2.speed)})` })));
+              sel.value = cur;
+              const cb = row._cb;
+              cb.checked = isReplaceWhenOld(g.state, m.id);
+              cb.disabled = !cur;
+              cb.onchange = () => app.exec(g.setAutoreplaceWhenOld(m.id, cb.checked), { sound: 'click' });
+              c[3].disabled = !cur;
+            }, emptyText);
+        };
         const models = Object.keys(counts).map((id) => MODEL_BY_ID[id]).filter(Boolean)
           .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
-        listOrEmpty(list, models, (m) => m.id,
-          (m) => {
-            const sel = el('select.input', { 'aria-label': `Replace ${m.name} with` });
-            const cb = el('input', { type: 'checkbox', 'aria-label': `Replace ${m.name} only when old`,
-              title: 'Replace only when old (off: replace at any age, the default)' });
-            const cbLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' },
-              title: 'Replace only when old' }, cb, 'when old');
-            const row = el('div.table-row', null,
-              el('span', null, el('span.name'), el('div.muted.small', { style: { fontSize: '0.85em' } })), el('span.mono.num'), el('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } }, sel, cbLabel),
-              el('button.btn.sm', { type: 'button', text: 'Stop', title: 'Stop replacing this model',
-                onclick: () => app.exec(setRule(m.id, null), { sound: 'click' }) }));
-            row._sel = sel;
-            row._cb = cb;
-            row._name = row.children[0].children[0];
-            row._hint = row.children[0].children[1];
-            return row;
-          },
-          (row, m) => {
-            const c = row.children;
-            setText(row._name, m.name);
-            setText(row._hint, effectiveHint(m.id));
-            setText(c[1], `×${counts[m.id]}`);
-            const sel = row._sel;
-            const cands = replacementCandidates(m.id, year, getSetting(g.state, 'neverExpireVehicles'));
-            sel.onchange = () => {
-              if (sel.value) app.exec(setRule(m.id, sel.value), { sound: 'click' });
-              refresh();
-            };
-            const cur = rules[m.id] || '';
-            sel.replaceChildren(el('option', { value: '', text: '— keep (no rule) —' }),
-              ...cands.map((c2) => el('option', { value: c2.id, text: `${c2.name} (${kmhText(c2.speed)})` })));
-            sel.value = cur;
-            const cb = row._cb;
-            cb.checked = isReplaceWhenOld(g.state, m.id);
-            cb.disabled = !cur;
-            cb.onchange = () => app.exec(g.setAutoreplaceWhenOld(m.id, cb.checked), { sound: 'click' });
-            c[3].disabled = !cur;
-          }, gid == null ? 'No vehicles yet — buy one first' : 'No vehicles in this group');
+        fillSection(list, models, counts, gid == null ? 'No vehicles yet — buy one first' : 'No vehicles in this group');
+        fillSection(wagonListEl, wagonRowModels(wagonCounts), wagonCounts,
+          gid == null ? 'No train wagons yet' : 'No train wagons in this group');
       };
       refreshScope();
       scope.onchange = () => refresh();
