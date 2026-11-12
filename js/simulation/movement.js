@@ -686,9 +686,10 @@ function depotOrderVisit(ctx, v, order) {
   if (cur.serviceIntervalDays || getSetting(state, 'serviceOnDepotVisit')) servicePerformed(state, cur);
   // RX2b (OpenLoco audit #2): no reliability restore without service intervals (OpenLoco has none on a depot visit).
   else cur.breakdownTicks = 0;
-  // refit order: only an empty single-cargo vehicle is refitted (refit.js refitCore; the cost is charged)
+  // refit order: an empty single-cargo vehicle is refitted (refit.js refitCore; the cost is charged); a loaded one
+  // only when the opt-in partialRefit setting is on (same rules as the player command)
   if (order.refit && cur.cargoId !== order.refit) {
-    const r = refitCore(ctx, cur, order.refit);
+    const r = refitCore(ctx, cur, order.refit, getSetting(state, 'partialRefit') === true ? { partial: true } : {});
     if (!r.ok) notify(ctx, `${cur.name} could not be refitted to ${order.refit}: ${r.error}.`, 'bad', cur.tx, cur.ty, 'advice');
   }
   cur.atStationId = null;

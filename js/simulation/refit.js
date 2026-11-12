@@ -1,8 +1,8 @@
 /**
  * Refit rules shared by the depot refit (cmdVehicle.refitVehicle) and refit depot orders (movement.js
- * serviceAtDepot). OpenTTD refit, simplified: the vehicle must be empty and carry one cargo.
- * `partialRefit` (opt-in, default off) lifts the empty-only rule for the player command: OpenTTD
- * vehicle_cmd.cpp:476-477 keeps same-cargo load up to the new capacity and drops load on a cargo change.
+ * depotOrderVisit). OpenTTD refit, simplified: the vehicle must be empty and carry one cargo.
+ * `partialRefit` (opt-in, default off) lifts the empty-only rule for the player command and refit depot orders:
+ * OpenTTD vehicle_cmd.cpp:476-477 keeps same-cargo load up to the new capacity and drops load on a cargo change.
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { vehiclePrice } from './prices.js';
