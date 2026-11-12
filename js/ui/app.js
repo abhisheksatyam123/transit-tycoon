@@ -30,7 +30,7 @@ export const ISSUE_COMMANDS = ['setIndustryProduction', 'buildRail', 'buildTunne
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'convertRoad', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'convertSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
   'buildCanal', 'buildLock', 'buyVehicle', 'setGroupColour', 'setGroupFlag', 'setTypeColour', 'setVehicleColour', 'setOrders', 'modifyOrder', 'skipToOrder', 'startVehicle', 'stopVehicle', 'sendToDepot', 'sendForService', 'massSendToDepot',
-  'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel',
+  'sellVehicle', 'reverseVehicle', 'forceTrainProceed', 'turnRoadVehicle', 'massStartStop', 'cloneVehicle', 'refitVehicle', 'addWagons', 'removeWagons', 'addWagonModel', 'addEngine', 'removeEngine',
   'sellWagon', 'moveWagon', 'reorderWagon', 'unshareOrders', 'copyOrders', 'clearOrderBackup', 'setServiceInterval', 'setAutoreplace', 'setAutoreplaceWhenOld', 'setGroupAutoreplace', 'clearGroupAutoreplace', 'setGroupAutoreplaceWhenOld', 'setOrderStop', 'setOrderStopAt', 'setOrderTimetable', 'changeOrderTimes',
   'setTimetableAutofill', 'resetLateness', 'renameStation', 'moveStationSign', 'renameDepot', 'renameWaypoint', 'renameEngine', 'renamePresident', 'renameCompany', 'setCompanyManagerFace', 'setAirportClosed', 'moveSign', 'buildHQ', 'buildObject', 'setLoanAutopay',
   'expandTown', 'deleteTown', 'demolishIndustry'];

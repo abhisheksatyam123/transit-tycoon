@@ -165,12 +165,13 @@ export function openVehicleDetail(app, id) {
         set['State'](v.ubHold ? 'Waiting to unbunch' : (STATE_LABEL[v.state] || v.state));
         // wagonSpeedLimits (off by default): show the effective consist cap when a wagon limits the train.
         const capTiles = v.kind === 'train' ? consistMaxSpeedTiles(g().state, v) : v.maxSpeed;
-        set['Speed'](`${speed(v.speed, v.kind)} / ${speed(capTiles, v.kind)}${capTiles < v.maxSpeed ? ' (wagon limit)' : ''}`);
+        const limLabel = v.engines && v.engines.length ? ' (engine limit)' : ' (wagon limit)';
+        set['Speed'](`${speed(v.speed, v.kind)} / ${speed(capTiles, v.kind)}${capTiles < v.maxSpeed ? limLabel : ''}`);
         const co = currentOrder(v);
         const platWarn = platformWarning(g().state, v, co ? findStation(g().state, co.stationId) : null);
         set['Platform'](platWarn || '');
         set['Altitude'](v.kind !== 'aircraft' ? '—' : (v.alt || 0) > 0.01 ? (v.alt >= 0.99 ? `${Math.round(v.alt * 100)}% · cruising` : `${Math.round(v.alt * 100)}% · climbing / descending`) : 'on the ground');
-        set['Cargo'](`${v.consist ? cargoSlices(v).map((c) => cargoName(c.cargoId)).join(' + ') : cargoName(v.cargoId)}${v.kind === 'train' ? ` · ${v.wagons} wagon(s)` : ''}`);
+        set['Cargo'](`${v.consist ? cargoSlices(v).map((c) => cargoName(c.cargoId)).join(' + ') : cargoName(v.cargoId)}${v.kind === 'train' ? `${v.engines && v.engines.length ? ` · ${v.engines.length + 1} engine(s)` : ''} · ${v.wagons} wagon(s)` : ''}`);
         const amt = v.load ? v.load.amount || 0 : 0;
         set['Load'](`${num(amt)} / ${num(v.capacity)}`);
         if (v.consist) { // mixed consist: one line per cargo carried (with its share of the capacity)

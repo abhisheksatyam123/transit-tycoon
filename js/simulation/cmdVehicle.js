@@ -29,6 +29,8 @@ import { refitCargos, refitCore } from './refit.js';
 import { DIRS, SEGMENT_SPACING } from './constants.js';
 import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
+import { engineList, extraEngineCount, MAX_EXTRA_ENGINES } from './consistEngines.js';
+import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { timetableComplete, roundTicks, orderGroupMembers, timetableEstimatesOn } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
@@ -48,7 +50,10 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (spec && MODEL_BY_ID[spec.modelId] && MODEL_BY_ID[spec.modelId].kind === 'tram' && !depotOnTram(state, depot)) return { ok: false, error: 'Trams need a road depot next to tram track' };
   if (spec && depot.kind === 'rail') {
     // monorail / maglev trains only on their own track type (OpenTTD rail type compatibility, config/railTypes.js)
-    const need = [spec.modelId, spec.wagonModelId].map((id) => (id && MODEL_BY_ID[id] ? trainTrack({ kind: 'train', modelId: id }) : 0));
+    const multi = getSetting(state, 'multiEngineConsists') === true;
+    const ids = [spec.modelId, spec.wagonModelId];
+    if (multi && Array.isArray(spec.engines)) ids.push(...spec.engines);
+    const need = ids.map((id) => (id && MODEL_BY_ID[id] ? trainTrack({ kind: 'train', modelId: id }) : 0));
     const want = need.find((t) => t !== 0) || 0;
     if (need.some((t) => t !== 0 && t !== want)) return { ok: false, error: 'Engine and wagons need different track types' };
     // a depot on monorail/maglev track only takes trains of that type, and a monorail/maglev train only leaves from one
@@ -59,7 +64,14 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
   if (depot.kind === 'air' && spec && MODEL_BY_ID[spec.modelId] && !vehicleFitsAirport(MODEL_BY_ID[spec.modelId], airportTypeId(depot))) {
     return { ok: false, error: `${MODEL_BY_ID[spec.modelId].name} cannot use this ${airportType(airportTypeId(depot)).name.toLowerCase()}` };
   }
-  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'), getSetting(state, 'maxTrainLength'));
+  const maxEngines = getSetting(state, 'multiEngineConsists') === true ? MAX_EXTRA_ENGINES : 0;
+  if (maxEngines > 0 && spec && Array.isArray(spec.engines)) {
+    for (const id of spec.engines) {
+      const em = MODEL_BY_ID[id];
+      if (em && em.kind === 'engine' && !modelAvailable(state, em, opts.owner ?? null)) return { ok: false, error: 'Model not yet available' };
+    }
+  }
+  const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'), getSetting(state, 'maxTrainLength'), maxEngines);
   if (!r.ok) return r;
   const limit = vehicleLimitError(state, vehicleKindOfModel(r.template.model), opts.owner ?? null);
   if (limit) return { ok: false, error: limit };
@@ -315,6 +327,8 @@ export function cloneVehicle(ctx, id, opts = {}) {
   if (!depot) return { ok: false, error: 'Vehicle has no depot to clone it in' };
   const spec = { modelId: src.modelId, wagonModelId: src.wagonModelId || undefined, wagons: src.wagons || 0, cargoId: src.cargoId || undefined };
   if (src.consist) spec.consist = src.consist.map((w) => ({ ...w })); // mixed consist: same wagons in the same order
+  // multiEngineConsists: a clone keeps the lead-block engine list (lazy field, absent otherwise)
+  if (src.engines && src.engines.length && getSetting(state, 'multiEngineConsists') === true) spec.engines = src.engines.slice();
   const r = buyVehicle(ctx, depot.id, spec, { dryRun: !!opts.dryRun, noRestore: true });
   if (!r.ok || opts.dryRun) return r;
   const v = r.vehicle;
@@ -727,7 +741,7 @@ export function addWagons(ctx, id, n, opts = {}) {
   const { v, wagon, unit } = c;
   const maxWagons = getSetting(state, 'maxTrainWagons');
   if (v.wagons + n > maxWagons) return { ok: false, error: `A train can have at most ${maxWagons} wagons` };
-  if (((v.wagons + n + 1) * SEGMENT_SPACING) > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
+  if (((v.wagons + n + 1 + extraEngineCount(v)) * SEGMENT_SPACING) > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
   if (v.cargoId && !wagon.cargos.includes(v.cargoId)) return { ok: false, error: `${wagon.name} cannot carry ${v.cargoId}` };
   const cost = unit * n;
   const capacity = wagon.capacity * (v.wagons + n);
@@ -761,6 +775,109 @@ export function removeWagons(ctx, id, n, opts = {}) {
   applyWagonDelta(state, v, wagon, -n, unit);
   v.value = (v.value || 0) - refund;
   return { ok: true, cost: refund, wagons: v.wagons, capacity: v.capacity };
+}
+
+/** Recompute a train's maxSpeed from its engine list (min speed, OpenTTD train_cmd.cpp:194-199). */
+function refreshTrainMaxSpeed(v) {
+  const lead = MODEL_BY_ID[v.modelId];
+  let kmh = lead && lead.speed > 0 ? lead.speed : 0;
+  for (const id of engineList(v)) {
+    const m = MODEL_BY_ID[id];
+    if (m && m.speed > 0 && (!kmh || m.speed < kmh)) kmh = m.speed;
+  }
+  if (kmh > 0) v.maxSpeed = kmh * KMH_TO_TILES_PER_TICK;
+}
+
+/**
+ * Shared checks for changing the lead-block engine list (multiEngineConsists): a train, stopped in a depot,
+ * empty, player-owned. Extra engines are capped at MAX_EXTRA_ENGINES so a consist has at most four engines.
+ */
+function engineConsistCheck(ctx, id, opts = {}) {
+  const { state } = ctx;
+  const v = findVehicle(state, id);
+  if (!v) return { ok: false, error: 'Unknown vehicle' };
+  if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
+  if (v.kind !== 'train') return { ok: false, error: 'Only trains have engines' };
+  if (getSetting(state, 'multiEngineConsists') !== true) return { ok: false, error: 'Multiple engines per train is turned off' };
+  if (v.state !== 'depot') return { ok: false, error: 'Train must be stopped in a depot to change its engines' };
+  if ((v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the train before changing its engines' };
+  return { ok: true, v };
+}
+
+/**
+ * Attach one singlehead engine behind the lead engine of a train stopped empty in a depot (multiEngineConsists).
+ * The new engine must be a purchasable locomotive of the same track type. Price = inflated model cost.
+ * @returns {{ok:true,cost:number,engines:number}|{ok:false,error:string}}
+ */
+export function addEngine(ctx, id, modelId, opts = {}) {
+  const { state } = ctx;
+  const c = engineConsistCheck(ctx, id, opts);
+  if (!c.ok) return c;
+  const { v } = c;
+  const model = MODEL_BY_ID[modelId];
+  if (!model || model.kind !== 'engine') return { ok: false, error: 'Unknown engine model' };
+  if (!purchasable(model, state.date.year, getSetting(state, 'neverExpireVehicles')) || !modelAvailable(state, model, null)) {
+    return { ok: false, error: `${model.name} is not available` };
+  }
+  const extra = extraEngineCount(v);
+  if (extra + 1 > MAX_EXTRA_ENGINES) return { ok: false, error: `A train can have at most ${MAX_EXTRA_ENGINES + 1} engines` };
+  if (((v.wagons || 0) + 2 + extra) * SEGMENT_SPACING > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
+  const depot = findDepot(state, v.depotId);
+  if (!depot) return { ok: false, error: 'Train is not in a depot' };
+  const leadTrk = trainTrack({ kind: 'train', modelId: v.modelId }) || 0;
+  const trk = trainTrack({ kind: 'train', modelId: model.id }) || 0;
+  const want = leadTrk || trk; // the lead engine decides the train's rail type (buyVehicle does the same)
+  if (trk !== want) return { ok: false, error: 'Engine needs a different track type' };
+  // Same depot rule as buyVehicle: plain engines need a plain-rail depot, monorail/maglev their own.
+  if (depotTrack(state, depot) !== want) return { ok: false, error: 'Engine needs a different track type for this depot' };
+  const unit = vehiclePrice(state, model.cost);
+  const company = companyOf(state, v);
+  const money = checkMoney(state, unit, company);
+  if (money) return money;
+  if (opts.dryRun) return { ok: true, cost: unit, engines: 2 + extra };
+  spend(company, 'vehicles', unit);
+  v.engines = v.engines ? [...v.engines, model.id] : [model.id];
+  v.runningCost = (v.runningCost || 0) + model.running;
+  v.value = (v.value || 0) + refundValue(unit); // OL CreateVehicle.cpp:163-165
+  refreshTrainMaxSpeed(v);
+  return { ok: true, cost: unit, engines: extra + 2 };
+}
+
+/**
+ * Detach one extra engine from a train stopped empty in a depot (default: the last extra engine).
+ * Refund = the removed engine's share of the train's current (depreciated) value, like removeWagons.
+ * @returns {{ok:true,cost:number,engines:number}|{ok:false,error:string}}
+ */
+export function removeEngine(ctx, id, index = null, opts = {}) {
+  const { state } = ctx;
+  const c = engineConsistCheck(ctx, id, opts);
+  if (!c.ok) return c;
+  const { v } = c;
+  const extra = extraEngineCount(v);
+  if (!extra) return { ok: false, error: 'The train has no extra engine to remove' };
+  const i = index == null ? extra - 1 : Math.floor(index);
+  if (!(i >= 0 && i < extra)) return { ok: false, error: 'Unknown engine' };
+  const model = MODEL_BY_ID[v.engines[i]];
+  const unit = model ? vehiclePrice(state, model.cost) : 0;
+  // share of current value, exactly like removeWagons: all engines + all wagons priced at today's prices
+  const lead = MODEL_BY_ID[v.modelId];
+  let fullPrice = lead ? vehiclePrice(state, lead.cost) : 0;
+  for (const eid of v.engines) { const em = MODEL_BY_ID[eid]; if (em) fullPrice += vehiclePrice(state, em.cost); }
+  if (v.consist) fullPrice += consistPrice(state, v);
+  if (!v.consist && v.wagons) {
+    const wm = MODEL_BY_ID[v.wagonModelId || 'wag_coach'];
+    if (wm) fullPrice += vehiclePrice(state, wm.cost) * v.wagons;
+  }
+  const refund = fullPrice > 0 ? Math.min(v.value || 0, Math.round(((v.value || 0) * unit) / fullPrice)) : 0;
+  if (opts.dryRun) return { ok: true, cost: refund, engines: extra };
+  earn(companyOf(state, v), refund, 'vehicles');
+  const list = v.engines.slice();
+  list.splice(i, 1);
+  if (list.length) v.engines = list; else delete v.engines;
+  if (model) v.runningCost = (v.runningCost || 0) - model.running;
+  v.value = (v.value || 0) - refund;
+  refreshTrainMaxSpeed(v);
+  return { ok: true, cost: refund, engines: extra };
 }
 
 /** A road depot where trams can start: its tile or the tile it opens onto carries tram track. */

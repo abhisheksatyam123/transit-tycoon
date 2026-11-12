@@ -407,6 +407,10 @@ export class Game {
   removeWagons(id, n, opts) { return vcmd.removeWagons(this.ctx, id, n, opts); }
   /** Mixed consists: add a wagon of `modelId` at the end of a train (cargoId optional). */
   addWagonModel(id, modelId, opts) { return vcmd.addWagonModel(this.ctx, id, modelId, opts); }
+  /** multiEngineConsists: attach one extra engine behind the lead engine (depot, empty, player-owned). */
+  addEngine(id, modelId, opts) { return vcmd.addEngine(this.ctx, id, modelId, opts); }
+  /** multiEngineConsists: detach one extra engine (default: the last one). */
+  removeEngine(id, index, opts) { return vcmd.removeEngine(this.ctx, id, index, opts); }
   /** Mixed consists: sell the wagon at `index` (its share of the depreciated value is refunded). */
   sellWagon(id, index, opts) { return vcmd.sellWagon(this.ctx, id, index, opts); }
   /** Mixed consists: move the wagon at `index` one place (delta -1 towards the engine, +1 away). */

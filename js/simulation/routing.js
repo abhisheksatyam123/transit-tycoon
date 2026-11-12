@@ -11,6 +11,7 @@ import { findShipPath, shipGoals } from './shipPath.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { getSetting } from './settings.js';
 import { trainLengthTiles } from './platformLength.js';
+import { extraEngineCount } from './consistEngines.js';
 
 /** Layer used by a vehicle kind. */
 export function layerOf(v) {
@@ -178,7 +179,7 @@ export function canFlipTrain(state, v) {
 }
 
 export function flipTrain(v) {
-  const k = Math.min(Math.ceil(v.wagons * 0.5), v.history.length - 1);
+  const k = Math.min(Math.ceil(((v.wagons || 0) + extraEngineCount(v)) * 0.5), v.history.length - 1);
   if (k <= 0) { v.flipped = !v.flipped; return v.history[0]; }
   const part = v.history.slice(0, k + 1).reverse();
   v.history = part;
