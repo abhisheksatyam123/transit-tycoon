@@ -4,7 +4,7 @@
  */
 import { DIRS, OPPOSITE, dirBetween } from './constants.js';
 import { oneWayAllows } from './network.js';
-import { vehiclesOn, trainInBlock, beginOccupancy } from './blocking.js';
+import { vehiclesOn, trainInBlock, beginOccupancy, releaseOccupancy } from './blocking.js';
 import { guardedBlock, isBlockWall } from './signals.js';
 import { isTypedSignal } from './pathSignals.js';
 
@@ -109,14 +109,20 @@ export function findPath(map, start, goals, layer, opts = {}) {
   const pathCostsActive = !!opts.pathCosts && layer === 'rail';
   const simState = opts.state || null;
   // occupancy index: the tick index when called from the vehicle tick, else built once for this search
-  const simCtx = pathCostsActive && simState ? (opts.ctx || { state: simState, occupancy: beginOccupancy(simState) }) : null;
+  // (a pooled index; `ownOcc` marks one this search must release before returning, see below)
+  const ownOcc = pathCostsActive && simState && !opts.ctx ? beginOccupancy(simState) : null;
+  const simCtx = pathCostsActive && simState ? (opts.ctx || { state: simState, occupancy: ownOcc }) : null;
   const currentVeh = opts.vehicle || null;
   const currentVehId = currentVeh ? currentVeh.id : -1;
   let expanded = 0;
   while (heap.size > 0) {
     const cur = heap.pop();
     if (closed[cur] === gen) continue;
-    if (goalSet.has(cur)) return reconstruct(came, cur, width);
+    if (goalSet.has(cur)) {
+      const found = reconstruct(came, cur, width);
+      if (ownOcc) releaseOccupancy(ownOcc); // search-local index: no reader left
+      return found;
+    }
     closed[cur] = gen;
     if (++expanded > maxNodes) break;
     const cx = cur % width, cy = (cur - cx) / width;
@@ -203,6 +209,7 @@ export function findPath(map, start, goals, layer, opts = {}) {
       }
     }
   }
+  if (ownOcc) releaseOccupancy(ownOcc); // search-local index: no reader left
   return null;
 }
 
