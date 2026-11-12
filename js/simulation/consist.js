@@ -7,6 +7,8 @@
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { vehiclePrice } from './prices.js';
+import { getSetting } from './settings.js';
+import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 
 /** Wagon list of a train: [{modelId, cargoId}] per wagon (uniform trains derive it from the single-model fields). */
 export function wagonList(v) {
@@ -14,6 +16,33 @@ export function wagonList(v) {
   if (!v.wagons) return [];
   const modelId = v.wagonModelId || (MODEL_BY_ID.wag_coach && MODEL_BY_ID.wag_coach.id);
   return Array.from({ length: v.wagons }, () => ({ modelId, cargoId: v.cargoId }));
+}
+
+/**
+ * Effective speed cap of a train in tiles/tick, including its wagons.
+ * OpenTTD vehicle.wagon_speed_limits / train_cmd.cpp ConsistChanged: the train is limited by the slowest
+ * part; a wagon speed of 0 (or absent) means no limit. Setting off (default) returns v.maxSpeed untouched.
+ * Pure: reads the models and the setting only, so add/remove/reorder/autoreplace need no cache invalidation.
+ */
+export function consistMaxSpeedTiles(state, v) {
+  if (!v || v.kind !== 'train' || getSetting(state, 'wagonSpeedLimits') !== true) return v ? v.maxSpeed : 0;
+  let cap = Infinity;
+  if (v.consist && v.consist.length) {
+    for (const w of v.consist) {
+      const m = MODEL_BY_ID[w.modelId];
+      const s = m && m.speed;
+      if (s > 0 && s < cap) cap = s;
+    }
+  } else if (v.wagons > 0) {
+    // Same fallback as wagonList: a plain train without a wagon model is a coach train.
+    const id = v.wagonModelId || (MODEL_BY_ID.wag_coach && MODEL_BY_ID.wag_coach.id);
+    const m = MODEL_BY_ID[id];
+    const s = m && m.speed;
+    if (s > 0) cap = s;
+  }
+  if (cap === Infinity) return v.maxSpeed;
+  const tiles = cap * KMH_TO_TILES_PER_TICK;
+  return tiles < v.maxSpeed ? tiles : v.maxSpeed;
 }
 
 /** Capacity of a wagon list (sum of the wagon models' capacities). */

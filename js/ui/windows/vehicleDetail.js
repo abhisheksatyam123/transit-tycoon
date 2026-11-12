@@ -15,6 +15,7 @@ import { openRename } from '../rename.js';
 import { STATE_LABEL } from './vehicleList.js';
 import { orderFlagText, hasTimetable, isDepotOrder } from '../../simulation/orders.js';
 import { getSetting } from '../../simulation/settings.js';
+import { consistMaxSpeedTiles } from '../../simulation/consist.js';
 
 /** True when the vehicle has any timetable value or autofill running. */
 function hasTimetableOrders(v) {
@@ -162,7 +163,9 @@ export function openVehicleDetail(app, id) {
         win.setTitle(v.name);
         paintUpdate(v);
         set['State'](v.ubHold ? 'Waiting to unbunch' : (STATE_LABEL[v.state] || v.state));
-        set['Speed'](`${speed(v.speed, v.kind)} / ${speed(v.maxSpeed, v.kind)}`);
+        // wagonSpeedLimits (off by default): show the effective consist cap when a wagon limits the train.
+        const capTiles = v.kind === 'train' ? consistMaxSpeedTiles(g().state, v) : v.maxSpeed;
+        set['Speed'](`${speed(v.speed, v.kind)} / ${speed(capTiles, v.kind)}${capTiles < v.maxSpeed ? ' (wagon limit)' : ''}`);
         const co = currentOrder(v);
         const platWarn = platformWarning(g().state, v, co ? findStation(g().state, co.stationId) : null);
         set['Platform'](platWarn || '');
