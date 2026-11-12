@@ -13,7 +13,7 @@ import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
 import { cargoName } from '../cargo.js';
-import { bucketVehicles, sortBuckets, GROUP_BY, BUCKET_SORTS } from '../vehicleGroupRows.js';
+import { bucketVehicles, sortBuckets, groupStatistics, GROUP_BY, BUCKET_SORTS } from '../vehicleGroupRows.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -218,6 +218,12 @@ export function openVehicleList(app) {
       bySel.onchange = () => { state.by = bySel.value; state.open.clear(); state.dir = 1; refresh(); };
       const protectCb = el('input', { type: 'checkbox', title: 'Protect this group from autoreplace (OpenTTD GroupFlag::ReplaceProtection)', onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
       const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: 'Protect this group from autoreplace' }, protectCb, el('span', { text: 'Protect from autoreplace' }));
+      // selected group details (OpenTTD group_gui.cpp WID_GL_INFO): read-only sums over the group's listed vehicles.
+      const gStatsValue = [0, 1, 2].map(() => el('span.kv-value.mono'));
+      const gStats = el('div.kv-grid', { style: { display: 'none' } },
+        el('span.kv-label', { text: 'Profit this year' }), gStatsValue[0],
+        el('span.kv-label', { text: 'Profit last year' }), gStatsValue[1],
+        el('span.kv-label', { text: 'Current usage' }), gStatsValue[2]);
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
         el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, protectLabel);
       // group-by dropdown (OpenTTD vehicle_gui.cpp GB_NONE / GB_SHARED_ORDERS / GB_GROUP). Grouped: the sort box sorts buckets.
@@ -254,7 +260,8 @@ export function openVehicleList(app) {
       const headSpans = [0, 1, 2, 3, 4, 5].map(() => el('span'));
       const head = el('div.table-head', null, ...headSpans);
       const HEAD_VEH = ['Vehicle', 'State', 'This year', 'Last year', 'Late', ''];
-      const HEAD_BUCKET = ['Group', '', 'Total this year', 'Average this year', '', ''];
+      // last two columns: OpenTTD group stats shown per group (profit last year, current usage / load percent)
+      const HEAD_BUCKET = ['Group', '', 'Total this year', 'Average this year', 'Total last year', 'Usage'];
       const headKey = { mode: null };
       const setHead = (mode) => {
         if (headKey.mode === mode) return;
@@ -286,6 +293,9 @@ export function openVehicleList(app) {
           c[2].classList.toggle('neg', b.total < 0);
           setText(c[3], money(b.avg));
           c[3].classList.toggle('neg', b.avg < 0);
+          setText(c[4], money(b.last));
+          c[4].classList.toggle('neg', b.last < 0);
+          setText(c[5], `${b.usage}%`);
           return;
         }
         const v = item.v;
@@ -300,7 +310,7 @@ export function openVehicleList(app) {
         c[4].classList.toggle('neg', hasVehicleTimetable(v) && (Number(v.lateDays) || 0) > 0);
       };
       const list = el('div.list.scroll.table');
-      body.append(summary, groupControls, livery, controls, head, list);
+      body.append(summary, groupControls, livery, gStats, controls, head, list);
       const refresh = () => {
         const grouped = state.by !== 'none';
         sortOptions(grouped);
@@ -339,6 +349,18 @@ export function openVehicleList(app) {
         protectCb.checked = !!(selG && selG.replaceProtect);
         protectLabel.style.display = selG ? 'inline-flex' : 'none';
         if (selG) liveryRow(selG);
+        gStats.style.display = hasGroup ? 'grid' : 'none';
+        if (hasGroup) {
+          const statsVehicles = all.filter((v) => inGroup(v, state.group)
+            && (state.filter === 'all' || v.kind === state.filter) && inCargo(v, state.cargo));
+          const st = groupStatistics(statsVehicles);
+          setText(gStatsValue[0], money(st.profitThisYear));
+          gStatsValue[0].classList.toggle('neg', st.profitThisYear < 0);
+          setText(gStatsValue[1], money(st.profitLastYear));
+          gStatsValue[1].classList.toggle('neg', st.profitLastYear < 0);
+          setText(gStatsValue[2], `${st.occupancy}%`);
+          gStatsValue[2].classList.toggle('neg', false);
+        }
         if (!grouped) {
           setHead('veh');
           const vs = sortVehicles(all, state);
