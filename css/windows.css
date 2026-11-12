@@ -83,6 +83,8 @@
 .table-row { padding: 4px 8px; border-radius: 6px; background: rgba(15, 23, 38, 0.7); border: 1px solid rgba(100, 116, 139, 0.15); }
 .table-row .num { text-align: right; }
 .table-head, .table-row { grid-template-columns: 1.4fr 1fr 0.9fr 0.9fr 0.8fr auto; }
+/* ungrouped (plain vehicle list): header and rows are separate grids, so fr tracks use minmax(0,..) (no content-sized min) and the Follow column is a fixed minimum that fits the button; otherwise the header and rows resolve to different widths and the last track collapses to 0 */
+.table-head:not(.grouped):has(+ .list.table:not(.grouped)), .list.table:not(.grouped) > .table-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(56px, max-content); }
 /* grouped (Group by) view: the header and every row are separate grids, so tracks must not depend on their content (auto/min-content): fr tracks with minmax(0,..) or fixed minimums resolve identically in each grid */
 .table-head.grouped, .list.grouped .table-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(56px, 0.5fr); }
 .table-head.grouped span:nth-child(n + 3) { text-align: right; }
