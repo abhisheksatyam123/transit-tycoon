@@ -12,7 +12,7 @@
 import { getSetting } from './settings.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { resolvePurchase, createVehicle, effectiveMaxAge, isVehicleOld } from './vehicles.js';
-import { isReplaceWhenOld, autoreplaceTarget } from './autoreplace.js';
+import { isReplaceWhenOld, autoreplaceTarget, groupProtectBlocksAll } from './autoreplace.js';
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
@@ -125,7 +125,9 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
  */
 export function autorenewVehicle(ctx, v, opts = {}) {
   const { state } = ctx;
-  if (v.groupId != null) { const g=(state.company.groups||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return null; }
+  // Default TT semantics: a protected group blocks everything. With the OpenTTD opt-in only the company rule is
+  // blocked (inside autoreplaceTarget), so the group's own rule and autorenew still run.
+  if (groupProtectBlocksAll(state, v)) return null;
   if (v.state !== 'depot' && !opts.serviceVisit) return null;
   const ro = { keepRoute: !!opts.serviceVisit };
   const target = autoreplaceTarget(state, v);
@@ -141,7 +143,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
 
 /** Is `v` eligible for mass autoreplace (rule for its model, or autorenew past max age)? */
 export function isAutoreplaceEligible(state, v) {
-  if (v.groupId != null) { const g=((state.company&&state.company.groups)||[]).find((x)=>x.id===v.groupId); if(g&&g.replaceProtect) return false; }
+  if (groupProtectBlocksAll(state, v)) return false;
   const target = autoreplaceTarget(state, v);
   if (target && MODEL_BY_ID[target] && target!==v.modelId
     && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) return true;

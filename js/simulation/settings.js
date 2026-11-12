@@ -290,6 +290,10 @@ export const DEFAULT_SETTINGS = {
    * and enforce group.kind ('train'|'road'|'aircraft'|'ship'); off = mixed groups stay allowed (current). Lazy: group.kind
    * is written only while this is on. */
   strictGroupKind: false,
+  /** OpenTTD group ReplaceProtection semantics (autoreplace.cpp:70): a protected group blocks only the company-wide
+   * (ALL_GROUP) autoreplace rule; its own per-group rule and age-based autorenew still run. Off = TT behaviour today:
+   * a protected group blocks its own group rule, the company rule and autorenew. */
+  autoreplaceProtectOttd: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */
