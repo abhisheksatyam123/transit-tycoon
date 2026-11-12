@@ -18,6 +18,7 @@
  * when model, wagons or cargo change); the curve limit is cached per pathIndex in v.curvePath/curveIdx/curveLimit.
  */
 import { KMH_TO_TILES_PER_TICK, MPH_TO_TILES_PER_TICK, totalWeight, totalPower, landSpeedStep } from './vehicleMotion.js';
+import { engineList, engineWeightById, DEFAULT_ENGINE_WEIGHT } from '../consistEngines.js';
 
 /** OpenTTD GROUND_ACCELERATION (vehicle_type.h:19), N per tonne. */
 export const GROUND_ACCELERATION = 9800;
@@ -27,7 +28,7 @@ const ROLLING_BASE = 15;            // train.h:309-316, 1e-4 units
 const TRAIN_AIR_DRAG_AREA = 14;     // train.h:272
 const AXLE_PER_TONNE = 10;          // ground_vehicle.cpp:94
 export const WATTS_PER_HP = 746;
-export const ENGINE_TONNES = 60;           // TT engine weight (vehicleMotion.js TRAIN_ENGINE_WEIGHT)
+export const ENGINE_TONNES = DEFAULT_ENGINE_WEIGHT; // TT engine weight when the model has none (consistEngines.js)
 
 /** OpenTTD curve constants (train_cmd.cpp). */
 export const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67
@@ -157,16 +158,19 @@ export function consistMotion(v, model) {
   const cargo = v.load ? v.load.amount || 0 : 0;
   const wagons = v.wagons || 0;
   let c = v.motionCache;
-  if (c && c.modelId === v.modelId && c.wagons === wagons && c.cargo === cargo) return c;
+  const engines = v.engines ? v.engines.length : 0; // extra engines (phase 2); absent = none
+  if (c && c.modelId === v.modelId && c.engines === engines && c.wagons === wagons && c.cargo === cargo) return c;
   const mass = Math.max(1, totalWeight(v));
   const power = totalPower(v, model) * WATTS_PER_HP;
-  const te = ENGINE_TONNES * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256;
+  let tonnes = 0;
+  for (const id of engineList(v)) tonnes += engineWeightById(id);
+  const te = tonnes * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256;
   const maxKmh = model ? model.speed : 100;
   const airDrag = maxKmh <= 10 ? 192 : Math.max(Math.trunc(2048 / maxKmh), 1);
   const parts = 1 + wagons;
   const cachedAir = airDrag + Math.trunc(3 * airDrag * parts / 20);
   c = {
-    modelId: v.modelId, wagons, cargo,
+    modelId: v.modelId, engines, wagons, cargo,
     mass, power, te,
     airCoef: TRAIN_AIR_DRAG_AREA * cachedAir / 1000,
     axle: AXLE_PER_TONNE * mass,

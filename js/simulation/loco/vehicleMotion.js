@@ -1,4 +1,6 @@
 import { getSetting } from '../settings.js';
+import { engineList, engineWeightById } from '../consistEngines.js';
+import { MODEL_BY_ID } from '../../config/vehicles.js';
 
 /**
  * Vehicle speed -> distance per tick, acceleration and drag.
@@ -35,7 +37,7 @@ export const AIR_MPH_TO_TILES_PER_TICK = 1 / 1024;
 export const KMH_TO_TILES_PER_TICK = MPH_TO_TILES_PER_TICK / KMH_PER_MPH;
 export const AIR_KMH_TO_TILES_PER_TICK = AIR_MPH_TO_TILES_PER_TICK / KMH_PER_MPH;
 
-const TRAIN_ENGINE_WEIGHT = 60, TRAIN_WAGON_WEIGHT = 25, ROAD_WEIGHT = 12;
+const TRAIN_WAGON_WEIGHT = 25, ROAD_WEIGHT = 12;
 const MAX_ACCEL_MPH = 0.5;
 const BRAKE_FLOOR_MPH = 5;
 const AIR_ACCEL_MPH = 2;
@@ -50,12 +52,25 @@ function tilesPerMph(v) { return v.kind === 'aircraft' ? AIR_MPH_TO_TILES_PER_TI
 /** Total train weight (tons): engine + wagons + 1 t per cargo unit carried. */
 export function totalWeight(v) {
   const cargo = v.load ? v.load.amount || 0 : 0;
-  if (v.kind === 'train') return TRAIN_ENGINE_WEIGHT + (v.wagons || 0) * TRAIN_WAGON_WEIGHT + cargo;
+  if (v.kind === 'train') {
+    let engines = 0;
+    for (const id of engineList(v)) engines += engineWeightById(id);
+    return engines + (v.wagons || 0) * TRAIN_WAGON_WEIGHT + cargo;
+  }
   return ROAD_WEIGHT + cargo * 0.5;
 }
 
 /** Engine power (hp-like OpenLoco units): model.power for engines, derived for road vehicles. */
 export function totalPower(v, model) {
+  const ids = engineList(v);
+  if (!ids.length) return enginePower(model);
+  let power = 0;
+  for (let i = 0; i < ids.length; i++) power += enginePower(i === 0 ? model : MODEL_BY_ID[ids[i]]);
+  return power;
+}
+
+/** Power of one engine model (or the derived road-vehicle value when the model has none). */
+export function enginePower(model) {
   if (model && model.power) return model.power;
   const topMph = (model ? model.speed : 50) / KMH_PER_MPH;
   return Math.ceil(ROAD_WEIGHT * 1.5 * topMph * topMph / 2048);

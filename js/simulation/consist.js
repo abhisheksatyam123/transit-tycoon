@@ -10,6 +10,8 @@ import { vehiclePrice } from './prices.js';
 import { getSetting } from './settings.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 
+export { engineList } from './consistEngines.js';
+
 /** Wagon list of a train: [{modelId, cargoId}] per wagon (uniform trains derive it from the single-model fields). */
 export function wagonList(v) {
   if (v.consist) return v.consist.map((w) => ({ modelId: w.modelId, cargoId: w.cargoId }));

@@ -8,7 +8,8 @@
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { totalWeight } from './loco/vehicleMotion.js';
 import { wagonList } from './consist.js';
-import { ENGINE_TONNES, GROUND_ACCELERATION, TRACTIVE_EFFORT } from './loco/trainRealistic.js';
+import { GROUND_ACCELERATION, TRACTIVE_EFFORT } from './loco/trainRealistic.js';
+import { engineWeight } from './consistEngines.js';
 
 /**
  * @param {any} v vehicle
@@ -17,7 +18,7 @@ import { ENGINE_TONNES, GROUND_ACCELERATION, TRACTIVE_EFFORT } from './loco/trai
  */
 export function modelTractiveKn(model) {
   const power = model && model.power ? model.power : null;
-  return power ? Math.round(ENGINE_TONNES * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256 / 100) / 10 : null;
+  return power ? Math.round(engineWeight(model) * GROUND_ACCELERATION * TRACTIVE_EFFORT / 256 / 100) / 10 : null;
 }
 
 export function vehicleSpecs(v, model) {

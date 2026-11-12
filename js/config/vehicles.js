@@ -11,11 +11,11 @@ import { SHIP_MODELS } from './ships.js';
  */
 export const VEHICLE_MODELS = [
   // --- locomotives ---
-  { id: 'eng_puffer', name: 'Puffer 2-4-0 Steam', kind: 'engine', introYear: 1920, obsoleteYear: 1955, speed: 64, capacity: 0, cost: 6000, running: 1800, reliability: 0.78, power: 600 },
-  { id: 'eng_comet', name: 'Comet 4-6-2 Steam', kind: 'engine', introYear: 1945, obsoleteYear: 1968, speed: 96, capacity: 0, cost: 9500, running: 2600, reliability: 0.82, power: 1100 },
-  { id: 'eng_thunder', name: 'Thunder Diesel', kind: 'engine', introYear: 1958, obsoleteYear: 1985, speed: 128, capacity: 0, cost: 15000, running: 3800, reliability: 0.88, power: 1800 },
-  { id: 'eng_arrow', name: 'Arrow Express Diesel', kind: 'engine', introYear: 1975, obsoleteYear: 2002, speed: 160, capacity: 0, cost: 24000, running: 5200, reliability: 0.9, power: 2600 },
-  { id: 'eng_bolt', name: 'Bolt HST', kind: 'engine', introYear: 1992, speed: 200, capacity: 0, cost: 36000, running: 7000, reliability: 0.93, power: 3800 },
+  { id: 'eng_puffer', name: 'Puffer 2-4-0 Steam', kind: 'engine', weight: 60, introYear: 1920, obsoleteYear: 1955, speed: 64, capacity: 0, cost: 6000, running: 1800, reliability: 0.78, power: 600 },
+  { id: 'eng_comet', name: 'Comet 4-6-2 Steam', kind: 'engine', weight: 60, introYear: 1945, obsoleteYear: 1968, speed: 96, capacity: 0, cost: 9500, running: 2600, reliability: 0.82, power: 1100 },
+  { id: 'eng_thunder', name: 'Thunder Diesel', kind: 'engine', weight: 60, introYear: 1958, obsoleteYear: 1985, speed: 128, capacity: 0, cost: 15000, running: 3800, reliability: 0.88, power: 1800 },
+  { id: 'eng_arrow', name: 'Arrow Express Diesel', kind: 'engine', weight: 60, introYear: 1975, obsoleteYear: 2002, speed: 160, capacity: 0, cost: 24000, running: 5200, reliability: 0.9, power: 2600 },
+  { id: 'eng_bolt', name: 'Bolt HST', kind: 'engine', weight: 60, introYear: 1992, speed: 200, capacity: 0, cost: 36000, running: 7000, reliability: 0.93, power: 3800 },
   // --- wagons ---
   { id: 'wag_coach', name: 'Passenger Coach', kind: 'wagon', introYear: 1900, speed: 0, capacity: 40, cost: 1200, running: 150, reliability: 1, cargos: ['PASS'] },
   { id: 'wag_mail', name: 'Mail Van', kind: 'wagon', introYear: 1900, speed: 0, capacity: 30, cost: 1100, running: 150, reliability: 1, cargos: ['MAIL'] },
@@ -118,8 +118,8 @@ export const TOYLAND_VEHICLE_MODELS = [
 ];
 
 export const ELECTRIC_VEHICLE_MODELS = [
-  { id: 'eng_volt', name: 'Volt Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1955, obsoleteYear: 1995, speed: 144, capacity: 0, cost: 17000, running: 4200, reliability: 0.89, power: 2400, news: false },
-  { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
+  { id: 'eng_volt', name: 'Volt Electric', kind: 'engine', weight: 60, traction: 'electric', optIn: 'electric', introYear: 1955, obsoleteYear: 1995, speed: 144, capacity: 0, cost: 17000, running: 4200, reliability: 0.89, power: 2400, news: false },
+  { id: 'eng_spark', name: 'Spark Electric', kind: 'engine', weight: 60, traction: 'electric', optIn: 'electric', introYear: 1985, speed: 200, capacity: 0, cost: 30000, running: 6000, reliability: 0.92, power: 3400, news: false },
 ];
 
 /** TY5: OpenTTD toyland buses and locos (table/engines.h Y climate; Ploddyphut/Powernaut/MightyMover). optIn 'toyland'.
@@ -128,11 +128,11 @@ export const TOYLAND_BUS_LOCO_MODELS = [
   { id: 'bus_ploddy1', name: 'Ploddyphut MkI Bus', kind: 'bus', introYear: 1945, obsoleteYear: 1982, speed: 56, capacity: 30, cost: 4200, running: 900, reliability: 0.8, cargos: ['PASS'], optIn: 'toyland', news: false },
   { id: 'bus_ploddy2', name: 'Ploddyphut MkII Bus', kind: 'bus', introYear: 1972, obsoleteYear: 2020, speed: 96, capacity: 35, cost: 4900, running: 1700, reliability: 0.84, cargos: ['PASS'], optIn: 'toyland', news: false },
   { id: 'bus_ploddy3', name: 'Ploddyphut MkIII Bus', kind: 'bus', introYear: 2010, speed: 120, capacity: 38, cost: 5600, running: 2400, reliability: 0.88, cargos: ['PASS'], optIn: 'toyland', news: false },
-  { id: 'eng_ploddy_choo', name: 'Ploddyphut Choo-Choo', kind: 'engine', introYear: 1946, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.78, power: 600, optIn: 'toyland', news: false },
-  { id: 'eng_powernaut_choo', name: 'Powernaut Choo-Choo', kind: 'engine', introYear: 1952, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
-  { id: 'eng_mighty_choo', name: 'Mightymover Choo-Choo', kind: 'engine', introYear: 1966, speed: 48, capacity: 0, cost: 6200, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
-  { id: 'eng_powernaut_diesel', name: 'Powernaut Diesel', kind: 'engine', introYear: 1977, speed: 48, capacity: 0, cost: 9000, running: 2600, reliability: 0.86, power: 800, optIn: 'toyland', news: false },
-  { id: 'eng_ploddy_diesel', name: 'Ploddyphut Diesel', kind: 'engine', introYear: 1972, speed: 48, capacity: 0, cost: 8500, running: 2500, reliability: 0.84, power: 700, optIn: 'toyland', news: false },
+  { id: 'eng_ploddy_choo', name: 'Ploddyphut Choo-Choo', kind: 'engine', weight: 60, introYear: 1946, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.78, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_powernaut_choo', name: 'Powernaut Choo-Choo', kind: 'engine', weight: 60, introYear: 1952, speed: 80, capacity: 0, cost: 6000, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_mighty_choo', name: 'Mightymover Choo-Choo', kind: 'engine', weight: 60, introYear: 1966, speed: 48, capacity: 0, cost: 6200, running: 1800, reliability: 0.8, power: 600, optIn: 'toyland', news: false },
+  { id: 'eng_powernaut_diesel', name: 'Powernaut Diesel', kind: 'engine', weight: 60, introYear: 1977, speed: 48, capacity: 0, cost: 9000, running: 2600, reliability: 0.86, power: 800, optIn: 'toyland', news: false },
+  { id: 'eng_ploddy_diesel', name: 'Ploddyphut Diesel', kind: 'engine', weight: 60, introYear: 1972, speed: 48, capacity: 0, cost: 8500, running: 2500, reliability: 0.84, power: 700, optIn: 'toyland', news: false },
 ];
 
 /**
@@ -144,12 +144,12 @@ export const TOYLAND_BUS_LOCO_MODELS = [
  * optIn 'mono' / 'maglev': offered only when that track type exists on the map (modelAvailable, vehicles.js).
  */
 export const RAIL_TYPE_VEHICLE_MODELS = [
-  { id: 'eng_mono_x2001', name: "X2001 Monorail", kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1998, speed: 152, capacity: 0, cost: 13000, running: 4500, reliability: 0.9, power: 3000, news: false },
-  { id: 'eng_mono_z99', name: 'Wizzowow Z99 Monorail', kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1999, speed: 160, capacity: 0, cost: 13250, running: 4300, reliability: 0.88, power: 1667, news: false },
-  { id: 'eng_mono_z1', name: 'Millennium Z1 Monorail', kind: 'engine', traction: 'monorail', railType: 2, optIn: 'mono', introYear: 2005, speed: 168, capacity: 0, cost: 15000, running: 5200, reliability: 0.92, power: 3300, news: false },
-  { id: 'eng_maglev_lev1', name: 'Lev1 Leviathan Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2020, speed: 200, capacity: 0, cost: 17500, running: 6000, reliability: 0.92, power: 3300, news: false },
-  { id: 'eng_maglev_lev2', name: 'Lev2 Cyclops Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2028, speed: 224, capacity: 0, cost: 18500, running: 6500, reliability: 0.93, power: 4000, news: false },
-  { id: 'eng_maglev_lev3', name: 'Lev3 Pegasus Maglev', kind: 'engine', traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2035, speed: 240, capacity: 0, cost: 20500, running: 7000, reliability: 0.94, power: 5000, news: false },
+  { id: 'eng_mono_x2001', name: "X2001 Monorail", kind: 'engine', weight: 60, traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1998, speed: 152, capacity: 0, cost: 13000, running: 4500, reliability: 0.9, power: 3000, news: false },
+  { id: 'eng_mono_z99', name: 'Wizzowow Z99 Monorail', kind: 'engine', weight: 60, traction: 'monorail', railType: 2, optIn: 'mono', introYear: 1999, speed: 160, capacity: 0, cost: 13250, running: 4300, reliability: 0.88, power: 1667, news: false },
+  { id: 'eng_mono_z1', name: 'Millennium Z1 Monorail', kind: 'engine', weight: 60, traction: 'monorail', railType: 2, optIn: 'mono', introYear: 2005, speed: 168, capacity: 0, cost: 15000, running: 5200, reliability: 0.92, power: 3300, news: false },
+  { id: 'eng_maglev_lev1', name: 'Lev1 Leviathan Maglev', kind: 'engine', weight: 60, traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2020, speed: 200, capacity: 0, cost: 17500, running: 6000, reliability: 0.92, power: 3300, news: false },
+  { id: 'eng_maglev_lev2', name: 'Lev2 Cyclops Maglev', kind: 'engine', weight: 60, traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2028, speed: 224, capacity: 0, cost: 18500, running: 6500, reliability: 0.93, power: 4000, news: false },
+  { id: 'eng_maglev_lev3', name: 'Lev3 Pegasus Maglev', kind: 'engine', weight: 60, traction: 'maglev', railType: 3, optIn: 'maglev', introYear: 2035, speed: 240, capacity: 0, cost: 20500, running: 7000, reliability: 0.94, power: 5000, news: false },
   { id: 'wag_mono_pass', name: 'Monorail Passenger Carriage', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 45, cost: 1400, running: 150, reliability: 1, cargos: ['PASS'], news: false },
   { id: 'wag_mono_goods', name: 'Monorail Goods Van', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 37, cost: 1300, running: 150, reliability: 1, cargos: ['GOOD'], news: false },
   { id: 'wag_mono_coal', name: 'Monorail Coal Hopper', kind: 'wagon', railType: 2, optIn: 'mono', introYear: 1998, speed: 0, capacity: 30, cost: 1300, running: 150, reliability: 1, cargos: ['COAL'], news: false },
