@@ -284,6 +284,10 @@ export const DEFAULT_SETTINGS = {
   autosaveInterval: 'off',
   /** OpenTTD economy.exclusive_rights (economy_settings.ini, def true): town action 'Buy exclusive transport rights' is available. Off = the action is not offered and is refused (town_cmd.cpp TownActionBuyRights). TT default true = current. */
   exclusiveRights: true,
+  /** OpenTTD economy.fund_buildings (economy_settings.ini, def true): town action 'Fund new buildings' is available. Off = the action is not offered and is refused (town_cmd.cpp GetMaskOfTownActions). TT default true = current. */
+  fundBuildings: true,
+  /** OpenTTD economy.fund_roads (economy_settings.ini, def true): town action 'Fund local road reconstruction' is available. Off = the action is not offered and is refused (town_cmd.cpp GetMaskOfTownActions). TT default true = current. */
+  fundRoads: true,
   /** OpenTTD construction.road_stop_on_town_road (world_settings.ini, def true): road stops may be built on town-owned road tiles. Off = refused (station_cmd.cpp). TT default true = current. */
   roadStopOnTownRoad: true,
   /** OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): road stops may be built on roads owned by another company. Off = refused (station_cmd.cpp). TT default true = current. */

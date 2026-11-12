@@ -191,8 +191,13 @@ export function actionList(state, town) {
     ...(giveMoneyOn ? [{ id: 'give_money', label: 'Donate money to the town', cost: constructionTotal(state, Math.max(COSTS.giveMoney, Math.round(pop * 90)), 'property'), hint: `+${RATING_GIVE_MONEY_UP_STEP} rating; no risk of refusal`, detail: blockedDetail(giveMoneyOk, giveMoneyOk ? `+${RATING_GIVE_MONEY_UP_STEP} rating; no risk of refusal` : 'Rating is already maximal'), ok: blocked(giveMoneyOk), enabled: blocked(giveMoneyOk) }] : []),
     { id: 'bribe', label: 'Bribe the town council', cost: constructionTotal(state, Math.max(10_000, Math.round(pop * 80)), 'property'), hint: `+${RATING_BRIBE_UP_STEP} rating; 1/14 chance the town turns hostile`, detail: bribeDetail, ok: bribeOk, enabled: bribeOk },
   ];
-  // OpenTTD economy.exclusive_rights (def true): off = the rights action is not offered (town_cmd.cpp GetMaskOfTownActions)
-  return getSetting(state, 'exclusiveRights') === false ? list.filter((a) => a.id !== 'rights') : list;
+  // OpenTTD economy.exclusive_rights / fund_buildings / fund_roads (all def true): off = the action is not offered
+  // (town_cmd.cpp GetMaskOfTownActions).
+  const hidden = new Set();
+  if (getSetting(state, 'exclusiveRights') === false) hidden.add('rights');
+  if (getSetting(state, 'fundBuildings') === false) hidden.add('fund');
+  if (getSetting(state, 'fundRoads') === false) hidden.add('roadworks');
+  return hidden.size ? list.filter((a) => !hidden.has(a.id)) : list;
 }
 
 /** Carry out a local authority action; returns {ok,error?}. */
@@ -203,6 +208,9 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
   ensureTown(town);
   // OpenTTD economy.exclusive_rights: refused when the setting is off (town_cmd.cpp TownActionBuyRights)
   if (actionId === 'rights' && getSetting(state, 'exclusiveRights') === false) return { ok: false, error: 'Exclusive transport rights are disabled in game settings' };
+  // OpenTTD economy.fund_buildings / fund_roads (def true): refused when the setting is off (town_cmd.cpp GetMaskOfTownActions).
+  if (actionId === 'fund' && getSetting(state, 'fundBuildings') === false) return { ok: false, error: 'Funding new buildings is disabled in game settings' };
+  if (actionId === 'roadworks' && getSetting(state, 'fundRoads') === false) return { ok: false, error: 'Funding road reconstruction is disabled in game settings' };
   // TT opt-in: off (default) = the action is refused outright, matching it being unlisted.
   if (actionId === 'give_money' && getSetting(state, 'localGiveMoney') !== true) return { ok: false, error: 'Donating to the town is disabled in game settings' };
   const entry = actionList(state, town).find((a) => a.id === actionId);
