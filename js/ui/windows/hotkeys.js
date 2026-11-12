@@ -6,17 +6,20 @@
 import { el } from '../dom.js';
 import {
   HOTKEY_ACTIONS, READ_ONLY_HOTKEYS, effectiveKeys, currentOverrides, setOverrides, defaultKeys,
-  keyFromEvent, keyLabel, findConflict, actionLabel, bindProblem, bindKey, resetOverrides,
+  keyFromEvent, keyLabel, findConflict, actionLabel, bindProblem, bindKey, resetOverrides, captureKeydown,
 } from '../hotkeys.js';
 
 /**
  * @param {import('../app.js').App} app
  */
 export function openHotkeys(app) {
+  /** Detach the capture listener; set by build(), called on close so no keydown listener outlives the window. */
+  let detachCapture = () => {};
   return app.wm.open('hotkeys', {
     title: 'Keyboard shortcuts',
     width: 460,
     className: 'hotkeys',
+    onClose: () => detachCapture(),
     build(body) {
       /** @type {{id:string, cell:HTMLButtonElement, row:HTMLElement, label:string, group:string}[]} */
       const rows = [];
@@ -59,12 +62,14 @@ export function openHotkeys(app) {
         conflict.hidden = true;
         capturing = id;
         status.textContent = `Press a key for "${actionLabel(id)}" (Esc cancels). Ctrl/Alt/Shift combinations are allowed.`;
-        document.addEventListener('keydown', onKey, true);
+        detachCapture();
+        detachCapture = captureKeydown(document, onKey);
         refresh();
       };
       function stopCapture() {
         capturing = null;
-        document.removeEventListener('keydown', onKey, true);
+        detachCapture();
+        detachCapture = () => {};
         refresh();
       }
       const commit = (id, key, swap) => {

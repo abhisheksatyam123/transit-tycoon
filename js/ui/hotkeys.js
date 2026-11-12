@@ -211,7 +211,8 @@ export function loadOverrides(storage = defaultStorage()) {
     const known = new Set(HOTKEY_ACTIONS.map((a) => a.id));
     const out = {};
     for (const [id, key] of Object.entries(o || {})) {
-      if (known.has(id) && typeof key === 'string' && key !== '') out[id] = key;
+      // A fixed key (Delete, C, F1-F10) is always handled first by input.js: a stored binding to it is dead, so drop it.
+      if (known.has(id) && typeof key === 'string' && key !== '' && !isFixedKey(key)) out[id] = key;
     }
     return out;
   } catch { return {}; }
@@ -260,9 +261,17 @@ export function actionLabel(id) {
   return a ? a.label : id;
 }
 
+/** True when `key` is one of the game's fixed shortcuts (FIXED_SHORTCUTS: Delete, C, F1-F10). */
+export function isFixedKey(key) {
+  return FIXED_SHORTCUTS.some((s) => s.key === key);
+}
+
 /** Why a key cannot be bound, or null when it is allowed. */
 export function bindProblem(key) {
   if (!key) return 'That key cannot be used.';
+  const fixed = FIXED_SHORTCUTS.find((s) => s.key === key);
+  // input.js runs the fixed shortcuts before the rebindable table, so a binding to one could never fire.
+  if (fixed) return `"${keyLabel(key)}" is a reserved shortcut (fixed key: ${fixed.label}).`;
   if (isKeyCombo(key)) {
     // OpenTTD has no modifier bindings either, but TT's fixed toggles use Ctrl+digit; refuse only the
     // combinations the game or the browser already owns so an accepted binding always fires.
@@ -322,6 +331,18 @@ export function shortcutTable(keys, handlers) {
     if (k && fn) out[k] = fn;
   }
   return out;
+}
+
+/**
+ * Attach a keydown capture listener to `target` and return the function that removes it. Used by the
+ * hotkey editor while it waits for a key, so closing the window can always detach it.
+ * @param {{addEventListener:Function, removeEventListener:Function}} target
+ * @param {(e: any) => void} fn
+ * @returns {() => void} detach
+ */
+export function captureKeydown(target, fn) {
+  target.addEventListener('keydown', fn, true);
+  return () => target.removeEventListener('keydown', fn, true);
 }
 
 /** Change listeners (window UI, toolbar tooltips, main shortcut table). */
