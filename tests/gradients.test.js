@@ -1,6 +1,7 @@
 import { test, expect, describe } from 'bun:test';
 import { Game } from '../js/simulation/game.js';
 import { setSetting, DEFAULT_SETTINGS, getSetting } from '../js/simulation/settings.js';
+import { SETTING_META } from '../js/ui/settingsGroups.js';
 import { gradeMph, landSpeedStep, targetSpeedTiles, totalWeight, PITCH_EBP_PER_GRADE, MPH_TO_TILES_PER_TICK } from '../js/simulation/loco/vehicleMotion.js';
 import { serializeState, parseState } from '../js/simulation/save.js';
 import { flatGame } from './helpers.js';
@@ -129,5 +130,65 @@ describe('gradients', () => {
     setSetting(g.state, 'gradients', true);
     const back = parseState(serializeState(g.state));
     expect(getSetting(back, 'gradients')).toBe(true);
+  });
+});
+
+describe('slope steepness settings', () => {
+  const mkTrain = (wagons) => ({ kind: 'train', wagons, load: null, speed: 0, maxSpeed: 1,
+    path: [{ x: 1, y: 0 }, { x: 2, y: 0 }], pathIndex: 0, progress: 0,
+    history: [{ x: 2, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }] });
+  const mkRoad = () => ({ kind: 'road', wagons: 0, load: null, speed: 0, maxSpeed: 1,
+    path: [{ x: 1, y: 0 }, { x: 2, y: 0 }], pathIndex: 0, progress: 0, history: [] });
+  const up = slopeState('train', (x) => 5 + x);
+
+  test('defaults: 3 train / 7 road, both in DEFAULT_SETTINGS', () => {
+    expect(DEFAULT_SETTINGS.trainSlopeSteepness).toBe(3);
+    expect(DEFAULT_SETTINGS.roadSlopeSteepness).toBe(7);
+  });
+
+  test('defaults reproduce the historical grade numbers exactly', () => {
+    // train: avg sign over 4 history segments = 2/4 -> (3/100)*10*0.5
+    expect(gradeMph({ ...up, settings: undefined }, mkTrain(4))).toBe((3 / 100) * 10 * (2 / 4));
+    // road: head segment uphill, sign +1 -> (7/100)*10*1
+    expect(gradeMph(up, mkRoad())).toBe((7 / 100) * 10 * 1);
+    // explicit default values give identical numbers
+    const explicit = { ...up, settings: { trainSlopeSteepness: 3, roadSlopeSteepness: 7 } };
+    expect(gradeMph(explicit, mkTrain(4))).toBe(gradeMph(up, mkTrain(4)));
+    expect(gradeMph(explicit, mkRoad())).toBe(gradeMph(up, mkRoad()));
+  });
+
+  test('trainSlopeSteepness 0 makes the train grade term zero', () => {
+    const st = { ...up, settings: { trainSlopeSteepness: 0 } };
+    expect(gradeMph(st, mkTrain(4))).toBe(0);
+    // road unaffected
+    expect(gradeMph(st, mkRoad())).toBe((7 / 100) * 10 * 1);
+  });
+
+  test('roadSlopeSteepness scales the road grade term; trains unaffected', () => {
+    const st = { ...up, settings: { roadSlopeSteepness: 10 } };
+    expect(gradeMph(st, mkRoad())).toBe((10 / 100) * 10 * 1);
+    expect(gradeMph(st, mkTrain(4))).toBe(gradeMph(up, mkTrain(4)));
+  });
+
+  test('gradients off: gate in movement ignores both steepness settings (grade is 0)', () => {
+    const g = Game.create(small);
+    setSetting(g.state, 'gradients', false);
+    setSetting(g.state, 'trainSlopeSteepness', 10);
+    setSetting(g.state, 'roadSlopeSteepness', 10);
+    expect(getSetting(g.state, 'gradients')).toBe(false);
+    // movement.js uses getSetting('gradients') ? gradeMph : 0; with it off the grade is 0 regardless
+    const grade = getSetting(g.state, 'gradients') ? gradeMph(g.state, mkTrain(4)) : 0;
+    expect(grade).toBe(0);
+  });
+
+  test('settings invariant: every new key has exactly one SETTING_META entry', () => {
+    for (const k of ['trainSlopeSteepness', 'roadSlopeSteepness']) {
+      expect(SETTING_META.filter((m) => m.key === k).length).toBe(1);
+      expect(Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, k)).toBe(true);
+    }
+    const meta = SETTING_META.find((m) => m.key === 'trainSlopeSteepness');
+    expect(meta.type).toBe('number');
+    expect(meta.min).toBe(0);
+    expect(meta.max).toBe(10);
   });
 });
