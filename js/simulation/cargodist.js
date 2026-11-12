@@ -16,7 +16,7 @@
  *
  * Simplifications vs OpenTTD: no capacity-constrained MCF (demand is not throttled by edge capacity), a single
  * path per (source, destination) instead of a multi-path split, the monthly rebuild instead of the
- * incremental job scheduler. The link graph is drawn by the link overlay (renderer/layers/linkOverlay.js, hotkey ,).
+ * incremental job scheduler (OpenTTD default cadence is every 4 days with 16-day recalc_time; TT is monthly, known gap, see GAPS.md). The link graph is drawn by the link overlay (renderer/layers/linkOverlay.js, hotkey ,).
  */
 import { getSetting } from './settings.js';
 import { manhattan } from './state.js';
@@ -473,7 +473,9 @@ function acceptanceOf(state, cargoId, nodeSet) {
 }
 
 /**
- * Monthly link graph schedule (OpenTTD linkgraphschedule.cpp, in months). A job starts every linkgraphRecalcInterval
+ * Monthly link graph schedule. OpenTTD linkgraphschedule.cpp runs in days (recalc_interval default 4 days, recalc_time 16 days;
+ * linkgraph_settings.ini:45,58; SECONDS_PER_DAY=2). This function counts months, so it is NOT the OpenTTD cadence (known gap,
+ * see GAPS.md). A job starts every linkgraphRecalcInterval
  * months (only one job per cargo at a time); its result is applied linkgraphRecalcTime months later (0 = at once).
  * Defaults (1 and 0) rebuild every month, as before. The pending job is lazy (g.pending = { res, due }) and saved with the state (plain JSON; tests/cargodistJobSave.test.js).
  */
