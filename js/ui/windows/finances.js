@@ -7,6 +7,7 @@ import { kvGrid } from './common.js';
 import { openRename } from '../rename.js';
 import { openCompanyInfrastructure } from './companyInfrastructure.js';
 import { getSetting } from '../../simulation/settings.js';
+import { maxLoanCap } from '../../simulation/economy.js';
 
 const LOAN_STEP = 10000;
 const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep', infrastructure: 'Infrastructure maintenance' };
@@ -21,9 +22,9 @@ export function ownValue(company) {
   return company.money - company.loan;
 }
 
-/** Borrow amount for "Max borrow": loan up to company.maxLoan, in whole LOAN_STEP increments (borrow() rounds up). */
-export function maxBorrowAmount(company) {
-  return Math.max(0, Math.floor((company.maxLoan - company.loan) / LOAN_STEP) * LOAN_STEP);
+/** Borrow amount for "Max borrow": loan up to cap (default company.maxLoan; pass maxLoanCap(state, company) for the live limit), in whole LOAN_STEP increments (borrow() rounds up). */
+export function maxBorrowAmount(company, cap = company.maxLoan) {
+  return Math.max(0, Math.floor((cap - company.loan) / LOAN_STEP) * LOAN_STEP);
 }
 
 /** Repay amount for "Max repay": the whole loan when cash covers it, else as far as cash allows in LOAN_STEP increments. */
@@ -60,7 +61,7 @@ export function openFinances(app) {
       body.appendChild(el('div.btn-row', null,
         el('button.btn', { type: 'button', text: `Borrow ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.borrow(LOAN_STEP), { sound: 'income' }) }),
         el('button.btn', { type: 'button', text: `Repay ${money(LOAN_STEP)}`, onclick: () => app.exec(app.game.repay(LOAN_STEP), { sound: 'click' }) }),
-        el('button.btn', { type: 'button', text: 'Max borrow', onclick: () => app.exec(app.game.borrow(maxBorrowAmount(app.game.state.company)), { sound: 'income' }) }),
+        el('button.btn', { type: 'button', text: 'Max borrow', onclick: () => app.exec(app.game.borrow(maxBorrowAmount(app.game.state.company, maxLoanCap(app.game.state, app.game.state.company))), { sound: 'income' }) }),
         el('button.btn', { type: 'button', text: 'Max repay', onclick: () => app.exec(app.game.repay(maxRepayAmount(app.game.state.company)), { sound: 'click' }) }),
         el('button.btn', { type: 'button', text: 'Rename company…', onclick: () => openRename(app, 'company') }),
         el('button.btn', { type: 'button', title: 'Owned infrastructure and its monthly maintenance (OpenTTD Infrastructure button)', text: 'Infrastructure', onclick: () => openCompanyInfrastructure(app) })));
@@ -76,7 +77,7 @@ export function openFinances(app) {
         set['Bank balance'](money(c.money));
         set['Loan'](money(c.loan));
         set['Own value'](money(ownValue(c)));
-        set['Max loan'](money(c.maxLoan));
+        set['Max loan'](money(maxLoanCap(app.game.state, c)));
         set['Interest (yearly)'](interestLabel(app.game.state));
         autoBox.checked = !!c.autopayLoan;
         const hist = (c.ledger.history || []).slice(-11);

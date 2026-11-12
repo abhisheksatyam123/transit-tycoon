@@ -96,7 +96,7 @@ export function updateMonthly(game) {
     for (const v of state.vehicles) if (v.ownerId === r.id) updateNegMonths(v);
     closeRivalLedger(r, ended);
     chargeInterest(state, r);
-    manageLoan(r);
+    manageLoan(state, r);
     sellUnprofitable(ctx, r);
     const passes = thinkPasses(state, monthIndex(state));
     for (let k = 0; k < passes; k++) thinkRival(ctx, state, r);
@@ -163,9 +163,9 @@ function chargeInterest(state, r) {
 }
 
 /** Borrow when short of cash and still expanding; repay once cash is comfortably above the route budget. */
-function manageLoan(r) {
+function manageLoan(state, r) {
   if (r.money < ROUTE_BUDGET && r.routes.length < MAX_ROUTES && r.negValueMonths === 0) {
-    borrow(r, 50000);
+    borrow(r, 50000, state); // same cap as the player (inflationAdjustsMaxLoan)
   } else if (r.loan > 0 && r.money > 4 * ROUTE_BUDGET) {
     repay(r, Math.min(r.loan, r.money - 2 * ROUTE_BUDGET));
   }

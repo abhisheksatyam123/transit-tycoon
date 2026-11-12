@@ -66,8 +66,8 @@ export function maxLoanCap(state, company) {
 export function borrow(company, amount = LOAN_STEP, state = null) {
   const amt = Math.ceil(Math.max(0, amount) / LOAN_STEP) * LOAN_STEP;
   if (amt <= 0) return { ok: false, error: 'Invalid amount' };
-  // OL: max loan inflation-adjusted when inflationAdjustsMaxLoan; default off -> flat
-  const cap = (state && getSetting(state, 'inflationAdjustsMaxLoan')) ? effectiveMaxLoan(state) : company.maxLoan;
+  // OL: max loan inflation-adjusted when inflationAdjustsMaxLoan; default off -> flat company.maxLoan
+  const cap = maxLoanCap(state, company);
   if (company.loan + amt > cap) return { ok: false, error: 'Maximum loan reached' };
   company.loan += amt;
   company.money += amt;
