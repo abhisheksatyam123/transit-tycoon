@@ -15,6 +15,7 @@ const DEFAULT_MAPGEN = {
   terrain: 'normal', seaLevel: 'medium', rivers: 'none', cliffs: 'off', lakes: 'off',
   mountainStyle: 'off', smoothness: 'normal', variety: 0, townDensity: 'normal',
   townLayout: 'mixed', industryDensity: 'normal', climate: 'temperate', snowLine: 5,
+  waterBorders: 'none',
 };
 
 describe('New Game mapgen options persistence (tt.newGameMapgen)', () => {

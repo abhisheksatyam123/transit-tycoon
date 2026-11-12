@@ -85,6 +85,9 @@ export const MAPGEN_PREF_VALUES = Object.freeze({
   industryDensity: ['normal', 'low', 'high'],
   climate: ['temperate', 'arctic', 'tropic', 'toyland'],
   snowLine: [3, 5, 7],
+  // 'random' from the game seed (map.js waterBorderMask); per-side values are allowed by the generator, the
+  // dialog offers the four single sides.
+  waterBorders: ['none', 'all', 'random', 'north', 'east', 'south', 'west'],
 });
 
 /**

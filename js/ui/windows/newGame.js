@@ -125,6 +125,8 @@ export function openNewGame(app) {
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgClimate = sel([['temperate', 'Temperate (default)'], ['arctic', 'Sub-arctic (snow above the snow line)'], ['tropic', 'Sub-tropical (desert and rainforest)'], ['toyland', 'Toyland (candy ground and toy houses)']]);
       const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High']]);
+      const mgBorders = sel([['none', 'None (default)'], ['all', 'All edges (water ring)'], ['random', 'Random (from seed)'],
+        ['north', 'North edge'], ['east', 'East edge'], ['south', 'South edge'], ['west', 'West edge']]);
       // Start from the remembered mapgen choices (last New Game); the Settings-window town layout
       // setting wins for new games. With nothing stored these are exactly the defaults above.
       const mgInit = newGameMapgenSelection(remembered);
@@ -141,6 +143,7 @@ export function openNewGame(app) {
       mgInd.value = mgInit.industryDensity;
       mgClimate.value = mgInit.climate;
       mgSnow.value = String(mgInit.snowLine);
+      mgBorders.value = mgInit.waterBorders;
       // Heightmap import (OpenTTD heightmap.cpp rules, see simulation/heightmap.js): decoded once on pick
       /** @type {{grey:Uint8Array,w:number,h:number,name:string}|null} */
       let hm = null;
@@ -177,7 +180,7 @@ export function openNewGame(app) {
         el('label.field', null, el('span.field-label', { text: 'Large houses' }), largeHouses),
         field('Terrain', mgTerrain), field('Sea level', mgSea), field('Rivers', mgRivers), field('Cliffs', mgCliffs), field('Lakes', mgLakes), field('Mountain style', mgMountain), field('Smoothness', mgSmooth), field('Variety distribution', mgVariety),
         field('Town density', mgTowns), field('Town roads', mgLayout), field('Industry density', mgInd),
-        field('Climate', mgClimate), field('Snow line', mgSnow));
+        field('Climate', mgClimate), field('Snow line', mgSnow), field('Water borders', mgBorders));
       body.append(
         field('Scenario', scenario),
         desc,
@@ -224,7 +227,7 @@ export function openNewGame(app) {
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
-        const mgChoice = { terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, variety: Number(mgVariety.value), townDensity: mgTowns.value, townLayout: mgLayout.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) };
+        const mgChoice = { terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, variety: Number(mgVariety.value), townDensity: mgTowns.value, townLayout: mgLayout.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value), waterBorders: mgBorders.value };
         // Remember the dialog choices for the next New Game (browser only, not in the save).
         saveNewGameMapgen(mgChoice);
         // The town-layout choice is also the Settings-window new-game value. Leave storage untouched
