@@ -503,7 +503,7 @@ export class Renderer {
     // screen-space labels and floating texts: last, always above landmarks/vehicles
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (this.showLinks) drawLinkOverlay(ctx, this, cam);
-    this.floating.draw(ctx, dt, cam);
+    this.floating.draw(ctx, dt, cam, !!(tr && tr.text)); // OpenTTD TransparencyOption::Text: hide income popups
     // town/station name signs (screen space); the hit list feeds click-to-open in input.js
     drawLabels(ctx, this, cam);
     const pv = this.overlay.preview;

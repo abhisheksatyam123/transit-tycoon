@@ -294,6 +294,7 @@ export const PREF_META = [
   { id: 'tr:signs', group: 'interface', label: 'Transparent signals', help: 'Signal posts draw semi-transparent. Ctrl+6 or Ctrl+Shift+6. Stored in this browser.' },
   { id: 'tr:structures', group: 'interface', label: 'Transparent structures', help: 'Map objects (radio masts, lighthouses, bought land) draw semi-transparent. Ctrl+7 or Ctrl+Shift+7. Stored in this browser.' },
   { id: 'tr:catenary', group: 'interface', label: 'Transparent catenary', help: 'Electric rail and tram overhead wires draw semi-transparent. Ctrl+8 or Ctrl+Shift+8. Stored in this browser.' },
+  { id: 'tr:text', group: 'interface', label: 'Hide map text', help: 'Floating money popups on the map are not drawn (OpenTTD text transparency, which also covers loading text). Ctrl+9 or Ctrl+Shift+9. Stored in this browser.' },
   { id: 'pauseOnNewGame', group: 'interface', label: 'Pause on new game', help: 'A new game starts paused (press Space to run). Stored in this browser.' },
   { id: 'gfx', group: 'interface', label: 'OpenGFX sprites', help: 'Use the OpenGFX sprite pack. Off = procedural drawing. Same as K.' },
 ];

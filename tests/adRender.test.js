@@ -46,9 +46,9 @@ describe('transparency class list', () => {
     expect(loadTransparency()).toBeNull();
   });
 
-  test('the two new classes are appended after the original six', () => {
+  test('the classes are appended in OpenTTD TransparencyOption order', () => {
     expect(TRANSPARENCY_OPTIONS.map((o) => o.id)).toEqual([
-      'buildings', 'trees', 'industries', 'stations', 'bridges', 'signs', 'structures', 'catenary',
+      'buildings', 'trees', 'industries', 'stations', 'bridges', 'signs', 'structures', 'catenary', 'text',
     ]);
   });
 
@@ -57,7 +57,7 @@ describe('transparency class list', () => {
     setTransparency('catenary', true);
     expect(loadTransparency()).toEqual({
       buildings: false, trees: false, industries: false, stations: false,
-      bridges: false, signs: false, structures: true, catenary: true,
+      bridges: false, signs: false, structures: true, catenary: true, text: false,
     });
     const raw = JSON.parse(localStorage.getItem(TRANSPARENCY_KEY));
     expect(raw.structures).toBe(true);

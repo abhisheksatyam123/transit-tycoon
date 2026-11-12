@@ -177,8 +177,9 @@ export class FloatingTexts {
    * @param {CanvasRenderingContext2D} ctx
    * @param {number} dt seconds
    * @param {{x:number,y:number,zoom:number,viewW:number,viewH:number}} cam camera (same fields as Camera)
+   * @param {boolean} [hidden] transparency 'text' class on: age the popups but draw nothing (OpenTTD TransparencyOption::Text)
    */
-  draw(ctx, dt, cam) {
+  draw(ctx, dt, cam, hidden = false) {
     if (!this.items.length) return;
     ctx.font = '700 13px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
@@ -193,12 +194,13 @@ export class FloatingTexts {
       const wy = it.wy - 30 - it.age * 22;
       const sx = (it.wx - cam.x) * zoom + cam.viewW / 2;
       const sy = (wy - cam.y) * zoom + cam.viewH / 2;
+      this.items[w++] = it;
+      if (hidden) continue;
       ctx.globalAlpha = a;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       ctx.strokeText(it.text, sx, sy);
       ctx.fillStyle = it.color;
       ctx.fillText(it.text, sx, sy);
-      this.items[w++] = it;
     }
     this.items.length = w;
     ctx.globalAlpha = 1;

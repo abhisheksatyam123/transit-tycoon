@@ -6,7 +6,7 @@
 import { el } from '../dom.js';
 import {
   HOTKEY_ACTIONS, READ_ONLY_HOTKEYS, effectiveKeys, currentOverrides, setOverrides, defaultKeys,
-  normalizeKey, keyLabel, findConflict, actionLabel, bindProblem, bindKey, resetOverrides,
+  keyFromEvent, keyLabel, findConflict, actionLabel, bindProblem, bindKey, resetOverrides,
 } from '../hotkeys.js';
 
 /**
@@ -40,9 +40,8 @@ export function openHotkeys(app) {
         e.stopPropagation();
         e.preventDefault();
         if (e.key === 'Escape') { stopCapture(); status.textContent = 'Cancelled.'; return; }
-        const k = normalizeKey(e.key);
+        const k = keyFromEvent(e);
         if (!k) return; // modifier alone: keep waiting
-        if (e.ctrlKey || e.metaKey || e.altKey) { status.textContent = 'Use a key without Ctrl, Alt or Meta.'; return; }
         const id = capturing;
         stopCapture();
         const problem = bindProblem(k);
@@ -59,7 +58,7 @@ export function openHotkeys(app) {
         pending = null;
         conflict.hidden = true;
         capturing = id;
-        status.textContent = `Press a key for "${actionLabel(id)}" (Esc cancels).`;
+        status.textContent = `Press a key for "${actionLabel(id)}" (Esc cancels). Ctrl/Alt/Shift combinations are allowed.`;
         document.addEventListener('keydown', onKey, true);
         refresh();
       };

@@ -5,14 +5,45 @@
  *
  * Rebindable actions (`id`) are dispatched by main.js through `applyHotkeys`. Tool-internal keys
  * (rotate, cycle, length...) are listed in READ_ONLY_HOTKEYS: they stay in the tools and cannot be rebound.
+ * A binding may also be a Ctrl/Alt combination ('ctrl+shift+k', keyFromEvent); the defaults are all single
+ * keys, so nothing changes until the user rebinds one. Combinations the game toggles (Ctrl+digit
+ * transparency, Ctrl+Alt+C cheats) and the browser reserves are refused by bindProblem.
  */
 
 import { FIXED_SHORTCUTS } from '../input/fixedShortcuts.js';
+import { TRANSPARENCY_OPTIONS } from '../renderer/transparency.js';
 
 export const HOTKEYS_STORAGE_KEY = 'tt.hotkeys';
 
 /** Keys that are never bindable (pan, zoom, cancel), so they keep working. */
 export const RESERVED_KEYS = ['escape', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', 'r', '+', '=', '-', '_', '[', ']'];
+
+/**
+ * Combinations the game already consumes before the rebindable table: Ctrl+1..9 (and Ctrl+Shift+1..9) toggle
+ * the transparency classes (input/input.js, renderer/transparency.js), Ctrl+Alt+C opens the cheats window.
+ * Binding one of these would make a shortcut that can never fire.
+ */
+export const RESERVED_COMBOS = Object.freeze([
+  ...TRANSPARENCY_OPTIONS.flatMap((_, i) => [`ctrl+${i + 1}`, `ctrl+shift+${i + 1}`]),
+  'ctrl+alt+c',
+]);
+
+/**
+ * Combinations the browser keeps for itself (tab/window management, reload, address bar).
+ * A web page cannot reliably intercept them, so they are refused instead of creating a dead binding.
+ */
+export const BROWSER_RESERVED_COMBOS = Object.freeze([
+  'ctrl+w', 'ctrl+t', 'ctrl+n', 'ctrl+r', 'ctrl+l', 'ctrl+shift+w', 'ctrl+shift+t', 'ctrl+shift+n',
+  'ctrl+tab', 'ctrl+shift+tab', 'ctrl+pageup', 'ctrl+pagedown', 'alt+f4',
+]);
+
+/** Canonical modifier order in a stored combination ('ctrl+shift+1'). */
+export const COMBO_MODIFIERS = ['ctrl', 'alt', 'shift'];
+
+/** True for a stored value like 'ctrl+shift+1' (as opposed to a single key). */
+export function isKeyCombo(k) {
+  return typeof k === 'string' && k.includes('+');
+}
 
 /** @typedef {{id:string, label:string, group:string, key:string}} HotkeyAction */
 
@@ -94,12 +125,65 @@ export function normalizeKey(k) {
   return k.toLowerCase();
 }
 
-/** Human label for a stored key: ' ' -> Space, single letters upper-case. */
-export function keyLabel(k) {
-  if (!k) return '';
+/** Human label for one base key: ' ' -> Space, single letters upper-case. */
+function baseKeyLabel(k) {
   if (k === ' ') return 'Space';
   if (k.length === 1) return k.toUpperCase();
   return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+const MODIFIER_LABELS = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', meta: 'Meta' };
+
+/** Human label for a stored key or combination: 'ctrl+shift+1' -> 'Ctrl+Shift+1'. */
+export function keyLabel(k) {
+  if (!k) return '';
+  if (!isKeyCombo(k)) return baseKeyLabel(k);
+  const parts = k.split('+');
+  const base = parts.pop();
+  return [...parts.map((m) => MODIFIER_LABELS[m] || baseKeyLabel(m)), baseKeyLabel(base)].join('+');
+}
+
+/**
+ * Base key of a keydown event, used when a modifier is held. Uses the physical key (e.code) so that
+ * Ctrl+Shift+1 and Ctrl+1 stay distinct; falls back to KeyboardEvent.key for pads and synthetic events.
+ * @param {KeyboardEvent|{key:string,code?:string}} e
+ */
+function comboBaseFromEvent(e) {
+  const code = typeof e.code === 'string' ? e.code : '';
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3).toLowerCase();
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^Numpad[0-9]$/.test(code)) return 'numpad' + code.slice(6);
+  if (/^F([1-9]|1[0-2])$/.test(code)) return code.toLowerCase();
+  if (code === 'Space') return ' ';
+  if (code === 'Tab') return 'tab';
+  if (code === 'Enter' || code === 'NumpadEnter') return 'enter';
+  if (code === 'Escape') return 'escape';
+  if (code === 'Backspace') return 'backspace';
+  if (code === 'Delete') return 'delete';
+  if (/^Arrow/.test(code)) return code.toLowerCase();
+  return normalizeKey(e.key);
+}
+
+/**
+ * Stored key for a keydown event: a single key as before when no Ctrl/Alt/Meta is held, or a canonical
+ * combination ('ctrl+1', 'alt+shift+k') when one is. Shift alone stays a plain key, so the existing
+ * defaults keep working whether or not the user holds Shift.
+ * @param {KeyboardEvent|{key:string,code?:string,ctrlKey?:boolean,altKey?:boolean,shiftKey?:boolean,metaKey?:boolean}} e
+ * @returns {string|null} null for modifier-only / unusable keys
+ */
+export function keyFromEvent(e) {
+  if (!e || typeof e.key !== 'string') return null;
+  const ctrl = !!(e.ctrlKey || e.metaKey); // Cmd on macOS behaves as Ctrl
+  const alt = !!e.altKey;
+  const shift = !!e.shiftKey;
+  if (!ctrl && !alt) return normalizeKey(e.key);
+  const base = comboBaseFromEvent(e);
+  if (!base) return null;
+  const parts = [];
+  if (ctrl) parts.push('ctrl');
+  if (alt) parts.push('alt');
+  if (shift) parts.push('shift');
+  return `${parts.join('+')}+${base}`;
 }
 
 /** Default key map: id -> key. */
@@ -179,6 +263,13 @@ export function actionLabel(id) {
 /** Why a key cannot be bound, or null when it is allowed. */
 export function bindProblem(key) {
   if (!key) return 'That key cannot be used.';
+  if (isKeyCombo(key)) {
+    // OpenTTD has no modifier bindings either, but TT's fixed toggles use Ctrl+digit; refuse only the
+    // combinations the game or the browser already owns so an accepted binding always fires.
+    if (RESERVED_COMBOS.includes(key)) return `"${keyLabel(key)}" is used by the game (transparency / cheats).`;
+    if (BROWSER_RESERVED_COMBOS.includes(key)) return `"${keyLabel(key)}" is reserved by the browser.`;
+    return null;
+  }
   if (RESERVED_KEYS.includes(key)) return `"${keyLabel(key)}" is reserved for camera and cancel.`;
   return null;
 }
