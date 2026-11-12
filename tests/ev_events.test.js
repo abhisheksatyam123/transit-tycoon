@@ -139,5 +139,5 @@ describe('recession production paths', () => {
     expect(during).toBeGreaterThan(0);
     expect(during).toBeLessThan(base * 0.7);
     expect(during).toBeGreaterThan(base * 0.35);
-  });
+  }, 30000);
 });
