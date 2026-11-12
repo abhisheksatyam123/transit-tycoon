@@ -112,7 +112,7 @@ function sortKey(v, sort) {
     case 'length': return Number(v.wagons) || 0;
     case 'cargo': return [...vehicleCargos(v)].sort().join(',');
     case 'timeToLive': return (Number(v.maxAge) || 0) - (Number(v.age) || 0);
-    case 'number': return Number(v.id) || 0; // vehicle id ascending (display order)
+    case 'number': return Number(v.unitNumber) || 0; // displayed unit number (ties break on id in sortVehicles)
     case 'capacity': return Number(v.capacity) || (modelOf(v) && Number(modelOf(v).capacity)) || 0; // total capacity of all parts
     default: return String(v.name || ''); // name: string compare
   }
