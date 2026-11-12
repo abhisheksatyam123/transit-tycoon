@@ -266,6 +266,8 @@ export const SETTING_META = [
     help: 'Forests slowly spread to free grass next to them (a few tiles a month).' },
   { key: 'farmFields', group: 'environment', label: 'Farm fields', type: 'check', newGame: true,
     help: 'Farms plant field tiles around themselves; production follows the field count. Building over a field clears it. Applies to new farms; the new-game option sets it at start.' },
+  { key: 'climateGrowthOttd', group: 'environment', label: 'OpenTTD climate growth rules', type: 'check',
+    help: 'Arctic snow-line and tropical desert towns only stop growing when they have no food/water deliveries and more than 90 / 60 people; funded towns always grow; arctic farms plant no fields at or above the snow line. Off = current rules.' },
   { key: 'extraIndustries', group: 'environment', label: 'Extra industries (banks, chains)', type: 'check', newGame: true,
     help: 'Banks (valuables) appear in towns of 1200+ people. Also adds quarries, paper mills, printing works, building materials and food plants (stone, paper, food chains) with their vehicles. Changing it later only affects new placements.' },
   { key: 'rawIndustryConstruction', group: 'environment', label: 'Raw industry construction', type: 'select', newGame: true,

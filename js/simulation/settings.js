@@ -109,6 +109,12 @@ export const DEFAULT_SETTINGS = {
   rawIndustryConstruction: 'normal',
   /** T29 OpenLoco farm fields: farms plant field tiles around themselves and production scales with them. Off by default. */
   farmFields: false,
+  /**
+   * OpenTTD climate growth goals exactly: arctic TOWN_GROWTH_WINTER / tropic TOWN_GROWTH_DESERT fire only while the
+   * town has no activity and exceeds 90 / 60 people, funded towns skip the goals, and no arctic farm fields at or above
+   * the snow line (town_cmd.cpp:3941-3949, industry_cmd.cpp:1052-1056). Off = today's TT gates, unchanged.
+   */
+  climateGrowthOttd: false,
   /** gap #25 AI competitor companies (0..3 rivals, bus routes). 0 = none: nothing runs, no state is created. */
   aiCompanies: 0,
   /** OpenTTD difficulty.competitor_speed (0 very slow .. 4 very fast, default 2 medium): how often AI rivals take build/think actions (aiCompanies.js thinkPasses). 2 = once a month, as before. */
