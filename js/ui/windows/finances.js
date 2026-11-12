@@ -12,6 +12,12 @@ import { maxLoanCap } from '../../simulation/economy.js';
 const LOAN_STEP = 10000;
 const TYPE_LABEL = { construction: 'Construction', vehicles: 'New vehicles', running: 'Running costs', income: 'Income', interest: 'Loan interest', property: 'Property upkeep', infrastructure: 'Infrastructure maintenance' };
 
+/** View periods offered above the ledger; Monthly is the default (the existing 12-month view). */
+export const FINANCE_PERIODS = [['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['yearly', 'Yearly']];
+export const DEFAULT_FINANCE_PERIOD = 'monthly';
+const QUARTER_COLUMNS = 8;
+const YEAR_COLUMNS = 4;
+
 /** Yearly loan interest shown in the window: the live loanInterestRate setting as a percent (default 5%). */
 export function interestLabel(state) {
   return `${Number(getSetting(state, 'loanInterestRate'))}%`;
@@ -49,6 +55,76 @@ export function categoryTotals(byType) {
   };
 }
 
+/** Calendar quarter of a 0-based month index: Jan-Mar = 1 ... Oct-Dec = 4 (aligned with gameLoop's Jan/Apr/Jul/Oct). */
+export function quarterOf(month) {
+  const m = Math.trunc(Number(month) || 0);
+  return Math.floor(Math.max(0, Math.min(11, m)) / 3) + 1;
+}
+
+/**
+ * Bucket monthly ledger entries (oldest first, `{year, month, income, expenses, byType}`) into calendar
+ * quarters. Values are summed as stored (expenses positive, income positive). A bucket with fewer than three
+ * months, or containing the in-progress month (`current: true`), is marked partial. Pure: the input is not mutated.
+ */
+export function groupQuarters(entries) {
+  const buckets = new Map();
+  for (const e of entries || []) {
+    if (!e) continue;
+    const year = Number(e.year) || 0;
+    const quarter = quarterOf(e.month);
+    const key = `${year}-${quarter}`;
+    let b = buckets.get(key);
+    if (!b) { b = { year, quarter, income: 0, expenses: 0, byType: {}, months: 0, partial: false }; buckets.set(key, b); }
+    b.income += Number(e.income) || 0;
+    b.expenses += Number(e.expenses) || 0;
+    for (const [k, v] of Object.entries(e.byType || {})) {
+      const n = Number(v) || 0;
+      if (n) b.byType[k] = (b.byType[k] || 0) + n;
+    }
+    b.months++;
+    if (e.current) b.current = true;
+  }
+  const out = [...buckets.values()].sort((a, b) => a.year - b.year || a.quarter - b.quarter);
+  for (const b of out) b.partial = b.months < 3 || !!b.current;
+  return out;
+}
+
+/**
+ * One year of `company.expenditures` in the ledger's byType shape: signed expenditure amounts are flipped for
+ * display (income stays positive, costs become positive expenses). Missing/zero keys are omitted.
+ */
+function expenditureByType(exp) {
+  const out = {};
+  for (const [k, v] of Object.entries(exp || {})) {
+    const n = Number(v) || 0;
+    if (!n) continue;
+    out[k] = k === 'income' ? n : -n;
+  }
+  return out;
+}
+
+/**
+ * Yearly columns from `company.expenditures` (index 0 = current year, oldest last). Returns oldest-first
+ * `{label, title, year, income, expenses, byType}` columns; the newest is labelled "This year". `expenses`
+ * follows the ledger convention (positive cost total), so `income - expenses` is the year's net.
+ */
+export function yearColumns(expenditures, currentYear, max = YEAR_COLUMNS) {
+  const exps = Array.isArray(expenditures) && expenditures.length ? expenditures : [{}];
+  const n = Math.max(1, Math.min(exps.length, max));
+  const base = Number(currentYear);
+  const year = Number.isFinite(base) ? base : 0;
+  const cols = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const byType = expenditureByType(exps[i]);
+    const income = Number(byType.income) || 0;
+    let expenses = 0;
+    for (const [k, v] of Object.entries(byType)) if (k !== 'income') expenses += Number(v) || 0;
+    const y = year - i;
+    cols.push({ label: i === 0 ? 'This year' : String(y), title: i === 0 ? `Current year (${y})` : String(y), year: y, income, expenses, byType });
+  }
+  return cols;
+}
+
 /**
  * @param {import('../app.js').App} app
  */
@@ -68,10 +144,24 @@ export function openFinances(app) {
       const autoBox = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
       autoBox.addEventListener('change', () => { app.exec(app.game.setLoanAutopay(autoBox.checked), { sound: 'click' }); });
       body.appendChild(el('div.btn-row', null, el('label.small', { title: 'Repay the loan from cash every day while cash is positive' }, autoBox, ' Loan autopay')));
+      let period = DEFAULT_FINANCE_PERIOD;
+      let sig = '';
+      const tabs = el('div.btn-row', { style: { marginTop: '0' } });
+      const tabBtns = {};
+      for (const [key, label] of FINANCE_PERIODS) {
+        tabBtns[key] = el('button.btn.sm', { type: 'button', text: label, onclick: () => {
+          if (period === key) return;
+          period = key;
+          sig = '';
+          refresh();
+        } });
+        tabs.appendChild(tabBtns[key]);
+      }
+      body.appendChild(tabs);
       const tableWrap = el('div.table-wrap');
       body.appendChild(tableWrap);
-      let sig = '';
-      return () => {
+      const refresh = () => {
+        for (const k of Object.keys(tabBtns)) tabBtns[k].classList.toggle('active', k === period);
         const c = app.game.state.company;
         win.setTitle(c.name ? `Finances · ${c.name}` : 'Finances');
         set['Bank balance'](money(c.money));
@@ -80,16 +170,31 @@ export function openFinances(app) {
         set['Max loan'](money(maxLoanCap(app.game.state, c)));
         set['Interest (yearly)'](interestLabel(app.game.state));
         autoBox.checked = !!c.autopayLoan;
-        const hist = (c.ledger.history || []).slice(-11);
-        const cols = [...hist.map((h) => ({ label: `${monthName(h.month)} ${String(h.year).slice(2)}`, h })), { label: 'This month', h: c.ledger.current }];
-        const s = JSON.stringify(cols.map((x) => [x.h.income, x.h.expenses, x.h.byType]));
+        let cols;
+        if (period === 'quarterly') {
+          // history has only completed months; append the in-progress month so the current quarter is included
+          const date = app.game.state.date;
+          const entries = [...(c.ledger.history || []), { ...c.ledger.current, year: date.year, month: date.month, current: true }];
+          const quarters = groupQuarters(entries).slice(-QUARTER_COLUMNS);
+          cols = quarters.map((q) => ({
+            label: `Q${q.quarter} ${String(q.year).slice(2)}${q.partial ? '*' : ''}`,
+            title: q.partial ? 'Partial quarter: not all months recorded' : '',
+            h: q,
+          }));
+        } else if (period === 'yearly') {
+          cols = yearColumns(c.expenditures, app.game.state.date.year);
+        } else {
+          const hist = (c.ledger.history || []).slice(-11);
+          cols = [...hist.map((h) => ({ label: `${monthName(h.month)} ${String(h.year).slice(2)}`, h })), { label: 'This month', h: c.ledger.current }];
+        }
+        const s = period + '|' + JSON.stringify(cols.map((x) => [x.label, x.h.income, x.h.expenses, x.h.byType]));
         if (s === sig) return;
         sig = s;
         const types = new Set(Object.keys(TYPE_LABEL));
         for (const col of cols) for (const k of Object.keys(col.h.byType || {})) types.add(k);
         const table = el('table.ledger');
         const cats = cols.map((col) => categoryTotals(col.h.byType));
-        table.appendChild(el('tr', null, el('th', { text: '' }), cols.map((col) => el('th', { text: col.label }))));
+        table.appendChild(el('tr', null, el('th', { text: '' }), cols.map((col) => el('th', { text: col.label, title: col.title }))));
         for (const t of types) {
           // infrastructure maintenance row only once a month was charged (setting on): default games keep their table
           if (t === 'infrastructure' && cols.every((col) => !(col.h.byType || {})[t])) continue;
@@ -117,6 +222,7 @@ export function openFinances(app) {
         tableWrap.appendChild(table);
         tableWrap.scrollLeft = scroll || tableWrap.scrollWidth;
       };
+      return refresh;
     },
   });
 }
