@@ -6,7 +6,7 @@ import { loadSlotData, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
 import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
-import { greyscaleFromPixels, heightsForMap } from '../../simulation/heightmap.js';
+import { greyscaleFromPixels, heightsForMap, HEIGHTMAP_ROTATIONS } from '../../simulation/heightmap.js';
 import { loadNewGameSettings, newGameMapgenSelection, saveNewGameMapgen, saveNewGameSetting } from '../newGamePrefs.js';
 import { DEFAULT_SETTINGS } from '../../simulation/settings.js';
 import { COMPANY_COLOURS, DEFAULT_PLAYER_COLOUR } from '../../simulation/companyColour.js';
@@ -125,6 +125,9 @@ export function openNewGame(app) {
       const mgInd = sel([['normal', 'Normal (default)'], ['low', 'Low'], ['high', 'High']]);
       const mgClimate = sel([['temperate', 'Temperate (default)'], ['arctic', 'Sub-arctic (snow above the snow line)'], ['tropic', 'Sub-tropical (desert and rainforest)'], ['toyland', 'Toyland (candy ground and toy houses)']]);
       const mgSnow = sel([['5', 'Medium (default)'], ['3', 'Low'], ['7', 'High']]);
+      // Opt-in heightmap rotation (U5): only affects an imported heightmap; None keeps the historic import.
+      const ROTATION_LABELS = { none: 'None (default)', rot90: '90° clockwise', rot180: '180°', rot270: '270° clockwise', flipX: 'Mirror left-right', flipY: 'Mirror top-bottom', transpose: 'Transpose (main diagonal)', antiTranspose: 'Anti-transpose' };
+      const mgHeightmapRot = sel(HEIGHTMAP_ROTATIONS.map((v) => [v, ROTATION_LABELS[v]]));
       // Start from the remembered mapgen choices (last New Game); the Settings-window town layout
       // setting wins for new games. With nothing stored these are exactly the defaults above.
       const mgInit = newGameMapgenSelection(remembered);
@@ -141,6 +144,7 @@ export function openNewGame(app) {
       mgInd.value = mgInit.industryDensity;
       mgClimate.value = mgInit.climate;
       mgSnow.value = String(mgInit.snowLine);
+      mgHeightmapRot.value = mgInit.heightmapRotation ?? 'none';
       // Heightmap import (OpenTTD heightmap.cpp rules, see simulation/heightmap.js): decoded once on pick
       /** @type {{grey:Uint8Array,w:number,h:number,name:string}|null} */
       let hm = null;
@@ -169,7 +173,7 @@ export function openNewGame(app) {
         }
       });
       const hmField = el('div.field', null, el('span.field-label', { text: 'Heightmap' }),
-        el('span.inline', null, hmFile, hmClear), hmInfo);
+        el('span.inline', null, hmFile, hmClear, mgHeightmapRot), hmInfo);
       const adv = el('details.newgame-adv', null, el('summary', { text: 'Scenario options' }),
         field('Objective', objType), field('Target', objTarget), field('Years', objYears),
         field('Max loan', maxLoan), field('Inflation', infl), field('Payment %', pay), field('Breakdowns', brk),
@@ -224,7 +228,7 @@ export function openNewGame(app) {
         if (Object.keys(settings).length) opts.settings = settings;
         // T34: only non-default map options are passed (see mapgenOptions in game.js)
         // only when non-default: any extra key makes the default Moscow game skip its day-0 snapshot
-        const mgChoice = { terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, variety: Number(mgVariety.value), townDensity: mgTowns.value, townLayout: mgLayout.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value) };
+        const mgChoice = { terrain: mgTerrain.value, seaLevel: mgSea.value, rivers: mgRivers.value, cliffs: mgCliffs.value, lakes: mgLakes.value, mountainStyle: mgMountain.value, smoothness: mgSmooth.value, variety: Number(mgVariety.value), townDensity: mgTowns.value, townLayout: mgLayout.value, industryDensity: mgInd.value, climate: mgClimate.value, snowLine: Number(mgSnow.value), heightmapRotation: mgHeightmapRot.value };
         // Remember the dialog choices for the next New Game (browser only, not in the save).
         saveNewGameMapgen(mgChoice);
         // The town-layout choice is also the Settings-window new-game value. Leave storage untouched

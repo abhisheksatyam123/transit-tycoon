@@ -3,6 +3,7 @@
  */
 import { DIRS } from './constants.js';
 import { DEFAULT_SNOW_LINE } from './climate.js';
+import { rotateGrid } from './heightmap.js';
 
 /**
  * Terrain snow starts this many levels above the snow line setting (mapgen snowLine, default 5 = the
@@ -227,14 +228,23 @@ export function generateTerrain(map, rng, opts = {}) {
  * (0 = sea/water, 1..7 = land; length width*height). Slopes are limited the same way as the generated
  * map, and the cover (forest, desert, rock, snow), rivers, lakes and mountain style are applied as usual.
  * Options as generateTerrain (waterRatio/seaLevel/terrain are ignored: the heights are the terrain).
+ * `opts.heightmapRotation` (opt-in, default 'none') rotates/mirrors the imported heights before the
+ * slope/cover passes; see heightmap.js HEIGHTMAP_ROTATIONS.
  * @param {object} map
  * @param {object} rng
  * @param {Uint8Array} heights
- * @param {{smoothness?:string,rivers?:string,cliffs?:string,lakes?:string,mountainStyle?:string}} [opts]
+ * @param {{smoothness?:string,rivers?:string,cliffs?:string,lakes?:string,mountainStyle?:string,heightmapRotation?:string}} [opts]
  */
 export function generateTerrainFromHeights(map, rng, heights, opts = {}) {
   const { width, height, tiles } = map;
   if (heights.length !== width * height) throw new Error('heightmap size does not match the map');
+  const rotation = opts.heightmapRotation ?? 'none';
+  if (rotation !== 'none') {
+    const r = rotateGrid(heights, width, height, rotation);
+    // A quarter turn of a non-square map has no square target (New Game heightmaps are square).
+    if (r.width !== width || r.height !== height) throw new Error('heightmap rotation needs a square map');
+    heights = r.values;
+  }
   const forest = fbm(rng, width, height, 12, 3);
   const dry = fbm(rng, width, height, 20, 2);
   for (let i = 0; i < tiles.length; i++) {
