@@ -66,6 +66,9 @@ export function vehicleTick(ctx, v) {
       return;
     case 'broken': // OL VehicleHead::updateBreakdown: a broken road/rail/ship crawls on (capped), aircraft and UFO-frozen stay put
       if (--v.breakdownTicks <= 0) { v.breakdownTicks = 0; delete v.breakdownFrozen; v.state = 'running'; return; }
+      // breakdownStop (default off, OpenTTD vehicle.cpp:1397-1398): stand still until repaired and never end the
+      // breakdown early at a stop (returns before move()/moveShip(), so no arrival/replan can change the state).
+      if (v.kind !== 'aircraft' && getSetting(ctx.state, 'breakdownStop')) { v.speed = 0; return; }
       if (!crawling(v)) { v.speed = 0; return; }
       if (v.kind === 'ship') moveShip(ctx, v); else move(ctx, v);
       if (v.state !== 'broken') { v.breakdownTicks = 0; delete v.breakdownFrozen; } // reached a stop / replanned: the breakdown ends with the state change

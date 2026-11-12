@@ -197,6 +197,8 @@ export const DEFAULT_SETTINGS = {
   noServicingIfNoBreakdowns: true,
   /** OpenTTD vehicle.cpp:1357 `if (Ship) rel += 0x6666`: ships break down less (timer from reliability + 0.4). Default false = current TT. */
   shipBreakdownReduced: false,
+  /** OpenTTD vehicle.cpp:1397-1398 / roadveh_cmd.cpp:1587-1592: a broken-down road/rail/ship vehicle stops dead until repaired (movement.js 'broken') and does not end the breakdown at a stop. Default false = OpenLoco crawl (maxSpeed/4, ships 5 mph). Aircraft and UFO-frozen keep their behaviour. */
+  breakdownStop: false,
   /** OpenTTD vehicle.cpp:1454-1466: reliability decay doubles per year past max age (x2..x32). Default false = current TT (one step). */
   ageDecayOttd: false,
   /** OpenTTD vehicle.cpp:189-203: every depot entry services (reliability to max, timers reset). Default false = only with serviceIntervalDays. */
