@@ -10,7 +10,7 @@ import { resolvePurchase, createVehicle, purchasable, modelAvailable, refundValu
 import { getSetting } from './settings.js';
 import { listCapacity } from './consist.js';
 import { allocId } from './state.js';
-import { normaliseOrders, setOrderField, isDepotOrder, noteDepotDeparture } from './orders.js';
+import { normaliseOrders, setOrderField, isDepotOrder, noteDepotDeparture, orderIdentity } from './orders.js';
 import { isCond } from './condOrders.js';
 import { stopKindFor, depotGoals, findVehiclePath, flipTrain, trainTrack, canFlipTrain } from './routing.js';
 import { RAIL_TYPES } from '../config/railTypes.js';
@@ -90,10 +90,14 @@ export function setOrders(ctx, id, orders, opts = {}) {
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
+  const prev = v.orders;
+  // Flag-only edits (the list is the same orders in the same order) keep the current order, like OpenTTD
+  // ModifyOrder; only a genuine list replacement resets to the first order.
+  const same = r.orders.length === prev.length && r.orders.every((o, i) => orderIdentity(o) === orderIdentity(prev[i]));
   v.orders = r.orders;
-  v.orderIndex = 0;
+  v.orderIndex = same && v.orders.length ? Math.min(v.orderIndex, v.orders.length - 1) : 0;
   resetUnbunch(v);
-  syncSharers(ctx, v);
+  syncSharers(ctx, v, prev);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);
   return { ok: true, cost: 0 };
 }

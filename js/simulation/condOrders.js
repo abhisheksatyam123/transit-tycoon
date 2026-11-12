@@ -136,6 +136,35 @@ export function deleteOrderAt(orders, k) {
 }
 
 /**
+ * Delete every order matching `pred`, keeping the vehicle's current order identity:
+ * - each removed order before the current index shifts the current index down;
+ * - when the current order itself is removed, the index is clamped to the nearest following order
+ *   (the last order when the removed one was last);
+ * - conditional targets are renumbered by `deleteOrderAt` (each removal, from the end backwards, so the
+ *   indices stay valid).
+ * @param {object[]} orders
+ * @param {(o: object) => boolean} pred
+ * @param {number} [orderIndex] current order index before the removal
+ * @returns {{orders: object[], orderIndex: number}} new list (input untouched; same reference when nothing
+ *   is removed) and the adjusted index
+ */
+export function deleteOrdersMatching(orders, pred, orderIndex = 0) {
+  const drop = [];
+  for (let i = 0; i < orders.length; i++) if (pred(orders[i])) drop.push(i);
+  if (!drop.length) return { orders, orderIndex };
+  let idx = orderIndex;
+  let out = orders;
+  for (let j = drop.length - 1; j >= 0; j--) {
+    const k = drop[j];
+    out = deleteOrderAt(out, k);
+    if (k < idx) idx--; // an order before the current one went: the current one shifts down
+  }
+  // The current order itself may have been removed: it now sits at the nearest following slot; clamp the end.
+  idx = out.length ? Math.min(Math.max(idx, 0), out.length - 1) : 0;
+  return { orders: out, orderIndex: idx };
+}
+
+/**
  * Move order from index a to index b (OpenTTD-style target follow): every conditional target follows the
  * order it pointed at, so the jump still lands on the same order.
  * @returns {object[]} new list (input untouched)

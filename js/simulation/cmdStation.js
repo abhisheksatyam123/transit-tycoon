@@ -16,6 +16,7 @@ import { stationTileBits } from './stationLinks.js';
 import { refusalAt } from './townAuthority.js';
 import { getSetting } from './settings.js';
 import { invalidateBlocks } from './signals.js';
+import { deleteOrdersMatching } from './condOrders.js';
 
 /** Player station spread limit (settings.stationSpread; default = STATION_SPREAD). */
 export function spreadLimit(state) {
@@ -287,9 +288,14 @@ export function removeStationTile(ctx, x, y) {
   if (st.tiles.length === 0) {
     state.stations = state.stations.filter((s) => s !== st);
     for (const v of state.vehicles) {
-      const before = v.orders.length;
-      v.orders = v.orders.filter((o) => o.stationId !== st.id);
-      if (v.orders.length !== before) v.orderIndex = v.orders.length ? v.orderIndex % v.orders.length : 0;
+      if (!v.orders || !v.orders.length) continue;
+      // Remove the station's orders while keeping each vehicle on the order it is currently on; conditional
+      // targets are renumbered by deleteOrderAt (was: raw filter + index % length, which jumped to another stop).
+      const r = deleteOrdersMatching(v.orders, (o) => o.stationId === st.id, v.orderIndex);
+      if (r.orders !== v.orders) {
+        v.orders = r.orders;
+        v.orderIndex = r.orderIndex;
+      }
     }
   } else {
     if (st.x === x && st.y === y) { st.x = st.tiles[0].x; st.y = st.tiles[0].y; }

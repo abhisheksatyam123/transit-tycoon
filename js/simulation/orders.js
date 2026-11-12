@@ -154,6 +154,30 @@ export function distinctOrderStations(v) {
   return new Set(v.orders.filter((o) => !isDepotOrder(o) && !o.cond).map((o) => o.stationId)).size;
 }
 
+/**
+ * Identity of an order for "same order, changed flags" detection: kind plus target, including the full
+ * conditional payload. Flags, load/unload modes and timetable fields are not part of it.
+ */
+export function orderIdentity(o) {
+  if (!o) return null;
+  if (o.cond != null) return `c:${o.cond.v}:${o.cond.cmp}:${o.cond.val}:${o.cond.to}`;
+  if (o.depotId != null) return `d:${o.depotId}`;
+  if (o.depot === 'nearest') return 'dn';
+  return `s:${o.stationId}`;
+}
+
+/**
+ * Coarse slot identity for aligning two versions of an order list: conditionals compare only as a slot
+ * (their `to` target may legitimately be renumbered by an edit).
+ */
+export function orderSlot(o) {
+  if (!o) return null;
+  if (o.cond != null) return 'c';
+  if (o.depotId != null) return `d:${o.depotId}`;
+  if (o.depot === 'nearest') return 'dn';
+  return `s:${o.stationId}`;
+}
+
 /** Current order of a vehicle or null. */
 export function currentOrder(v) {
   return v.orders.length ? v.orders[v.orderIndex % v.orders.length] : null;
