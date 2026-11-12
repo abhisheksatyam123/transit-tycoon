@@ -6,7 +6,8 @@
  * default games and saves are unchanged. Applied by autorenew.js when a vehicle of model A is stopped in a depot.
  *
  * Wagon rules are opt-in too: once a rule for a wagon model exists, replaceVehicle keeps the wagon count but maps the
- * wagon model through it. No rule = the wagons stay exactly as they are.
+ * wagon model through it, and a wagon rule alone qualifies a train for replacement (the engine stays put). Mixed
+ * consists map every wagon through its own rule. No rule = the wagons and the trigger stay exactly as they were.
  */
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { purchasable } from './vehicles.js';

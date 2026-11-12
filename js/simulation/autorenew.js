@@ -39,29 +39,57 @@ const OWN_FIELDS = new Set(['id', 'name', 'unitNumber', 'kind', 'roadType', 'mod
   'cargoId', 'capacity', 'maxSpeed', 'runningCost', 'value', 'age', 'maxAge', 'reliability', 'baseReliability',
   'breakdownTicks', 'depotId', 'orders', 'orderIndex', 'orderGroup', 'profitThisYear', 'profitLastYear', 'alt']);
 
+/**
+ * Replacement model for one wagon under the current group/company rules, or undefined when no rule applies.
+ * Mirrors the engine lookup: `autoreplaceTarget` gives the group rule precedence and honours replace protection;
+ * the same when-old gate and the per-wagon cargo check as `resolveMixed` (vehicles.js) are applied here. Player
+ * trains only: a rival's replacement must not read the player's rule table.
+ */
+function wagonRuleTarget(state, v, wagonModelId, cargoId) {
+  if (v.kind !== 'train' || v.ownerId != null || !wagonModelId) return undefined;
+  const to = autoreplaceTarget(state, v, wagonModelId);
+  if (!to || to === wagonModelId) return undefined;
+  const model = MODEL_BY_ID[to];
+  if (!model || model.kind !== 'wagon') return undefined;
+  if (cargoId && !model.cargos.includes(cargoId)) return undefined;
+  if (isReplaceWhenOld(state, wagonModelId) && !isVehicleOld(state, v)) return undefined;
+  return to;
+}
+
+/** Does any wagon of `v` (uniform model, or each mixed-consist wagon) have an applicable replacement rule? */
+function wagonRuleApplies(state, v) {
+  if (v.consist && v.consist.length) return v.consist.some((w) => wagonRuleTarget(state, v, w.modelId, w.cargoId) !== undefined);
+  return wagonRuleTarget(state, v, v.wagonModelId, v.cargoId) !== undefined;
+}
+
 export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts = {}) {
   const { state } = ctx;
   // keepRoute: a vehicle on a service visit to a depot (not stopped in it) is replaced in its current position
   const depot = state.depots.find((d) => d.id === (opts.keepRoute ? v.goingToDepot : v.depotId));
   if (!depot) return { ok: false, error: 'No depot' };
   // Wagon-kind autoreplace (opt-in): map the plain train's wagon model through its group/company rule when one is
-  // set. The count stays the same; with no rule this is exactly the old `v.wagonModelId`. Applies to the player's
-  // trains only (rival AI replacements must not read the player's rule table). Mixed consists (`v.consist`) are left
-  // alone. Current protect semantics are handled inside autoreplaceTarget (protected group -> no rule).
-  const wagonTarget = v.kind === 'train' && v.wagonModelId && v.ownerId == null ? autoreplaceTarget(state, v, v.wagonModelId) : undefined;
-  const remapWagon = !!wagonTarget && wagonTarget !== v.wagonModelId
-    && MODEL_BY_ID[wagonTarget] && MODEL_BY_ID[wagonTarget].kind === 'wagon'
-    && (!isReplaceWhenOld(state, v.wagonModelId) || isVehicleOld(state, v));
+  // set, and (D5) remap every wagon of a mixed consist the same way. The count and each wagon's cargo stay the same;
+  // with no rule this is exactly the old wagon fields. Applies to the player's trains only (rival AI replacements
+  // must not read the player's rule table). Protect/when-old semantics live inside wagonRuleTarget.
+  const remapWagon = wagonRuleTarget(state, v, v.wagonModelId, v.cargoId);
+  const consist = v.consist ? v.consist.map((w) => ({ ...w })) : undefined;
+  if (consist) {
+    for (const w of consist) w.modelId = wagonRuleTarget(state, v, w.modelId, w.cargoId) || w.modelId;
+  }
   const spec = {
     modelId: newModelId,
-    wagonModelId: (remapWagon ? wagonTarget : v.wagonModelId) || undefined,
+    wagonModelId: (remapWagon || v.wagonModelId) || undefined,
     wagons: v.wagons || 0,
     cargoId: v.cargoId || undefined,
-    consist: v.consist ? v.consist.map((w) => ({ ...w })) : undefined,
+    consist,
   };
   // road vehicles keep their cargo when the new model carries it; otherwise the model's default cargo
   if (v.kind === 'road' && MODEL_BY_ID[newModelId] && !MODEL_BY_ID[newModelId].cargos.includes(v.cargoId)) spec.cargoId = undefined;
-  const r = resolvePurchase(depot, spec, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'));
+  // A wagon-only rule keeps the engine, so an out-of-production engine may still be rebuilt (the wagon models have no
+  // obsolete year); same-model autorenew keeps the old purchasable check.
+  const neverExpire = getSetting(state, 'neverExpireVehicles')
+    || (reason === 'autoreplace' && newModelId === v.modelId && v.kind === 'train');
+  const r = resolvePurchase(depot, spec, state.date.year, neverExpire, getSetting(state, 'maxTrainWagons'));
   if (!r.ok) return { ok: false, error: r.error };
   const price = vehiclePrice(state, r.cost);
   const diff = price - (v.value || 0);
@@ -112,7 +140,9 @@ export function replaceVehicle(ctx, v, newModelId, reason = 'autoreplace', opts 
   const oldName = MODEL_BY_ID[v.modelId] ? MODEL_BY_ID[v.modelId].name : v.modelId;
   const msg = reason === 'autorenew'
     ? `${v.name} was renewed (autorenew, ${oldName}).`
-    : `${v.name} was replaced (${oldName} -> ${MODEL_BY_ID[newModelId].name}).`;
+    : newModelId === v.modelId
+      ? `${v.name}'s wagons were replaced (${oldName}).`
+      : `${v.name} was replaced (${oldName} -> ${MODEL_BY_ID[newModelId].name}).`;
   notify(ctx, msg, 'info', v.tx, v.ty, 'advice');
   return { ok: true, vehicle: nv, cost: diff };
 }
@@ -135,6 +165,10 @@ export function autorenewVehicle(ctx, v, opts = {}) {
   if (target && MODEL_BY_ID[target] && target !== v.modelId && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) {
     const r = replaceVehicle(ctx, v, target, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
+  } else if (wagonRuleApplies(state, v)) {
+    // D4: no engine rule (or it is waiting for old age), but a wagon rule applies: keep the engine, replace the wagons.
+    const r = replaceVehicle(ctx, v, v.modelId, 'autoreplace', ro);
+    if (r.ok) return r.vehicle;
   }
   if (!getSetting(state, 'autorenew') || !(v.age > effectiveMaxAge(state, v) + renewDelayDays(state))) return null;
   const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
@@ -147,6 +181,7 @@ export function isAutoreplaceEligible(state, v) {
   const target = autoreplaceTarget(state, v);
   if (target && MODEL_BY_ID[target] && target!==v.modelId
     && (!isReplaceWhenOld(state, v.modelId) || isVehicleOld(state, v))) return true;
+  if (wagonRuleApplies(state, v)) return true;
   return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
 /**
