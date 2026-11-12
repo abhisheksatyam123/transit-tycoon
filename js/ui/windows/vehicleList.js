@@ -14,7 +14,7 @@ import { COMPANY_COLOURS } from '../../simulation/companyColour.js';
 import { MODEL_BY_ID } from '../../config/vehicles.js';
 import { wagonList } from '../../simulation/consist.js';
 import { cargoName } from '../cargo.js';
-import { bucketVehicles, sortBuckets, groupStatistics, GROUP_BY, BUCKET_SORTS } from '../vehicleGroupRows.js';
+import { bucketVehicles, sortBuckets, groupStatistics, groupKindLabel, GROUP_BY, BUCKET_SORTS } from '../vehicleGroupRows.js';
 
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
@@ -250,11 +250,12 @@ export function openVehicleList(app) {
       const protectCb = el('input', { type: 'checkbox', title: protectTitle(false), onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
       const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: protectTitle(false) }, protectCb, el('span', { text: 'Protect from autoreplace' }));
       // selected group details (OpenTTD group_gui.cpp WID_GL_INFO): read-only sums over the group's listed vehicles.
-      const gStatsValue = [0, 1, 2].map(() => el('span.kv-value.mono'));
+      const gStatsValue = [0, 1, 2, 3].map(() => el('span.kv-value.mono'));
       const gStats = el('div.kv-grid', { style: { display: 'none' } },
         el('span.kv-label', { text: 'Profit this year' }), gStatsValue[0],
         el('span.kv-label', { text: 'Profit last year' }), gStatsValue[1],
-        el('span.kv-label', { text: 'Current usage' }), gStatsValue[2]);
+        el('span.kv-label', { text: 'Current usage' }), gStatsValue[2],
+        el('span.kv-label', { text: 'Vehicles' }), gStatsValue[3]);
       // nested groups: parent selector for the group shown by the filter (self/descendants excluded)
       const parentSel = el('select.input', { style: { width: 'auto', display: 'none' }, 'aria-label': 'Parent group', title: 'Parent group (nested groups)' });
       const parentLabel = el('span.muted', { text: 'Parent', style: { display: 'none' } });
@@ -329,6 +330,7 @@ export function openVehicleList(app) {
           row.classList.toggle('open', state.open.has(b.key));
           setText(c[0], (state.open.has(b.key) ? '▾ ' : '▸ ') + b.label);
           setText(c[1], `${b.count} vehicle${b.count === 1 ? '' : 's'}`);
+          c[1].title = groupKindLabel(b.counts); // per-type breakdown: "5 (3 train, 2 road)"
           setText(c[2], money(b.total));
           c[2].classList.toggle('neg', b.total < 0);
           setText(c[3], money(b.avg));
@@ -417,6 +419,7 @@ export function openVehicleList(app) {
           gStatsValue[1].classList.toggle('neg', st.profitLastYear < 0);
           setText(gStatsValue[2], `${st.occupancy}%`);
           gStatsValue[2].classList.toggle('neg', false);
+          setText(gStatsValue[3], groupKindLabel(st.counts));
         }
         // grouped view gets its own column tracks (css .grouped) so bucket rows line up with the bucket header
         head.classList.toggle('grouped', grouped);

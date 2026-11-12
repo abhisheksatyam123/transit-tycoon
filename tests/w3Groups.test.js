@@ -3,11 +3,12 @@
  * group info sums from group_gui.cpp:650-679 (profit this year, profit last year, current usage).
  */
 import { test, expect, describe } from 'bun:test';
-import { loadPercent, groupStatistics, bucketVehicles } from '../js/ui/vehicleGroupRows.js';
+import { loadPercent, groupStatistics, groupKindCounts, groupKindLabel, bucketVehicles } from '../js/ui/vehicleGroupRows.js';
 
 const V = (loadAmount, capacity, extra = {}) => ({
   id: 1, name: 'V', load: { amount: loadAmount }, capacity, profitThisYear: 0, profitLastYear: 0, ...extra,
 });
+const ZERO_COUNTS = { train: 0, road: 0, aircraft: 0, ship: 0, total: 0 };
 
 describe('vehicle group statistics', () => {
   test('load percent follows OpenTTD CalcPercentVehicleFilled rounding', () => {
@@ -29,8 +30,8 @@ describe('vehicle group statistics', () => {
   });
 
   test('empty group has all statistics at zero', () => {
-    expect(groupStatistics([])).toEqual({ count: 0, profitThisYear: 0, profitLastYear: 0, occupancy: 0 });
-    expect(groupStatistics(undefined)).toEqual({ count: 0, profitThisYear: 0, profitLastYear: 0, occupancy: 0 });
+    expect(groupStatistics([])).toEqual({ count: 0, profitThisYear: 0, profitLastYear: 0, occupancy: 0, counts: ZERO_COUNTS });
+    expect(groupStatistics(undefined)).toEqual({ count: 0, profitThisYear: 0, profitLastYear: 0, occupancy: 0, counts: ZERO_COUNTS });
   });
 
   test('profits are summed and occupancy is the average load percent', () => {
@@ -44,13 +45,28 @@ describe('vehicle group statistics', () => {
       profitThisYear: 105,
       profitLastYear: 60,
       occupancy: Math.floor((50 + 100 + 25) / 3), // 58
+      counts: { train: 0, road: 0, aircraft: 0, ship: 0, total: 3 },
     });
   });
 
   test('missing profit fields count as zero', () => {
     expect(groupStatistics([{ load: { amount: 0 }, capacity: 10 }])).toEqual({
       count: 1, profitThisYear: 0, profitLastYear: 0, occupancy: 0,
+      counts: { train: 0, road: 0, aircraft: 0, ship: 0, total: 1 },
     });
+  });
+
+  test('vehicle counts by kind (mixed group)', () => {
+    const vs = [
+      V(0, 10, { kind: 'train' }), V(0, 10, { kind: 'train' }),
+      V(0, 10, { kind: 'road' }), V(0, 10, { kind: 'aircraft' }),
+      V(0, 10, { kind: 'ship' }), V(0, 10), // unknown kind: total only
+    ];
+    expect(groupKindCounts(vs)).toEqual({ train: 2, road: 1, aircraft: 1, ship: 1, total: 6 });
+    expect(groupStatistics(vs).counts).toEqual({ train: 2, road: 1, aircraft: 1, ship: 1, total: 6 });
+    expect(groupKindCounts(undefined)).toEqual(ZERO_COUNTS);
+    expect(groupKindLabel({ train: 3, road: 2, aircraft: 0, ship: 0, total: 5 })).toBe('5 (3 train, 2 road)');
+    expect(groupKindLabel(ZERO_COUNTS)).toBe('0');
   });
 
   test('group-by buckets carry last-year profit and usage', () => {
@@ -66,5 +82,6 @@ describe('vehicle group statistics', () => {
     expect(u.last).toBe(70);
     expect(u.usage).toBe(0);
     expect(g).not.toHaveProperty('loadSum');
+    expect(g.counts).toEqual({ train: 0, road: 0, aircraft: 0, ship: 0, total: 2 });
   });
 });
