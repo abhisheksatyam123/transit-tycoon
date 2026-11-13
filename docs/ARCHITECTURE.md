@@ -381,3 +381,61 @@ Per-round records with the rationale: `docs/decisions/` (for example `e2-autorep
 - **Rival property:** demolishing a rival-owned HQ or station is refused ("Owned by a rival company"). An HQ with no
   owning company record (hand-built map, or a bankrupt rival from before N8) can be cleared; it no longer removes the
   player's HQ.
+
+## Rival build hardening (N10-N11)
+Rival (AI) builds are all-or-nothing. Every rival build first runs a read-only preflight: each command is dry-run, the
+costs of all steps are added to a running total and checked against `r.money`, and nothing is committed until the
+whole preflight passes. A failure after the first commit is undone by a snapshot rollback.
+
+### Rollback snapshot (`simulation/rivalAttempt.js`)
+- `beginRivalAttempt(state, r, tiles)` is called just before the first committed command. It snapshots:
+  - the touched tiles, plus every part of any multi-tile house (`LARGE_GROUPS`) that intersects them (`houseTiles`);
+  - station records (`tiles`, `x`, `y`, `kinds`, `accepts`), the station, depot and vehicle id sets, and `state.nextId`;
+  - every town's `houses` array;
+  - the rival's `money`, a deep copy of `ledger.current` (including `byType`) and of `expenditures`;
+  - the rival's `stations`, `depots`, `vehicles`, `routes`, `railIndustries`, `freightIndustries` and `shipIndustries` lists.
+- `rollbackRivalAttempt(a)` restores all of it and removes only what the attempt added (stations, depots and vehicles
+  not in the snapshot). Pre-existing player and rival infrastructure is untouched. It ends with `invalidateBlocks`.
+- Success simply drops the snapshot. Callers: `aiFreight.js` `tryFreightRoute`, `aiRail.js`, `aiCompanies.js` (bus), `aiAir.js` and `aiShip.js`.
+
+### Freight routes (`simulation/aiFreight.js`)
+- `pickFreightPairs` ranks every (producer, cargo, acceptor) candidate: production >= `MIN_PRODUCTION`, centre distance
+  within `FREIGHT_MIN_DIST`..`FREIGHT_MAX_DIST`, score = production * 100 - distance, ties by ids. Industries already on a
+  rival freight route are excluded.
+- `buildFreightRoute` tries the top `PAIR_TRIES` (4) candidates and stops at the first that builds. Each call builds at most one route. A candidate that cannot
+  be built is left unused, so it can be retried in a later call.
+- `planFreightRoad` is a local deterministic 4-connected BFS (N, E, S, W; height step at most 1). It exists because
+  `townRoads.findRoadPath` never allows a turn (decision D22, see the comment in `townRoads.js`). Town generation still
+  uses `findRoadPath`, so the world hash does not change.
+- `stopAxisOk`: a stop tile that already has road must stay straight along the path's arrival axis. The road is committed
+  before the stops, so a turn there would make a junction that `buildRoadStop` refuses.
+- `truckDepotSpot` searches rings 1..4 around the source stop. It excludes the planned path tiles and both stop tiles, and
+  its exit must join a path tile or an existing road. Only then is the depot dry-run.
+- Money gate: road + both stops + depot + `model.cost * FREIGHT_TRUCKS` must fit in `r.money` before any commit.
+
+### Bus routes (`simulation/aiCompanies.js` `depotSpot`)
+- The depot may not sit on a planned bus stop tile, and it may not exit into one. `buildDepot` refuses a depot that
+  exits a stop side (`exitFacesStopSide`), and that refusal would roll back the whole route. Same rule as
+  `aiFreight.truckDepotSpot`.
+
+### Rail routes (`simulation/aiRail.js`)
+- Block signals (`buildSignalRun`) are laid before the depot. A depot exit on the line turns a line tile into a junction,
+  and the signal run refuses junctions, so the signals must go down while the path is still plain straight track.
+- The money preflight includes `signalEstimate` = `ceil(path.length / RIVAL_SIGNAL_SPACING) * COSTS.signal`, so the
+  signal spend cannot leave the depot short of money.
+
+### Airport upgrades (`simulation/aiAirUpgrade.js` `upgradeAirportPair`)
+- Both ends are checked read-only (`canUpgrade`) before any commit. The old and new footprints of the two ends must not
+  touch. The combined cost of both upgrades is checked against the rival's money (`checkMoney`).
+- Commits reuse those checks. If the second end is still refused, the first end is already upgraded and cannot be
+  restored faithfully. That case is logged with `console.warn`, the function returns `false`, and no rollback runs. It
+  never throws, because a throw would abort the game tick.
+
+### Known limits
+- Ship routes need a water path between the two docks (`findShipPath`) of `SHIP_MIN_DIST`..`SHIP_MAX_DIST` tiles, and
+  a dock spot within `DOCK_RADIUS` (4) of each industry. On the audit seeds (1, 2, 3, 5, 7, 11, 15, 21) no such pair
+  exists, so rival ships are 0 there. This follows from the map design, not from a bug.
+- `townRoads.findRoadPath` never allows a turn (D22). Rival freight has its own planner, and town generation is unchanged.
+- Verified (from the project log): over 5 game years on seeds 1, 2, 3, 5, 7, 11, 15, 21 with `aiCompanies=1`, freight
+  routes exist on every seed (1-2 each), there are zero orphan assets, and the player's money, loan, ledger and counts
+  equal the `aiCompanies=0` baseline.
