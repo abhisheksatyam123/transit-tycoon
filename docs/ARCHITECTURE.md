@@ -257,7 +257,7 @@ locoPieces.js centreline radii used by js/renderer/net/fit.js (see scratchpad/ar
 
 ## Web delivery and smoothness (R17)
 - `server.js`: binds `TT_HOST` (default 0.0.0.0; not `HOST`, which conda sets to a target triple), gzip for text files (cached per ETag), ETag/304 revalidation. Dev only: start with `bun server.js` when needed, nothing runs as a service.
-- Saves: scenario saves are packed (`save.js`: tiles-rle-v1, traffic cars columnar with varint paths, station parcels-v1); random worlds keep the classic JSON. Autosave (`main.js`): LZ compression in `ui/saveWorker.js`; runs in idle time after the month tick, every 3 months when serialize is slow (> 40 ms), and on pause / tab hidden / unload.
+- Saves: scenario saves are packed (`save.js`: tiles-rle-v1, traffic cars columnar with varint paths, station parcels-v1); random worlds keep the classic JSON. Autosave (`main.js`): LZ compression in `ui/saveWorker.js`, runs in idle time. Monthly ring `auto-1..3` (oldest overwritten), every N months from the browser pref `tt.autosave` (0 off, 1/3/6/12; default 1), clamped to at least 12 months when the last save had a main-thread block over 50 ms. The Continue slot `autosave` is written on pause / tab hidden / unload after a month ended, and by the game setting `autosaveInterval` (real time, default off). Neither writes in the scenario editor. See the N-waves section below for the boot protection.
 - Frame budget: ground chunks build within `BUILD_BUDGET_MS` per frame (placeholder diamond until built, `renderer/groundCache.js`); the Issues badge scan is cached per month and rescanned in idle time (`ui/diagCache.js`); toolbar density adapts to its content width (`ui/toolbar.js fitToolbar`).
 - Moscow day-0 snapshot (W8): the default Moscow game (scenario moscow, seed 1, other options at defaults) is prebaked to `assets/scenarios/moscow-day0.json` (+ `.meta.json` with sha256) by `bun run snapshot:moscow` (`tools/moscow/snapshot.js`). `js/ui/scenarioSnapshot.js` `createGameFast` is used by `main.js initialGame` and `App.newGame`: exact default request -> fetch + `Game.deserialize` (~0.1 s), any failure (404, parse, version) -> `Game.create`. Regenerate with `bun run snapshot:moscow` after any change to the Moscow bake, scenario build code, landmarks, or save format; `tests/moscowSnapshot.test.js` fails with "stale snapshot" when it no longer matches a fresh build, and also checks that deserialize + stepDays matches a fresh build.
 - Web QA scripts (outside the repo): `scratchpad/e2e/webqa.mjs`, `hitch.mjs`, `w2/*.mjs`, run via `withserver.sh` (temporary server).
@@ -304,8 +304,9 @@ Gap #8. Sources: OpenLoco `World/Town.cpp` (`adjustCompanyRating`, `companyRatin
   +15/+25/+35 for 2/3/4 months (`stations.updateRatings` via `advertBonus`); statue $35k: once per town,
   permanent +200 rating; fund new buildings $48k: build speed 4 for 3 months.
 - Save: new fields `companyRating`, `statue`, `fundMonths` (towns) and `adBoost` (stations) appear only once used.
-- Left out: bribe, exclusive transport rights, road reconstruction, statue tile placement, OpenTTD's
-  per-company rating list (single company only), tunnel/bridge rating steps.
+- Also present (gated by settings): bribe (`allowTownBribe`), exclusive transport rights (`exclusiveRights`), road
+  reconstruction (`fundRoads`), fund buildings (`fundBuildings`) and opt-in give money (`localGiveMoney`).
+- Left out: statue tile placement, OpenTTD's per-company rating list (single company only), tunnel/bridge rating steps.
 
 ## Vehicle eras, refit, autorenew (T17/T18)
 - **Eras** (`config/vehicles.js`, `config/aircraft.js`): models have `introYear` and an optional `obsoleteYear`,
@@ -324,4 +325,59 @@ Gap #8. Sources: OpenLoco `World/Town.cpp` (`adjustCompanyRating`, `companyRatin
   stopped in a depot is replaced by a new vehicle of the same model/wagons/cargo (if still purchasable and
   affordable). Name, unit number, orders, shared order group, service interval and profit carry over; the
   company pays new price minus the old vehicle's value. Hooked from `loco/vehicle.vehicleDaily` (depot branch).
-  Not done: autoreplace to another model.
+  Autorenew never changes the model; model changes are the autoreplace rules (`simulation/autoreplace.js`, company-wide and per group, see E2).
+
+## N-waves: opt-in settings reference, save protection, editor, orders, rivals (N5-N10)
+
+The Settings window (`ui/settingsGroups.js`, help text per setting) is the reference for every key; this section
+lists the newer opt-ins. Defaults are read from `DEFAULT_SETTINGS` (`simulation/settings.js`); the defaults keep
+the existing game unless noted. When the code and this table disagree, the code is right.
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `multiEngineConsists` | off | Up to 3 extra engines in a train's lead block (4 in total, `MAX_EXTRA_ENGINES` in `consistEngines.js`). Power and weight are summed, the train runs at the slowest engine's speed, extras add no capacity and do not count toward `maxTrainWagons`. Depot Add/Remove engine buttons appear only when on. |
+| `renewKeepLength` | off | After autoreplace, the wagon count is capped at the old count and at `maxTrainWagons` / `maxTrainLength`; the wagons nearest the engine are dropped. A group flag can override it. Off = every wagon is kept. |
+| `wagonSpeedLimits` | off | A train is limited by its slowest wagon with a nonzero speed (0 = unlimited). |
+| `trainSlopeSteepness` | 3 (0-10 %) | Grade strength for trains. Only matters with `gradients` on; 0 = trains ignore slopes. |
+| `roadSlopeSteepness` | 7 (0-10 %) | Grade strength for road vehicles. Only matters with `gradients` on; 0 = ignore slopes. |
+| `depotRefitAlwaysVisits` | off | A go-to-depot order with a refit always visits and refits, even when the vehicle is not due for service. Off = a not-due service-only depot order is skipped. |
+| `fundBuildings` | on | Town action "Fund new buildings" is offered. Off = not available in any town. |
+| `fundRoads` | on | Town action "Fund local road reconstruction" (roadworks) is offered. Off = not available. |
+| `roadAcceleration` | `original` | `realistic` (OpenTTD style): acceleration from power, tractive effort, drag, friction and slope against full loaded weight, with 75 % cardinal and 50 % reverse speed caps. `original` = the current model. |
+| `townCargogenMode` | `original` | `bitcount` (OpenTTD): a quarter of house visits produce a popcount of random bits, same monthly totals, smoother output. `original` = the Transit Tycoon rule. |
+| `timetableEstimates` | off | Measured wait and travel days are kept per order as display-only estimates (shown with `~` in the Orders window) until a time is set. |
+| `transparencyInvisibleHides` | off | Ctrl+Shift+1..8 hides the transparency class instead of fading it. Display only. Off = Ctrl+Shift+digit fades like Ctrl+digit. |
+| `linkgraphIntervalDays` | 0 (0-90) | 0 = the monthly link graph schedule. Above 0, days between link graph job starts (one cargo graph per spawn); the monthly interval and delay are ignored. |
+| `linkgraphTimeDays` | 0 (0-9000) | Minimum days a link graph job runs before its routing is applied. Only used when `linkgraphIntervalDays` > 0. |
+| `cargodistCapacityRouting` | off | Batched, deterministic approximation of OpenTTD multi-commodity routing (up to 8 rounds). Needs a cargo distribution setting. |
+| `strictGroupKind` | off | A group accepts only one vehicle type (trains, road vehicles, aircraft, ships), taken from the vehicle or filter it is made from. Off = mixed groups. |
+| `roadvehDriveThrough` | off | A road vehicle blocked for 20 days by a moving vehicle drives through it. Off = the 3-day turn-around and re-plan. A vehicle blocked by a loading one still waits. |
+| `localGiveMoney` | off | Opt-in town action: donate money to the local authority for a rating gain. Hidden when off. |
+| `autoreplaceProtectOttd` | off | Protected group: on = protection blocks only the company-wide rule (the group's own rule and autorenew still run). Off = protection blocks all three. |
+| `shipTurnCost` | off | Ship routing adds the cost of 6 tile steps per 90-degree turn, so ships prefer straighter routes. Movement stays 4-connected. |
+| `heightmapRotation` | `none` | New-game map option, not a setting: rotates or mirrors the imported heightmap (`none`, `rot90`, `rot180`, `rot270`, `flipX`, `flipY`, `transpose`, `antiTranspose`). See `docs/decisions/f3-heightmap-rot.md`. |
+| `waterBorders` | `none` | New-game map option, not a setting: floods chosen map edges with water (`none`, `all`, `random`, or comma-separated `north`/`east`/`south`/`west`). `random` is derived from the seed. See `docs/decisions/f4-water-borders.md`. |
+
+Per-round records with the rationale: `docs/decisions/` (for example `e2-autoreplace.md`, `settings-round-ad-givemoney.md`, `d19-ship-8way.md`).
+
+### Save protection and save slots (N8 / N9)
+- **Boot with a bad Continue save:** when the `autosave` slot cannot be read or deserialized, the game starts a new
+  game and shows an error toast (12 s). The `autosave` slot is then locked for the session (`ui/autosaveGuard.js`):
+  Continue writes (pause, hidden tab, unload, real-time autosave) are skipped, so the corrupt data is kept. The lock is
+  released by a manual save or a successful load. The monthly ring `auto-1..3` keeps rotating while the lock is on.
+- **Save/Load window:** a slot whose meta exists but whose payload is missing or unreadable is shown as
+  "Corrupt save — delete it or save over it", with Delete available (also for corrupt autosave and ring slots).
+  Choosing it shows "... is corrupt" and loads nothing. Payloads are written before their meta, so an interrupted write
+  does not leave a corrupt-looking slot behind.
+
+### Scenario editor (N8)
+- Editing is free: terraform, trees, towns, industries, canals, objects, demolish and town actions cost nothing.
+- The editor map starts paused; time runs only after "Play scenario" (which starts the company on Jan 1 of the start year).
+- Editor maps are not autosaved.
+
+### Orders and rivals (N8, Orders > Insert)
+- **Insert** (Orders window, next to Add order) puts the picked station or depot right after the current order.
+  The current order stays and the current order index is kept. Add order still appends at the end.
+- **Rival property:** demolishing a rival-owned HQ or station is refused ("Owned by a rival company"). An HQ with no
+  owning company record (hand-built map, or a bankrupt rival from before N8) can be cleared; it no longer removes the
+  player's HQ.

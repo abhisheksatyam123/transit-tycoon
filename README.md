@@ -77,7 +77,9 @@ certificates enabled in the tailnet admin console. See [`docs/DEPLOY.md`](docs/D
 - Trains with multiple wagons, buses and trucks; orders with full-load; breakdowns, ageing, reliability
 - Station ratings, catchment and acceptance; cargo payment by distance and transit time
 - Company finances: loans, interest, running costs, monthly ledger
-- Town growth, news feed, minimap, save/load (localStorage, LZ-compressed, + JSON export)
+- Settings window: grouped game options; the newer OpenTTD-style rules are opt-in (default off, or the Transit Tycoon default). Reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#n-waves-opt-in-settings-reference-save-protection-editor-orders-rivals-n5-n10)
+- Town growth, news feed, minimap, save/load (localStorage, LZ-compressed, + JSON export): 3 manual slots, the Continue autosave and a rotating `auto-1..3` ring. A Continue save that cannot be read is kept, not overwritten, for the session; the Save/Load window marks corrupt slots
+- Scenario editor (title menu): free editing, time paused until Play
 - **Moscow scenario** (`?scenario=moscow`): real OpenStreetMap data (© OpenStreetMap contributors, ODbL) baked by
   `tools/moscow/bake.js` — roads by class, rail, rivers, parks/forests, satellite cities, 17 metro lines on the real
   tunnel geometry, Seven Sisters and other landmarks, Soviet/modern building styles, industry on real industrial land,
