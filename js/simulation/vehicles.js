@@ -293,8 +293,10 @@ export function historyNeeded(v) {
  * Front segment first. Vehicles inside a depot return [].
  * @returns {{x:number,y:number,dir:number,part:string,cargoId:string|null,loaded:boolean,fill:number}[]}
  */
-export function getVehicleSegments(v) {
+export function getVehicleSegments(v, state) {
   if (v.state === 'depot') return [];
+  // D19: opt-in `shipDiagonal` ships interpolate diagonal steps on the true line (see pointAlong). Off = unchanged.
+  const diag = v.kind === 'ship' && !!state && getSetting(state, 'shipDiagonal') === true;
   const ap = articParts(v);
   const pts = [];
   const cur = v.path[v.pathIndex] || v.history[0] || { x: v.tx, y: v.ty };
@@ -302,11 +304,11 @@ export function getVehicleSegments(v) {
   let headDir;
   if (next) {
     pts.push({ x: cur.x + (next.x - cur.x) * v.progress, y: cur.y + (next.y - cur.y) * v.progress });
-    headDir = dirBetween(cur.x, cur.y, next.x, next.y);
+    headDir = dirBetween(cur.x, cur.y, next.x, next.y) || (diag ? dirFromDelta(next.x - cur.x, next.y - cur.y) : 0);
   } else {
     pts.push({ x: cur.x, y: cur.y });
     const h1 = v.history[1];
-    headDir = h1 ? dirBetween(h1.x, h1.y, cur.x, cur.y) : 0;
+    headDir = h1 ? (dirBetween(h1.x, h1.y, cur.x, cur.y) || (diag ? dirFromDelta(cur.x - h1.x, cur.y - h1.y) : 0)) : 0;
   }
   for (let i = next ? 0 : 1; i < v.history.length; i++) pts.push(v.history[i]);
   if (ap) return articSegments(v, ap, pts, headDir);
@@ -325,7 +327,7 @@ export function getVehicleSegments(v) {
   const out = [];
   let wagonIndex = 0;
   for (let k = 0; k < parts.length; k++) {
-    const pos = pointAlong(pts, k * SEGMENT_SPACING);
+    const pos = pointAlong(pts, k * SEGMENT_SPACING, diag);
     const dir = pos.dir || headDir || 2;
     const part = parts[k];
     let loaded = false, segFill = 0;
@@ -350,7 +352,7 @@ function articSegments(v, ap, pts, headDir) {
   const kind = v.roadType === 'bus' || v.roadType === 'tram' ? 'bus' : 'truck';
   const out = [];
   for (let k = 0; k < ap.length; k++) {
-    const pos = pointAlong(pts, off[k]);
+    const pos = pointAlong(pts, off[k], false);
     const dir = pos.dir || headDir || 2;
     out.push({ x: pos.x, y: pos.y, dir, part: kind, cargoId: v.cargoId, loaded: fills[k] > 0, fill: fills[k] });
   }
@@ -358,11 +360,12 @@ function articSegments(v, ap, pts, headDir) {
 }
 
 /** Walk `dist` along a newest-first polyline; returns point and travel direction. */
-function pointAlong(pts, dist) {
+function pointAlong(pts, dist, diag) {
   let remaining = dist;
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1];
-    const len = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    // diag (D19 ships): a diagonal step is one Euclidean length and faces the nearest of the 4 axis facings.
+    const len = diag ? Math.hypot(a.x - b.x, a.y - b.y) : Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
     const dir = dirBetween(Math.round(b.x), Math.round(b.y), Math.round(a.x), Math.round(a.y))
       || dirFromDelta(a.x - b.x, a.y - b.y);
     if (remaining <= len || i === pts.length - 2) {
