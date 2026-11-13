@@ -111,6 +111,21 @@ describe('setOrders keeps the current order for flag-only edits', () => {
     expect(currentOrder(v).stationId).toBe(b.id);
   });
 
+  test('keepIndex keeps the current order when an order is inserted after it (Orders > Insert)', () => {
+    const { g, a, b, c, depotId } = setup();
+    const v = buy(g, depotId).vehicle;
+    expect(g.setOrders(v.id, [{ stationId: a.id }, { stationId: b.id }]).ok).toBe(true);
+    v.orderIndex = 0;
+    expect(g.setOrders(v.id, [{ stationId: a.id }, { stationId: c.id }, { stationId: b.id }], { keepIndex: true }).ok).toBe(true);
+    expect(v.orders.map((o) => o.stationId)).toEqual([a.id, c.id, b.id]);
+    expect(v.orderIndex).toBe(0);
+    expect(currentOrder(v).stationId).toBe(a.id);
+    // without keepIndex the same list change is a replacement and resets to the first order
+    v.orderIndex = 1;
+    expect(g.setOrders(v.id, [{ stationId: a.id }, { stationId: b.id }]).ok).toBe(true);
+    expect(v.orderIndex).toBe(0);
+  });
+
   test('a genuine list replacement resets the index to 0', () => {
     const { g, a, b, depotId } = setup();
     const v = buy(g, depotId).vehicle;

@@ -8,7 +8,7 @@ import { currentSpeedUnit } from '../units.js';
 const speedUnitName = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).name;
 const speedFactor = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).factor;
 import { listOrEmpty } from './common.js';
-import { createAddOrderTool, appendOrder, appendDepotOrder } from '../tools/addOrder.js';
+import { createAddOrderTool, appendOrder, appendDepotOrder, insertOrder, insertDepotOrder } from '../tools/addOrder.js';
 import { stopKindOk } from '../../simulation/routing.js';
 import { unloadMode, stopMode, hasTimetable, orderFlagText, isDepotOrder, isNearestDepotOrder } from '../../simulation/orders.js';
 import { unbunchBlockReason } from '../../simulation/unbunch.js';
@@ -117,7 +117,14 @@ export function openOrders(app, id) {
         if (val.startsWith('d:')) appendDepotOrder(app, id, Number(val.slice(2)));
         else appendOrder(app, id, Number(val));
       } });
-      const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn);
+      // OpenTTD Orders > Insert: put the picked stop right after the current order (the current order is kept)
+      const insertBtn = el('button.btn', { type: 'button', text: 'Insert', title: 'Insert the selected station or depot after the current order', onclick: () => {
+        const val = pickSel.value;
+        if (!val) return;
+        if (val.startsWith('d:')) insertDepotOrder(app, id, Number(val.slice(2)));
+        else insertOrder(app, id, Number(val));
+      } });
+      const pickRow = el('div.btn-row', null, el('span.muted.small', { text: 'Add order:' }), pickSel, pickBtn, insertBtn);
       // OpenTTD "Go to nearest depot": appends a depot order resolved to the closest reachable depot when current
       const nearestBtn = el('button.btn.sm', { type: 'button', text: '+ Nearest depot', title: 'Append a go-to-nearest-depot order: the closest reachable depot when this order is current (tick service only if needed / stop in depot in its row)', onclick: () => {
         const v = app.findVehicle(id);

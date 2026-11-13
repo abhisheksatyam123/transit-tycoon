@@ -107,7 +107,8 @@ export function setOrders(ctx, id, orders, opts = {}) {
   // ModifyOrder; only a genuine list replacement resets to the first order.
   const same = r.orders.length === prev.length && r.orders.every((o, i) => orderIdentity(o) === orderIdentity(prev[i]));
   v.orders = r.orders;
-  v.orderIndex = same && v.orders.length ? Math.min(v.orderIndex, v.orders.length - 1) : 0;
+  // opts.keepIndex: an insertion after the current order must not send the vehicle back to order 0 (Orders > Insert)
+  v.orderIndex = (same || opts.keepIndex) && v.orders.length ? Math.min(v.orderIndex, v.orders.length - 1) : 0;
   resetUnbunch(v);
   syncSharers(ctx, v, prev);
   if ((v.state === 'running' || v.state === 'lost') && v.goingToDepot == null) replan(ctx, v);

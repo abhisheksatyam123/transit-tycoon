@@ -16,6 +16,35 @@ export function appendOrder(app, vehicleId, stationId) {
 }
 
 /**
+ * Insert a station order after the vehicle's current order (OpenTTD Orders > Insert). The current order is kept.
+ * @param {import('../app.js').App} app
+ * @param {number} vehicleId
+ * @param {number} stationId
+ * @returns {boolean} true when the order was inserted
+ */
+export function insertOrder(app, vehicleId, stationId) {
+  const v = app.findVehicle(vehicleId);
+  if (!v) return false;
+  const orders = v.orders.map((o) => ({ ...o }));
+  const at = Math.min(Math.max(0, v.orderIndex | 0) + 1, orders.length);
+  orders.splice(at, 0, { stationId, full: false });
+  return !!app.exec(app.game.setOrders(vehicleId, orders, { keepIndex: true }), { sound: 'click', quiet: true });
+}
+
+/**
+ * Insert a go-to-depot order after the vehicle's current order.
+ * @returns {boolean} true when the order was inserted
+ */
+export function insertDepotOrder(app, vehicleId, depotId) {
+  const v = app.findVehicle(vehicleId);
+  if (!v) return false;
+  const orders = v.orders.map((o) => ({ ...o }));
+  const at = Math.min(Math.max(0, v.orderIndex | 0) + 1, orders.length);
+  orders.splice(at, 0, depotId === 'nearest' ? { depot: 'nearest' } : { depotId });
+  return !!app.exec(app.game.setOrders(vehicleId, orders, { keepIndex: true }), { sound: 'click', quiet: true });
+}
+
+/**
  * Append a go-to-depot order (OpenTTD OT_GOTO_DEPOT) to a vehicle's orders.
  * @returns {boolean} true when the order was added
  */
