@@ -245,11 +245,38 @@ export function importFromFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,application/json';
-    input.addEventListener('change', () => {
+    let settled = false;
+    let closeTimer = null;
+    const onFocus = () => {
+      // Chrome/Firefox fire 'cancel' when the picker is dismissed; older engines only return focus.
+      // Wait a moment so a change event from a selected file wins the race, then resolve null.
+      if (settled || typeof window === 'undefined') return;
+      window.removeEventListener('focus', onFocus);
+      closeTimer = setTimeout(() => {
+        if (!settled && !(input.files && input.files.length)) done(null);
+      }, 500);
+    };
+    const cleanup = () => {
+      if (closeTimer != null) { clearTimeout(closeTimer); closeTimer = null; }
+      input.removeEventListener('change', onChange);
+      input.removeEventListener('cancel', onCancel);
+      if (typeof window !== 'undefined') window.removeEventListener('focus', onFocus);
+    };
+    const done = (text) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(text);
+    };
+    const onCancel = () => done(null);
+    const onChange = () => {
       const f = input.files && input.files[0];
-      if (!f) return resolve(null);
-      f.text().then(resolve, () => resolve(null));
-    });
+      if (!f) return done(null);
+      f.text().then(done, () => done(null));
+    };
+    input.addEventListener('change', onChange);
+    input.addEventListener('cancel', onCancel);
+    if (typeof window !== 'undefined') window.addEventListener('focus', onFocus);
     input.click();
   });
 }

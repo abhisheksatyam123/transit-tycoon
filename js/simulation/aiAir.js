@@ -12,6 +12,7 @@ import { manhattan, findStation } from './state.js';
 import { getTile, inBounds } from './map.js';
 import { vehicleFitsAirport, airportType, airportTypeId } from './airportTypes.js';
 import { pushNews } from './news.js';
+import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';;
 
 /** Air route distance window (manhattan tiles between the two towns). */
 export const AIR_MIN_DIST = 40;
@@ -129,14 +130,20 @@ export function buildAirRoute(ctx, r) {
   const choice = airRouteChoice(ctx, r);
   if (!choice) return false;
   const { typeId, plane, pick } = choice;
-  // dry-run the second airport first so a failure never leaves a lone airport behind
-  if (!buildAirport(ctx, pick.b.x, pick.b.y, { type: typeId, owner: r.id, dryRun: true }).ok) return false;
+  // dry-run both airports and the combined cash first so a failure never leaves a lone airport behind
+  const aDry = buildAirport(ctx, pick.a.x, pick.a.y, { type: typeId, owner: r.id, dryRun: true });
+  if (!aDry.ok) return false;
+  const bDry = buildAirport(ctx, pick.b.x, pick.b.y, { type: typeId, owner: r.id, dryRun: true });
+  if (!bDry.ok) return false;
+  if (r.money < aDry.cost + bDry.cost) return false;
+  const layout = airportType(typeId).layout;
+  const tiles = [...layout.map((p) => ({ x: pick.a.x + p.dx, y: pick.a.y + p.dy })),
+    ...layout.map((p) => ({ x: pick.b.x + p.dx, y: pick.b.y + p.dy }))];
+  const attempt = beginRivalAttempt(state, r, tiles);
   const aa = buildAirport(ctx, pick.a.x, pick.a.y, { type: typeId, owner: r.id });
-  if (!aa.ok) return false;
-  const ab = buildAirport(ctx, pick.b.x, pick.b.y, { type: typeId, owner: r.id });
-  if (!ab.ok) return false;
-  const depot = state.depots.find((d) => d.id === aa.depotId);
-  if (!depot) return false;
+  const ab = aa.ok ? buildAirport(ctx, pick.b.x, pick.b.y, { type: typeId, owner: r.id }) : aa;
+  const depot = ab.ok ? state.depots.find((d) => d.id === aa.depotId) : null;
+  if (!ab.ok || !depot) { rollbackRivalAttempt(attempt); return false; }
   const route = { a: aa.stationId, b: ab.stationId, depot: depot.id, towns: [pick.a.town.id, pick.b.town.id], air: true };
   if (typeId !== 'small') route.apType = typeId; // lazy: small routes (and older saves) carry no field
   r.routes.push(route);

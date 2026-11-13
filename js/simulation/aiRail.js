@@ -21,6 +21,7 @@ import { buyVehicle, setOrders, startVehicle } from './cmdVehicle.js';
 import { listModels } from './queries.js';
 import { pathOk } from './shapes.js';
 import { pushNews } from './news.js';
+import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 
 /** Rival signalling: block signals on the line every this many track tiles (OTTD signal density autofill). */
 export const RIVAL_SIGNAL_SPACING = 4;
@@ -278,11 +279,11 @@ export function planTrack(state, sa, sb) {
 }
 
 /**
- * Depot on open land directly beside a line tile, its exit facing that tile. The line tile must take the
- * matching bit (buildDepot adds it); a candidate is dry-run first and skipped when it would not connect.
- * @returns {object|null} the depot record
+ * Depot spot on open land directly beside a line tile, its exit facing that tile. Dry-run only: the
+ * candidate is returned with its cost so the caller can preflight the whole route before committing.
+ * @returns {{x:number,y:number,dir:number,cost:number}|null}
  */
-function placeRailDepot(ctx, path, owner) {
+function railDepotSpot(ctx, path, owner) {
   const { state } = ctx;
   const map = state.map;
   const onPath = new Set(path.map((p) => p.y * map.width + p.x));
@@ -292,15 +293,19 @@ function placeRailDepot(ctx, path, owner) {
       const x = p.x + d.dx, y = p.y + d.dy;
       if (!inBounds(map, x, y) || onPath.has(y * map.width + x) || !laneOk(getTile(map, x, y))) continue;
       const dir = OPPOSITE[d.bit]; // depot exit points at the line tile
-      if (!buildDepot(ctx, x, y, 'rail', dir, { owner, dryRun: true }).ok) continue;
-      const res = buildDepot(ctx, x, y, 'rail', dir, { owner });
-      if (!res.ok) continue;
-      const depot = state.depots.find((q) => q.id === res.depotId) || null;
-      if (depot && getTile(map, p.x, p.y).rail & d.bit) return depot;
-      return depot; // connected or not, the depot is placed; the caller checks the link
+      const dry = buildDepot(ctx, x, y, 'rail', dir, { owner, dryRun: true });
+      if (dry.ok) return { x, y, dir, cost: dry.cost };
     }
   }
   return null;
+}
+
+/** Commit a preflighted rail depot spot. @returns {object|null} the depot record */
+function placeRailDepot(ctx, spot, owner) {
+  const { state } = ctx;
+  const res = buildDepot(ctx, spot.x, spot.y, 'rail', spot.dir, { owner });
+  if (!res.ok) return null;
+  return state.depots.find((q) => q.id === res.depotId) || null;
 }
 
 /**
@@ -324,21 +329,28 @@ export function buildRailRoute(ctx, r) {
   if (!sa || !sb) return false;
   const path = planTrack(state, sa, sb);
   if (!path) return false;
-  // dry runs first: nothing is built unless the whole route is valid
-  if (!buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner, dryRun: true }).ok) return false;
-  if (!buildRailStation(ctx, sa.x0, sa.y0, sa.axis, STATION_LEN, { owner, dryRun: true }).ok) return false;
-  if (!buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner, dryRun: true }).ok) return false;
+  // dry runs first: nothing is built unless the whole route is valid, including the depot and the cash
+  // for every step (each command's dry run checks only its own cost, not the running total)
+  const lineDry = buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner, dryRun: true });
+  if (!lineDry.ok) return false;
+  const staDry = buildRailStation(ctx, sa.x0, sa.y0, sa.axis, STATION_LEN, { owner, dryRun: true });
+  if (!staDry.ok) return false;
+  const stbDry = buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner, dryRun: true });
+  if (!stbDry.ok) return false;
+  const depotSpot = railDepotSpot(ctx, path, owner);
+  if (!depotSpot) return false;
+  if (r.money < lineDry.cost + staDry.cost + stbDry.cost + depotSpot.cost) return false;
+  const attempt = beginRivalAttempt(state, r, [...path, ...sa.tiles, ...sb.tiles,
+    { x: depotSpot.x, y: depotSpot.y }, ...DIRS.map((d) => ({ x: depotSpot.x + d.dx, y: depotSpot.y + d.dy }))]);
   const stA = buildRailStation(ctx, sa.x0, sa.y0, sa.axis, STATION_LEN, { owner });
-  const stB = buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner });
-  if (!stA.ok || !stB.ok) return false;
-  const line = buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner });
-  if (!line.ok) return false;
+  const stB = stA.ok ? buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner }) : stA;
+  const line = stB.ok ? buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner }) : stB;
   // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (run stops at stations).
-  buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
-  const depot = placeRailDepot(ctx, path, owner);
-  if (!depot) return false;
-  const A = findStation(state, stA.stationId), B = findStation(state, stB.stationId);
-  if (!A || !B) return false;
+  if (line.ok) buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
+  const depot = line.ok ? placeRailDepot(ctx, depotSpot, owner) : null;
+  const A = depot ? findStation(state, stA.stationId) : null;
+  const B = depot ? findStation(state, stB.stationId) : null;
+  if (!A || !B) { rollbackRivalAttempt(attempt); return false; }
   for (const id of [A.id, B.id]) if (!r.stations.includes(id)) r.stations.push(id);
   r.depots.push(depot.id);
   const route = { a: A.id, b: B.id, depot: depot.id, cargo, rail: true, industries: [src.id, dst.id] };

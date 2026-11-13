@@ -32,6 +32,7 @@ import { straightAxis } from './network.js';
 import { companyById } from './owner.js';
 import { pushNews } from './news.js';
 import { buildFreightRoute, addFreightTrucks } from './aiFreight.js';
+import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 import { buildAirRoute, addAirPlanes, airRouteBudget, airRoutesOf, MAX_AIR_ROUTES } from './aiAir.js';
 import { buildRailRoute, addRailTrains, railRoutesOf, MAX_RAIL_ROUTES } from './aiRail.js';
 import { buildShipRoute, addShips, shipRoutesOf, MAX_SHIP_ROUTES } from './aiShip.js';
@@ -384,8 +385,7 @@ function housesAround(state, x, y) {
  * Bus stop on a straight road tile of the town's road network (component `comp`) that covers the most
  * houses; ties go to the first tile in row-major order.
  */
-function placeStop(ctx, town, owner, labels, comp) {
-  const { state } = ctx;
+function pickStop(state, town, labels, comp, exclude = null) {
   const map = state.map;
   const R = TOWN_CORE_RADIUS;
   let best = null, bestHouses = -1;
@@ -394,18 +394,24 @@ function placeStop(ctx, town, owner, labels, comp) {
       if (!inBounds(map, x, y)) continue;
       const t = getTile(map, x, y);
       if (!t.road || t.rail || t.building || !straightAxis(t.road) || labels[y * map.width + x] !== comp) continue;
+      if (exclude && exclude.has(y * map.width + x)) continue;
       const h = housesAround(state, x, y);
       if (h > bestHouses) { bestHouses = h; best = { x, y }; }
     }
   }
-  if (!best) return null;
-  const r = buildRoadStop(ctx, best.x, best.y, 'bus', { owner });
+  return best;
+}
+
+/** Commit a preflighted bus stop spot; @returns {object|null} the station record. */
+function placeStop(ctx, spot, owner) {
+  const { state } = ctx;
+  const r = buildRoadStop(ctx, spot.x, spot.y, 'bus', { owner });
   if (!r.ok) return null;
   return findStation(state, r.stationId);
 }
 
-/** Road depot on empty land next to a road of network `comp`, in the town core. */
-function placeDepot(ctx, town, owner, labels, comp) {
+/** Road depot spot on empty land next to a road of network `comp`, dry-run with its cost. */
+function depotSpot(ctx, town, owner, labels, comp) {
   const { state } = ctx;
   const map = state.map;
   const R = 8;
@@ -421,16 +427,24 @@ function placeDepot(ctx, town, owner, labels, comp) {
         // the exit must join the road: the neighbour takes the bit (or already has it) without a crossing
         const nt = getTile(map, nx, ny);
         if (!(nt.road & OPPOSITE[d.bit]) && canAddBits(nt, 'road', OPPOSITE[d.bit])) continue;
-        const r = buildDepot(ctx, x, y, 'road', d.bit, { owner });
-        if (r.ok) return state.depots.find((q) => q.id === r.depotId) || null;
+        const dry = buildDepot(ctx, x, y, 'road', d.bit, { owner, dryRun: true });
+        if (dry.ok) return { x, y, dir: d.bit, cost: dry.cost };
       }
     }
   }
   return null;
 }
 
+/** Commit a preflighted road depot spot. @returns {object|null} the depot record. */
+function placeDepot(ctx, spot, owner) {
+  const { state } = ctx;
+  const r = buildDepot(ctx, spot.x, spot.y, 'road', spot.dir, { owner });
+  if (!r.ok) return null;
+  return state.depots.find((q) => q.id === r.depotId) || null;
+}
+
 /** Build one route for the rival: stops in both towns, a depot, 2 buses on the two stops. */
-function buildRoute(ctx, r) {
+export function buildRoute(ctx, r) {
   const { state } = ctx;
   const pair = pickTownPair(state);
   if (!pair) return false;
@@ -438,18 +452,31 @@ function buildRoute(ctx, r) {
   const owner = r.id;
   const labels = labelComponentsAll(state.map, 'road');
   const comp = townComponent(state, labels, ta);
-  const sa = placeStop(ctx, ta, owner, labels, comp);
-  if (!sa) return false;
-  const sb = placeStop(ctx, tb, owner, labels, comp);
-  if (!sb) return false;
-  const depot = placeDepot(ctx, ta, owner, labels, comp);
-  if (!depot) return false;
-  // a stop reused from an earlier route (same town) is already listed
-  for (const id of [sa.id, sb.id]) if (!r.stations.includes(id)) r.stations.push(id);
-  r.depots.push(depot.id);
   const models = listModels(state, 'bus', r.id).sort((a, b) => b.capacity - a.capacity || (a.id < b.id ? -1 : 1));
   const model = models[0];
   if (!model) return false;
+  const aSpot = pickStop(state, ta, labels, comp);
+  const bSpot = aSpot && pickStop(state, tb, labels, comp, new Set([aSpot.y * state.map.width + aSpot.x]));
+  if (!aSpot || !bSpot) return false;
+  // dry runs first: both stops and the depot must be possible, and the rival must afford all three
+  const aDry = buildRoadStop(ctx, aSpot.x, aSpot.y, 'bus', { owner, dryRun: true });
+  if (!aDry.ok) return false;
+  const bDry = buildRoadStop(ctx, bSpot.x, bSpot.y, 'bus', { owner, dryRun: true });
+  if (!bDry.ok) return false;
+  const dSpot = depotSpot(ctx, ta, owner, labels, comp);
+  if (!dSpot) return false;
+  if (r.money < aDry.cost + bDry.cost + dSpot.cost) return false;
+  const attempt = beginRivalAttempt(state, r, [aSpot, bSpot, { x: dSpot.x, y: dSpot.y },
+    ...DIRS.map((d) => ({ x: dSpot.x + d.dx, y: dSpot.y + d.dy })),
+    ...DIRS.map((d) => ({ x: aSpot.x + d.dx, y: aSpot.y + d.dy })),
+    ...DIRS.map((d) => ({ x: bSpot.x + d.dx, y: bSpot.y + d.dy }))]);
+  const sa = placeStop(ctx, aSpot, owner);
+  const sb = sa ? placeStop(ctx, bSpot, owner) : null;
+  const depot = sb ? placeDepot(ctx, dSpot, owner) : null;
+  if (!sa || !sb || !depot) { rollbackRivalAttempt(attempt); return false; }
+  // a stop reused from an earlier route (same town) is already listed
+  for (const id of [sa.id, sb.id]) if (!r.stations.includes(id)) r.stations.push(id);
+  r.depots.push(depot.id);
   const route = { a: sa.id, b: sb.id, depot: depot.id, towns: [ta.id, tb.id] };
   r.routes.push(route);
   for (let k = 0; k < 2; k++) addRouteBus(ctx, r, route);

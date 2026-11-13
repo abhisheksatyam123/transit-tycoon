@@ -144,7 +144,7 @@ export function leagueRows(state) {
 }
 
 /** Live value of a rival: cash minus loan plus the value of its fleet (vehicles carry ownerId). */
-function rivalValue(state, r) {
+export function rivalValue(state, r) {
   let v = (r.money || 0) - (r.loan || 0);
   for (const veh of (state && state.vehicles) || []) if (veh.ownerId === r.id) v += veh.value || 0;
   return v;

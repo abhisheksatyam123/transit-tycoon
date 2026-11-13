@@ -1,0 +1,80 @@
+/**
+ * Rollback support for rival route building (gap #25): a rival build that commits stations/depots/track
+ * and then fails must not leave orphan assets behind. Callers snapshot the tiles the attempt may touch
+ * (and the rival's lists/cash) before the first committed command, then either forget the snapshot on
+ * success or roll it back on failure.
+ *
+ * Only assets created by this attempt are removed: tiles are restored from their pre-attempt copies and
+ * stations/depots/vehicles are filtered back to the ids that existed in the snapshot, so pre-existing
+ * player or rival infrastructure is untouched.
+ */
+import { getTile } from './map.js';
+import { invalidateBlocks } from './signals.js';
+
+const clone = (v) => JSON.parse(JSON.stringify(v));
+
+/**
+ * Snapshot a rival build attempt.
+ * @param {any} state game state
+ * @param {any} r rival company
+ * @param {{x:number,y:number}[]} tiles every map tile the attempt may change
+ */
+export function beginRivalAttempt(state, r, tiles = []) {
+  const map = state.map;
+  const seen = new Set();
+  const tileSnap = [];
+  for (const p of tiles) {
+    if (!p || p.x < 0 || p.y < 0 || p.x >= map.width || p.y >= map.height) continue;
+    const key = p.y * map.width + p.x;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tileSnap.push({ x: p.x, y: p.y, tile: clone(getTile(map, p.x, p.y)) });
+  }
+  return {
+    state,
+    r,
+    tiles: tileSnap,
+    stationIds: new Set(state.stations.map((s) => s.id)),
+    depotIds: new Set(state.depots.map((d) => d.id)),
+    vehicleIds: new Set(state.vehicles.map((v) => v.id)),
+    stationMeta: state.stations.map((s) => ({ ref: s, tiles: s.tiles.map((p) => ({ ...p })), x: s.x, y: s.y })),
+    money: r.money,
+    ledgerCurrent: r.ledger && r.ledger.current ? { ...r.ledger.current } : null,
+    expenditures: r.expenditures ? clone(r.expenditures) : null,
+    lists: {
+      stations: r.stations.slice(),
+      depots: r.depots.slice(),
+      vehicles: r.vehicles.slice(),
+      routes: r.routes.slice(),
+      railIndustries: r.railIndustries ? r.railIndustries.slice() : null,
+      freightIndustries: r.freightIndustries ? r.freightIndustries.slice() : null,
+      shipIndustries: r.shipIndustries ? r.shipIndustries.slice() : null,
+    },
+  };
+}
+
+/** Undo everything an attempt added and restore its cash/ledger/lists. */
+export function rollbackRivalAttempt(a) {
+  const { state, r } = a;
+  const map = state.map;
+  for (const p of a.tiles) {
+    const t = getTile(map, p.x, p.y);
+    for (const k of Object.keys(t)) delete t[k];
+    Object.assign(t, p.tile);
+  }
+  state.stations = state.stations.filter((s) => a.stationIds.has(s.id));
+  for (const m of a.stationMeta) { m.ref.tiles = m.tiles; m.ref.x = m.x; m.ref.y = m.y; }
+  state.depots = state.depots.filter((d) => a.depotIds.has(d.id));
+  state.vehicles = state.vehicles.filter((v) => a.vehicleIds.has(v.id));
+  r.stations = a.lists.stations;
+  r.depots = a.lists.depots;
+  r.vehicles = a.lists.vehicles;
+  r.routes = a.lists.routes;
+  if (a.lists.railIndustries) r.railIndustries = a.lists.railIndustries; else delete r.railIndustries;
+  if (a.lists.freightIndustries) r.freightIndustries = a.lists.freightIndustries; else delete r.freightIndustries;
+  if (a.lists.shipIndustries) r.shipIndustries = a.lists.shipIndustries; else delete r.shipIndustries;
+  r.money = a.money;
+  if (r.ledger && a.ledgerCurrent) r.ledger.current = a.ledgerCurrent;
+  if (a.expenditures) r.expenditures = a.expenditures; else delete r.expenditures;
+  invalidateBlocks(state);
+}

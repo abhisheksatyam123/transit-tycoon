@@ -4,7 +4,7 @@
  */
 import { el, clear } from '../dom.js';
 import { money } from '../format.js';
-import { liveCompanyValue } from './graphs.js';
+import { liveCompanyValue, rivalValue } from './graphs.js';
 import { playerSharesOf, sharePrice, shareBlock } from '../../simulation/shares.js';
 import { getSetting } from '../../simulation/settings.js';
 import { playerColourOf, COMPANY_COLOURS, setCompanyColour } from '../../simulation/companyColour.js';
@@ -22,9 +22,13 @@ export function companyRows(state) {
   rows.push({ name: c.name || 'Player', colour: playerColourOf(state), player: true, money: c.money, loan: c.loan, value: liveCompanyValue(state, c),
     vehicles: veh(null).length, stations: stn(null), profit: lastYear(c), bankrupt: !!c.bankrupt });
   for (const r of state.rivals || []) {
-    rows.push({ name: r.name, colour: r.colour, player: false, money: r.money, loan: r.loan, value: r.companyValue ?? (r.money - r.loan),
-      vehicles: veh(r.id).length, stations: stn(r.id), profit: lastYear(r), bankrupt: !!r.bankrupt,
-    id: r.id, offer: r.takeoverOffer ? r.takeoverOffer.price : null,
+    // live value/fleet: the stored companyValue and stats are only refreshed at month end (and go stale
+    // once a rival is taken over or wound up); the league rows already use these live forms
+    const bankrupt = !!(r.bankrupt || r.taken);
+    const profit = bankrupt ? 0 : (r.stats && typeof r.stats.profit === 'number' ? r.stats.profit : lastYear(r));
+    rows.push({ name: r.name, colour: r.colour, player: false, money: r.money, loan: r.loan, value: rivalValue(state, r),
+      vehicles: veh(r.id).length, stations: stn(r.id), profit, bankrupt,
+    id: r.id, offer: !bankrupt && r.takeoverOffer ? r.takeoverOffer.price : null,
       shares: playerSharesOf(r), sharePrice: sharePrice(r), buyBlock: shareBlock(state, r.id, 'buy'), sellBlock: shareBlock(state, r.id, 'sell') });
   }
   return rows;
@@ -134,7 +138,7 @@ export function openCompanies(app) {
         if (s === sig) return;
         sig = s;
         clear(table);
-        const head = ['Company', 'Money', 'Loan', 'Value', 'Vehicles', 'Stations', 'Last-year profit', 'Takeover'].concat(withShares ? ['Shares', 'Trade 25%'] : []);
+        const head = ['Company', 'Money', 'Loan', 'Value', 'Vehicles', 'Stations', 'Last-month profit', 'Takeover'].concat(withShares ? ['Shares', 'Trade 25%'] : []);
         const tbl = el('table.ledger');
         tbl.appendChild(el('tr', null, head.map((h) => el('th', { text: h }))));
         for (const r of rows) {

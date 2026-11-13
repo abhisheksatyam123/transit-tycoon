@@ -17,6 +17,7 @@ import { listModels } from './queries.js';
 import { findRoadPath } from './townRoads.js';
 import { pathOk } from './shapes.js';
 import { pushNews } from './news.js';
+import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 
 /** Freight route distance window (manhattan tiles, industry centre to centre). */
 export const FREIGHT_MIN_DIST = 12;
@@ -84,12 +85,8 @@ function stopSpot(state, ind, toward) {
   return best;
 }
 
-/**
- * Lay a road between two points: A* over land (townRoads.findRoadPath), then buildLine along the path,
- * paid by the rival. Returns the path or null.
- */
-function layFreightRoad(ctx, owner, from, to) {
-  const { state } = ctx;
+/** Plan the road between two points: A* over land (townRoads.findRoadPath). Returns the path or null. */
+function planFreightRoad(state, from, to) {
   const map = state.map;
   const goal = new Set([to.y * map.width + to.x]);
   const allowed = (x, y) => {
@@ -97,10 +94,7 @@ function layFreightRoad(ctx, owner, from, to) {
     return t.terrain !== 'water' && !t.building && !t.rail;
   };
   const path = findRoadPath(map, [from], goal, to, allowed, 2);
-  if (!path || !pathOk(path)) return null;
-  const r = buildLine(ctx, 'road', 0, 0, 0, 0, { path, owner });
-  if (!r.ok) return null;
-  return path;
+  return path && pathOk(path) ? path : null;
 }
 
 /**
@@ -121,16 +115,29 @@ export function buildFreightRoute(ctx, r) {
   if (!a) return false;
   const b = stopSpot(state, dst, centre(src));
   if (!b) return false;
-  // Road before stops: it claims the shortest route; a failed road must not leave a stop behind.
-  const path = layFreightRoad(ctx, owner, a, b);
+  const path = planFreightRoad(state, a, b);
   if (!path) return false;
-  const sa = buildRoadStop(ctx, a.x, a.y, 'truck', { owner });
-  const sb = buildRoadStop(ctx, b.x, b.y, 'truck', { owner });
-  if (!sa.ok || !sb.ok) return false;
-  const stA = findStation(state, sa.stationId), stB = findStation(state, sb.stationId);
-  if (!stA || !stB) return false;
-  const depot = placeTruckDepot(ctx, a, owner, path);
-  if (!depot) return false;
+  // dry runs first: road, both stops and the depot must be possible and affordable before anything is built
+  const roadDry = buildLine(ctx, 'road', 0, 0, 0, 0, { path, owner, dryRun: true });
+  if (!roadDry.ok) return false;
+  const aDry = buildRoadStop(ctx, a.x, a.y, 'truck', { owner, dryRun: true });
+  if (!aDry.ok) return false;
+  const bDry = buildRoadStop(ctx, b.x, b.y, 'truck', { owner, dryRun: true });
+  if (!bDry.ok) return false;
+  const dSpot = truckDepotSpot(ctx, a, owner, path);
+  if (!dSpot) return false;
+  if (r.money < roadDry.cost + aDry.cost + bDry.cost + dSpot.cost) return false;
+  const attempt = beginRivalAttempt(state, r, [...path, a, b, { x: dSpot.x, y: dSpot.y },
+    ...DIRS.map((d) => ({ x: dSpot.x + d.dx, y: dSpot.y + d.dy })),
+    ...DIRS.map((d) => ({ x: a.x + d.dx, y: a.y + d.dy })),
+    ...DIRS.map((d) => ({ x: b.x + d.dx, y: b.y + d.dy }))]);
+  const road = buildLine(ctx, 'road', 0, 0, 0, 0, { path, owner });
+  const sa = road.ok ? buildRoadStop(ctx, a.x, a.y, 'truck', { owner }) : road;
+  const sb = sa.ok ? buildRoadStop(ctx, b.x, b.y, 'truck', { owner }) : sa;
+  const stA = sb.ok ? findStation(state, sa.stationId) : null;
+  const stB = sb.ok ? findStation(state, sb.stationId) : null;
+  const depot = stA && stB ? placeTruckDepot(ctx, dSpot, owner) : null;
+  if (!stA || !stB || !depot) { rollbackRivalAttempt(attempt); return false; }
   for (const id of [stA.id, stB.id]) if (!r.stations.includes(id)) r.stations.push(id);
   r.depots.push(depot.id);
   const route = { a: stA.id, b: stB.id, depot: depot.id, cargo, freight: true, industries: [src.id, dst.id] };
@@ -141,10 +148,15 @@ export function buildFreightRoute(ctx, r) {
   return true;
 }
 
-/** Road depot beside the first path tile (the stop end), with its exit on the path. */
-function placeTruckDepot(ctx, near, owner, path) {
+/**
+ * Depot spot on empty land beside `near` whose exit joins a path tile (or an existing road), dry-run
+ * with its cost. Path tiles have no road yet when this is preflighted, so they are accepted as exits and
+ * the committed road build supplies the bit.
+ */
+function truckDepotSpot(ctx, near, owner, path) {
   const { state } = ctx;
   const map = state.map;
+  const onPath = new Set(path.map((p) => p.y * map.width + p.x));
   for (let R = 1; R <= 4; R++) for (let y = near.y - R; y <= near.y + R; y++) for (let x = near.x - R; x <= near.x + R; x++) {
     if (!inBounds(map, x, y) || Math.max(Math.abs(x - near.x), Math.abs(y - near.y)) !== R) continue;
     const t = getTile(map, x, y);
@@ -153,13 +165,23 @@ function placeTruckDepot(ctx, near, owner, path) {
       const nx = x + d.dx, ny = y + d.dy;
       if (!inBounds(map, nx, ny)) continue;
       const nt = getTile(map, nx, ny);
-      if (!nt.road) continue;
-      if (!(nt.road & OPPOSITE[d.bit]) && canAddBits(nt, 'road', OPPOSITE[d.bit])) continue;
-      const res = buildDepot(ctx, x, y, 'road', d.bit, { owner });
-      if (res.ok) return state.depots.find((q) => q.id === res.depotId) || null;
+      const onRoadPath = onPath.has(ny * map.width + nx);
+      if (!nt.road && !onRoadPath) continue;
+      if (nt.road && !(nt.road & OPPOSITE[d.bit]) && canAddBits(nt, 'road', OPPOSITE[d.bit])) continue;
+      if (!nt.road && canAddBits(nt, 'road', OPPOSITE[d.bit])) continue;
+      const dry = buildDepot(ctx, x, y, 'road', d.bit, { owner, dryRun: true });
+      if (dry.ok) return { x, y, dir: d.bit, cost: dry.cost };
     }
   }
   return null;
+}
+
+/** Commit a preflighted truck depot spot. @returns {object|null} the depot record. */
+function placeTruckDepot(ctx, spot, owner) {
+  const { state } = ctx;
+  const res = buildDepot(ctx, spot.x, spot.y, 'road', spot.dir, { owner });
+  if (!res.ok) return null;
+  return state.depots.find((q) => q.id === res.depotId) || null;
 }
 
 /** Buy one truck at the route depot, order it stop A <-> stop B and start it. */

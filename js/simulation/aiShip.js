@@ -19,6 +19,7 @@ import { findShipPath, shipPassable } from './shipPath.js';
 import { getSetting } from './settings.js';
 import { tileAcceptance } from './stations.js';
 import { pushNews } from './news.js';
+import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 
 /** Water route distance window (tiles, dock to dock along the water). */
 export const SHIP_MIN_DIST = 15;
@@ -183,14 +184,15 @@ export function buildShipRoute(ctx, r) {
   return false;
 }
 
-/** A water tile beside the source dock where a depot can go (dry run). @returns {{x,y}|null} */
+/** A water tile beside the source dock where a depot can go (dry run, with its cost). */
 function depotSpot(ctx, sa, owner) {
   const map = ctx.state.map;
   for (const n of sa.water) {
     for (const d of DIRS) {
       const x = n.x + d.dx, y = n.y + d.dy;
       if (!inBounds(map, x, y) || !shipPassable(map, y * map.width + x) || getTile(map, x, y).building) continue;
-      if (buildShipDepot(ctx, x, y, { owner, dryRun: true }).ok) return { x, y };
+      const dry = buildShipDepot(ctx, x, y, { owner, dryRun: true });
+      if (dry.ok) return { x, y, cost: dry.cost };
     }
   }
   return null;
@@ -201,20 +203,21 @@ function buildRouteNow(ctx, r, p) {
   const { state } = ctx;
   const { src, dst, cargo, ship, sa, sb } = p;
   const owner = r.id;
-  if (!buildDock(ctx, sa.x, sa.y, { owner, dryRun: true }).ok) return false;
-  if (!buildDock(ctx, sb.x, sb.y, { owner, dryRun: true }).ok) return false;
+  const aDry = buildDock(ctx, sa.x, sa.y, { owner, dryRun: true });
+  if (!aDry.ok) return false;
+  const bDry = buildDock(ctx, sb.x, sb.y, { owner, dryRun: true });
+  if (!bDry.ok) return false;
   const spot = depotSpot(ctx, sa, owner); // checked before anything is built
   if (!spot) return false;
+  if (r.money < aDry.cost + bDry.cost + spot.cost) return false;
+  const attempt = beginRivalAttempt(state, r, [{ x: sa.x, y: sa.y }, { x: sb.x, y: sb.y }, { x: spot.x, y: spot.y }]);
   const da = buildDock(ctx, sa.x, sa.y, { owner });
-  if (!da.ok) return false;
-  const db = buildDock(ctx, sb.x, sb.y, { owner });
-  if (!db.ok) return false;
-  const dep = buildShipDepot(ctx, spot.x, spot.y, { owner });
-  if (!dep.ok) return false;
-  const depot = state.depots.find((q) => q.id === dep.depotId);
-  if (!depot) return false;
-  const A = findStation(state, da.stationId), B = findStation(state, db.stationId);
-  if (!A || !B) return false;
+  const db = da.ok ? buildDock(ctx, sb.x, sb.y, { owner }) : da;
+  const dep = db.ok ? buildShipDepot(ctx, spot.x, spot.y, { owner }) : db;
+  const depot = dep.ok ? state.depots.find((q) => q.id === dep.depotId) : null;
+  const A = depot ? findStation(state, da.stationId) : null;
+  const B = depot ? findStation(state, db.stationId) : null;
+  if (!depot || !A || !B) { rollbackRivalAttempt(attempt); return false; }
   const route = { a: A.id, b: B.id, depot: depot.id, cargo, ship: true, industries: [src.id, dst.id] };
   r.routes.push(route);
   for (const id of [A.id, B.id]) if (!r.stations.includes(id)) r.stations.push(id);
