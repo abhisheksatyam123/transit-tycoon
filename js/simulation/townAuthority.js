@@ -120,11 +120,14 @@ function rankCss(r) {
   return 'rgba(255,140,140,.95)';
 }
 
-/** A short refusal reason if the local authority at (x,y) forbids building, else null. */
-export function refusalAt(state, x, y) {
+/** A short refusal reason if the local authority at (x,y) forbids building, else null. `owner` null = player. */
+export function refusalAt(state, x, y, owner = null) {
   const t = authorityTown(state, x, y);
-  if (!t || townRating(t) >= refuseBelow(state)) return null;
-  return `${t.name}'s local authority refuses (rating ${townRating(t)}; needs ${refuseBelow(state)}+)`;
+  if (!t) return null;
+  // Each company is judged by its own rating (the player's is town.companyRating); rivals default to neutral.
+  const rating = owner == null ? townRating(t) : getTownRating(state, t.id, owner);
+  if (rating >= refuseBelow(state)) return null;
+  return `${t.name}'s local authority refuses (rating ${rating}; needs ${refuseBelow(state)}+)`;
 }
 
 /**
@@ -135,7 +138,8 @@ export function refusalAt(state, x, y) {
 export function authorityMonthlyTick(ctx) {
   const { state } = ctx;
   const towns = state.towns || [];
-  const stations = (state.stations || []).filter((st) => st.tiles && st.tiles.length);
+  // Only the player's stations move the player's rating: rival stations are the rival's business.
+  const stations = (state.stations || []).filter((st) => st.tiles && st.tiles.length && st.ownerId == null);
   const dist = localAuthorityDist(state);
   for (const town of towns) {
     ensureTown(town);

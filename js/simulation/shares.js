@@ -56,7 +56,7 @@ export function tradeShare(ctx, rivalId, action) {
   if (action === 'buy') {
     if (monthOf(state.date) - (r.foundedAt ?? 0) < SHARE_MIN_AGE_MONTHS) return { ok: false, error: `Company is younger than ${SHARE_MIN_AGE_MONTHS} months` };
     if (held >= SHARES_PER_COMPANY) return { ok: false, error: 'You own all the shares' };
-    if (!infiniteMoney(state) && price > state.company.money) return { ok: false, error: 'Not enough money for a share' };
+    if (!infiniteMoney(state) && price > 0 && price > state.company.money) return { ok: false, error: 'Not enough money for a share' };
     spend(state.company, 'property', price);
     r.playerShares = held + 1;
     if (r.playerShares === SHARES_PER_COMPANY) {
@@ -87,7 +87,7 @@ export function shareBlock(state, rivalId, action) {
   if (action === 'buy') {
     if (monthOf(state.date) - (r.foundedAt ?? 0) < SHARE_MIN_AGE_MONTHS) return `Shares can be bought only after ${SHARE_MIN_AGE_MONTHS} months of company life`;
     if (held >= SHARES_PER_COMPANY) return 'You own all the shares';
-    if (!infiniteMoney(state) && sharePrice(r) > state.company.money) return 'Not enough money';
+    if (!infiniteMoney(state) && sharePrice(r) > 0 && sharePrice(r) > state.company.money) return 'Not enough money';
     return '';
   }
   return held <= 0 ? 'You own no shares in this company' : '';

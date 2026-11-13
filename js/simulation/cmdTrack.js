@@ -397,6 +397,18 @@ function stripLayer(map, x, y, layer) {
 /** Owner id of a station/depot record (null = player, undefined = unknown). Demolishing rival assets is refused. */
 function ownerOfStation(state, id) { const st = findStation(state, id); return st ? (st.ownerId ?? null) : undefined; }
 function ownerOfDepot(state, id) { const d = state.depots.find((q) => q.id === id); return d ? (d.ownerId ?? null) : undefined; }
+/** Owner id of the HQ whose 2x2 footprint contains (x,y) (null = player, undefined = no HQ record). */
+function ownerOfHQ(state, x, y) {
+  const b = state.map.tiles[y * state.map.width + x].building;
+  const ox = x - (b.dx || 0), oy = y - (b.dy || 0);
+  const ph = state.company.hq;
+  if (ph && ph.x === ox && ph.y === oy) return null;
+  for (const r of state.rivals || []) {
+    if (r.bankrupt || !r.hq) continue;
+    if (r.hq.x === ox && r.hq.y === oy) return r.id;
+  }
+  return undefined;
+}
 
 export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   const { state } = ctx;
@@ -496,7 +508,11 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
         jobs.push({ x, y, kind: 'station' }); cost += b.kind === 'waypoint' ? COSTS.demolishWaypoint : COSTS.demolishStation; continue;
       }
       if (b && b.type === 'house') { jobs.push({ x, y, kind: 'house' }); cost += COSTS.demolishHouse; continue; }
-      if (b && b.type === 'hq') { jobs.push({ x, y, kind: 'hq' }); continue; }
+      if (b && b.type === 'hq') {
+        const hqOwner = ownerOfHQ(state, x, y);
+        if (hqOwner != null) return { ok: false, error: RIVAL_OWNED }; // demolishing a rival HQ is refused
+        jobs.push({ x, y, kind: 'hq', owner: hqOwner }); continue;
+      }
       if (t.object && !b && OBJECT_TYPES.includes(t.object.type)) { jobs.push({ x, y, kind: 'object' }); continue; } // objects: no refund
       if (t.tram && !t.rail) {
         jobs.push({ x, y, kind: 'tram' });
@@ -550,7 +566,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else if (j.kind === 'object') {
       delete t.object;
     } else if (j.kind === 'hq') {
-      removeHQ(state); // T31: no refund
+      removeHQ(state, j.owner ?? null); // T31: no refund; remove the owner that owns this HQ
     } else if (j.kind === 'house') {
       if (!t.building) continue; // already cleared as a part of a multi-tile house
       if (t.building.size) { clearHouseAt(state, j.x, j.y); continue; } // largeHouses: all parts go together
