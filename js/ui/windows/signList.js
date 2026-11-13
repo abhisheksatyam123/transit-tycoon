@@ -7,6 +7,7 @@ import { el, setText } from '../dom.js';
 import { listOrEmpty } from './common.js';
 import { filterSigns, makeSortMemo } from './listSort.js';
 import { openSignPrompt } from '../tools/sign.js';
+import { openConfirm } from '../modal.js';
 
 /**
  * @param {import('../app.js').App} app
@@ -53,7 +54,11 @@ export function openSignList(app) {
               }
             };
             rename.onclick = () => openSignPrompt(app, { id: s.id, x: s.x, y: s.y });
-            del.onclick = () => { app.exec(app.game.deleteSign(s.id), { sound: 'click' }); app.wm.updateAll(); };
+            del.onclick = () => openConfirm({
+              question: `Delete the sign "${s.text ?? ''}"?`,
+              yesText: 'Delete',
+              onYes: () => { app.exec(app.game.deleteSign(s.id), { sound: 'click' }); app.wm.updateAll(); },
+            });
           }, sigFilter ? 'No signs match the filter' : 'No signs yet — place one with the Sign tool');
       };
     },

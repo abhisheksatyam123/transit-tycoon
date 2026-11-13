@@ -16,7 +16,7 @@ import { isReplaceWhenOldFor, autoreplaceTarget, groupProtectBlocksAll, isKeepLe
 import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
-import { companyOf, companyById, stampOwner } from './owner.js';
+import { companyOf, companyById, stampOwner, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { notify } from './news.js';
 import { dayNumber } from './date.js';
 import { MAX_EXTRA_ENGINES } from './consistEngines.js';
@@ -249,7 +249,10 @@ export function isAutoreplaceEligible(state, v) {
  */
 export function massAutoreplace(ctx, depotId, opts={}) {
   const {state}=ctx;
-  if (!state.depots.find((d)=>d.id===depotId)) return {ok:false,error:'No depot'};
+  const depot=state.depots.find((d)=>d.id===depotId);
+  if (!depot) return {ok:false,error:'No depot'};
+  // A rival-owned depot is not the player's to service (same guard as every cmdVehicle command).
+  if (ownerMismatch(depot, opts)) return {ok:false,error:RIVAL_OWNED};
   const ids=state.vehicles.filter((v)=>v.depotId===depotId&&v.state==='depot').map((v)=>v.id);
   let replaced=0,skipped=0,cost=0;
   for (const id of ids) {

@@ -28,7 +28,8 @@ export function depotRows(state) {
     if (v.state === 'depot') inside.set(v.depotId, (inside.get(v.depotId) || 0) + 1);
   }
   const towns = state.towns || [];
-  return depots.map((d) => {
+  // Player depots only: rival depots (ownerId) are not ours to inspect or open (owner.js).
+  return depots.filter((d) => d.ownerId == null).map((d) => {
     let town = '', bd = Infinity;
     for (const t of towns) {
       const dist = Math.abs(t.x - d.x) + Math.abs(t.y - d.y);
@@ -72,12 +73,19 @@ export function openDepotList(app) {
         const inside = rows.reduce((s, r) => s + r.inside, 0);
         setText(summary, `${rows.length} depot(s) · ${inside} vehicle(s) inside`);
         listOrEmpty(list, rows, (r) => r.id,
-          (r) => el('div.table-row.list-row', { role: 'button', tabindex: '0', title: 'Click: centre view on depot',
-            style: { display: 'grid', gridTemplateColumns: cols, textAlign: 'left', cursor: 'pointer' },
-            onclick: () => { app.centerOn(r.x, r.y); } },
-          el('span.name'), el('span.name'), el('span.mono.num'), el('span.mono.num'),
-          el('button.btn.sm', { type: 'button', text: 'Open', title: 'Open depot window',
-            onclick: (e) => { e.stopPropagation(); app.open('depot', r.id); } })),
+          (r) => {
+            const activate = () => app.centerOn(r.x, r.y);
+            return el('div.table-row.list-row', { role: 'button', tabindex: '0', title: 'Click: centre view on depot',
+              style: { display: 'grid', gridTemplateColumns: cols, textAlign: 'left', cursor: 'pointer' },
+              onclick: activate,
+              onkeydown: (e) => {
+                if (e.target !== e.currentTarget) return; // inner Open/Rename buttons keep their own keys
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+              } },
+            el('span.name'), el('span.name'), el('span.mono.num'), el('span.mono.num'),
+            el('button.btn.sm', { type: 'button', text: 'Open', title: 'Open depot window',
+              onclick: (e) => { e.stopPropagation(); app.open('depot', r.id); } }));
+          },
           (row, r) => {
             const c = row.children;
             setText(c[0], `${r.name} · ${r.kindLabel}`);

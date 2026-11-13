@@ -4,6 +4,7 @@ import { MODEL_BY_ID } from '../js/config/vehicles.js';
 import { Game } from '../js/simulation/game.js';
 import { setSetting } from '../js/simulation/settings.js';
 import { autorenewVehicle } from '../js/simulation/autorenew.js';
+import { RIVAL_OWNED } from '../js/simulation/owner.js';
 import { replacementCandidates } from '../js/simulation/autoreplace.js';
 import { vehiclePrice } from '../js/simulation/prices.js';
 
@@ -16,6 +17,20 @@ function train() {
 }
 
 describe('autoreplace (T18b)', () => {
+  test('massAutoreplace refuses a rival-owned depot and changes nothing', () => {
+    const { g, L, v } = train();
+    g.setAutoreplace('eng_puffer', 'eng_comet');
+    v.state = 'depot';
+    const depot = g.state.depots.find((d) => d.id === L.depotId);
+    depot.ownerId = 7;
+    const vehicles = g.state.vehicles.slice();
+    const money = g.state.company.money;
+    const r = g.massAutoreplace(L.depotId);
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe(RIVAL_OWNED);
+    expect(g.state.vehicles).toEqual(vehicles);
+    expect(g.state.company.money).toBe(money);
+  });
   test('nothing stored by default', () => {
     const { g } = train();
     expect(g.state.company.autoreplace).toBeUndefined();

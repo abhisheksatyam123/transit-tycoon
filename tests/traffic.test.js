@@ -3,6 +3,7 @@ import { Game } from '../js/simulation/game.js';
 import { flatGame } from './helpers.js';
 import { placeHouse } from '../js/simulation/towns.js';
 import { trafficCars, trafficStats } from '../js/simulation/traffic.js';
+import { trafficRefreshKey, TRAFFIC_REFRESH_TICKS } from '../js/ui/windows/traffic.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
 import { LANE_CAPACITY, HISTORY_DAYS } from '../js/config/traffic.js';
 
@@ -86,5 +87,31 @@ describe('traffic simulation', () => {
     expect(st.history.length).toBe(Math.min(120, HISTORY_DAYS));
     expect(st.tripsTotal).toBeGreaterThan(0);
     expect(g.state.traffic.cars.length).toBeGreaterThan(0);
+  });
+});
+
+describe('traffic window refresh gating', () => {
+  const base = () => ({ tick: 0, date: { year: 1930, month: 0, day: 1 }, traffic: { dirty: 0 } });
+  test('key is stable within a tick bucket and changes at the boundary', () => {
+    expect(TRAFFIC_REFRESH_TICKS).toBe(40);
+    expect(trafficRefreshKey(null)).toBe('');
+    const s = base();
+    const k0 = trafficRefreshKey(s);
+    s.tick = TRAFFIC_REFRESH_TICKS - 1;
+    expect(trafficRefreshKey(s)).toBe(k0);
+    s.tick = TRAFFIC_REFRESH_TICKS;
+    expect(trafficRefreshKey(s)).not.toBe(k0);
+  });
+  test('day, month and dirty counter invalidate the cached report', () => {
+    const s = base();
+    const k = trafficRefreshKey(s);
+    s.date.day = 2;
+    const kDay = trafficRefreshKey(s);
+    expect(kDay).not.toBe(k);
+    s.date.month = 1;
+    const kMonth = trafficRefreshKey(s);
+    expect(kMonth).not.toBe(kDay);
+    s.traffic.dirty = 1;
+    expect(trafficRefreshKey(s)).not.toBe(kMonth);
   });
 });

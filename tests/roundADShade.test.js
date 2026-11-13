@@ -222,4 +222,20 @@ describe('window shade + sticky toggles (UI only)', () => {
     expect(w.stickBtn.getAttribute('aria-label')).toBe('Pin Renamed');
     expect(ctrls.children[2].getAttribute('aria-label')).toBe('Close Renamed');
   });
+
+  test('updateAll skips shaded windows and refreshes once on unshade', () => {
+    const { wm } = makeWm();
+    let calls = 0;
+    const w = wm.open('tick', { title: 'Tick', build: () => () => { calls++; } });
+    expect(calls).toBe(1); // open runs the first update
+    wm.updateAll();
+    expect(calls).toBe(2);
+    w.setShaded(true);
+    wm.updateAll(); // skipped while rolled up
+    expect(calls).toBe(2);
+    w.setShaded(false); // roll-down refreshes the hidden content once
+    expect(calls).toBe(3);
+    wm.updateAll();
+    expect(calls).toBe(4);
+  });
 });

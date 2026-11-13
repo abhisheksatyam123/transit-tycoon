@@ -2,11 +2,30 @@
  * Traffic Monitor window: live KPIs, 90-day history chart, congested roads, per-town table,
  * and renderer toggles (traffic heatmap, cars). Refresh is cheap: it reads cached stats.
  */
-import { el, setText, clear } from '../dom.js';
+import { el, setText } from '../dom.js';
 import { num, pct } from '../format.js';
-import { kvGrid, heading } from './common.js';
+import { kvGrid, heading, listOrEmpty } from './common.js';
 
 const C_ACTIVE = '#38bdf8', C_FAILED = '#f87171';
+
+/** Simulation ticks between traffic report refreshes: 40 = about one second at normal speed (BASE_TPS). */
+export const TRAFFIC_REFRESH_TICKS = 40;
+
+/**
+ * Cheap cache key for the traffic report. trafficStats() scans the whole map, so the window calls it
+ * only when this key changes: one bucket per refreshing interval, plus the game date and an optional
+ * dirty counter for callers that change stats without advancing the tick.
+ * @param {any} state
+ * @param {number} ticks ticks per refresh bucket
+ * @returns {string}
+ */
+export function trafficRefreshKey(state, ticks = TRAFFIC_REFRESH_TICKS) {
+  if (!state) return '';
+  const tick = typeof state.tick === 'number' ? state.tick : 0;
+  const d = state.date ? `${state.date.year}:${state.date.month}:${state.date.day}` : '';
+  const dirty = state.traffic && Number.isFinite(state.traffic.dirty) ? state.traffic.dirty : 0;
+  return `${Math.floor(tick / ticks)}|${d}|${dirty}`;
+}
 
 /**
  * Draw a two-series line chart onto a canvas.
@@ -50,10 +69,22 @@ export function openTraffic(app) {
     width: 420,
     build(body) {
       const na = el('div.empty', { text: 'Traffic not available' });
+      let cachedStats = null, cachedState = null, statsKey = null;
       const get = () => {
         const g = app.game;
         if (!g || typeof g.trafficStats !== 'function') return null;
-        try { return g.trafficStats(); } catch { return null; } /* stats unavailable: window shows empty state */
+        const state = g.state;
+        const key = trafficRefreshKey(state);
+        if (cachedStats && state === cachedState && key === statsKey) return cachedStats;
+        try {
+          cachedStats = g.trafficStats();
+          cachedState = state;
+          statsKey = key;
+          return cachedStats;
+        } catch {
+          cachedStats = null; cachedState = null; statsKey = null; // stats unavailable: window shows empty state
+          return null;
+        }
       };
       const kpiLabels = ['Active cars', 'Trips today', 'Trips total', 'Failed today', 'Failed total', 'Aborted (stuck)', 'Suppressed (no room)', 'Avg speed', 'Avg trip (days)', 'Congested tiles'];
       const set = kvGrid(body, kpiLabels);
@@ -103,27 +134,40 @@ export function openTraffic(app) {
           sig = hs;
           drawHistory(cv, hist);
         }
-        clear(congList);
+        // Patch rows under stable keys (road coords / town id) so a pointerdown target survives the refresh.
         const top = st.topCongested || [];
-        if (!top.length) congList.append(el('div.empty', { text: 'No congestion' }));
-        for (const r of top) {
-          congList.append(el('button.list-row', {
-            type: 'button', title: 'Centre view on this road',
-            onclick: () => app.centerOn(r.x, r.y),
-          }, el('span.name', { text: `(${r.x}, ${r.y})` }), el('span.mono.num', { text: `${Math.round(100 * (r.jam || 0))}% jam · ${Number(r.load).toFixed(1)} cars` })));
-        }
+        listOrEmpty(congList, top, (r) => `${r.x},${r.y}`,
+          (r) => el('button.list-row', { type: 'button', title: 'Centre view on this road',
+            onclick: () => app.centerOn(r.x, r.y) },
+            el('span.name'), el('span.mono.num')),
+          (row, r) => {
+            setText(row.children[0], `(${r.x}, ${r.y})`);
+            setText(row.children[1], `${Math.round(100 * (r.jam || 0))}% jam · ${Number(r.load).toFixed(1)} cars`);
+          }, 'No congestion');
 
         const towns = (st.perTown || []).slice().sort((a, b) => b.population - a.population);
-        clear(townWrap);
-        if (!towns.length) { townWrap.append(el('div.empty', { text: 'No towns' })); return; }
-        const table = el('div.table-head', null, el('span', { text: 'Town' }), el('span.num', { text: 'Pop' }), el('span.num', { text: 'Trips' }), el('span.num', { text: 'Failed' }), el('span.num', { text: 'Stuck/Active' }));
-        townWrap.append(table);
-        for (const t of towns) {
-          const row = el('div.table-row' + (t.failed > 0 ? '.warn-row' : ''), { title: t.failed > 0 ? 'Some trips have no route' : '' },
-            el('span', { text: t.name }), el('span.num.mono', { text: num(t.population) }),
-            el('span.num.mono', { text: num(t.trips) }), el('span.num.mono', { text: num(t.failed) }),
-            el('span.num.mono', { text: `${num(t.aborted)} / ${num(t.active)}` }));
-          townWrap.append(row);
+        // Keep the table head out of the patched list: patchList places the first row before firstChild,
+        // so the head is detached while rows are patched and put back at the top afterwards (visual order kept).
+        let head = townWrap.querySelector(':scope > .table-head');
+        if (head) head.remove();
+        if (towns.length) {
+          head ||= el('div.table-head', null, el('span', { text: 'Town' }), el('span.num', { text: 'Pop' }), el('span.num', { text: 'Trips' }), el('span.num', { text: 'Failed' }), el('span.num', { text: 'Stuck/Active' }));
+          listOrEmpty(townWrap, towns, (t) => t.townId ?? t.name,
+            (t) => el('div.table-row' + (t.failed > 0 ? '.warn-row' : ''), { title: t.failed > 0 ? 'Some trips have no route' : '' },
+              el('span'), el('span.num.mono'), el('span.num.mono'), el('span.num.mono'), el('span.num.mono')),
+            (row, t) => {
+              row.className = 'table-row' + (t.failed > 0 ? ' warn-row' : '');
+              row.title = t.failed > 0 ? 'Some trips have no route' : '';
+              setText(row.children[0], t.name);
+              setText(row.children[1], num(t.population));
+              setText(row.children[2], num(t.trips));
+              setText(row.children[3], num(t.failed));
+              setText(row.children[4], `${num(t.aborted)} / ${num(t.active)}`);
+            });
+          townWrap.prepend(head);
+        } else {
+          townWrap.textContent = '';
+          townWrap.append(el('div.empty', { text: 'No towns' }));
         }
       };
     },

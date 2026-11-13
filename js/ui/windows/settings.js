@@ -17,7 +17,7 @@ import { CURRENCIES, SPEED_UNITS } from '../../simulation/currency.js';
 import { loadUnits, setUnits, DATE_FORMATS } from '../units.js';
 import { UI_SCALES, loadA11y, setA11y, applyA11y } from '../a11yPrefs.js';
 import { getSignalSpacing, setSignalSpacing } from '../signalSpacing.js';
-import { saveNewGameSetting } from '../newGamePrefs.js';
+import { saveNewGameSetting, clearNewGameSettings } from '../newGamePrefs.js';
 import { logger, LEVELS } from '../logger.js';
 
 /**
@@ -218,6 +218,8 @@ export function openSettings(app) {
         const st = state();
         if (!st.settings) return;
         for (const k of Object.keys(DEFAULT_SETTINGS)) if (st.settings[k] !== DEFAULT_SETTINGS[k]) setSetting(st, k, DEFAULT_SETTINGS[k]);
+        // Also forget the browser-only new-game prefs, so the next New Game does not re-apply them.
+        clearNewGameSettings();
         sig = '';
         sync();
       });

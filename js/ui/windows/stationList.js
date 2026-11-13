@@ -71,7 +71,7 @@ export function sortStations(stations, opts = {}) {
     if (sort === 'rating') return stationStats(st).maxRating ?? -1;
     return String(st.name || '');
   };
-  return list.sort((a, b) => {
+  return list.slice().sort((a, b) => {
     const va = val(a), vb = val(b);
     let c = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
     if (c === 0) c = a.id - b.id;

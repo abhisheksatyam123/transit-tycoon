@@ -65,6 +65,16 @@ export function saveNewGameSetting(key, value) {
   }
 }
 
+/** Forget remembered new-game settings (Settings -> Reset to defaults): the next New Game uses defaults. */
+export function clearNewGameSettings() {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(NEW_GAME_KEY);
+  } catch {
+    // storage unavailable: nothing to clear
+  }
+  return {};
+}
+
 /** localStorage key for the New Game map-generator select choices (not in the save). */
 export const NEW_GAME_MAPGEN_KEY = 'tt.newGameMapgen';
 
