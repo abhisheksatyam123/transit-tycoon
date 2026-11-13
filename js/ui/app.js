@@ -22,6 +22,7 @@ import { currentCurrency } from './units.js';
 import { loadNewGameSettings, carryOverNewGameSettings } from './newGamePrefs.js';
 import { loadGamePrefs } from './gamePrefs.js';
 import { logger } from './logger.js';
+import { unlockAutosaveSlot } from './autosaveGuard.js';
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 /** Speed while Tab is held (OpenTTD fast forward = the fastest speed). */
@@ -207,6 +208,7 @@ export class App {
       if (fromEditor) game.playScenario();
       this.setGame(game);
       if (fromEditor) this.setSpeed(1);
+      unlockAutosaveSlot(); // a successful load proves the session healthy again
       this.toast(fromEditor ? 'Scenario loaded: play mode, fresh company' : 'Game loaded', 'good');
       return true;
     } catch (err) {

@@ -18,7 +18,8 @@ import { createStatusbar } from './ui/statusbar.js';
 import { setupInput } from './input/input.js';
 import { startLoop } from './ui/loop.js';
 import { updateCostReadout } from './ui/costReadout.js';
-import { saveToSlotAsync, saveToSlot, loadSlotData, slotMeta } from './ui/storage.js';
+import { saveToSlotAsync, saveToSlot, readSlot, slotMeta } from './ui/storage.js';
+import { lockAutosaveSlot, autosaveSlotLocked } from './ui/autosaveGuard.js';
 import { AUTOSAVE_SLOTS, advanceAutosaveCounter, autosaveIntervalMs, loadAutosavePrefs, pickAutosaveSlot } from './ui/autosavePrefs.js';
 import { cargoColorMap } from './ui/cargo.js';
 import { installAudioUnlock } from './audio/sfx.js';
@@ -49,30 +50,40 @@ function scenarioFromUrl() {
 /**
  * Load the autosave if present, otherwise create a random new game
  * (or the URL-requested scenario).
- * @returns {Promise<{game:any, restored:boolean, scenario:boolean}>}
+ * A slot that exists but cannot be decoded/deserialized is never replaced silently: the caller warns the
+ * player and locks the 'autosave' slot for this session so this fresh game cannot overwrite it.
+ * @returns {Promise<{game:any, restored:boolean, scenario:boolean, bootLoadError:Error|null}>}
  */
 async function initialGame() {
   const req = scenarioFromUrl();
   if (req) {
     const game = await runWithLoading(buildingLabel(req.scenario), () =>
       createGameFast({ scenario: req.scenario, seed: req.seed }));
-    return { game, restored: false, scenario: true };
+    return { game, restored: false, scenario: true, bootLoadError: null };
   }
   const clim = new URLSearchParams(location.search).get('climate');
-  const data = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? null : loadSlotData('autosave');
-  if (data) {
-    try {
-      return { game: await Game.deserializeAsync(data), restored: true, scenario: false };
-    } catch (err) {
-      if (!logger.warn('boot', 'Autosave could not be loaded; starting a new game', err)) console.warn('Autosave could not be loaded; starting a new game', err);
+  let bootLoadError = null;
+  if (clim !== 'arctic' && clim !== 'tropic' && clim !== 'toyland') {
+    const slot = readSlot('autosave');
+    if (slot.status === 'corrupt') {
+      bootLoadError = new Error('the autosave data is corrupt');
+      if (!logger.warn('boot', 'Autosave is corrupt; starting a new game', bootLoadError)) console.warn('Autosave is corrupt; starting a new game', bootLoadError);
+    } else if (slot.status === 'ok') {
+      try {
+        return { game: await Game.deserializeAsync(slot.data), restored: true, scenario: false, bootLoadError: null };
+      } catch (err) {
+        bootLoadError = err;
+        if (!logger.warn('boot', 'Autosave could not be loaded; starting a new game', err)) console.warn('Autosave could not be loaded; starting a new game', err);
+      }
     }
   }
+  if (bootLoadError) lockAutosaveSlot();
   // ?climate=arctic|tropic|toyland: a random map of that climate (opt-in; default games keep the temperate climate)
   const mapgenOpt = clim === 'arctic' || clim === 'tropic' || clim === 'toyland' ? { climate: clim } : undefined;
   // ?townLayout=original|better|2x2|3x3|random: debug/e2e opt-in for the town road layout (default 'mixed' is not stored)
   const tl = new URLSearchParams(location.search).get('townLayout');
   const mapgen = tl && TOWN_LAYOUT_MODES.includes(tl) && tl !== 'mixed' ? { ...mapgenOpt, townLayout: tl } : mapgenOpt;
-  return { game: Game.create({ seed: Math.floor(Math.random() * 1e9), mapgen }), restored: false, scenario: false };
+  return { game: Game.create({ seed: Math.floor(Math.random() * 1e9), mapgen }), restored: false, scenario: false, bootLoadError };
 }
 
 /** Autosave; warns once per session when the browser storage quota is exceeded. */
@@ -115,9 +126,12 @@ function autosave(app) {
 
 /** Continue slot ('autosave'): written on pause / hidden tab; not periodic. Skipped in the editor. */
 function saveContinue(app) {
-  if (autosaveBusy || !app.game || app.game.state.editor || !dirty) return;
+  if (autosaveBusy || !app.game || app.game.state.editor || !dirty || autosaveSlotLocked()) return;
   dirty = false;
-  saveToSlotAsync('autosave', app.game);
+  saveToSlotAsync('autosave', app.game).then((r) => {
+    // the pause/hidden-tab save failed: keep the dirty flag so a later save is attempted
+    if (r && r.ok === false) dirty = true;
+  }, () => { dirty = true; });
 }
 
 /** A dialog or the title menu is open: no timed save now. */
@@ -187,12 +201,16 @@ async function main() {
   setCargoColors(cargoColorMap());
   installAudioUnlock();
 
-  const { game, restored, scenario } = await initialGame();
+  const { game, restored, scenario, bootLoadError } = await initialGame();
   window.__game = game;
   const renderer = new Renderer(canvas, game);
   renderer.resize();
   const minimap = new Minimap(/** @type {HTMLCanvasElement} */ ($('minimap')), renderer);
   const app = new App({ game, renderer, minimap, windowsEl: $('windows'), toastsEl: $('toasts'), GameClass: Game });
+  if (bootLoadError) {
+    const msg = bootLoadError && bootLoadError.message ? bootLoadError.message : 'invalid data';
+    app.toast('Autosave could not be loaded (' + msg + '). Starting a new game; the autosave slot will not be overwritten this session.', 'error', false, 12000);
+  }
   wireMinimapToggle($('minimap-wrap'), $('minimap-toggle'));
   app.centerOnInterest();
   initPack(renderer);
@@ -273,7 +291,7 @@ async function main() {
       // OpenTTD gui.autosave_interval: real-time periodic save to 'autosave' slot (game setting)
       {
         const iv = autosaveIntervalMs(getSetting(app.game && app.game.state, 'autosaveInterval'));
-        if (iv > 0 && !autosaveBusy && app.game && !app.game.state.editor && !modalOpen()) {
+        if (iv > 0 && !autosaveBusy && app.game && !app.game.state.editor && !autosaveSlotLocked() && !modalOpen()) {
           const nowMs = Date.now();
           if (nowMs - lastAutosaveMs >= iv) {
             lastAutosaveMs = nowMs;
@@ -288,7 +306,7 @@ async function main() {
     },
   });
 
-  window.addEventListener('beforeunload', () => saveToSlot('autosave', app.game));
+  window.addEventListener('beforeunload', () => { if (!app.game.state.editor && !autosaveSlotLocked()) saveToSlot('autosave', app.game); });
   /** Keep floating windows on-screen after rotation / resize (landscape phones). */
   const clampWindows = () => app.wm.clampAll();
   window.addEventListener('resize', clampWindows);

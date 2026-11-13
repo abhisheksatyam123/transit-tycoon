@@ -2,7 +2,7 @@
  * New Game window: seed, map size, town count, start year; "Continue" resumes the autosave.
  */
 import { el } from '../dom.js';
-import { loadSlotData, slotMeta } from '../storage.js';
+import { readSlot, slotMeta } from '../storage.js';
 import { date, money } from '../format.js';
 import { OBJECTIVE_TYPES } from '../../simulation/objective.js';
 import { mapgenOptions } from '../../simulation/game.js';
@@ -261,8 +261,9 @@ export function openNewGame(app) {
       const meta = slotMeta('autosave');
       if (meta) {
         row.appendChild(el('button.btn', { type: 'button', text: `Continue (${date(meta.date)}, ${money(meta.money)})`, onclick: async () => {
-          const d = loadSlotData('autosave');
-          if (d && await app.loadFromString(d)) win.close();
+          const status = readSlot('autosave');
+          if (status.status !== 'ok') { app.toast('Autosave is corrupt', 'error', true); return; }
+          if (await app.loadFromString(status.data)) win.close();
         } }));
       }
       body.appendChild(row);

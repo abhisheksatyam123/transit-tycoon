@@ -178,6 +178,22 @@ function isPackedRuns(x) {
   return !!x && typeof x === 'object' && !Array.isArray(x) && (x.rle === 1 || x.rle === 2);
 }
 
+/**
+ * A non-array object in a packed slot is a sub-format tag. Unknown tags used to be left as-is, which made
+ * the first simulation tick crash; reject the save up front with a clear message instead.
+ * @param {string} what
+ * @param {any} x
+ * @returns {never}
+ */
+function unsupportedFormat(what, x) {
+  const fmt = x && typeof x === 'object' && typeof x.fmt === 'string' ? x.fmt
+    : x && typeof x === 'object' && typeof x.format === 'string' ? x.format : 'unknown';
+  throw new Error(`Save uses an unsupported ${what} format: ${fmt}`);
+}
+
+/** Named packed sub-formats that this build can still read. */
+const PARCEL_FORMATS = new Set(['parcels-v1', 'parcels-v2', 'parcels-v3']);
+
 /** Car keys in creation order (see traffic.js spawnCars). */
 const CAR_KEYS = ['id', 'townId', 'path', 'i', 't', 'speed', 'wait', 'born', 'kind', 'color'];
 const CAR_INT_KEYS = ['id', 'townId', 'i', 'wait', 'born', 'color'];
@@ -284,15 +300,24 @@ function unpackStations(stations) {
     if (!st || !st.cargo || typeof st.cargo !== 'object') continue;
     for (const k of Object.keys(st.cargo)) {
       const v = st.cargo[k];
-      if (v && typeof v === 'object' && !Array.isArray(v) && (v.fmt === 'parcels-v1' || v.fmt === 'parcels-v2' || v.fmt === 'parcels-v3')) st.cargo[k] = unpackParcels(v);
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      if (PARCEL_FORMATS.has(v.fmt)) st.cargo[k] = unpackParcels(v);
+      else unsupportedFormat('station cargo', v);
     }
   }
   return stations;
 }
 
 function unpackTraffic(tr) {
-  const up = (a) => (isPackedRuns(a) ? unpackRuns(a) : a);
-  if (tr.cars && tr.cars.fmt === 'cars-col-v1') tr.cars = unpackCars(tr.cars);
+  const up = (a) => {
+    if (Array.isArray(a) || a === undefined || a === null) return a;
+    if (isPackedRuns(a)) return unpackRuns(a);
+    return unsupportedFormat('traffic array', a);
+  };
+  if (tr.cars !== undefined && tr.cars !== null && !Array.isArray(tr.cars)) {
+    if (tr.cars.fmt === 'cars-col-v1') tr.cars = unpackCars(tr.cars);
+    else unsupportedFormat('traffic cars', tr.cars);
+  }
   if (tr.load !== undefined) tr.load = up(tr.load);
   if (tr.jam !== undefined) tr.jam = up(tr.jam);
   if (tr.acc) { tr.acc.samples = up(tr.acc.samples); tr.acc.blocked = up(tr.acc.blocked); }
@@ -340,7 +365,9 @@ function* packTrafficSteps(tr) {
   yield;
   const jam = pk(tr.jam);
   yield;
-  const cars = yield* packCarsSteps(tr.cars);
+  // packCarsSteps ignores `_`-prefixed scratch keys when it packs; when it falls back to the raw car array,
+  // strip them here like the classic path so no save embeds per-tick scratch fields.
+  const cars = stripCarsScratch(yield* packCarsSteps(tr.cars));
   yield;
   const out = { ...tr, load, jam, cars };
   if (tr.acc) {
@@ -356,17 +383,15 @@ function* packTrafficSteps(tr) {
  * that the next tick rebuilds. Drop them exactly as packCarsSteps does (any `_`-prefixed key), so the save
  * does not embed the `_ahead` car copies; nothing else is touched.
  */
-function stripCarScratch(state) {
-  const tr = state.traffic;
-  const cars = tr && tr.cars;
-  if (!Array.isArray(cars) || cars.length === 0) return state;
+export function stripCarsScratch(cars) {
+  if (!Array.isArray(cars) || cars.length === 0) return cars;
   let scratch = false;
   for (const c of cars) {
     if (!c || typeof c !== 'object') continue;
     for (const k of Object.keys(c)) if (k[0] === '_') { scratch = true; break; }
     if (scratch) break;
   }
-  if (!scratch) return state;
+  if (!scratch) return cars;
   const out = new Array(cars.length);
   for (let i = 0; i < cars.length; i++) {
     const c = cars[i];
@@ -375,6 +400,14 @@ function stripCarScratch(state) {
     for (const k of Object.keys(c)) if (k[0] !== '_') o[k] = c[k];
     out[i] = o;
   }
+  return out;
+}
+
+function stripCarScratch(state) {
+  const tr = state.traffic;
+  const cars = tr && tr.cars;
+  const out = stripCarsScratch(cars);
+  if (out === cars) return state;
   return { ...state, traffic: { ...tr, cars: out } };
 }
 
@@ -506,6 +539,35 @@ function expandTile(t) {
   return Object.assign({}, TILE_DEFAULTS, t, { building: t.building ?? null, owner: t.owner ?? null });
 }
 
+/** Core collections every playable save has (migrate fills other lazy fields). */
+const CORE_ARRAYS = ['vehicles', 'stations', 'towns', 'industries'];
+
+/**
+ * Reject a state that would otherwise load and crash on the first tick: core arrays present, map dimensions
+ * consistent with the tile array, and every tile an object. Valid and legacy saves satisfy these.
+ * @param {any} state
+ */
+function validateState(state) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('Invalid save data: not an object');
+  const map = state.map;
+  if (!map || typeof map !== 'object' || Array.isArray(map)) throw new Error('Invalid save data: missing map');
+  if (!Array.isArray(map.tiles)) throw new Error('Invalid save data: missing map tiles');
+  const w = map.width, h = map.height;
+  if (!Number.isInteger(w) || !Number.isInteger(h) || w <= 0 || h <= 0) {
+    throw new Error('Invalid save data: bad map dimensions');
+  }
+  if (map.tiles.length !== w * h) {
+    throw new Error(`Invalid save data: ${map.tiles.length} tiles for a ${w}x${h} map`);
+  }
+  for (let i = 0; i < map.tiles.length; i++) {
+    const t = map.tiles[i];
+    if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error(`Invalid save data: tile ${i} is not an object`);
+  }
+  for (const key of CORE_ARRAYS) {
+    if (!Array.isArray(state[key])) throw new Error(`Invalid save data: ${key} is not an array`);
+  }
+}
+
 /**
  * Parse and validate a save string (or already-parsed object).
  * @param {string|object} json
@@ -513,16 +575,20 @@ function expandTile(t) {
  */
 export function parseState(json) {
   const state = typeof json === 'string' ? JSON.parse(json) : structuredClone(json);
-  if (state && state.map && state.map.tiles && state.map.tiles.format === 'tiles-rle-v1') {
-    state.map.tiles = unpackTiles(state.map.tiles);
+  if (state && state.map && state.map.tiles && !Array.isArray(state.map.tiles)) {
+    if (state.map.tiles.format === 'tiles-rle-v1') state.map.tiles = unpackTiles(state.map.tiles);
+    else unsupportedFormat('tiles', state.map.tiles);
   } else if (state && state.map && Array.isArray(state.map.tiles)) {
+    // legacy compact tiles: every entry must still be an object before defaults are filled in
+    for (let i = 0; i < state.map.tiles.length; i++) {
+      const t = state.map.tiles[i];
+      if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error(`Invalid save data: tile ${i} is not an object`);
+    }
     state.map.tiles = state.map.tiles.map(expandTile); // legacy compact tiles
   }
   if (state && state.traffic && typeof state.traffic === 'object') unpackTraffic(state.traffic);
   if (state && Array.isArray(state.stations)) unpackStations(state.stations);
-  if (!state || typeof state !== 'object' || !state.map || !Array.isArray(state.map.tiles)) {
-    throw new Error('Invalid save data');
-  }
+  validateState(state);
   if (state.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${state.version}`);
   const rev = state.revision || 0;
   if (!Number.isInteger(rev) || rev < 0) throw new Error(`Invalid save revision ${state.revision}`);

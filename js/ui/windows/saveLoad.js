@@ -2,7 +2,8 @@
  * Save / Load windows: localStorage slots 1-3 (+ autosave when loading), JSON export/import.
  */
 import { el, setText } from '../dom.js';
-import { saveToSlot, loadSlotData, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
+import { saveToSlot, readSlot, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
+import { unlockAutosaveSlot } from '../autosaveGuard.js';
 import { date, money } from '../format.js';
 import { AUTOSAVE_SLOTS, autosaveLabel } from '../autosavePrefs.js';
 import { confirmDiscardGame, confirmOverwriteSlot } from '../discardGuard.js';
@@ -51,6 +52,7 @@ export function openSave(app) {
           if (slotMeta(slot) && !confirmOverwriteSlot(slot)) return; // an occupied slot is never replaced silently
           const r = saveToSlot(slot, app.game);
           if (app.exec(r, { quiet: true, sound: 'click' })) {
+            unlockAutosaveSlot(); // an explicit manual save is allowed to re-enable autosave writes
             app.toast(`Saved to slot ${slot}`, 'good');
             app.wm.close('save'); // OpenTTD closes the save dialog after a successful save
             return;
@@ -84,15 +86,22 @@ export function openLoad(app) {
     build(body, win) {
       p.pause();
       for (const slot of ['autosave', ...AUTOSAVE_SLOTS, ...SLOTS]) {
-        const meta = slotMeta(slot);
+        const status = readSlot(slot);
+        const meta = status.meta;
+        const corrupt = status.status === 'corrupt';
         const isManual = SLOTS.includes(slot);
         const text = slot === 'autosave' ? 'Autosave' : AUTOSAVE_SLOTS.includes(slot) ? autosaveLabel(slot) : `Slot ${slot}`;
-        const load = el('button.btn', { type: 'button', text, disabled: !meta, onclick: async () => {
+        const load = el('button.btn', { type: 'button', text, disabled: status.status === 'empty', onclick: async () => {
           if (!confirmDiscardGame(app.game)) return;
-          const d = loadSlotData(slot);
-          if (d && await app.loadFromString(d)) win.close();
+          if (status.status !== 'ok') {
+            // meta exists but the payload is missing/unreadable: say so instead of doing nothing
+            const label = slot === 'autosave' ? 'Autosave' : `Save slot ${slot}`;
+            app.toast(`${label} is corrupt`, 'error', true);
+            return;
+          }
+          if (await app.loadFromString(status.data)) win.close();
         } });
-        const desc = el('span.muted.small', { text: describe(slot) });
+        const desc = el('span.muted.small', { text: corrupt ? 'Corrupt save — delete it or save over it' : describe(slot) });
         const row = el('div.slot-row', null, load);
         if (isManual) {
           const del = el('button.btn', { type: 'button', text: 'Delete', disabled: !meta, title: 'Delete this save slot', onclick: () => {
