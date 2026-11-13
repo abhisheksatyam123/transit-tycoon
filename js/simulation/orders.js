@@ -14,7 +14,7 @@ import { companyOf, ownerMismatch, RIVAL_OWNED } from './owner.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { findStation, findDepot, findIndustry, nearestTown } from './state.js';
-import { refitCargos } from './refit.js';
+import { refitCargos, refitCore } from './refit.js';
 import { normaliseCond } from './condOrders.js';
 import { catchmentTiles, markPickup, takeWaiting, waitingAmount, addWaiting, recordCarrier } from './stations.js';
 import { deliverToIndustry } from './industries.js';
@@ -106,6 +106,7 @@ export function orderFlagText(o) {
     return parts.length ? ` (${parts.join(', ')})` : '';
   }
   if (o.full) parts.push('full load');
+  if (o.refitAuto) parts.push('auto refit');
   if (o.load === 'fullAny') parts.push('full load any');
   if (o.load === 'none') parts.push('no loading');
   const stopLoc = o.stopLocation ?? o.stopAt;
@@ -832,6 +833,14 @@ export function loadingTick(ctx, v) {
       unload(ctx, v, st);
     }
   }
+  // station auto-refit (opt-in stationAutoRefit): after unloading, an empty vehicle takes the cargo with the most
+  // waiting for its next stop, before it loads. Never drops cargo: a vehicle still carrying cargo is skipped.
+  if (order && order.refitAuto && order.stationId === st.id && !v.intermediate && !v.unloadPending && !dropped
+    && order.load !== 'none' && !v.consist && getSetting(state, 'stationAutoRefit') === true
+    && !(v.load && v.load.amount > 0)) {
+    const target = autoRefitTarget(state, v, st);
+    if (target) refitCore(ctx, v, target); // a failed refit (no money) leaves the old cargo: the vehicle loads it
+  }
   let cyc = null;
   if (!order || (order.load !== 'none' && !dropped)) {
     if (gradualLoadingOn(state)) cyc = loadCargoCycle(ctx, v, st);
@@ -873,6 +882,41 @@ export function loadingTick(ctx, v) {
   if (!v.intermediate) recordDeparture(ctx, v, order); // timetable and order advance belong to the order's own stop
   noteDepartureLeg(state, v); // cargodist link graph (no-op when the setting is off)
   return true;
+}
+
+/**
+ * Waiting units of a cargo at a station that the next stop would take (cargodist-aware, read-only: packets with a
+ * destination count when the next hop is on their route; a packet's assigned `via` is used when it has one).
+ * Without cargodist for the cargo, or with no next stop, this is the plain waiting amount.
+ */
+function waitingForStop(state, st, cargoId, nextId) {
+  if (nextId == null || nextId === st.id || !cdApplies(state, cargoId)) return waitingAmount(st, cargoId);
+  let n = 0;
+  for (const p of st.cargo[cargoId] || []) {
+    if (p.dest == null) { n += p.amount; continue; }
+    if (p.via !== undefined) { if (p.via === nextId) n += p.amount; continue; }
+    const hs = nextHops(state, cargoId, st.id, p.dest);
+    if (hs === undefined || hs.includes(nextId)) n += p.amount;
+  }
+  return n;
+}
+
+/**
+ * Cargo an empty single-cargo vehicle should refit to at a station (OpenTTD HandleStationRefit, economy.cpp:1476):
+ * the supported cargo with the most waiting for its next stop; the current cargo wins ties. Null = keep the current.
+ */
+export function autoRefitTarget(state, v, st) {
+  const supported = refitCargos(v) || [];
+  if (supported.length < 2) return null;
+  const next = vehicleNextStop(v);
+  let best = supported.includes(v.cargoId) ? v.cargoId : null;
+  let bestN = best ? waitingForStop(state, st, best, next) : 0;
+  for (const c of supported) {
+    if (c === best) continue;
+    const n = waitingForStop(state, st, c, next);
+    if (n > bestN) { best = c; bestN = n; }
+  }
+  return bestN > 0 && best !== v.cargoId ? best : null;
 }
 
 /** A helicopter standing on a helipad of a heliport-type airport (OpenTTD serviceathelipad, aircraft_cmd.cpp:1583). */
@@ -991,6 +1035,12 @@ export function normaliseOrders(state, v, orders, kindOf) {
     if (unload !== 'normal') entry.unload = unload;
     if (o.waitDays > 0) entry.waitDays = o.waitDays;
     if (o.travelDays > 0) entry.travelDays = o.travelDays;
+    // station auto-refit (opt-in stationAutoRefit): a stopping order that loads; absent = off
+    if (o.refitAuto !== undefined && o.refitAuto !== false) {
+      if (o.refitAuto !== true) return { ok: false, error: 'refitAuto must be true or false' };
+      if (waypoint || stop === 'via' || load === 'none') return { ok: false, error: 'Auto refit needs a station order that loads' };
+      entry.refitAuto = true;
+    }
     // G8: aircraft speed limits are refused (OpenTTD): do not keep one through normalisation
     if (o.maxSpeed > 0 && v.kind !== 'aircraft') entry.maxSpeed = Math.round(o.maxSpeed);
     if (stop !== undefined) entry.stop = stop;

@@ -48,6 +48,8 @@ export const SETTING_META = [
     help: 'OpenTTD order_cmd.cpp:1665-1669: a go-to-depot order that carries a refit always visits the depot and is refitted, even if it is also "service if needed" and the vehicle is not due for service. Off = a not-due service-only depot order is skipped, so a refit on that order never runs (current).' },
   { key: 'modelRefitCost', group: 'vehicles', label: 'Per-model refit cost', type: 'check',
     help: 'OpenTTD GetRefitCost: each model sets its own refit cost (permille of its price, 0 = free), and a train pays only for its wagons, not the locomotive. Off = every refit costs a flat 10% of the purchase price (current). Models without a refit cost value are free when this is on.' },
+  { key: 'stationAutoRefit', group: 'vehicles', label: 'Refit at station orders', type: 'check',
+    help: 'OpenTTD CARGO_AUTO_REFIT: a station order marked auto refit (refitAuto) refits an empty vehicle, once it has unloaded, to the cargo with the most waiting for its next stop; the current cargo wins ties. Only single-cargo vehicles that can carry more than one cargo. Costs the normal refit price. Off = station orders never refit.' },
   { key: 'roadvehQueue', group: 'vehicles', label: 'Road vehicles queue for a bay', type: 'check',
     help: 'OpenTTD pf.roadveh_queue: a road vehicle waits for a free bay at a road stop and enters when one frees. Off = a vehicle that finds no free bay does not enter the stop; it keeps driving.' },
   { key: 'infiniteMoney', group: 'difficulty', label: 'Infinite money', type: 'check',
