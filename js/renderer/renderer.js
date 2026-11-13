@@ -13,12 +13,12 @@ import { packActive } from './pack/state.js';
 import { HALF_W, HALF_H, HEIGHT_STEP, pickTileQuad } from './iso.js';
 import { Camera } from './camera.js';
 import { drawObject, drawSegment } from './layers/objects.js';
-import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects } from './sprites/lm3d.js';
+import { lm3dFronts, lm3dOverlayBuckets, drawLm3dGround, drawLm3dObjects, invalidateLm3d } from './sprites/lm3d.js';
 import { drawAircraftLayer, pruneAir } from './layers/air.js';
 import { groundedAirOffset } from './layers/airGround.js';
 import { drawDisasters } from './layers/disasters.js'; // disasters setting (procedural sprites)
 import { drawCar, drawTrafficHeat, interpolateCars } from './layers/traffic.js';
-import { drawMetroOverlay } from './layers/metro.js';
+import { drawMetroOverlay, invalidateMetro } from './layers/metro.js';
 import { createOverlayState, drawOverlays, drawUnderlays, tileDiamond, drawLabel, FloatingTexts } from './layers/overlays.js';
 import { OVERLAY, setPlayerColour } from './palette.js';
 import { roadSideSign } from '../config/traffic.js';
@@ -29,7 +29,7 @@ import { VehicleFx } from './vehicleFx.js';
 import { SMOKE } from './sprites/buildings.js';
 import { P } from './sprites/shapes.js';
 import { setSpriteLod } from './sprites/canvas.js';
-import { invalidateNet } from './net/index.js';
+import { invalidateNet, invalidateNetArea } from './net/index.js';
 import { GroundCache } from './groundCache.js';
 import { setArcticClimate } from './pack/arctic.js';
 import { ensureClimatePack } from './pack/index.js';
@@ -82,16 +82,19 @@ export class Renderer {
     /** @type {Map<number, any>} */
     this.industryMap = new Map();
     this._indLen = -1;
+    this._indArr = null;
     /** bound lookup passed to the object layer (created once, not per tile) */
     this.industryLookup = (id) => this.industryById(id);
-    /** @type {Uint8Array} 1 = catchment, 2 = selection */
-    this.mask = new Uint8Array(0);
-    this._maskSrcC = null;
-    this._maskSrcS = null;
     /** @type {any[][]} vehicle segments bucketed by diagonal */
     this.buckets = [];
     /** @type {{x:number,y:number,id:number}[]} screen positions of segments (for picking) */
     this.segScreen = [];
+    /** reused picking records (segScreen.length is reset each frame; only the last frame is read) */
+    this._segPool = [];
+    /** reusable out-param for tileCenterScreenInto in the per-segment/per-car loops */
+    this._tp = { x: 0, y: 0 };
+    /** reused set for the aircraft prune pass (one per frame before) */
+    this._airSeen = new Set();
     /** @type {any[][]} traffic cars bucketed by diagonal */
     this.carBuckets = [];
     /** @type {any[]} aircraft segments (drawn after the map pass) */
@@ -121,9 +124,9 @@ export class Renderer {
     this.game = game;
     const m = game.state.map;
     this.camera.setMap(m.width, m.height);
-    this.mask = new Uint8Array(m.width * m.height);
-    this._maskSrcC = this._maskSrcS = null;
     this._indLen = -1;
+    this._indArr = null;
+    invalidateLm3d(); // landmark front/overlay caches are per-map; rebuild on the next frame
     this.buckets = [];
     this.heights = this._sharedHeights || new Heights(m);
     setOverlayHeights(this.heights);
@@ -201,8 +204,36 @@ export class Renderer {
    * @returns {{x:number,y:number}}
    */
   tileCenterScreen(fx, fy) {
+    return this.tileCenterScreenInto(fx, fy, { x: 0, y: 0 });
+  }
+
+  /**
+   * Allocation-free variant of tileCenterScreen: writes into `out` and returns it.
+   * @param {number} fx
+   * @param {number} fy
+   * @param {{x:number,y:number}} out
+   * @returns {{x:number,y:number}}
+   */
+  tileCenterScreenInto(fx, fy, out) {
     const h = this.heights.surfaceH(fx, fy);
-    return { x: (fx - fy) * HALF_W, y: (fx + fy) * HALF_H - h * HEIGHT_STEP };
+    out.x = (fx - fy) * HALF_W;
+    out.y = (fx + fy) * HALF_H - h * HEIGHT_STEP;
+    return out;
+  }
+
+  /**
+   * Append a picking record for a vehicle segment, reusing the record already at this index of the
+   * previous frame (segScreen.length is reset each frame; only the last frame is ever read).
+   * @param {number} x
+   * @param {number} y
+   * @param {number} id
+   */
+  pushSegScreen(x, y, id) {
+    const i = this.segScreen.length;
+    const r = this._segPool[i] || (this._segPool[i] = { x: 0, y: 0, id: 0 });
+    r.x = x; r.y = y; r.id = id;
+    this.segScreen[i] = r;
+    this.segScreen.length = i + 1;
   }
 
   /**
@@ -224,34 +255,34 @@ export class Renderer {
     this.invalidateGround();
   }
 
-  invalidateGround() {
-    if (this.ground) this.ground.invalidate();
-    if (this.game) invalidateNet(this.game.state.map);
-  }
-
-  /** Refresh catchment/selection mask when overlay arrays change. */
-  updateMask() {
-    const o = this.overlay;
-    if (o.catchment === this._maskSrcC && o.selection === this._maskSrcS) return;
-    this._maskSrcC = o.catchment;
-    this._maskSrcS = o.selection;
-    const m = this.game.state.map;
-    this.mask.fill(0);
-    const put = (list, bit) => {
-      if (!list) return;
-      for (const t of list) if (t.x >= 0 && t.y >= 0 && t.x < m.width && t.y < m.height) this.mask[t.y * m.width + t.x] |= bit;
-    };
-    put(o.catchment, 1);
-    put(o.selection, 2);
+  /**
+   * Force cached ground chunks to be re-validated (call after build commands).
+   * With a tile area only the intersecting chunks (+1 margin) are rebuilt and only the net kind whose
+   * tiles the area touches is dropped; a bare call stays the full invalidation fallback.
+   * @param {{x0:number,y0:number,x1:number,y1:number}} [area]
+   */
+  invalidateGround(area) {
+    if (this.ground) this.ground.invalidate(area);
+    invalidateMetro(); // metro overlay edges/stations depend on tunnel/line/station tiles
+    if (this.game) {
+      const map = this.game.state.map;
+      if (area) invalidateNetArea(map, area);
+      else invalidateNet(map);
+    }
   }
 
   /** @param {number} id */
   industryById(id) {
     const inds = this.game.state.industries;
-    if (inds.length !== this._indLen) {
+    // same-count replacement (industry demolished and another founded) must resolve: compare identity + ends
+    if (inds !== this._indArr || inds.length !== this._indLen
+        || (inds.length && (inds[0].id !== this._indFirst || inds[inds.length - 1].id !== this._indLast))) {
       this.industryMap.clear();
       for (const ind of inds) this.industryMap.set(ind.id, ind);
+      this._indArr = inds;
       this._indLen = inds.length;
+      this._indFirst = inds.length ? inds[0].id : null;
+      this._indLast = inds.length ? inds[inds.length - 1].id : null;
     }
     return this.industryMap.get(id);
   }
@@ -356,7 +387,7 @@ export class Renderer {
 
     // ground + transport come from cached chunks (below everything else)
     this.ground.setBarred(this.game && this.game.ctx ? this.game.ctx.barred || null : null); // level crossing barriers (levelCrossing.js)
-    this.ground.draw(ctx, range, z, (this.frame & 31) === 0);
+    this.ground.draw(ctx, range, z, (this.frame & 31) === 0, 6, r);
     drawUnderlays(ctx, map, this.overlay);
     // baked landmark ensembles: flat ground first (under every object); objects in painter's order.
     // Generic overlays draw in tile order; stamped (geographically accurate) fronts draw after
@@ -411,11 +442,11 @@ export class Renderer {
       const bucket = this.buckets[d];
       if (bucket && bucket.length) {
         for (const s of bucket) {
-          const p = this.tileCenterScreen(s.x, s.y);
+          const p = this.tileCenterScreenInto(s.x, s.y, this._tp);
           if (p.x < r.x0 || p.x > r.x1 || p.y < r.y0 || p.y > r.y1 + 140) continue;
           drawSegment(ctx, s, p.x, p.y, s._vid === selV);
           const scr = cam.worldToScreen(p.x, p.y - 6);
-          this.segScreen.push({ x: scr.x, y: scr.y, id: s._vid });
+          this.pushSegScreen(scr.x, scr.y, s._vid);
           this.vfx.segment(this.smoke, s, p.x, p.y, smokeOn);
         }
       }
@@ -424,7 +455,7 @@ export class Renderer {
         const cb = this.carBuckets[d];
         for (let i = 0; i < cb.length; i++) {
           const car = cb[i];
-          const p = this.tileCenterScreen(car.fx, car.fy);
+          const p = this.tileCenterScreenInto(car.fx, car.fy, this._tp);
           if (p.x < r.x0 || p.x > r.x1 || p.y < r.y0 || p.y > r.y1 + 140) continue;
           drawCar(ctx, car, p.x, p.y);
         }
@@ -485,14 +516,15 @@ export class Renderer {
     if (this.showMetro) drawMetroOverlay(ctx, this, range);
     // aircraft: above the whole map pass (shadow on the ground, body lifted by altitude)
     if (this.airSegs.length) {
-      const seen = new Set();
+      const seen = this._airSeen;
+      seen.clear();
       for (const s of this.airSegs) seen.add(s._vid);
       pruneAir(seen);
       drawAircraftLayer(ctx, this.airSegs, (x, y) => this.tileCenterScreen(x, y), selV);
       for (const s of this.airSegs) {
         const p = this.tileCenterScreen(s.x, s.y);
         const scr = cam.worldToScreen(p.x, p.y - (s._alt || 0) * 60 - 6);
-        this.segScreen.push({ x: scr.x, y: scr.y, id: s._vid });
+        this.pushSegScreen(scr.x, scr.y, s._vid);
       }
     }
 

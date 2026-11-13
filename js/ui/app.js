@@ -310,9 +310,12 @@ export class App {
       this.renderer.addFloatingText(o.x, o.y, signedMoney(-res.cost), '#fca5a5');
     }
     this.minimap.lastBase = -Infinity;
-    // terraform: vertex heights are cached in Heights; refresh the touched area before the chunk rebuild
-    if (res.area && this.renderer.heights) { const a = res.area; this.renderer.heights.refreshArea(a.x0, a.y0, a.x1, a.y1); }
-    this.renderer.invalidateGround();
+    // area-scoped invalidation (renderer): chunk rebuild + net/heights only where the command touched;
+    // a command with no known area keeps the full invalidation fallback.
+    const cmdArea = res.area || null; // command-reported area (terrain-changing commands refresh heights)
+    const area = cmdArea || o.area || null; // renderer-only hint (line/station tools) for chunk invalidation
+    if (cmdArea && this.renderer.heights) this.renderer.heights.refreshArea(cmdArea.x0, cmdArea.y0, cmdArea.x1, cmdArea.y1);
+    this.renderer.invalidateGround(area);
     return true;
   }
 

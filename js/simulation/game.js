@@ -132,6 +132,25 @@ export function mapgenOptions(src) {
   return out;
 }
 
+/** Attach the rendered bounding area to a successful line command result (renderer chunk invalidation). */
+function withLineArea(res, x0, y0, x1, y1) {
+  if (res && res.ok && !res.area) res.area = { x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) };
+  return res;
+}
+
+/** Attach a path's bounding area to a successful build result. */
+function withPathArea(res, path) {
+  if (!res || !res.ok || res.area || !Array.isArray(path) || !path.length) return res;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of path) {
+    if (!p) continue;
+    if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+    if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+  }
+  if (x0 <= x1) res.area = { x0, y0, x1, y1 };
+  return res;
+}
+
 export class Game {
   /**
    * @param {object} state complete game state
@@ -250,26 +269,26 @@ export class Game {
   }
 
   // ---- commands ----
-  buildRail(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, opts); }
+  buildRail(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'rail', x0, y0, x1, y1, opts), x0, y0, x1, y1); }
   /** Player rail tunnel between two portals on a straight line (see cmdTrack buildTunnel). */
-  buildTunnel(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }); }
+  buildTunnel(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }), x0, y0, x1, y1); }
   /** Player road tunnel (straight, same as rail). */
-  buildRoadTunnel(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }); }
+  buildRoadTunnel(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), tunnel: true }), x0, y0, x1, y1); }
   /** Player road valley bridge (straight, same as rail). */
-  buildRoadBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
+  buildRoadBridge(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'road', x0, y0, x1, y1, { ...(opts || {}), bridge: true }), x0, y0, x1, y1); }
   /** Player rail valley bridge between two heads on a straight line (see cmdTrack buildLandBridge). */
-  buildLandBridge(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), bridge: true }); }
-  buildTram(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'tram', x0, y0, x1, y1, opts || {}); }
-  buildRoad(x0, y0, x1, y1, opts) { return buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}); }
+  buildLandBridge(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'rail', x0, y0, x1, y1, { ...(opts || {}), bridge: true }), x0, y0, x1, y1); }
+  buildTram(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'tram', x0, y0, x1, y1, opts || {}), x0, y0, x1, y1); }
+  buildRoad(x0, y0, x1, y1, opts) { return withLineArea(buildLine(this.ctx, 'road', x0, y0, x1, y1, opts || {}), x0, y0, x1, y1); }
   /** Build along an explicit 4-connected tile path (opts.loop = closed ring); see shapes.js. */
-  buildRailPath(path, opts) { return buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...(opts || {}), path }); }
+  buildRailPath(path, opts) { return withPathArea(buildLine(this.ctx, 'rail', 0, 0, 0, 0, { ...(opts || {}), path }), path); }
   /** Build a road along a shape path. opts: { highway?: boolean } */
-  buildRoadPath(path, opts) { return buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }); }
-  demolish(x0, y0, x1, y1, opts) { return demolish(this.ctx, x0, y0, x1, y1, opts); }
+  buildRoadPath(path, opts) { return withPathArea(buildLine(this.ctx, 'road', 0, 0, 0, 0, { ...(opts || {}), path }), path); }
+  demolish(x0, y0, x1, y1, opts) { return withLineArea(demolish(this.ctx, x0, y0, x1, y1, opts), x0, y0, x1, y1); }
   /** Electrify (or with opts.unelectrify remove catenary from) every rail tile in a rectangle. opts.dryRun = price only. */
-  convertRail(x0, y0, x1, y1, opts) { return convertRail(this.ctx, x0, y0, x1, y1, opts || {}); }
+  convertRail(x0, y0, x1, y1, opts) { return withLineArea(convertRail(this.ctx, x0, y0, x1, y1, opts || {}), x0, y0, x1, y1); }
   /** Convert road <-> tram over rectangle (OpenTTD CMD_CONVERT_ROAD). opts: { to: "road"|"tram", dryRun: boolean } */
-  convertRoad(x0, y0, x1, y1, opts) { return convertRoad(this.ctx, x0, y0, x1, y1, opts || {}); }
+  convertRoad(x0, y0, x1, y1, opts) { return withLineArea(convertRoad(this.ctx, x0, y0, x1, y1, opts || {}), x0, y0, x1, y1); }
   /** Block signal on a straight rail tile (T3b). opts.dryRun = check and price only. */
   buildSignal(x, y, opts) { return buildSignal(this.ctx, x, y, opts); }
   /** Drag signals along a run of tiles (signalRun.js): build every opts.spacing tiles, or opts.remove all. */
