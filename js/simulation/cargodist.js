@@ -53,9 +53,15 @@ export function cargodistOn(state) {
   return cargodistMode(state) !== 'off';
 }
 
-/** @returns {'manual'|'asymmetric'} freight distribution mode (setting freightDistribution). */
+/**
+ * Freight distribution mode (setting freightDistribution). 'symmetric' (OpenTTD symmetric demand for freight) is
+ * only reachable with the demand parity setting (cargodistDemandParity); without it, 'symmetric' runs as 'asymmetric'.
+ * @returns {'manual'|'asymmetric'|'symmetric'}
+ */
 export function freightMode(state) {
-  return getSetting(state, 'freightDistribution') === 'asymmetric' ? 'asymmetric' : 'manual';
+  const m = getSetting(state, 'freightDistribution');
+  if (m === 'symmetric') return demandParityOn(state) ? 'symmetric' : 'asymmetric';
+  return m === 'asymmetric' ? 'asymmetric' : 'manual';
 }
 
 /** Capacity-constrained routing (OpenTTD MCF passes) on (setting cargodistMcf). */
@@ -839,7 +845,7 @@ export function updateMonthly(state) {
       delete g.pending;
     }
     if (!g.pending && now % interval === 0) {
-      const res = computeJob(state, c, FREIGHT_CARGOS.includes(c) ? 'asymmetric' : cdMode(state, c));
+      const res = computeJob(state, c, cdMode(state, c));
       if (delay === 0) applyJob(state, c, res);
       else g.pending = { res, due: now + delay };
     }
@@ -884,7 +890,7 @@ export function updateDaily(state) {
   }
   if (pick < 0) return;
   const c = cargos[pick], g = graphs[pick];
-  const res = computeJob(state, c, FREIGHT_CARGOS.includes(c) ? 'asymmetric' : cdMode(state, c), { day: now });
+  const res = computeJob(state, c, cdMode(state, c), { day: now });
   g.day = now;
   if (delay === 0) applyJob(state, c, res);
   else g.pending = { res, dueDay: now + delay };
