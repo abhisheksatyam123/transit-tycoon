@@ -8,6 +8,7 @@ import { kvGrid, heading } from './common.js';
 import { drawChart } from './graphs.js';
 import { monthName } from '../format.js';
 import { openRename } from '../rename.js';
+import { openConfirm } from '../modal.js';
 import { actionList, ratingTitle, townRating } from '../../simulation/townAuthority.js';
 import { isArctic, snowLineOf, isTropic, tropicZoneAt } from '../../simulation/climate.js';
 import { MAX_TOWN_TEXT_LENGTH } from '../../simulation/cmdRename.js';
@@ -60,7 +61,12 @@ export function openTown(app, id) {
           app.exec(app.game.expandTown(id), { quiet: true });
         } }),
         el('button.btn.danger', { type: 'button', text: 'Delete town', onclick: () => {
-          if (app.exec(app.game.deleteTown(id), { quiet: true })) win.close();
+          const t = app.findTown(id);
+          openConfirm({
+            question: `Delete ${t ? t.name : 'this town'}? This cannot be undone.`,
+            yesText: 'Delete',
+            onYes: () => { if (app.exec(app.game.deleteTown(id), { quiet: true })) win.close(); },
+          });
         } }));
       body.appendChild(edit);
       const auth = el('div.town-auth');

@@ -2,7 +2,7 @@
  * Full map window (gap #13; OpenTTD smallmap_gui.cpp / OpenLoco MapWindow.cpp). A resizable top-down
  * map with mode buttons: Terrain (contour shading), Industries (legend per type), Routes (rail, road,
  * stations, depots), Vehicles (live dots by kind), Towns (names). The per-tile base image is cached
- * per mode and rebuilt at most every few seconds; the live layer (vehicles, viewport, labels) is
+ * per mode and rebuilt only when its map-change signature changes; the live layer (vehicles, viewport, labels) is
  * drawn on each window refresh (~4 fps). Click or drag on the map to centre the main view.
  */
 import { el, setText } from '../dom.js';
@@ -34,7 +34,7 @@ export const VEGETATION_COLORS = {
 /** Vehicle dot colours by kind. */
 export const VEHICLE_COLORS = { train: '#f8fafc', road: '#facc15', aircraft: '#a78bfa' };
 
-/** How long a mode's base image stays valid before it is rebuilt (ms). */
+/** Legacy cache-age constant (kept for tests/API compatibility): base images are now invalidated by map signature, not by age. */
 export const BASE_TTL_MS = 3000;
 
 /**
@@ -174,6 +174,94 @@ export function viewportTiles(rect) {
 /** Packed ABGR colour for ImageData. */
 function pack(rgb) { return (0xff << 24) | (rgb[2] << 16) | (rgb[1] << 8) | rgb[0]; }
 
+/** Numeric code for a terrain name (cheap per-tile signature hashing). */
+function terrainCode(name) {
+  switch (name) {
+    case 'grass': return 1;
+    case 'rough': return 2;
+    case 'trees': return 3;
+    case 'forest': return 3;
+    case 'fields': return 4;
+    case 'desert': return 5;
+    case 'snow': return 6;
+    case 'water': return 7;
+    case 'rock': return 8;
+    default: return 0;
+  }
+}
+
+/** Numeric code for a building type. */
+function buildingCode(type) {
+  switch (type) {
+    case 'station': return 1;
+    case 'depot': return 2;
+    case 'house': return 3;
+    case 'industry': return 4;
+    case 'landmark': return 5;
+    case 'hq': return 6;
+    default: return 7;
+  }
+}
+
+/**
+ * Observe an element's size and return a disposer. Kept as a helper so the window's onClose
+ * disconnect can be tested without a full canvas; falls back to a no-op when ResizeObserver is absent.
+ * @param {HTMLElement} target
+ * @param {()=>void} onResize
+ * @returns {()=>void}
+ */
+export function observeResize(target, onResize) {
+  if (typeof ResizeObserver !== 'function') return () => {};
+  const ro = new ResizeObserver(onResize);
+  ro.observe(target);
+  return () => ro.disconnect();
+}
+
+/** Mix a string into an FNV-1a hash. */
+function hashString(h, str) {
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h;
+}
+
+/**
+ * Cheap change signature of everything the base image depends on: one pass over the tiles plus
+ * the legend data for industries/owners. Pure. Used instead of an age timer so a large map is
+ * only re-rasterised when something visible actually changed.
+ */
+export function mapChangeSignature(state, mode) {
+  const m = state.map;
+  const tiles = m.tiles || [];
+  let h = 0x811c9dc5 ^ String(mode || '').length;
+  for (let i = 0; i < tiles.length; i++) {
+    const t = tiles[i];
+    const b = t.building;
+    let v = terrainCode(t.terrain);
+    v = (Math.imul(v, 31) + ((t.height | 0) + 64)) | 0;
+    v = (Math.imul(v, 31) + (t.rail ? 1 : 0) + (t.road ? 2 : 0) + (t.avenue != null ? (t.avenue | 0) + 4 : 0)) | 0;
+    v = (Math.imul(v, 31) + (t.field !== undefined ? (t.field | 0) + 1 : 0)) | 0;
+    v = (Math.imul(v, 31) + (t.owner === 'rival' ? 1 : t.owner === 'company' ? 2 : t.owner === 'town' ? 3 : 0)) | 0;
+    v = (Math.imul(v, 31) + ((t.rivalId | 0) + 1)) | 0;
+    v = (Math.imul(v, 31) + (b ? buildingCode(b.type) : 0)) | 0;
+    if (b) {
+      v = (Math.imul(v, 31) + ((b.industryId | 0) + 1)) | 0;
+      v = (Math.imul(v, 31) + ((b.stationId | 0) + 1)) | 0;
+    }
+    h ^= v;
+    h = Math.imul(h, 16777619);
+  }
+  if (mode === 'industries') {
+    for (const ind of state.industries || []) {
+      h = hashString(h, `${ind.id}:${ind.typeId || ''}`);
+    }
+  } else if (mode === 'owners') {
+    h = hashString(h, playerColourOf(state));
+    for (const r of state.rivals || []) h = hashString(h, `${r.id}:${r.colour || ''}`);
+    for (const st of state.stations || []) h = hashString(h, `${st.id}:${st.ownerId == null ? -1 : st.ownerId}`);
+  }
+  return h >>> 0;
+}
+
 /** Build the per-tile image for one mode (one pixel per tile). */
 function buildBase(state, mode) {
   const m = state.map;
@@ -209,10 +297,12 @@ function buildBase(state, mode) {
  */
 export function openMap(app) {
   const st = { mode: 'terrain', cache: new Map(), drag: false };
+  let disconnectObserver = null;
   return app.wm.open('map', {
     title: 'Map',
     width: 620,
     className: 'map-win',
+    onClose: () => { if (disconnectObserver) disconnectObserver(); },
     build(body) {
       const modeSel = el('select.input', { style: { width: 'auto' }, 'aria-label': 'Map mode', title: 'Map mode' },
         MAP_MODES.map(([v, l]) => el('option', { value: v, text: l })));
@@ -251,8 +341,7 @@ export function openMap(app) {
       canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
       let legendSig = '';
-      const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => refresh()) : null;
-      if (ro) ro.observe(wrap);
+      disconnectObserver = observeResize(wrap, () => refresh());
 
       const refresh = () => {
         const state = app.game.state;
@@ -261,11 +350,12 @@ export function openMap(app) {
         const cw = Math.max(1, Math.round(wrap.clientWidth * dpr)), ch = Math.max(1, Math.round(wrap.clientHeight * dpr));
         if (canvas.width !== cw) canvas.width = cw;
         if (canvas.height !== ch) canvas.height = ch;
-        // base image: rebuilt when stale or when the game object changed (new game / load)
+        // base image: rebuilt only when the visible map data changes (no age timer at large maps)
         let entry = st.cache.get(st.mode);
-        const now = performance.now();
-        if (!entry || entry.game !== state.map || now - entry.built > BASE_TTL_MS) {
+        const mapSig = mapChangeSignature(state, st.mode);
+        if (!entry || entry.game !== state.map || entry.sig !== mapSig) {
           entry = buildBase(state, st.mode);
+          entry.sig = mapSig;
           st.cache.set(st.mode, entry);
         }
         lay = mapLayout(cw, ch, m.width, m.height);

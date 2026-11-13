@@ -4,7 +4,7 @@
  */
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
-import { listOrEmpty } from './common.js';
+import { listOrEmpty, singleClick } from './common.js';
 import { INDUSTRY_BY_ID } from '../../config/industries.js';
 import { sortIndustries, INDUSTRY_SORTS, makeSortMemo, sumMap, transportedPct, filterIndustries } from './listSort.js';
 import { sortControls, nameSearch } from './sortControls.js';
@@ -28,7 +28,7 @@ export function openIndustryList(app) {
         const inds = filterIndustries(memo(app.game.state.industries, `${state.sort}:${state.dir}`), state.query);
         listOrEmpty(list, inds, (i) => i.id,
           (i) => el('button.list-row', { type: 'button', title: 'Click: details · Double-click: center view',
-            onclick: () => app.open('industry', i.id), ondblclick: () => app.centerOn(i.x + 1, i.y + 1) },
+            onclick: singleClick(() => app.open('industry', i.id)), ondblclick: () => app.centerOn(i.x + 1, i.y + 1) },
           el('i.swatch', { style: { background: (INDUSTRY_BY_ID[i.typeId] || {}).color || '#888' } }), el('span.name'), el('span.mono.num')),
           (row, i) => {
             setText(row.children[1], i.name);

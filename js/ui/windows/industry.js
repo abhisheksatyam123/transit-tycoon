@@ -11,6 +11,7 @@ import { drawChart, chronological } from './graphs.js';
 import { monthName } from '../format.js';
 import { MAX_INDUSTRY_TEXT_LENGTH } from '../../simulation/cmdRename.js';
 import { cheatFlag } from '../../simulation/cheats.js';
+import { openConfirm } from '../modal.js';
 
 /**
  * Production-history series for the industry graph (OTTD industry_gui production chart). Pure.
@@ -54,7 +55,13 @@ export function openIndustry(app, id) {
         } })));
       // scenario editor only (OpenLoco IndustryWindow: demolish button shown in editor/sandbox)
       const edit = el('div.btn-row', null, el('button.btn.danger', { type: 'button', text: 'Demolish industry', onclick: () => {
-        if (app.exec(app.game.demolishIndustry(id), { quiet: true })) win.close();
+        const ind = app.findIndustry(id);
+        const name = ind ? ((INDUSTRY_BY_ID[ind.typeId] || {}).name || 'this industry') : 'this industry';
+        openConfirm({
+          question: `Demolish ${name}? This cannot be undone.`,
+          yesText: 'Demolish',
+          onYes: () => { if (app.exec(app.game.demolishIndustry(id), { quiet: true })) win.close(); },
+        });
       } }));
       const noteTa = el('textarea', { rows: '3', maxlength: String(MAX_INDUSTRY_TEXT_LENGTH), style: 'width:100%;box-sizing:border-box;', 'aria-label': 'Industry note' });
       const noteCount = el('div.muted.small', { text: '0 / ' + MAX_INDUSTRY_TEXT_LENGTH });

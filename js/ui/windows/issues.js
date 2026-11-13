@@ -26,6 +26,16 @@ export function focusIssue(app, i) {
 }
 
 /**
+ * Repaint identity of the issue list. Includes message text: an issue can be reworded while its id and
+ * the severity counts stay equal.
+ */
+export function issueListSignature(issues, summary, sevFilter, catFilter, scanning) {
+  const sum = summary || { error: 0, warn: 0, info: 0 };
+  return JSON.stringify([issues.length, sum.error, sum.warn, sum.info, sevFilter, catFilter, !!scanning,
+    issues.map((i) => `${i.id}:${i.severity || ''}:${i.message || ''}`).join('|')]);
+}
+
+/**
  * @param {import('../app.js').App} app
  */
 export function openIssues(app) {
@@ -66,7 +76,7 @@ export function openIssues(app) {
         if (!r.issues) { setText(status, r.error || 'No issues found so far · scanning…'); return; }
         const issues = r.issues;
         const sum = r.summary || { error: 0, warn: 0, info: 0 };
-        const sig = JSON.stringify([issues.length, sum.error, sum.warn, sum.info, sevFilter, catFilter, !!r.scanning, issues.map((i) => i.id).join('|')]);
+        const sig = issueListSignature(issues, sum, sevFilter, catFilter, r.scanning);
         paintFilters();
         if (sig === lastSig) return;
         lastSig = sig;

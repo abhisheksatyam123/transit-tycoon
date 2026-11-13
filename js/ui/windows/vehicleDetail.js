@@ -40,6 +40,11 @@ function ageText(age) {
   return days >= 365 ? `${(days / 365).toFixed(1)} years` : `${Math.floor(days)} days`;
 }
 
+/** Transfer-credit line text; always yields a value so the row clears when credits reach 0. */
+export function transferCreditsText(v) {
+  return v && v.transferCredits ? `${money(v.transferCredits)} (virtual, not cash)` : '—';
+}
+
 /**
  * @param {import('../app.js').App} app
  * @param {number} id vehicle id
@@ -87,12 +92,24 @@ export function openVehicleDetail(app, id) {
         const v = app.findVehicle(id);
         if (v && v.kind === 'train') app.exec(g().forceTrainProceed(id), { sound: 'click' });
       } });
-      // gap #25: a rival's vehicle is read-only (owner line, no action buttons)
-      if (app.findVehicle(id) && app.findVehicle(id).ownerId != null) {
-        const rv = app.findVehicle(id);
-        const rival = (app.game.state.rivals || []).find((r) => r.id === rv.ownerId);
-        body.appendChild(el('div.muted', { text: `Owned by ${rival ? rival.name : 'a rival company'}. Orders and sales are not available.` }));
-        return;
+      // gap #25: a rival's vehicle is read-only (owner line, no action buttons), but still refreshes so
+      // it closes when the rival's fleet changes instead of showing a stale window forever.
+      const rv = app.findVehicle(id);
+      if (rv && rv.ownerId != null) {
+        const ownerNote = el('div.muted');
+        const paintOwner = () => {
+          const v = app.findVehicle(id);
+          const rival = v && (app.game.state.rivals || []).find((r) => r.id === v.ownerId);
+          setText(ownerNote, `Owned by ${rival ? rival.name : 'a rival company'}. Orders and sales are not available.`);
+        };
+        paintOwner();
+        body.appendChild(ownerNote);
+        return () => {
+          const v = app.findVehicle(id);
+          if (!v) { win.close(); return; }
+          win.setTitle(v.name || 'Vehicle');
+          paintOwner();
+        };
       }
       // OpenTTD VehicleDetailsWindow 'Honk' button (vehicle_gui.cpp ~3472): sound only, touches no state.
       const honkBtn = el('button.btn', { type: 'button', text: 'Honk', 'aria-label': 'Play the vehicle horn', title: 'Play the vehicle horn (sound only; no effect on the game)', onclick: () => play('horn') });
@@ -202,7 +219,7 @@ export function openVehicleDetail(app, id) {
         set['Age'](ageText(v.age));
         set['Profit this year'](money(v.profitThisYear));
         set['Profit last year'](money(v.profitLastYear));
-        if (v.transferCredits) set['Transfer credits'](`${money(v.transferCredits)} (virtual, not cash)`);
+        set['Transfer credits'](transferCreditsText(v));
         set['Value'](money(v.value));
         // per-type groups (strictGroupKind on): only groups of this vehicle's kind (a mixed legacy group too)
         const strict = getSetting(app.game.state, 'strictGroupKind') === true;
