@@ -124,7 +124,7 @@ export function buildFreightRoute(ctx, r) {
   if (!aDry.ok) return false;
   const bDry = buildRoadStop(ctx, b.x, b.y, 'truck', { owner, dryRun: true });
   if (!bDry.ok) return false;
-  const dSpot = truckDepotSpot(ctx, a, owner, path);
+  const dSpot = truckDepotSpot(ctx, a, owner, path, [a, b]);
   if (!dSpot) return false;
   if (r.money < roadDry.cost + aDry.cost + bDry.cost + dSpot.cost) return false;
   const attempt = beginRivalAttempt(state, r, [...path, a, b, { x: dSpot.x, y: dSpot.y },
@@ -151,20 +151,29 @@ export function buildFreightRoute(ctx, r) {
 /**
  * Depot spot on empty land beside `near` whose exit joins a path tile (or an existing road), dry-run
  * with its cost. Path tiles have no road yet when this is preflighted, so they are accepted as exits and
- * the committed road build supplies the bit.
+ * the committed road build supplies the bit; the spot itself must stay off the path (the road build would
+ * occupy it) and off the planned stops (their drive-through side rule only rejects at commit time, once
+ * the station record exists).
+ *
+ * `stops` are the truck stops this route is about to build: neither a stop tile nor a tile whose exit
+ * faces one can take the depot, because the dry run cannot see the stop yet (buildDepot's drive-through
+ * side rule only rejects at commit time, once the station record exists).
  */
-function truckDepotSpot(ctx, near, owner, path) {
+function truckDepotSpot(ctx, near, owner, path, stops = []) {
   const { state } = ctx;
   const map = state.map;
   const onPath = new Set(path.map((p) => p.y * map.width + p.x));
+  const stopTiles = new Set(stops.map((p) => p.y * map.width + p.x));
   for (let R = 1; R <= 4; R++) for (let y = near.y - R; y <= near.y + R; y++) for (let x = near.x - R; x <= near.x + R; x++) {
     if (!inBounds(map, x, y) || Math.max(Math.abs(x - near.x), Math.abs(y - near.y)) !== R) continue;
+    if (stopTiles.has(y * map.width + x) || onPath.has(y * map.width + x)) continue;
     const t = getTile(map, x, y);
     if (t.road || t.rail || t.building || t.terrain === 'water') continue;
     for (const d of DIRS) {
       const nx = x + d.dx, ny = y + d.dy;
       if (!inBounds(map, nx, ny)) continue;
       const nt = getTile(map, nx, ny);
+      if (stopTiles.has(ny * map.width + nx)) continue;
       const onRoadPath = onPath.has(ny * map.width + nx);
       if (!nt.road && !onRoadPath) continue;
       if (nt.road && !(nt.road & OPPOSITE[d.bit]) && canAddBits(nt, 'road', OPPOSITE[d.bit])) continue;
