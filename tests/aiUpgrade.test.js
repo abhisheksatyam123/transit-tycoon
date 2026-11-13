@@ -156,3 +156,74 @@ describe('AI8: in-place rival airport upgrade', () => {
     expect(r.vehicles).not.toContain(oldId);
   }, 120000);
 });
+
+/** Test setup only: level the 6x4 city footprint at a station's airport corner (see levelFootprint). */
+function levelEnd(g, stationId) {
+  const p0 = g.state.stations.find((s) => s.id === stationId).tiles.filter((p) => p.kind === 'airport');
+  const ox = Math.min(...p0.map((p) => p.x)), oy = Math.min(...p0.map((p) => p.y));
+  const base = g.state.map.tiles[oy * g.state.map.width + ox].height;
+  for (let y = oy; y < oy + 4; y++) for (let x = ox; x < ox + 6; x++) g.state.map.tiles[y * g.state.map.width + x].height = base;
+  return { x: ox, y: oy };
+}
+
+/** Both ends of the route ready for the commuter upgrade (pop 1000, planes off the field, flat land). */
+function readyPair(seed = 7) {
+  const { g, r, rt } = smallRoute(seed);
+  for (const t of g.state.towns) t.population = 1000;
+  g.state.date.year = 1985;
+  levelEnd(g, rt.a);
+  levelEnd(g, rt.b);
+  clearPlanes(g, r);
+  return { g, r, rt };
+}
+
+/** A snapshot of everything an airport upgrade may change, for the all-or-nothing checks. */
+function pairSnapshot(g, r, rt) {
+  const ids = [rt.a, rt.b];
+  return {
+    tiles: g.state.map.tiles.map((t) => JSON.stringify([t.building || null, t.owner || null, t.terrain])),
+    stations: ids.map((id) => JSON.stringify(g.state.stations.find((s) => s.id === id))),
+    depots: JSON.stringify(g.state.depots),
+    routeApType: rt.apType ?? null,
+    routeDepot: rt.depot,
+    rDepots: [...r.depots],
+    money: r.money,
+  };
+}
+
+describe('AI8: rival airport pair upgrade is all or nothing', () => {
+  test('a pair that cannot be upgraded at the second end changes neither end (tiles, station, depots, cash)', () => {
+    const { g, r, rt } = readyPair();
+    // refuse the second end only: water on a tile that the commuter footprint adds to the small airport
+    // (set before the snapshot: it is the test's obstacle, not something the upgrade changes)
+    const bo = g.state.stations.find((s) => s.id === rt.b).tiles.filter((p) => p.kind === 'airport');
+    const ox = Math.min(...bo.map((p) => p.x)), oy = Math.min(...bo.map((p) => p.y));
+    g.state.map.tiles[oy * g.state.map.width + ox + 4].terrain = 'water';
+    const before = pairSnapshot(g, r, rt);
+    expect(upgradeRivalAirports(g.ctx, r)).toBe(false);
+    expect(pairSnapshot(g, r, rt)).toEqual(before);
+    expect(airportTiles(g, rt.a).length).toBe(4 * 3);
+    expect(airportTiles(g, rt.b).length).toBe(4 * 3);
+  });
+
+  test('a pair that is upgraded leaves both ends the same type with consistent station, depot and plane records', () => {
+    const { g, r, rt } = readyPair();
+    expect(upgradeWhenQuiet(g, r, 1000)).toBe(true);
+    const sa = g.state.stations.find((s) => s.id === rt.a), sb = g.state.stations.find((s) => s.id === rt.b);
+    expect(airportTiles(g, rt.a).length).toBe(20);
+    expect(airportTiles(g, rt.b).length).toBe(20);
+    expect(airportTiles(g, rt.a).every((t) => t.building.airportType === 'commuter')).toBe(true);
+    expect(airportTiles(g, rt.b).every((t) => t.building.airportType === 'commuter')).toBe(true);
+    expect(sa.tiles.filter((p) => p.kind === 'airport').length).toBe(20);
+    expect(sb.tiles.filter((p) => p.kind === 'airport').length).toBe(20);
+    expect(rt.apType).toBe('commuter');
+    // every depot the rival lists exists; the route's hangar is one of them; every plane's hangar exists
+    const depotIds = new Set(g.state.depots.map((d) => d.id));
+    expect(r.depots.every((id) => depotIds.has(id))).toBe(true);
+    expect(depotIds.has(rt.depot)).toBe(true);
+    expect(r.depots).toContain(rt.depot);
+    for (const v of g.state.vehicles) if (v.ownerId === r.id && v.kind === 'aircraft' && v.depotId != null) {
+      expect(depotIds.has(v.depotId)).toBe(true);
+    }
+  });
+});

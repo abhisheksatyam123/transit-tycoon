@@ -345,9 +345,12 @@ export function buildRailRoute(ctx, r) {
   const stA = buildRailStation(ctx, sa.x0, sa.y0, sa.axis, STATION_LEN, { owner });
   const stB = stA.ok ? buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner }) : stA;
   const line = stB.ok ? buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner }) : stB;
-  // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (run stops at stations).
-  if (line.ok) buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
+  // The depot is committed before the block signals: its cost is in the preflight above, but the signal run
+  // has no dry run and would spend the cash the depot needs. Signals are best-effort (they only spend what is
+  // left and run stops at stations), so they come last and cannot make the depot commit fail.
   const depot = line.ok ? placeRailDepot(ctx, depotSpot, owner) : null;
+  // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (run stops at stations).
+  if (depot) buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
   const A = depot ? findStation(state, stA.stationId) : null;
   const B = depot ? findStation(state, stB.stationId) : null;
   if (!A || !B) { rollbackRivalAttempt(attempt); return false; }

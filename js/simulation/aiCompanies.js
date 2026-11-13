@@ -410,19 +410,26 @@ function placeStop(ctx, spot, owner) {
   return findStation(state, r.stationId);
 }
 
-/** Road depot spot on empty land next to a road of network `comp`, dry-run with its cost. */
-function depotSpot(ctx, town, owner, labels, comp) {
+/**
+ * Road depot spot on empty land next to a road of network `comp`, dry-run with its cost. `stops` are the bus
+ * stop spots the route commits first: the depot may not sit on one, nor exit into one (buildDepot's
+ * exitFacesStopSide refuses that, and a refused depot rolls the whole route back). Mirrors aiFreight.truckDepotSpot.
+ */
+function depotSpot(ctx, town, owner, labels, comp, stops = []) {
   const { state } = ctx;
   const map = state.map;
+  const stopTiles = new Set(stops.map((p) => p.y * map.width + p.x));
   const R = 8;
   for (let y = town.y - R; y <= town.y + R; y++) {
     for (let x = town.x - R; x <= town.x + R; x++) {
       if (!inBounds(map, x, y)) continue;
+      if (stopTiles.has(y * map.width + x)) continue;
       const t = getTile(map, x, y);
       if (t.road || t.rail || t.building || t.terrain === 'water') continue;
       for (const d of DIRS) {
         const nx = x + d.dx, ny = y + d.dy;
         if (!inBounds(map, nx, ny) || !getTile(map, nx, ny).road) continue;
+        if (stopTiles.has(ny * map.width + nx)) continue;
         if (labels[ny * map.width + nx] !== comp) continue;
         // the exit must join the road: the neighbour takes the bit (or already has it) without a crossing
         const nt = getTile(map, nx, ny);
@@ -463,7 +470,7 @@ export function buildRoute(ctx, r) {
   if (!aDry.ok) return false;
   const bDry = buildRoadStop(ctx, bSpot.x, bSpot.y, 'bus', { owner, dryRun: true });
   if (!bDry.ok) return false;
-  const dSpot = depotSpot(ctx, ta, owner, labels, comp);
+  const dSpot = depotSpot(ctx, ta, owner, labels, comp, [aSpot, bSpot]);
   if (!dSpot) return false;
   if (r.money < aDry.cost + bDry.cost + dSpot.cost) return false;
   const attempt = beginRivalAttempt(state, r, [aSpot, bSpot, { x: dSpot.x, y: dSpot.y },
