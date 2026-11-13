@@ -48,15 +48,47 @@ function wagonOptions(app) {
   return app.game.listModels('wagon').filter((m) => m.kind === 'wagon');
 }
 
-/** Refresh a consist strip: per-wagon blocks (with move / sell), button labels (price / refund), disabled reasons. */
-function updateConsistStrip(strip, app, v) {
+/**
+ * Cache key for a consist strip: rebuild only when a displayed input changes (vehicle id/model,
+ * extra engines, wagon model/cargo order, cargo/capacity, mixed-consist flag, game date, pickers).
+ * @param {any} v
+ * @param {any} date game date (year/month/day)
+ * @returns {string}
+ */
+export function consistSignature(v, date) {
+  const wagons = wagonList(v).map((w) => `${w.modelId}:${w.cargoId}`).join(',');
+  const d = date ? `${date.year}-${date.month}-${date.day}` : '';
+  return [v.id, v.modelId, (v.engines || []).join(','), v.wagons || 0, v.capacity || 0,
+    v.cargoId ?? '', wagons, v.consist ? 1 : 0, d].join('|');
+}
+
+/**
+ * Refresh a consist strip: per-wagon blocks (with move / sell), button labels (price / refund), disabled reasons.
+ * Rebuilds only when consistSignature changes, so dry-run buy/refund prices are computed for changed inputs only
+ * (the 250 ms window refresh no longer destroys wagon buttons under the pointer).
+ * @returns {boolean} true when the strip was rebuilt
+ */
+export function updateConsistStrip(strip, app, v) {
   const [blocks, pick, add, del, note, epick, eadd, edel] = strip.children;
   const g = app.game;
+  const sig = `${consistSignature(v, g.state && g.state.date)}|${pick.value}|${epick ? epick.value : ''}`;
+  if (strip.dataset.consistSig === sig) {
+    // Prices are unchanged; only the cash-dependent enabled flags can go stale between rebuilds.
+    const dry = strip._dry;
+    if (dry) {
+      const money = g.state && g.state.company ? g.state.company.money : Infinity;
+      add.disabled = !dry.a.ok || money < (dry.a.cost || 0);
+      if (eadd && dry.ea) eadd.disabled = !dry.ea.ok || money < (dry.ea.cost || 0);
+    }
+    return false;
+  }
+  strip.dataset.consistSig = sig;
+  const wagons = wagonOptions(app);
   // picker: keep the current options (wagon models) and the last choice
-  if (!pick.options.length || pick.dataset.n !== String(wagonOptions(app).length)) {
+  if (!pick.options.length || pick.dataset.n !== String(wagons.length)) {
     pick.textContent = '';
-    for (const m of wagonOptions(app)) pick.appendChild(el('option', { value: m.id, text: `${m.name} (${money(m.cost)})` }));
-    pick.dataset.n = String(wagonOptions(app).length);
+    for (const m of wagons) pick.appendChild(el('option', { value: m.id, text: `${m.name} (${money(m.cost)})` }));
+    pick.dataset.n = String(wagons.length);
   }
   blocks.textContent = '';
   blocks.appendChild(el('span.consist-block.engine', { text: 'E', title: 'Lead engine' }));
@@ -101,8 +133,10 @@ function updateConsistStrip(strip, app, v) {
     edel.disabled = !er.ok;
     edel.title = er.ok ? 'Detach the last extra engine' : er.error;
   }
+  strip._dry = { a, r, ea: epick && eadd ? ea : null, er: epick && edel ? er : null };
   const mixed = !!v.consist;
   setText(note, `${(v.wagons || 0)} wagon(s) · ${v.capacity || 0} capacity${extras.length ? ` · ${extras.length + 1} engines` : ''}${mixed ? ' · mixed consist' : ''}`);
+  return true;
 }
 
 /**
@@ -131,6 +165,9 @@ function confirmSellAll(question, onYes) {
  * @param {number} id depot id
  */
 export function openDepot(app, id) {
+  // Rival-owned depots (ownerId) are not the player's: refuse to open the depot window.
+  const depot = app.findDepot(id);
+  if (!depot || depot.ownerId != null) return null;
   /** Window-instance vehicle sort (OpenTTD depot_gui.cpp uses the vehicle list sorter); not saved. */
   const state = { sort: 'name', dir: 1 };
   return app.wm.open('depot:' + id, {

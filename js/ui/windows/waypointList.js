@@ -88,14 +88,21 @@ export function openWaypointList(app) {
         const rows = filterByName(memo(waypointRows(app.game.state), `${state.sort}:${state.dir}`), state.query, (r) => r.name || '');
         setText(summary, `${rows.length} waypoint(s)`);
         listOrEmpty(list, rows, (r) => r.id,
-          (r) => el('div.table-row.list-row', { role: 'button', tabindex: '0', title: 'Click: centre view on waypoint',
-            style: { display: 'grid', gridTemplateColumns: cols, textAlign: 'left', cursor: 'pointer' },
-            onclick: () => { app.centerOn(r.x, r.y); } },
-          el('span.name'), el('span.muted'), 
-          el('button.btn.sm', { type: 'button', text: 'Open', title: 'Open waypoint window',
-            onclick: (e) => { e.stopPropagation(); app.open('waypoint', r.id); } }),
-          el('button.btn.sm', { type: 'button', text: 'Rename', title: 'Rename waypoint',
-            onclick: (e) => { e.stopPropagation(); openRename(app, 'waypoint', r.id, () => app.wm.updateAll()); } })),
+          (r) => {
+            const activate = () => app.centerOn(r.x, r.y);
+            return el('div.table-row.list-row', { role: 'button', tabindex: '0', title: 'Click: centre view on waypoint',
+              style: { display: 'grid', gridTemplateColumns: cols, textAlign: 'left', cursor: 'pointer' },
+              onclick: activate,
+              onkeydown: (e) => {
+                if (e.target !== e.currentTarget) return; // inner Open/Rename buttons keep their own keys
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+              } },
+            el('span.name'), el('span.muted'),
+            el('button.btn.sm', { type: 'button', text: 'Open', title: 'Open waypoint window',
+              onclick: (e) => { e.stopPropagation(); app.open('waypoint', r.id); } }),
+            el('button.btn.sm', { type: 'button', text: 'Rename', title: 'Rename waypoint',
+              onclick: (e) => { e.stopPropagation(); openRename(app, 'waypoint', r.id, () => app.wm.updateAll()); } }));
+          },
           (row, r) => {
             const c = row.children;
             setText(c[0], `${r.name} · (${r.x}, ${r.y})`);

@@ -2,13 +2,14 @@ import '../js/simulation/scenarios/moscowData.js'; // registers the Moscow data 
 import { test, expect, describe, beforeEach } from 'bun:test';
 import {
   NEW_GAME_SETTING_KEYS, parseNewGameSettings, loadNewGameSettings, saveNewGameSetting, carryOverNewGameSettings,
+  clearNewGameSettings,
 } from '../js/ui/newGamePrefs.js';
 
 describe('new-game settings carry-over (tt.newGameSettings)', () => {
   let store;
   beforeEach(() => {
     store = new Map();
-    globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) };
+    globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
   });
 
   test('only settings marked newGame are remembered', () => {
@@ -34,6 +35,14 @@ describe('new-game settings carry-over (tt.newGameSettings)', () => {
     expect(loadNewGameSettings()).toEqual({ largeHouses: true, farmFields: true });
     saveNewGameSetting('farmFields', false);
     expect(loadNewGameSettings()).toEqual({ largeHouses: true, farmFields: false });
+  });
+
+  test('clearing forgets remembered new-game settings', () => {
+    saveNewGameSetting('largeHouses', true);
+    saveNewGameSetting('aiCompanies', 2);
+    expect(loadNewGameSettings()).toEqual({ largeHouses: true, aiCompanies: 2 });
+    clearNewGameSettings();
+    expect(loadNewGameSettings()).toEqual({});
   });
 
   test('unavailable storage never throws', () => {

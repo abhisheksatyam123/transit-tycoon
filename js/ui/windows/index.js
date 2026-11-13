@@ -1,8 +1,8 @@
 /**
-import { logger } from '../logger.js';
  * Window registry: maps a window name to its module's open function.
  * Each window module exports `open<Name>(app, arg)` and returns the FloatingWindow.
  */
+import { logger } from '../logger.js';
 import { openTileInfo } from './tileInfo.js';
 import { openStation } from './station.js';
 import { openTown } from './town.js';

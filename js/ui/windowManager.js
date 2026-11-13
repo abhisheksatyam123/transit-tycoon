@@ -77,6 +77,7 @@ export class WindowManager {
     if (spec.width) root.style.width = spec.width + 'px';
     /** Shade (roll up): hide the body, keep the title bar, position and width. */
     const setShaded = (on) => {
+      const was = win.shaded;
       win.shaded = !!on;
       root.classList.toggle('shaded', win.shaded);
       body.hidden = win.shaded;
@@ -84,6 +85,8 @@ export class WindowManager {
       shadeBtn.setAttribute('aria-label', (win.shaded ? 'Unshade ' : 'Shade ') + titleEl.textContent);
       shadeBtn.title = win.shaded ? 'Unshade (roll down)' : 'Shade (roll up)';
       shadeBtn.textContent = win.shaded ? '▴' : '▾';
+      // Shaded windows skip periodic refreshes (body hidden); refresh once on roll-down so it is current.
+      if (was && !win.shaded && win.update) this.safeUpdate(win);
     };
     /** Sticky (pin): closeTop/closeAll skip this window; the close button still closes it. */
     const setSticky = (on) => {
@@ -201,9 +204,9 @@ export class WindowManager {
     return this.windows.has(id);
   }
 
-  /** Refresh all windows (called periodically). */
+  /** Refresh all windows (called periodically). Shaded (rolled up) windows are skipped. */
   updateAll() {
-    for (const w of Array.from(this.windows.values())) if (w.update) this.safeUpdate(w);
+    for (const w of Array.from(this.windows.values())) if (w.update && !w.shaded) this.safeUpdate(w);
   }
 
   /**

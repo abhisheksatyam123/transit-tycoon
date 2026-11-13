@@ -28,10 +28,12 @@ describe('station list', () => {
     expect(sortStations(S, { sort: 'waiting', dir: -1 }).map((s) => s.id)).toEqual([3, 1, 2]);
     expect(sortStations(S, { sort: 'rating', dir: -1 }).map((s) => s.id)).toEqual([2, 1, 3]);
   });
-  test('does not mutate input', () => {
-    const copy = S.map((s) => s.id);
-    sortStations(S, { sort: 'waiting' });
-    expect(S.map((s) => s.id)).toEqual(copy);
+  test('does not mutate input (frozen array fixture)', () => {
+    const fresh = Object.freeze(S.map((s) => Object.freeze({ ...s })));
+    const ids = fresh.map((s) => s.id);
+    // sorting by waiting would reorder this fixture, so a mutating implementation would throw here
+    expect(() => sortStations(fresh, { sort: 'waiting' })).not.toThrow();
+    expect(fresh.map((s) => s.id)).toEqual(ids);
   });
 });
 
