@@ -332,6 +332,10 @@ export const DEFAULT_SETTINGS = {
    * the wagons nearest the engine). Off = today's count-preserving replacement. The group flag
    * company.groupReplaceWagonRemoval lazily overrides it per group (absent = follow this setting live). */
   renewKeepLength: false,
+  /** D21 copy-at-creation (opt-in, default off; OpenTTD group_cmd.cpp:371 copies renew_keep_length into each new group's
+   * GroupFlag::ReplaceWagonRemoval). On = createGroup writes the group's explicit keep-length entry from renewKeepLength at
+   * creation, so later company changes do not reach it. Off = no key is written and the group follows the company live. */
+  groupCopyKeepLength: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */
