@@ -4,7 +4,7 @@
  */
 import { el, setText } from '../dom.js';
 import { num } from '../format.js';
-import { listOrEmpty } from './common.js';
+import { listOrEmpty, singleClick } from './common.js';
 import { sortTowns, TOWN_SORTS, makeSortMemo, filterTowns } from './listSort.js';
 import { sortControls, nameSearch } from './sortControls.js';
 import { townRating } from '../../simulation/townAuthority.js';
@@ -32,7 +32,7 @@ export function openTownList(app) {
         setText(total, `${sorted.length === towns.length ? '' : `${sorted.length} of `}${towns.length} towns · total population ${num(pop)}`);
         listOrEmpty(list, sorted, (t) => t.id,
           (t) => el('button.list-row', { type: 'button', title: 'Click: details · Double-click: center view',
-            onclick: () => app.open('town', t.id), ondblclick: () => app.centerOn(t.x, t.y) },
+            onclick: singleClick(() => app.open('town', t.id)), ondblclick: () => app.centerOn(t.x, t.y) },
           el('span.name'), el('span.mono.num')),
           (row, t) => { setText(row.firstChild, t.name); setText(row.lastChild, num(t.population)); });
       };

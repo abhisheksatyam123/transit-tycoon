@@ -9,7 +9,7 @@ const speedUnitName = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh)
 const speedFactor = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).factor;
 import { listOrEmpty } from './common.js';
 import { createAddOrderTool, appendOrder, appendDepotOrder, insertOrder, insertDepotOrder } from '../tools/addOrder.js';
-import { stopKindOk } from '../../simulation/routing.js';
+import { stopKindOk, stopKindFor } from '../../simulation/routing.js';
 import { unloadMode, stopMode, hasTimetable, orderFlagText, isDepotOrder, isNearestDepotOrder } from '../../simulation/orders.js';
 import { unbunchBlockReason } from '../../simulation/unbunch.js';
 import { refitCargos } from '../../simulation/refit.js';
@@ -43,10 +43,20 @@ export function orderVerb(o) {
   return m === 'via' ? 'Go via' : m === 'all' ? 'Go to' : 'Go non-stop to';
 }
 
-/** Whether a station has a facility this vehicle can stop at (buses also use bus stops, trams too). */
-function usableBy(v, st) {
+/**
+ * Whether a station is a valid order stop for this vehicle, including rail/road waypoints
+ * (trains order rail waypoints, bus/truck road vehicles order road waypoints; both become go-via orders).
+ * Mirrors normaliseOrders so the picker only lists stops setOrders accepts.
+ */
+export function stationUsableBy(v, st) {
   const k = st.kinds || {};
-  return ['rail', 'bus', 'truck', 'airport', 'ship'].some((x) => k[x] && stopKindOk(v, x));
+  if (['rail', 'bus', 'truck', 'airport', 'ship'].some((x) => k[x] && stopKindOk(v, x))) return true;
+  const tiles = st.tiles || [];
+  if (!tiles.length) return false;
+  const kind = stopKindFor(v);
+  if (kind === 'rail') return tiles.every((t) => t.kind === 'waypoint' && !t.road);
+  if (kind === 'bus' || kind === 'truck') return tiles.every((t) => t.kind === 'waypoint' && !!t.road);
+  return false;
 }
 
 /** Whether a depot can take this vehicle (kind match; a plane only at an airport it fits). */
@@ -141,7 +151,7 @@ export function openOrders(app, id) {
       } });
       let pickSig = '';
       const fillPicker = (v) => {
-        const sts = app.game.state.stations.filter((st) => st.ownerId == null && usableBy(v, st));
+        const sts = app.game.state.stations.filter((st) => st.ownerId == null && stationUsableBy(v, st));
         const deps = depotsFor(v);
         const sig = sts.map((st) => st.id + ':' + st.name).join('|') + '#' + deps.map((d) => d.id).join(',');
         if (sig === pickSig) return;

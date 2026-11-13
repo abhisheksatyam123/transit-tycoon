@@ -37,6 +37,32 @@ export function completedGoalCount(app) {
   return 0;
 }
 
+/**
+ * Cheap signature of the goal state (tick / objective / done flags). The full goals snapshot is only
+ * rebuilt when this changes, so a paused game does not call it every 250 ms.
+ */
+export function storySignature(app) {
+  const st = app?.game?.state;
+  const done = Array.isArray(st?.goals) ? st.goals.map((g) => (g && g.done ? '1' : '0')).join('') : '';
+  return `${st?.tick ?? 0}|${st?.objective?.status || ''}|${done}`;
+}
+
+/**
+ * Cached completed-goal reader: the full goals snapshot is only taken when storySignature changes.
+ * Exported so the 250 ms refresh gate is testable without a DOM.
+ */
+export function makeCompletedGoalReader(app) {
+  let sig = '', completed = 0;
+  return () => {
+    const next = storySignature(app);
+    if (next !== sig) {
+      sig = next;
+      completed = completedGoalCount(app);
+    }
+    return completed;
+  };
+}
+
 export function openStoryBook(app) {
   return app.wm.open('storyBook', {
     title: 'Story Book',
@@ -49,9 +75,10 @@ export function openStoryBook(app) {
       const status = el('p.small.muted');
       const done = el('button.btn', { type: 'button', text: 'Mark chapter read' });
       body.append(el('div.story-wrap', null, list, el('div.story-page', null, head, text, status, done)));
+      const readCompleted = makeCompletedGoalReader(app);
       let sig = '';
       const render = () => {
-        const completed = completedGoalCount(app);
+        const completed = readCompleted();
         const unlocked = STORY_PAGES.map((p) => completed >= p.unlock);
         const cur = progress.current || STORY_PAGES[0].id;
         const page = STORY_PAGES.find((p) => p.id === cur) || STORY_PAGES[0];

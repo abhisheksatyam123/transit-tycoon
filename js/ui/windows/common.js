@@ -25,6 +25,16 @@ export function kvGrid(parent, labels) {
 }
 
 /**
+ * Wrap a click handler so the second click of a double-click does not fire it again.
+ * Browsers dispatch click twice before dblclick; `detail > 1` marks the second one.
+ * @param {(e?:MouseEvent)=>void} fn
+ * @returns {(e?:MouseEvent)=>void}
+ */
+export function singleClick(fn) {
+  return (e) => { if (e && Number(e.detail) > 1) return; fn(e); };
+}
+
+/**
  * Section heading.
  * @param {string} text
  * @returns {HTMLElement}

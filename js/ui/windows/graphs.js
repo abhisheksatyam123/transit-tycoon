@@ -11,6 +11,7 @@ import { performanceToRating, RATING_NAMES, HISTORY_LENGTH } from '../../simulat
 import { companyValue } from '../statusbar.js';
 import { calculateDeliveredCargoPayment, PAYMENT_CARGO_IDS } from '../../simulation/loco/economy.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
+import { currentCurrency } from '../units.js';
 
 export const GRAPH_TABS = [
   ['value', 'Company value'],
@@ -55,6 +56,17 @@ export function cargoPaymentRateSeries(state, days = RATE_MAX_DAYS) {
   return { days: dayList, series };
 }
 
+/** Legend identity for the cargo-rates window: rebuild only when the cargo set changes. */
+export function cargoLegendKey(series) {
+  return (series || []).map((s) => `${s.id}:${s.name}:${s.color}`).join('|');
+}
+
+/** Data identity used to skip chart repaints while the game is paused. */
+export function chartDataKey(state) {
+  const d = (state && state.date) || {};
+  return `${d.year || 0}:${d.month || 0}|${currentCurrency()}|${state && state.settings ? JSON.stringify(state.settings) : ''}`;
+}
+
 /** Cargo payment rates window (UI only). Reuses drawChart; one line per cargo. */
 export function openCargoRates(app) {
   return app.wm.open('cargoRates', {
@@ -65,11 +77,22 @@ export function openCargoRates(app) {
       const canvas = el('canvas', { style: { maxWidth: '100%', margin: '4px 0' } });
       const legend = el('div.small', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px 10px', maxHeight: '90px', overflow: 'auto' } });
       body.append(note, canvas, legend);
+      let legendKey = '', chartKey = '';
       const refresh = () => {
-        const { days, series } = cargoPaymentRateSeries(app.game.state, RATE_MAX_DAYS);
+        const st = app.game.state;
+        const { days, series } = cargoPaymentRateSeries(st, RATE_MAX_DAYS);
+        const lk = cargoLegendKey(series);
+        if (lk !== legendKey) {
+          legendKey = lk;
+          legend.replaceChildren();
+          for (const s of series) legend.append(el('span', null, el('span', { style: { display: 'inline-block', width: '10px', height: '3px', background: s.color, marginRight: '4px', verticalAlign: 'middle' } }), s.name));
+        }
+        // paused games keep the same month/currency/settings: do not repaint the canvas 4x/s
+        const ck = `${chartDataKey(st)}|${lk}|${canvas.width}x${canvas.height}`;
+        if (ck === chartKey) return;
+        chartKey = ck;
         drawChart(canvas, { w: 600, h: 320, labels: days.map((d) => String(d)), fmt: (v) => money(v), plain: true,
           series: series.map((s) => ({ name: s.name, color: s.color, values: s.values })) });
-        if (!legend.childElementCount) for (const s of series) legend.append(el('span', null, el('span', { style: { display: 'inline-block', width: '10px', height: '3px', background: s.color, marginRight: '4px', verticalAlign: 'middle' } }), s.name));
       };
       refresh();
       return refresh;
@@ -261,6 +284,7 @@ export function openGraphs(app) {
       body.append(tabs, summary, canvas, table, leagueBtn);
       const sumLabel = el('span.kv-label'), sumValue = el('span.kv-value.mono');
       summary.append(sumLabel, sumValue);
+      let drawSig = '', leagueSig = null;
 
       const refresh = () => {
         for (const k of Object.keys(tabBtns)) tabBtns[k].classList.toggle('active', k === state.tab);
@@ -269,6 +293,12 @@ export function openGraphs(app) {
         const onLeague = state.tab === 'league';
         canvas.hidden = onLeague;
         table.hidden = !onLeague;
+        const baseSig = chartDataKey(app.game.state) + '|' + (canvas.clientWidth || 0) + 'x' + (canvas.clientHeight || 0);
+        const draw = (sig, opts) => {
+          if (sig === drawSig) return;
+          drawSig = sig;
+          drawChart(canvas, opts);
+        };
         if (state.tab === 'value') {
           const now = liveCompanyValue(app.game.state, c);
           // no month end recorded yet: plot the live value as a single "now" point (no invented history)
@@ -276,13 +306,13 @@ export function openGraphs(app) {
           const vals = hist.length ? hist : [now];
           setText(sumLabel, 'Company value now');
           setText(sumValue, money(now));
-          drawChart(canvas, { labels: monthLabels(vals.length), series: [{ name: 'Company value', color: p.accent, values: vals }] });
+          draw(`${baseSig}|value|${vals.join(',')}|${now}`, { labels: monthLabels(vals.length), series: [{ name: 'Company value', color: p.accent, values: vals }] });
         } else if (state.tab === 'finance') {
           const s = ledgerSeries(c);
           const net = s.income.map((v, i) => v - s.expenses[i]);
           setText(sumLabel, 'Net this month');
           setText(sumValue, money(net[net.length - 1] || 0));
-          drawChart(canvas, { labels: s.labels, series: [
+          draw(`${baseSig}|finance|${s.income.join(',')}|${s.expenses.join(',')}`, { labels: s.labels, series: [
             { name: 'Income', color: p.good, values: s.income },
             { name: 'Expenses', color: p.bad, values: s.expenses },
           ] });
@@ -290,18 +320,19 @@ export function openGraphs(app) {
           const vals = chronological(c.cargoUnitsDeliveredHistory);
           setText(sumLabel, 'Units delivered (last month)');
           setText(sumValue, num(vals[vals.length - 1] || 0));
-          drawChart(canvas, { labels: monthLabels(vals.length), fmt: (v) => num(Math.round(v)), series: [{ name: 'Units', color: p.warn, values: vals }] });
+          draw(`${baseSig}|cargo|${vals.join(',')}`, { labels: monthLabels(vals.length), fmt: (v) => num(Math.round(v)), series: [{ name: 'Units', color: p.warn, values: vals }] });
         } else if (state.tab === 'performance') {
           const vals = chronological(c.performanceIndexHistory);
           const pt = performanceTitle(c.performanceIndex);
           setText(sumLabel, 'Performance title');
           setText(sumValue, `${pt.title} (${Math.round(c.performanceIndex || 0)})`);
-          drawChart(canvas, { labels: monthLabels(vals.length), fmt: (v) => String(Math.round(v)), series: [{ name: 'Performance', color: p.accent, values: vals }] });
+          draw(`${baseSig}|performance|${vals.join(',')}|${Math.round(c.performanceIndex || 0)}`, { labels: monthLabels(vals.length), fmt: (v) => String(Math.round(v)), series: [{ name: 'Performance', color: p.accent, values: vals }] });
         } else {
           setText(sumLabel, 'Companies');
           const rows = leagueRows(app.game.state);
           setText(sumValue, String(rows.length));
-          listRows(table, rows);
+          const sig = leagueSignature(rows);
+          if (sig !== leagueSig) { leagueSig = sig; renderLeagueRows(table, rows); }
         }
       };
       refresh();
@@ -317,18 +348,56 @@ function monthLabels(n) {
   return out;
 }
 
-/** Fill the league table. */
-function listRows(table, rows) {
-  table.replaceChildren();
-  const head = el('div.table-head', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
-    el('span', { text: 'Company' }), el('span', { text: 'Value' }), el('span', { text: 'Rating' }), el('span', { text: 'Profit (last month)' }));
-  table.appendChild(head);
-  if (!rows.length) { table.appendChild(el('div.muted', { text: 'No companies' })); return; }
+/** Identity of the league rows; the table is only patched when this changes. */
+export function leagueSignature(rows) {
+  return (rows || []).map((r) => [r.name, r.value, r.rating, r.title, r.player ? 1 : 0, r.rival ? 1 : 0, r.bankrupt ? 1 : 0, r.profit, r.vehicles].join('\u0001')).join('\u0002');
+}
+
+/** Stable row key: a company keeps its DOM row while its value/rating changes. */
+function leagueRowKey(r) {
+  return (r.player ? 'player:' : r.rival ? 'rival:' : 'company:') + r.name;
+}
+
+function updateLeagueRow(row, r, i) {
+  setText(row.children[0], `${i + 1}. ${r.name}${r.player ? ' (you)' : ''}${r.rival ? ' (AI)' : ''}${r.bankrupt ? ' — bankrupt' : ''}`);
+  setText(row.children[1], money(r.value));
+  setText(row.children[2], r.rival ? `${r.vehicles} vehicles` : `${r.title} (${r.rating})`);
+  setText(row.children[3], r.profit == null ? '—' : money(r.profit));
+}
+
+/** Fill the league table in place (keyed rows keep the scroll position). Exported for tests. */
+export function renderLeagueRows(table, rows) {
+  let head = table.firstElementChild;
+  if (!head || !head.classList || !head.classList.contains('table-head')) {
+    head = el('div.table-head', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
+      el('span', { text: 'Company' }), el('span', { text: 'Value' }), el('span', { text: 'Rating' }), el('span', { text: 'Profit (last month)' }));
+    table.insertBefore(head, table.firstChild);
+  }
+  const existing = new Map();
+  for (const child of Array.from(table.children)) {
+    if (child === head) continue;
+    if (child.dataset && child.dataset.key !== undefined) existing.set(child.dataset.key, child);
+    else child.remove();
+  }
+  if (!rows.length) {
+    for (const row of existing.values()) row.remove();
+    table.appendChild(el('div.muted', { text: 'No companies' }));
+    return;
+  }
+  let prev = head;
   rows.forEach((r, i) => {
-    table.appendChild(el('div.table-row', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
-      el('span.name', { text: `${i + 1}. ${r.name}${r.player ? ' (you)' : ''}${r.rival ? ' (AI)' : ''}${r.bankrupt ? ' — bankrupt' : ''}` }),
-      el('span.mono.num', { text: money(r.value) }),
-      el('span', { text: r.rival ? `${r.vehicles} vehicles` : `${r.title} (${r.rating})` }),
-      el('span.mono.num', { text: r.profit == null ? '—' : money(r.profit) })));
+    const key = leagueRowKey(r);
+    let row = existing.get(key);
+    if (row) existing.delete(key);
+    else {
+      row = el('div.table-row', { style: { gridTemplateColumns: '2fr 1.2fr 1.4fr 1.2fr' } },
+        el('span.name'), el('span.mono.num'), el('span'), el('span.mono.num'));
+      row.dataset.key = key;
+    }
+    updateLeagueRow(row, r, i);
+    const expected = prev.nextSibling;
+    if (row !== expected) table.insertBefore(row, expected);
+    prev = row;
   });
+  for (const row of existing.values()) row.remove();
 }
