@@ -297,6 +297,9 @@ export const DEFAULT_SETTINGS = {
   /** OpenTTD-style multiple singlehead locomotives at the head of a train (lead block, up to 4 engines total).
    * Off (default) = the TT single-engine consist; no vehicle ever carries the lazy `engines` list. */
   multiEngineConsists: false,
+  /** D17 multihead pairs: offers the twin-engine model (eng_twin_thunder, one unit that is two halves, not splittable).
+   * Off (default) = the model is not offered; no existing vehicle or hash changes. */
+  multiheadPairs: false,
   /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
   autosaveInterval: 'off',
   /** OpenTTD economy.exclusive_rights (economy_settings.ini, def true): town action 'Buy exclusive transport rights' is available. Off = the action is not offered and is refused (town_cmd.cpp TownActionBuyRights). TT default true = current. */

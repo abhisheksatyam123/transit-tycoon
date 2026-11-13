@@ -29,7 +29,7 @@ import { refitCargos, refitCore } from './refit.js';
 import { DIRS, SEGMENT_SPACING } from './constants.js';
 import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from './owner.js';
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
-import { engineList, extraEngineCount, MAX_EXTRA_ENGINES } from './consistEngines.js';
+import { engineList, extraEngineCount, MAX_EXTRA_ENGINES, isMultihead } from './consistEngines.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
 import { timetableComplete, roundTicks, orderGroupMembers, timetableEstimatesOn } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
@@ -69,6 +69,7 @@ export function buyVehicle(ctx, depotId, spec, opts = {}) {
     for (const id of spec.engines) {
       const em = MODEL_BY_ID[id];
       if (em && em.kind === 'engine' && !modelAvailable(state, em, opts.owner ?? null)) return { ok: false, error: 'Model not yet available' };
+      if (em && isMultihead(em)) return { ok: false, error: `${em.name} is a whole train engine, not an extra engine` };
     }
   }
   const r = resolvePurchase(depot, spec || {}, state.date.year, getSetting(state, 'neverExpireVehicles'), getSetting(state, 'maxTrainWagons'), getSetting(state, 'maxTrainLength'), maxEngines);
@@ -817,6 +818,7 @@ export function addEngine(ctx, id, modelId, opts = {}) {
   const { v } = c;
   const model = MODEL_BY_ID[modelId];
   if (!model || model.kind !== 'engine') return { ok: false, error: 'Unknown engine model' };
+  if (isMultihead(model)) return { ok: false, error: `${model.name} is a whole train engine, not an extra engine` };
   if (!purchasable(model, state.date.year, getSetting(state, 'neverExpireVehicles')) || !modelAvailable(state, model, null)) {
     return { ok: false, error: `${model.name} is not available` };
   }
