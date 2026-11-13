@@ -6,7 +6,7 @@ import { MAX_WAITING } from './constants.js';
 import { HOUSE_POP } from './towns.js';
 import { addWaiting, acceptsFromSource } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
-import { manhattan, findStation } from './state.js';
+import { manhattan } from './state.js';
 import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
 import { getSetting } from './settings.js';
 
@@ -23,19 +23,44 @@ import { getSetting } from './settings.js';
  * @param {number} sy
  */
 export function servingStations(state, coverage, tileIdxs, cargoId, sx, sy) {
+  // Fast path for the single-tile call every in-tree caller makes: per-tile coverage ids are unique,
+  // so a one-candidate tile needs neither the Set nor the sort (the result is the same one station).
+  if (tileIdxs.length === 1) {
+    const arr = coverage.get(tileIdxs[0]);
+    if (!arr || arr.length === 0) return [];
+    if (arr.length === 1) {
+      const st = stationById(state, coverage).get(arr[0]);
+      return st && acceptsFromSource(state, st, cargoId) ? [st] : [];
+    }
+  }
   const ids = new Set();
   for (const i of tileIdxs) {
     const arr = coverage.get(i);
     if (arr) for (const id of arr) ids.add(id);
   }
+  const byId = stationById(state, coverage);
   const list = [];
   for (const id of ids) {
-    const st = findStation(state, id);
+    const st = byId.get(id);
     if (st && acceptsFromSource(state, st, cargoId)) list.push(st);
   }
   list.sort((a, b) => (b.rating[cargoId] ?? 0) - (a.rating[cargoId] ?? 0)
     || manhattan(a.x, a.y, sx, sy) - manhattan(b.x, b.y, sx, sy) || a.id - b.id);
   return list.slice(0, 2);
+}
+
+/**
+ * id -> station map beside a coverage index. buildCoverage attaches one; a hand-built coverage Map
+ * (tests, tools) gets a lazy map cached on the Map, invalidated when state.stations is replaced or
+ * grows/shrinks (station ids are unique, so size is a sufficient length check).
+ */
+function stationById(state, coverage) {
+  let byId = coverage.stationById;
+  if (byId && coverage.stationByIdOf === state.stations && byId.size === state.stations.length) return byId;
+  byId = new Map();
+  for (const st of state.stations) if (!byId.has(st.id)) byId.set(st.id, st);
+  if (coverage instanceof Map) { coverage.stationById = byId; coverage.stationByIdOf = state.stations; }
+  return byId;
 }
 
 /**

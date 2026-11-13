@@ -126,8 +126,11 @@ export function catchmentTiles(state, st) {
  */
 export function buildCoverage(state) {
   const cov = new Map();
+  const byId = new Map();
   const w = state.map.width;
   for (const st of state.stations) {
+    // First occurrence wins, exactly like findStation's linear scan over state.stations.
+    if (!byId.has(st.id)) byId.set(st.id, st);
     for (const p of catchmentTiles(state, st)) {
       const i = p.y * w + p.x;
       let arr = cov.get(i);
@@ -135,6 +138,10 @@ export function buildCoverage(state) {
       arr.push(st.id);
     }
   }
+  // id -> station lookup cached next to the index (a Map expando, never saved and not part of the
+  // key/value data) so servingStations does not linear-scan state.stations per covered tile id.
+  cov.stationById = byId;
+  cov.stationByIdOf = state.stations;
   return cov;
 }
 
