@@ -15,7 +15,7 @@
  *    a rival whose company value stays below zero for 12 months is wound up (bankruptcy).
  * The League and Companies windows show rival money, loan, value and vehicles. Rival shares: see shares.js.
  */
-import { getSetting } from './settings.js';
+import { getSetting, infiniteMoney } from './settings.js';
 import { createCompany, borrow, repay, spend, earn, monthlyLoanInterest } from './economy.js';
 import { allocId, findStation, manhattan } from './state.js';
 import { renewRivalFleet } from './aiRenew.js';
@@ -87,9 +87,11 @@ export function ensureRivals(state, n) {
 export function updateMonthly(game) {
   const state = game.state;
   const n = getSetting(state, 'aiCompanies') | 0;
-  if (n <= 0) return;
   const ctx = game.ctx;
-  const rivals = ensureRivals(state, Math.min(3, n));
+  // Switching the setting off mid-game stops new think/build passes but keeps the monthly bookkeeping for the
+  // rivals that already exist (interest, ledger close, takeover/bankruptcy checks), so they stay consistent.
+  const rivals = n > 0 ? ensureRivals(state, Math.min(3, n)) : (state.rivals || []);
+  if (!rivals.length) return;
   const ended = state.date.month === 0 ? { year: state.date.year - 1, month: 11 } : { year: state.date.year, month: state.date.month - 1 };
   for (const r of rivals) {
     if (r.bankrupt) continue;
@@ -101,7 +103,7 @@ export function updateMonthly(game) {
     closeRivalLedger(r, ended);
     manageLoan(state, r);
     sellUnprofitable(ctx, r);
-    const passes = thinkPasses(state, monthIndex(state));
+    const passes = n > 0 ? thinkPasses(state, monthIndex(state)) : 0; // no new build decisions when the setting is off
     for (let k = 0; k < passes; k++) thinkRival(ctx, state, r);
     refreshStats(state, r);
     updateTakeover(ctx, r);
@@ -259,7 +261,7 @@ export function acceptTakeover(ctx, rivalId) {
   if (!r || r.bankrupt) return { ok: false, error: 'No such company' };
   if (!r.takeoverOffer) return { ok: false, error: 'No takeover offer' };
   const price = r.takeoverOffer.price;
-  if (price > state.company.money) return { ok: false, error: 'Not enough money for the takeover' };
+  if (price > 0 && !infiniteMoney(state) && price > state.company.money) return { ok: false, error: 'Not enough money for the takeover' };
   spend(state.company, 'property', price);
   transferRival(ctx, r);
   pushNews(state, `You took over ${r.name} for ${price}.`, 'good', undefined, undefined, 'company');
@@ -283,7 +285,9 @@ export function transferRival(ctx, r) {
     for (const t of state.map.tiles) if (t.building && t.building.type === 'hq' && t.building.level != null) t.owner = null;
   } else removeHQ(state, r.id);
   delete r.hq;
-  earn(state.company, Math.max(0, r.money), 'income');
+  // the rival's cash moves with its sign: a negative balance is an assumption of its debt
+  if (r.money >= 0) earn(state.company, r.money, 'income');
+  else spend(state.company, 'property', -r.money);
   state.company.loan = (state.company.loan || 0) + (r.loan || 0);
   r.money = 0; r.loan = 0;
   r.bankrupt = true; r.taken = true; r.vehicles = []; r.stations = []; r.depots = []; r.routes = [];
@@ -312,6 +316,11 @@ function windUp(ctx, r) {
   }
   state.depots = state.depots.filter((q) => q.ownerId !== r.id);
   r.vehicles = []; r.stations = []; r.depots = []; r.routes = [];
+  // Rival-owned road/rail tiles are deliberately left alone here: changing or clearing their ownership
+  // needs a user decision on infrastructure policy (kept as-is by the bankruptcy wind-up).
+  removeHQ(state, r.id);
+  delete r.takeoverOffer;
+  r.stats = { profit: 0, vehicles: 0 };
   r.companyValue = r.money - (r.loan || 0);
   pushNews(state, `${r.name} has gone bankrupt and been wound up.`, 'bad', undefined, undefined, 'company');
 }

@@ -60,6 +60,7 @@ export function updateDaily(game) {
   for (const t of s.towns) ensureTown(t).ratingAdjusted = false;
   for (const st of s.stations) {
     if (!st.tiles.length) continue;
+    if (st.ownerId != null) continue; // rival stations do not move the player's town rating
     const r200 = st.rating200 || {};
     let good = false;
     for (const c of Object.keys(st.lastPickup)) {

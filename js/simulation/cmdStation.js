@@ -95,7 +95,7 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
   }
   const last = tiles[tiles.length - 1];
   if (!coordsOk(map, x, y, last.x, last.y)) return { ok: false, error: ERR.bounds };
-  const refused = refusalAt(state, x, y);
+  const refused = refusalAt(state, x, y, opts.owner ?? null);
   if (refused) return { ok: false, error: refused };
   let cost = 0;
   for (const p of tiles) {
@@ -160,7 +160,7 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   const map = state.map;
   if (kind !== 'bus' && kind !== 'truck' && kind !== 'tram') return { ok: false, error: 'Invalid stop kind' };
   if (!coordsOk(map, x, y)) return { ok: false, error: ERR.bounds };
-  const refused = refusalAt(state, x, y);
+  const refused = refusalAt(state, x, y, opts.owner ?? null);
   if (refused) return { ok: false, error: refused };
   const t = getTile(map, x, y);
   if (t.terrain === 'water') return { ok: false, error: ERR.water };

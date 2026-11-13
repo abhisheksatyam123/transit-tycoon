@@ -60,11 +60,14 @@ export function upgradeRivalAirports(ctx, r) {
 
 /** Upgrade both ends or neither: each end is checked before either commits (no half-upgraded route). */
 function upgradeAirportPair(ctx, r, ends, route, origins, curId, typeId) {
+  const { state } = ctx;
   const a = canUpgrade(ctx, r, origins[0], curId, typeId), b = canUpgrade(ctx, r, origins[1], curId, typeId);
   if (!a || !b) return false;
   // the two new footprints must not overlap (the second's check would be stale after the first commits)
   const cells = new Set(a.newTiles.map((p) => key(p.x, p.y)));
   if (b.newTiles.some((p) => cells.has(key(p.x, p.y)))) return false;
+  // all or nothing: both upgrades must be affordable together, so neither end commits when only one could
+  if (checkMoney(state, a.cost + b.cost, r)) return false;
   upgradeAirport(ctx, r, ends[0], route, origins[0], curId, typeId, true);
   upgradeAirport(ctx, r, ends[1], route, origins[1], curId, typeId, false);
   return true;

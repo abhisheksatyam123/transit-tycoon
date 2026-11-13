@@ -15,7 +15,7 @@ import { listModels } from './queries.js';
 import { getSetting } from './settings.js';
 import { replaceVehicle } from './autorenew.js';
 import { sendToDepot, startVehicle } from './cmdVehicle.js';
-import { purchasable } from './vehicles.js';
+import { purchasable, isVehicleOld } from './vehicles.js';
 import { vehiclePrice } from './prices.js';
 import { airportTypeId, vehicleFitsAirport } from './airportTypes.js';
 import { findDepot } from './state.js';
@@ -56,7 +56,7 @@ export function renewRivalFleet(ctx, r) {
   for (const v of state.vehicles.filter((x) => x.ownerId === r.id)) {
     const cur = MODEL_BY_ID[v.modelId];
     if (!cur) continue;
-    const old = v.age > v.maxAge;
+    const old = isVehicleOld(state, v); // effective max age, like the player's autorenew (extendVehicleLife)
     if (!old && purchasable(cur, year, getSetting(state, 'neverExpireVehicles'))) continue;
     const target = renewalModel(state, v, r.id);
     if (!target) continue;
