@@ -62,6 +62,10 @@ async function loadScenarios() {
  * @param {import('../app.js').App} app
  */
 export function openNewGame(app) {
+  // wm.open returns an already-open window as is (its DOM, built from the prefs at that time). A pinned dialog
+  // survives Esc, and Settings can change the remembered values while it is open, so rebuild it: every open
+  // sets the controls from the remembered prefs (nothing is persisted here).
+  if (app.wm.windows.has('newGame')) app.wm.close('newGame');
   return app.wm.open('newGame', {
     title: 'New Game',
     width: 320,
