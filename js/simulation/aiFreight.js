@@ -8,13 +8,13 @@ import { findStation, manhattan } from './state.js';
 import { getTile, inBounds } from './map.js';
 import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { producedCargos, requiredCargos } from './loco/industry.js';
-import { DIRS, OPPOSITE } from './constants.js';
+import { DIRS, OPPOSITE, AXIS_BITS, dirBetween } from './constants.js';
+import { straightAxis } from './network.js';
 import { canAddBits } from './trackRules.js';
 import { buildLine } from './cmdTrack.js';
 import { buildRoadStop, buildDepot } from './cmdStation.js';
 import { buyVehicle, setOrders, startVehicle } from './cmdVehicle.js';
 import { listModels } from './queries.js';
-import { findRoadPath } from './townRoads.js';
 import { pathOk } from './shapes.js';
 import { pushNews } from './news.js';
 import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
@@ -26,6 +26,8 @@ export const FREIGHT_MAX_DIST = 30;
 export const FREIGHT_TRUCKS = 2;
 /** Producer must have at least this much output per month to be worth a truck route. */
 const MIN_PRODUCTION = 40;
+/** Ranked candidates one attempt tries before giving up (like aiShip's PAIR_TRIES). */
+const PAIR_TRIES = 4;
 
 /** Industry centre tile. */
 function centre(ind) {
@@ -41,12 +43,12 @@ export function truckModelFor(state, cargoId, ownerId = null) {
 
 /**
  * Freight candidates: (producer, cargo, acceptor) with a cargo the producer makes and the acceptor takes,
- * distance in the window, both on the same tile-connected land (no water between). Highest production first,
- * then nearest, then lowest ids (deterministic).
- * @returns {{src:object,dst:object,cargo:string}|null}
+ * distance in the window, ranked by production then nearest, then lowest ids (deterministic). `used` ids
+ * are excluded; `limit` caps the returned list after ranking (Infinity = all).
+ * @returns {{src:object,dst:object,cargo:string,dist:number,score:number}[]}
  */
-export function pickFreightPair(state, usedIds = new Set()) {
-  let best = null, bestScore = -1;
+export function pickFreightPairs(state, usedIds = new Set(), limit = Infinity) {
+  const out = [];
   for (const src of state.industries) {
     if (usedIds.has(src.id)) continue;
     const type = INDUSTRY_BY_ID[src.typeId];
@@ -61,12 +63,21 @@ export function pickFreightPair(state, usedIds = new Set()) {
         const a = centre(src), b = centre(dst);
         const d = manhattan(a.x, a.y, b.x, b.y);
         if (d < FREIGHT_MIN_DIST || d > FREIGHT_MAX_DIST) continue;
-        const score = prod * 100 - d;
-        if (score > bestScore) { bestScore = score; best = { src, dst, cargo }; }
+        out.push({ src, dst, cargo, dist: d, score: prod * 100 - d });
       }
     }
   }
-  return best;
+  out.sort((p, q) => q.score - p.score || p.src.id - q.src.id || p.dst.id - q.dst.id ||
+    (p.cargo < q.cargo ? -1 : p.cargo > q.cargo ? 1 : 0));
+  return limit === Infinity ? out : out.slice(0, limit);
+}
+
+/**
+ * Best freight candidate, or null. Kept for callers/tests that only need the top pair.
+ * @returns {{src:object,dst:object,cargo:string}|null}
+ */
+export function pickFreightPair(state, usedIds = new Set()) {
+  return pickFreightPairs(state, usedIds, 1)[0] || null;
 }
 
 /** Free tile on land next to the source industry, as a truck stop spot (straight road or empty land). */
@@ -85,28 +96,93 @@ function stopSpot(state, ind, toward) {
   return best;
 }
 
-/** Plan the road between two points: A* over land (townRoads.findRoadPath). Returns the path or null. */
+/**
+ * Shortest 4-connected land path between two points, or null. A plain deterministic BFS (N, E, S, W)
+ * instead of townRoads.findRoadPath: that A* tracks "straight steps since the last turn" in a single
+ * bit that never becomes 1, so it only ever returns straight lines (town generation depends on its
+ * exact output, so this stays a local choice). Height steps are limited to 1 like town roads.
+ */
 function planFreightRoad(state, from, to) {
   const map = state.map;
-  const goal = new Set([to.y * map.width + to.x]);
-  const allowed = (x, y) => {
-    const t = getTile(map, x, y);
-    return t.terrain !== 'water' && !t.building && !t.rail;
-  };
-  const path = findRoadPath(map, [from], goal, to, allowed, 2);
-  return path && pathOk(path) ? path : null;
+  const W = map.width, H = map.height;
+  const passable = (t) => t.terrain !== 'water' && !t.building && !t.rail &&
+    !t.playerTunnel && !t.playerBridge && t.bridgeDeck === undefined;
+  const start = from.y * W + from.x, goal = to.y * W + to.x;
+  if (!passable(map.tiles[start])) return null;
+  const prev = new Int32Array(W * H).fill(-1);
+  const seen = new Uint8Array(W * H);
+  const queue = [start];
+  seen[start] = 1;
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head];
+    if (i === goal) {
+      const out = [];
+      for (let c = goal; c !== -1; c = prev[c]) out.push({ x: c % W, y: Math.floor(c / W) });
+      const path = out.reverse();
+      return pathOk(path) ? path : null;
+    }
+    const x = i % W, y = Math.floor(i / W), cur = map.tiles[i];
+    for (const { dx, dy } of DIRS) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (seen[j]) continue;
+      const t = map.tiles[j];
+      if (!passable(t) || Math.abs(t.height - cur.height) > 1) continue;
+      seen[j] = 1;
+      prev[j] = i;
+      queue.push(j);
+    }
+  }
+  return null;
+}
+
+/**
+ * True when a truck stop at a path end still sees a straight road after the road build. An empty stop
+ * tile takes the path's own axis, but a tile that already has road keeps its bits: the path must arrive
+ * along that existing straight axis, or the tile becomes a junction and buildRoadStop refuses it.
+ * @param {object} tile current map tile at the stop
+ * @param {{x:number,y:number}[]} path planned road path, stop tile first or last
+ * @param {boolean} atStart true when the stop is path[0], false when it is the last tile
+ */
+export function stopAxisOk(tile, path, atStart) {
+  if (!tile.road) return true;
+  const axis = straightAxis(tile.road);
+  if (!axis) return false;
+  const n = path.length;
+  const i = atStart ? 0 : n - 1;
+  const j = atStart ? 1 : n - 2;
+  if (j < 0 || j >= n) return false;
+  const bit = dirBetween(path[i].x, path[i].y, path[j].x, path[j].y);
+  return !!(bit & AXIS_BITS[axis]);
 }
 
 /**
  * Build one freight route for the rival: stops at the producer and acceptor, a depot beside the source,
- * a road between them, and FREIGHT_TRUCKS trucks.
+ * a road between them, and FREIGHT_TRUCKS trucks. Tries the top PAIR_TRIES ranked candidates, because a
+ * pair can be valid on paper yet unbuildable (no 4-connected land road, or a stop spot whose road axis
+ * would break); the unbuildable ones stay unused so they are retried next month.
  * @returns {boolean}
  */
 export function buildFreightRoute(ctx, r) {
   const { state } = ctx;
   const used = new Set(r.freightIndustries || []);
-  const pair = pickFreightPair(state, used);
-  if (!pair) return false;
+  let tried = 0;
+  for (const pair of pickFreightPairs(state, used)) {
+    if (tried >= PAIR_TRIES) break;
+    tried++;
+    if (tryFreightRoute(ctx, r, pair)) return true;
+  }
+  return false;
+}
+
+/**
+ * Plan and build one freight route for a chosen candidate. Nothing is spent unless every step passes its
+ * dry run; returns false (leaving no state behind) when this candidate cannot be built.
+ * @returns {boolean}
+ */
+function tryFreightRoute(ctx, r, pair) {
+  const { state } = ctx;
   const { src, dst, cargo } = pair;
   const model = truckModelFor(state, cargo, r.id);
   if (!model) return false;
@@ -117,6 +193,10 @@ export function buildFreightRoute(ctx, r) {
   if (!b) return false;
   const path = planFreightRoad(state, a, b);
   if (!path) return false;
+  // the road is committed before the stops, so a stop tile that already carries road must still be
+  // straight along the path's arrival axis afterwards (otherwise it turns into a junction and fails)
+  if (!stopAxisOk(getTile(state.map, a.x, a.y), path, true)) return false;
+  if (!stopAxisOk(getTile(state.map, b.x, b.y), path, false)) return false;
   // dry runs first: road, both stops and the depot must be possible and affordable before anything is built
   const roadDry = buildLine(ctx, 'road', 0, 0, 0, 0, { path, owner, dryRun: true });
   if (!roadDry.ok) return false;
@@ -126,7 +206,8 @@ export function buildFreightRoute(ctx, r) {
   if (!bDry.ok) return false;
   const dSpot = truckDepotSpot(ctx, a, owner, path, [a, b]);
   if (!dSpot) return false;
-  if (r.money < roadDry.cost + aDry.cost + bDry.cost + dSpot.cost) return false;
+  // the trucks are part of the opening cost: do not create a route we cannot equip
+  if (r.money < roadDry.cost + aDry.cost + bDry.cost + dSpot.cost + model.cost * FREIGHT_TRUCKS) return false;
   const attempt = beginRivalAttempt(state, r, [...path, a, b, { x: dSpot.x, y: dSpot.y },
     ...DIRS.map((d) => ({ x: dSpot.x + d.dx, y: dSpot.y + d.dy })),
     ...DIRS.map((d) => ({ x: a.x + d.dx, y: a.y + d.dy })),
