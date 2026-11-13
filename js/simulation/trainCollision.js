@@ -22,6 +22,7 @@ import { getTile } from './map.js';
 import { vehiclesOn, vehicleDir } from './blocking.js';
 import { dirBetween } from './constants.js';
 import { getSetting } from './settings.js';
+import { createRng } from './rng.js';
 
 /** OpenTTD ModifyStationRatingAround(tile, owner, -160, 30) (train_cmd.cpp ~3360), used by trainCrashStationRating. */
 const CRASH_RATING_PENALTY = 160;
@@ -29,11 +30,17 @@ const CRASH_RATING_RADIUS = 30;
 /** OpenTTD Train::Crash (train_cmd.cpp:3209-3239): +2 victims for the driver (front engine) of each crashed consist. */
 const TRAIN_DRIVER_VICTIMS = 2;
 
-/** Mark v as wrecked (once) and queue it for removal after the vehicle loop. Returns its passengers. */
-function wreck(ctx, v) {
+/**
+ * Mark v as wrecked (once) and queue it for removal after the vehicle loop. Returns its passengers: the full load,
+ * or with trainCrashRandomVictims (OpenTTD Vehicle::Crash RandomRange(pass + 1)) a uniform draw in [0, pass].
+ * The draw happens only when the setting is on (default games draw nothing extra).
+ */
+function wreck(ctx, v, randomVictims = false) {
   v.wrecked = true;
   (ctx.wrecked || (ctx.wrecked = [])).push(v);
-  return v.load && v.cargoId === 'PASS' ? v.load.amount || 0 : 0;
+  const pass = v.load && v.cargoId === 'PASS' ? v.load.amount || 0 : 0;
+  if (randomVictims && pass > 0) return createRng(ctx.state).int(0, pass);
+  return pass;
 }
 
 /**
@@ -52,7 +59,8 @@ export function trainEnters(ctx, v, x, y) {
         const od = vehicleDir(o);
         if (!od || !dir || od === dir) continue; // same way (follower at blocking distance) or unknown: no crash
         // per crashed consist: driver term (deterministic, OpenTTD +2) + the passengers on board (full load)
-        const victims = TRAIN_DRIVER_VICTIMS + wreck(ctx, v) + TRAIN_DRIVER_VICTIMS + wreck(ctx, o);
+        const rnd = !!getSetting(ctx.state, 'trainCrashRandomVictims');
+        const victims = TRAIN_DRIVER_VICTIMS + wreck(ctx, v, rnd) + TRAIN_DRIVER_VICTIMS + wreck(ctx, o, rnd);
         if (getSetting(ctx.state, 'trainCrashStationRating')) crashStationRating(ctx.state, v.ownerId, x, y);
         notify(ctx, `Train crash! ${victims} die in collision`, 'bad', x, y, 'accident');
         if (ctx.emit) ctx.emit('crash', { x, y, victims });
@@ -105,8 +113,10 @@ export function trainEntersCrossing(ctx, v, x, y) {
   if (!list) return;
   for (const r of list) {
     if (r.kind !== 'road' || r.wrecked || r.state === 'depot') continue;
-    const victims = wreck(ctx, r);
-    notify(ctx, 'Road vehicle destroyed in collision with train', 'bad', x, y, 'accident');
+    // trainCrashRoadNewsCount (opt-in): OpenTTD RoadVehicle::Crash driver (+1) + passengers, shown in the news
+    const countOn = !!getSetting(ctx.state, 'trainCrashRoadNewsCount');
+    const victims = countOn ? 1 + wreck(ctx, r) : wreck(ctx, r);
+    notify(ctx, countOn ? `Road vehicle destroyed in collision with train, ${victims} die` : 'Road vehicle destroyed in collision with train', 'bad', x, y, 'accident');
     if (ctx.emit) ctx.emit('crash', { x, y, victims });
   }
 }
