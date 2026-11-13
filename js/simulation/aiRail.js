@@ -339,18 +339,20 @@ export function buildRailRoute(ctx, r) {
   if (!stbDry.ok) return false;
   const depotSpot = railDepotSpot(ctx, path, owner);
   if (!depotSpot) return false;
-  if (r.money < lineDry.cost + staDry.cost + stbDry.cost + depotSpot.cost) return false;
+  // include the signal run: it is laid while the line is still straight (a depot on the line makes a
+  // junction tile the signal run refuses), so its spend must not leave the depot short
+  const signalEstimate = Math.ceil(path.length / RIVAL_SIGNAL_SPACING) * (COSTS.signal || 0);
+  if (r.money < lineDry.cost + staDry.cost + stbDry.cost + depotSpot.cost + signalEstimate) return false;
   const attempt = beginRivalAttempt(state, r, [...path, ...sa.tiles, ...sb.tiles,
     { x: depotSpot.x, y: depotSpot.y }, ...DIRS.map((d) => ({ x: depotSpot.x + d.dx, y: depotSpot.y + d.dy }))]);
   const stA = buildRailStation(ctx, sa.x0, sa.y0, sa.axis, STATION_LEN, { owner });
   const stB = stA.ok ? buildRailStation(ctx, sb.x0, sb.y0, sb.axis, STATION_LEN, { owner }) : stA;
   const line = stB.ok ? buildLine(ctx, 'rail', 0, 0, 0, 0, { path, owner }) : stB;
-  // The depot is committed before the block signals: its cost is in the preflight above, but the signal run
-  // has no dry run and would spend the cash the depot needs. Signals are best-effort (they only spend what is
-  // left and run stops at stations), so they come last and cannot make the depot commit fail.
+  // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (the run stops at
+  // stations). Built before the depot: a depot exit on the line turns that tile into a junction, which the
+  // signal run refuses, so the signals must be placed while the path is still plain straight track.
+  if (line.ok) buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
   const depot = line.ok ? placeRailDepot(ctx, depotSpot, owner) : null;
-  // Rival signalling (OpenTTD AI autofill): block signals along the line; best-effort (run stops at stations).
-  if (depot) buildSignalRun(ctx, path.slice(1, -1), { spacing: RIVAL_SIGNAL_SPACING, owner });
   const A = depot ? findStation(state, stA.stationId) : null;
   const B = depot ? findStation(state, stB.stationId) : null;
   if (!A || !B) { rollbackRivalAttempt(attempt); return false; }
