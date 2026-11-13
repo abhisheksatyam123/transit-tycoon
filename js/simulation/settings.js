@@ -66,6 +66,8 @@ export const DEFAULT_SETTINGS = {
    * so a refit on that order never runs.
    */
   depotRefitAlwaysVisits: false,
+  /** OpenTTD GetRefitCost (vehicle_cmd.cpp:319-354): per-model refit cost, permille of purchase price (model.refitCost, absent = 0), cargo-carrying parts only. Default off = flat 10% (refit.js). */
+  modelRefitCost: false,
   /** OpenTTD difficulty.infinite_money (def false): companies can always pay; affordability and bankruptcy checks are skipped (settings.js infiniteMoney). */
   infiniteMoney: false,
   /** OpenTTD economy.cargo_aging_rate (percent, def 100): scales the transit days used for cargo payment (economy.cpp GetTransportedGoodsIncome). */

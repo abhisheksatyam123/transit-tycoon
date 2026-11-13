@@ -9,6 +9,7 @@ import { vehiclePrice } from './prices.js';
 import { spend } from './economy.js';
 import { checkMoney } from './trackRules.js';
 import { companyOf } from './owner.js';
+import { getSetting } from './settings.js';
 
 /** Refit cost factor: share of the model's (inflated) purchase price, per refit (OpenTTD charges a % of value). */
 export const REFIT_COST_FRACTION = 0.1;
@@ -86,12 +87,23 @@ export function refitCore(ctx, v, cargoId, opts = {}) {
   if (!partial && (v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the vehicle before refitting' };
   let capacity = v.capacity;
   let base = model.cost;
+  // modelRefitCost (opt-in, default off): per-model permille of purchase price (model.refitCost, absent = 0),
+  // cargo-carrying parts only (the locomotive is skipped unless it has its own refitCost). Off = flat 10%.
+  const perModel = getSetting(state, 'modelRefitCost') === true;
+  const part = (m) => Math.round((m.cost * (m.refitCost ?? 0)) / 1000);
+  let cost;
   if (model.kind === 'engine') {
     const w = MODEL_BY_ID[v.wagonModelId];
     capacity = w.capacity * (v.wagons || 0);
     base += w.cost * (v.wagons || 0);
   }
-  const cost = sameCargo ? 0 : vehiclePrice(state, Math.round(base * REFIT_COST_FRACTION));
+  if (perModel) {
+    let parts = part(model);
+    if (model.kind === 'engine') parts += part(MODEL_BY_ID[v.wagonModelId]) * (v.wagons || 0);
+    cost = sameCargo ? 0 : vehiclePrice(state, parts);
+  } else {
+    cost = sameCargo ? 0 : vehiclePrice(state, Math.round(base * REFIT_COST_FRACTION));
+  }
   if (opts.dryRun) return { ok: true, cost, cargoId, capacity };
   const money = checkMoney(state, cost);
   if (money) return money;
