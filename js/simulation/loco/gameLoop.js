@@ -65,7 +65,7 @@ export function tickDate(game) {
     CompanyManager.updateMonthly1(game);
     CompanyManager.updateMonthlyHeadquarters(game);
     VehicleManager.updateMonthly(game);
-    AiCompanies.updateMonthly(game); // gap #25 AI rivals (aiCompanies setting; no-op at 0)
+    AiCompanies.updateMonthly(game); // gap #25 AI rivals (aiCompanies setting; off = bookkeeping only, no new builds)
     if (s.date.year <= 2029 && getSetting(s, 'inflation')) Economy.updateMonthly(game);
     Recession.updateMonthly(game); // economyRecessions setting (off by default): OpenTTD HandleEconomyFluctuations
     Subsidies.updateMonthly(game); // transit-tycoon additions (OpenTTD subsidies, OpenLoco scenario objective)

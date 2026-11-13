@@ -1,11 +1,11 @@
 /** N8 save/load robustness: boot autosave guard, unknown packed formats, Moscow detection, parseState checks. */
-import { test, expect, describe, beforeEach } from 'bun:test';
+import { test, expect, describe, beforeEach, afterAll } from 'bun:test';
 import { Game } from '../js/simulation/game.js';
 import { parseState, serializeState, stripCarsScratch } from '../js/simulation/save.js';
 import { isMoscowSave } from '../js/simulation/scenarios/moscowRegistry.js';
-import { saveToSlot, readSlot } from '../js/ui/storage.js';
+import { saveToSlot, readSlot, slotPresence } from '../js/ui/storage.js';
 import {
-  lockAutosaveSlot, unlockAutosaveSlot, autosaveSlotLocked, shouldWriteAutosave, resetAutosaveGuard,
+  lockAutosaveSlot, unlockAutosaveSlot, autosaveSlotLocked, resetAutosaveGuard,
 } from '../js/ui/autosaveGuard.js';
 
 /** A small valid random-world state. */
@@ -16,23 +16,18 @@ function smallState() {
 describe('boot autosave guard', () => {
   beforeEach(() => resetAutosaveGuard());
 
-  test('locks only the autosave slot; auto-1..3 keep being written', () => {
+  test('the guard locks and unlocks the autosave slot', () => {
     expect(autosaveSlotLocked()).toBe(false);
-    expect(shouldWriteAutosave('autosave')).toBe(true);
-    expect(shouldWriteAutosave('auto-1')).toBe(true);
     lockAutosaveSlot();
     expect(autosaveSlotLocked()).toBe(true);
-    expect(shouldWriteAutosave('autosave')).toBe(false);
-    expect(shouldWriteAutosave('auto-1')).toBe(true);
-    expect(shouldWriteAutosave('auto-2')).toBe(true);
-    expect(shouldWriteAutosave('auto-3')).toBe(true);
-  });
-
-  test('a successful save/load unlocks the slot again', () => {
-    lockAutosaveSlot();
     unlockAutosaveSlot();
     expect(autosaveSlotLocked()).toBe(false);
-    expect(shouldWriteAutosave('autosave')).toBe(true);
+  });
+
+  test('resetAutosaveGuard clears the lock (test helper)', () => {
+    lockAutosaveSlot();
+    resetAutosaveGuard();
+    expect(autosaveSlotLocked()).toBe(false);
   });
 });
 
@@ -148,6 +143,8 @@ describe('car scratch keys', () => {
 
 describe('corrupt slot helper', () => {
   let store;
+  const realLocalStorage = globalThis.localStorage;
+  afterAll(() => { globalThis.localStorage = realLocalStorage; });
   beforeEach(() => {
     store = new Map();
     globalThis.localStorage = {
@@ -178,11 +175,31 @@ describe('corrupt slot helper', () => {
     expect(readSlot('3').status).toBe('corrupt');
   });
 
-  test('meta is written before the payload', () => {
+  test('the payload is written before the meta record', () => {
     const order = [];
     const inner = globalThis.localStorage.setItem;
     globalThis.localStorage.setItem = (k, v) => { order.push(k); inner(k, v); };
     expect(saveToSlot('1', fakeGame).ok).toBe(true);
-    expect(order).toEqual(['tt.save.1:meta', 'tt.save.1']);
+    expect(order).toEqual(['tt.save.1', 'tt.save.1:meta']);
+  });
+
+  test('a failed payload write does not manufacture a corrupt (meta-only) slot', () => {
+    const inner = globalThis.localStorage.setItem;
+    globalThis.localStorage.setItem = (k, v) => {
+      if (k === 'tt.save.2') throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+      inner(k, v);
+    };
+    const r = saveToSlot('2', fakeGame);
+    expect(r.ok).toBe(false);
+    expect(r.quota).toBe(true);
+    expect(readSlot('2').status).toBe('empty');
+  });
+
+  test('slotPresence distinguishes empty, present and meta-only without decoding', () => {
+    expect(slotPresence('1').state).toBe('empty');
+    expect(saveToSlot('1', fakeGame).ok).toBe(true);
+    expect(slotPresence('1').state).toBe('present');
+    store.set('tt.save.2:meta', JSON.stringify({ savedAt: 1 }));
+    expect(slotPresence('2').state).toBe('meta-only');
   });
 });

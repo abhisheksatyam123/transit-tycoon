@@ -71,6 +71,32 @@ describe('N8 rival HQ demolish', () => {
     expect(r.hq).toBeTruthy();
     expect(hqTiles(g, r.hq).length).toBe(4);
   });
+
+  test('an HQ with no company record is cleared in place, never the player HQ', () => {
+    const { g } = hqWorld();
+    // Build a player HQ, then drop its record while leaving the 2x2 tiles behind (legacy/ghost HQ).
+    expect(buildHQ(g.ctx, 10, 10).ok).toBe(true);
+    delete g.state.company.hq;
+    // Build the real player HQ elsewhere so removeHQ(null) would have a target to destroy.
+    expect(buildHQ(g.ctx, 20, 20).ok).toBe(true);
+    const ghost = g.demolish(10, 10, 10, 10);
+    expect(ghost.ok).toBe(true);
+    expect(hqTiles(g, { x: 10, y: 10 }).length).toBe(0); // ghost cleared
+    expect([g.state.company.hq.x, g.state.company.hq.y]).toEqual([20, 20]); // player HQ untouched
+    expect(hqTiles(g, g.state.company.hq).length).toBe(4);
+  });
+
+  test('demolish reports the expanded footprint as its render area', () => {
+    const { g } = hqWorld();
+    expect(g.buildAirport(10, 10).ok).toBe(true);
+    const r = g.demolish(10, 10, 10, 10);
+    expect(r.ok).toBe(true);
+    // the airport is removed as a whole, so the area covers the footprint, not just the clicked tile
+    expect(r.area.x0).toBe(10);
+    expect(r.area.y0).toBe(10);
+    expect(r.area.x1).toBeGreaterThan(10);
+    expect(r.area.y1).toBeGreaterThan(10);
+  });
 });
 
 describe('N8 rival bankruptcy wind-up', () => {

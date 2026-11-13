@@ -37,8 +37,9 @@ export function newGameObjective(type, target, years, scDefault) {
   if (type === 'none') return { type: 'none' };
   if (type !== 'default') return { type, target: Number(target) || undefined, timeLimitYears: Number(years) || 0 };
   if (!target) return undefined;
-  const base = scDefault || { type: 'companyValue' };
-  return { ...base, target: Number(target), timeLimitYears: Number(years) || 0 };
+  // a scenario default of {type:'none'} has no objective to refine: typing a target makes a company-value goal
+  const base = scDefault && scDefault.type && scDefault.type !== 'none' ? scDefault : { type: 'companyValue' };
+  return { ...base, type: base.type, target: Number(target), timeLimitYears: Number(years) || 0 };
 }
 
 const FALLBACK_SCENARIOS = [{ id: 'random', name: 'Random world', description: 'A procedurally generated world.', defaults: {} }];

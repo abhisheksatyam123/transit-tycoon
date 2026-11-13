@@ -15,12 +15,5 @@ export function unlockAutosaveSlot() { locked = false; }
 /** @returns {boolean} true while the 'autosave' slot must not be overwritten. */
 export function autosaveSlotLocked() { return locked; }
 
-/**
- * Should a write to `slot` happen? Only the 'autosave' slot can be blocked; the auto-1..3 ring is always allowed.
- * @param {string} slot
- * @returns {boolean}
- */
-export function shouldWriteAutosave(slot) { return slot !== 'autosave' || !locked; }
-
 /** Test helper: clear the guard (the game itself never needs this). */
 export function resetAutosaveGuard() { locked = false; }

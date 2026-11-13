@@ -2,7 +2,7 @@
  * Save / Load windows: localStorage slots 1-3 (+ autosave when loading), JSON export/import.
  */
 import { el, setText } from '../dom.js';
-import { saveToSlot, readSlot, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
+import { saveToSlot, readSlot, slotPresence, slotMeta, deleteSlot, exportToFile, importFromFile } from '../storage.js';
 import { unlockAutosaveSlot } from '../autosaveGuard.js';
 import { date, money } from '../format.js';
 import { AUTOSAVE_SLOTS, autosaveLabel } from '../autosavePrefs.js';
@@ -86,24 +86,27 @@ export function openLoad(app) {
     build(body, win) {
       p.pause();
       for (const slot of ['autosave', ...AUTOSAVE_SLOTS, ...SLOTS]) {
-        const status = readSlot(slot);
-        const meta = status.meta;
-        const corrupt = status.status === 'corrupt';
+        // cheap presence check only: decoding every payload here blocks the main thread on large saves
+        const presence = slotPresence(slot);
+        const meta = presence.meta;
+        const corrupt = presence.state === 'meta-only';
         const isManual = SLOTS.includes(slot);
         const text = slot === 'autosave' ? 'Autosave' : AUTOSAVE_SLOTS.includes(slot) ? autosaveLabel(slot) : `Slot ${slot}`;
-        const load = el('button.btn', { type: 'button', text, disabled: status.status === 'empty', onclick: async () => {
+        const load = el('button.btn', { type: 'button', text, disabled: presence.state === 'empty', onclick: async () => {
           if (!confirmDiscardGame(app.game)) return;
-          if (status.status !== 'ok') {
+          // read fresh: an autosave may have been written after this window opened (pause saves run in idle time)
+          const fresh = readSlot(slot);
+          if (fresh.status !== 'ok') {
             // meta exists but the payload is missing/unreadable: say so instead of doing nothing
             const label = slot === 'autosave' ? 'Autosave' : `Save slot ${slot}`;
             app.toast(`${label} is corrupt`, 'error', true);
             return;
           }
-          if (await app.loadFromString(status.data)) win.close();
+          if (await app.loadFromString(fresh.data)) win.close();
         } });
         const desc = el('span.muted.small', { text: corrupt ? 'Corrupt save — delete it or save over it' : describe(slot) });
         const row = el('div.slot-row', null, load);
-        if (isManual) {
+        if (isManual || corrupt) { // a corrupt autosave/ring slot can be cleared too (it would otherwise repeat each boot)
           const del = el('button.btn', { type: 'button', text: 'Delete', disabled: !meta, title: 'Delete this save slot', onclick: () => {
             if (!slotMeta(slot)) return;
             if (!confirm(`Delete save slot ${slot}?`)) return;

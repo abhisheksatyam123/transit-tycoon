@@ -28,9 +28,10 @@ export function saveToSlot(slot, game) {
     const s = game.state;
     const meta = { date: s.date, money: s.company.money, savedAt: Date.now(), seed: s.seed };
     const packed = ZPREFIX + compress(JSON.stringify({ meta, data: game.serialize() }));
-    // small meta copy first so the slot list never decompresses big saves (and never goes stale after a data write)
-    localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta));
+    // payload first: a failed data write must not leave a meta-only slot that readSlot would call corrupt
     localStorage.setItem(PREFIX + slot, packed);
+    // small meta copy so the slot list never decompresses big saves; if only this write fails the data is still valid
+    try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* keep the valid data */ }
     return { ok: true };
   } catch (err) {
     const quota = !!err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014);
@@ -111,8 +112,8 @@ export function saveToSlotAsync(slot, game, stats) {
         clearTimeout(timer);
         releaseHold();
         try {
-          localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta));
           localStorage.setItem(PREFIX + slot, ZPREFIX + packed);
+          try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* keep the valid data */ }
           finish({ ok: true });
         } catch (err) {
           finish(quotaResult(err));
@@ -177,6 +178,20 @@ export function readSlot(slot) {
   } catch {
     return { status: 'corrupt', meta };
   }
+}
+
+/**
+ * Cheap slot presence check: never decodes the payload (the Load window calls this for every slot).
+ * 'meta-only' means a meta record exists but the payload is missing (interrupted write) -> corrupt.
+ * @param {string} slot
+ * @returns {{state:'empty'|'present'|'meta-only',meta:object|null}}
+ */
+export function slotPresence(slot) {
+  const meta = slotMeta(slot);
+  let raw = null;
+  try { raw = localStorage.getItem(PREFIX + slot); } catch { return { state: 'empty', meta: null }; }
+  if (!raw) return meta ? { state: 'meta-only', meta } : { state: 'empty', meta: null };
+  return { state: 'present', meta };
 }
 
 /**

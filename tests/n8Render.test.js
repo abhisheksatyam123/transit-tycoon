@@ -37,9 +37,9 @@ describe('ground chunk signature (N8)', () => {
     expect(cache.signature(cx, cy)).not.toBe(before);
   });
 
-  test('signature includes tram/river/canal/lock/overBridge/playerTunnel, station part/metro, north/west halo', () => {
+  test('signature includes tram/river/canal/lock/overBridge/playerTunnel, station part/metro, all-side halo', () => {
     const setup = (apply) => {
-      const map = makeMap(32, 32);
+      const map = makeMap(64, 64); // chunk (1,1) needs real east/south neighbours
       const cache = makeCache(map);
       const base = cache.signature(1, 1);
       apply(map, map.tiles[20 * map.width + 20]);
@@ -56,6 +56,8 @@ describe('ground chunk signature (N8)', () => {
       stationMetro: (m, t) => { t.building = { type: 'station', kind: 'rail', metro: { color: '#ff0000' } }; },
       northWestHalo: (m) => { m.tiles[15 * m.width + 20].river = 1; }, // west neighbour of chunk (1,1)
       northHalo: (m) => { m.tiles[20 * m.width + 15].canal = 1; }, // north neighbour
+      eastHalo: (m) => { m.tiles[20 * m.width + 32].tram = 1; }, // east neighbour of chunk (1,1) (x = 32)
+      southHalo: (m) => { m.tiles[32 * m.width + 20].road = 1; }, // south neighbour of chunk (1,1) (y = 32)
     };
     for (const [name, fn] of Object.entries(fields)) {
       const [a, b] = setup(fn);
@@ -63,7 +65,7 @@ describe('ground chunk signature (N8)', () => {
     }
     // isolate the station kind/part/metro fields: base building present, only that field changes
     const setupBase = (base, mutate) => {
-      const map = makeMap(32, 32);
+      const map = makeMap(64, 64);
       const cache = makeCache(map);
       const t = map.tiles[20 * map.width + 20];
       t.building = base;

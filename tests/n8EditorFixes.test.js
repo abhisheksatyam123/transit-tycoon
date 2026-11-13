@@ -29,7 +29,8 @@ describe('scenario editor is free', () => {
     const m0 = g.state.company.money;
     const r = g.demolish(0, 0, 39, 39);
     expect(r.ok).toBe(true);
-    if (r.cost > 0) expect(g.state.company.money).toBe(m0 - r.cost);
+    expect(r.cost).toBeGreaterThan(0);
+    expect(g.state.company.money).toBe(m0 - r.cost);
   });
 
   test('town authority actions cost nothing in the editor but stay usable', () => {

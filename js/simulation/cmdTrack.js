@@ -566,7 +566,18 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else if (j.kind === 'object') {
       delete t.object;
     } else if (j.kind === 'hq') {
-      removeHQ(state, j.owner ?? null); // T31: no refund; remove the owner that owns this HQ
+      if (j.owner === undefined) {
+        // No company record owns this HQ (hand-built map or a pre-N8 bankrupt rival): clear its 2x2 directly.
+        // Passing null would remove the PLAYER's HQ instead.
+        const b = t.building;
+        const ox = j.x - ((b && b.dx) || 0), oy = j.y - ((b && b.dy) || 0);
+        for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+          const xx = ox + dx, yy = oy + dy;
+          if (!coordsOk(map, xx, yy)) continue;
+          const ht = map.tiles[yy * map.width + xx];
+          if (ht.building && ht.building.type === 'hq') { ht.building = null; ht.owner = null; }
+        }
+      } else removeHQ(state, j.owner); // T31: no refund; remove the owner that owns this HQ
     } else if (j.kind === 'house') {
       if (!t.building) continue; // already cleared as a part of a multi-tile house
       if (t.building.size) { clearHouseAt(state, j.x, j.y); continue; } // largeHouses: all parts go together
@@ -603,7 +614,10 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
   }
   invalidateBlocks(state);
   spend(state.company, 'construction', state.editor ? 0 : cost); // scenario editor is free (cmdTerraform.js)
-  return { ok: true, cost, tiles: jobs.length };
+  // expanded footprint (bridges/tunnels/aqueducts/airports can reach far outside the drag rect): renderer invalidation area
+  let ax0 = xa, ay0 = ya, ax1 = xb, ay1 = yb;
+  for (const c of cells) { if (c.x < ax0) ax0 = c.x; if (c.y < ay0) ay0 = c.y; if (c.x > ax1) ax1 = c.x; if (c.y > ay1) ay1 = c.y; }
+  return { ok: true, cost, tiles: jobs.length, area: { x0: ax0, y0: ay0, x1: ax1, y1: ay1 } };
 }
 
 export { buildLandBridge, landBridgeCells } from './landBridges.js';

@@ -182,10 +182,12 @@ export class GroundCache {
     const W = m.width, H = m.height;
     const cx0 = cx * CHUNK, cy0 = cy * CHUNK;
     const x1 = Math.min(W, (cx + 1) * CHUNK), y1 = Math.min(H, (cy + 1) * CHUNK);
-    // chunk tile rect plus a 1-tile north/west halo (clamped): staircase/shore/cliff drawing reads them
+    // chunk tile rect plus a 1-tile halo on every side (clamped): staircase/shore/cliff drawing reads all four
+    // neighbours (transport.js isStaircaseCorner reads x+1/y+1), so east/south must be hashed too
     const hx0 = Math.max(0, cx0 - 1), hy0 = Math.max(0, cy0 - 1);
-    for (let y = hy0; y < y1; y++) {
-      for (let x = hx0; x < x1; x++) {
+    const hx1 = Math.min(W - 1, x1), hy1 = Math.min(H - 1, y1); // x1/y1 are exclusive ends: include the east/south neighbour
+    for (let y = hy0; y <= hy1; y++) {
+      for (let x = hx0; x <= hx1; x++) {
         const t = m.tiles[y * W + x];
         const b = t.building;
         const lm = b && b.type === 'landmark' ? 7 + (b.dx | 0) * 3 + (b.dy | 0) * 5 + (b.id ? b.id.length : 0) * 11 : 0;
