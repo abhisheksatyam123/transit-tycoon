@@ -66,6 +66,12 @@ const DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
  * A* over (tile, heading, run) states. A turn is only allowed after at least
  * minRun straight steps, so a path with minRun 2 has no 1-tile staircases.
  * Reversing is never allowed. Existing roads are cheap to reuse.
+ *
+ * Known limitation (decision D22): the run bit never becomes 1 on a straight step (`run === 1 ? 1 : 0`
+ * at the nrun computation), so a turn is never legal and the search only returns straight lines.
+ * `loco/townGrow` compensates with `bfsRoadPath` when this returns null. Fixing the bookkeeping changes
+ * town growth and therefore the world hash, so it is a user decision (opt-in toggle or a re-pinned
+ * hash), not a silent change; rival freight uses its own BFS planner for the same reason.
  * @param {object} map
  * @param {{x:number,y:number}[]} sources
  * @param {Set<number>} goals tile indices
