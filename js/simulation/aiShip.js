@@ -148,7 +148,7 @@ function waterRoute(state, sas, sbs) {
   for (const sa of sas) {
     for (const sb of sbs) {
       if (!sa.water.length || !sb.water.length) continue;
-      const path = findShipPath(state.map, sa.water[0], sb.water, { turnCost: getSetting(state, 'shipTurnCost') });
+      const path = findShipPath(state.map, sa.water[0], sb.water, { turnCost: getSetting(state, 'shipTurnCost'), diagonal: getSetting(state, 'shipDiagonal') });
       if (!path || path.length < SHIP_MIN_DIST || path.length > SHIP_MAX_DIST) continue;
       return { sa, sb, path };
     }

@@ -227,7 +227,7 @@ export function trainTrack(v) {
 }
 
 export function findVehiclePath(state, v, goals) {
-  if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals, { turnCost: getSetting(state, 'shipTurnCost') });
+  if (v.kind === 'ship') return findShipPath(state.map, { x: v.tx, y: v.ty }, goals, { turnCost: getSetting(state, 'shipTurnCost'), diagonal: getSetting(state, 'shipDiagonal') });
   if (v.kind !== 'aircraft') return findPath(state.map, { x: v.tx, y: v.ty }, goals, layerOf(v), { electric: needsElectric(v, state), trk: trainTrack(v), pathCosts: getSetting(state, 'pathCosts'), state, vehicle: v });
   if (!goals.length) return null;
   let best = goals[0];

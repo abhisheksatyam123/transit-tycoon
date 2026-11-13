@@ -28,7 +28,7 @@ import { airSlotFree, airTookRunway, holdFlyLeg } from './airportFsa.js';
 import { ftaHeliFor, heliDepartPath, heliAnyFree, ftaGroundFor, ftaBlocked, ftaPartTiles, ftaTileOccupied, ftaRunwayBusy, takeoffViaTerminal, taxiPath, clearGround, setGroundPath, ftaCanLand, ftaParked, ftaClaimed, ftaNextIsTaxi } from './airportGround.js';
 import { trainEnters } from './trainCollision.js'; // vehicleCollisions setting (off by default)
 import { maybeCrashLanding } from './planeCrash.js'; // planeCrashes setting (off by default)
-import { shipLinkOk, shipSpeedStep } from './shipPath.js';
+import { shipLinkOk, shipSpeedStep, shipStepLen } from './shipPath.js';
 import { shipArrive } from './shipOrders.js';
 import { servicePerformed, serviceDueNow } from './service.js';
 import { refitCore } from './refit.js';
@@ -270,21 +270,22 @@ function ftaLand(ctx, v, st, b) {
 function moveShip(ctx, v) {
   const { state } = ctx;
   if (!v.path.length || v.pathIndex >= v.path.length - 1) { onPathEnd(ctx, v); return; }
-  if (v.progress === 0 && !shipLinkOk(state.map, v)) { replan(ctx, v); return; }
+  const diag = getSetting(state, 'shipDiagonal') === true;
+  if (v.progress === 0 && !shipLinkOk(state.map, v, diag)) { replan(ctx, v); return; }
   // OL VehicleHead.cpp:2858-2866: a broken-down ship is capped at 5 mph
   v.speed = shipSpeedStep(v, v.state === 'broken' ? Math.min(v.maxSpeed, BROKEN_SHIP_MPH * MPH_TO_TILES_PER_TICK) : v.maxSpeed);
   v.progress += v.speed;
   if (v.blockedTicks) clearBlock(v);
   const keep = historyNeeded(v);
-  while (v.progress >= 1) {
-    v.progress -= 1;
+  while (v.progress >= shipStepLen(v.path, v.pathIndex)) {
+    v.progress -= shipStepLen(v.path, v.pathIndex);
     v.pathIndex++;
     const p = v.path[v.pathIndex];
     v.tx = p.x; v.ty = p.y;
     v.history.unshift({ x: p.x, y: p.y });
     if (v.history.length > keep) v.history.length = keep;
     if (v.pathIndex >= v.path.length - 1) { v.progress = 0; onPathEnd(ctx, v); return; }
-    if (!shipLinkOk(state.map, v)) { v.progress = 0; replan(ctx, v); return; }
+    if (!shipLinkOk(state.map, v, diag)) { v.progress = 0; replan(ctx, v); return; }
   }
 }
 
