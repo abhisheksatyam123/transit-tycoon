@@ -4,7 +4,7 @@
 import { DIRS } from './constants.js';
 import { DEFAULT_SNOW_LINE } from './climate.js';
 import { rotateGrid } from './heightmap.js';
-import { hashSeed } from './rng.js';
+import { hashSeed, makeRng } from './rng.js';
 
 /**
  * Terrain snow starts this many levels above the snow line setting (mapgen snowLine, default 5 = the
@@ -248,6 +248,11 @@ export function applyWaterBorders(map, mask) {
  *   (rivers on slopes at their height; the heights are not changed)
  * - waterBorders: 'none' (default) | 'all' | 'random' | comma-separated sides: flood the selected map
  *   edges with water at height 0 (inland slopes drop like a coast; no RNG draws except 'random' from the seed)
+ * - snowCoverage (U1-U3, opt-in): 'classic' (default) | 'low' | 'medium' | 'high' | 'max' | 0..100; arctic only.
+ *   Snow where height >= the coverage line (OpenTTD CalculateCoverageLine, min level 2), replacing snowLine.
+ * - desertCoverage (U2, opt-in): same values; tropic only. Desert where height < the coverage line (no dry gate).
+ * - treePlacer (U4, opt-in): 'classic' (default, fbm forest) | 'none' | 'original' (scattered) | 'improved'
+ *   (clustered); the non-classic modes use a derived RNG stream and the same forest tile count.
  * - seed: game seed; only used by waterBorders 'random' (never stored on the map)
  * @param {object} map
  * @param {object} rng
@@ -324,7 +329,6 @@ export function generateTerrainFromHeights(map, rng, heights, opts = {}) {
  */
 function finishTerrain(map, rng, opts, forest, dry) {
   const { width, height, tiles } = map;
-  const snowAt = snowTerrainHeight(opts.snowLine);
   const cliffs = opts.cliffs === 'on';
   const cap = cliffs ? CLIFF_SLOPE_CAP : 1;
   // Water border (opt-in; mask 0 on the default path, so nothing changes and no draws happen). Set before
@@ -343,19 +347,147 @@ function finishTerrain(map, rng, opts, forest, dry) {
     const lakeTiles = carveLakes(map, rng, lakeTarget);
     if (lakeTiles.length) relaxAround(map, lakeTiles, cap); // lake shores drop like river banks (local, not a full sweep)
   }
+  // Coverage (U1-U3, opt-in): snow/desert lines from the land height histogram, climate-scoped.
+  // Both are null on the default path, which keeps the historic thresholds below verbatim.
+  const snowFrac = opts.climate === 'arctic' ? coverageFraction(opts.snowCoverage) : null;
+  const desertFrac = opts.climate === 'tropic' ? coverageFraction(opts.desertCoverage) : null;
+  let snowAt = snowTerrainHeight(opts.snowLine);
+  let desertLine = null;
+  if (snowFrac !== null || desertFrac !== null) {
+    const counts = landHeightCounts(map);
+    if (snowFrac !== null) snowAt = Math.max(2, coverageLine(counts, snowFrac));
+    if (desertFrac !== null) desertLine = coverageLine(counts, 1 - desertFrac);
+  }
+  // Tree placer (U4, opt-in): 'classic' assigns forest by the fbm threshold in the pass below. The other
+  // modes leave forest out of the pass (eligible tiles are marked) and place it afterwards on a derived stream.
+  const placer = TREE_PLACERS.includes(opts.treePlacer) ? opts.treePlacer : 'classic';
+  const eligible = placer === 'classic' ? null : new Uint8Array(width * height);
+  let wanted = 0;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const t = tiles[y * width + x];
+      const i = y * width + x;
+      const t = tiles[i];
       if (t.terrain === 'water') continue;
+      const isDesert = desertLine !== null ? t.height < desertLine : (t.height <= 2 && dry(x, y) > 0.72);
       if (t.height >= snowAt) t.terrain = 'snow';
       else if (t.height >= 6 && dry(x, y) > 0.55) t.terrain = 'rock';
-      else if (forest(x, y) > 0.6) t.terrain = 'forest';
-      else if (t.height <= 2 && dry(x, y) > 0.72) t.terrain = 'desert';
-      else t.terrain = 'grass';
+      else if (placer === 'classic') {
+        if (forest(x, y) > 0.6) t.terrain = 'forest';
+        else if (isDesert) t.terrain = 'desert';
+        else t.terrain = 'grass';
+      } else {
+        if (isDesert) t.terrain = 'desert';
+        else { t.terrain = 'grass'; eligible[i] = 1; if (forest(x, y) > 0.6) wanted++; }
+      }
     }
   }
+  if (placer !== 'classic') placeForests(map, opts.seed, placer, eligible, wanted);
   if (cliffs) markCliffs(map);
   if (opts.mountainStyle === 'on') markMountainStyle(map);
+}
+
+/** Coverage presets (U3, opt-in): share of land covered. 'classic' (default) keeps the historic thresholds. */
+export const COVERAGE_PRESETS = Object.freeze({ classic: null, low: 0.25, medium: 0.4, high: 0.6, max: 0.8 });
+
+/** Tree placer modes (U4, opt-in). 'classic' (default) is the fbm forest threshold. */
+export const TREE_PLACERS = Object.freeze(['classic', 'none', 'original', 'improved']);
+
+/** Tiles per clustered forest group for the 'improved' placer (U4). */
+const FOREST_GROUP_SIZE = 24;
+
+/**
+ * Coverage fraction for a snowCoverage/desertCoverage option: a preset name, a raw number 0..100
+ * (tests/API), or null for 'classic' / anything unrecognised (= the historic rule).
+ * @param {string|number|undefined} option
+ * @returns {number|null} 0..1 or null
+ */
+export function coverageFraction(option) {
+  if (typeof option === 'string' && Object.prototype.hasOwnProperty.call(COVERAGE_PRESETS, option)) return COVERAGE_PRESETS[option];
+  if (typeof option !== 'number' && !(typeof option === 'string' && /^\s*\d+(\.\d+)?\s*$/.test(option))) return null;
+  const n = Number(option);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) / 100 : null;
+}
+
+/**
+ * Histogram of land tiles (terrain not water) by height level 0..7 (post river/lake heights).
+ * @param {object} map
+ * @returns {number[]} 8 counts
+ */
+function landHeightCounts(map) {
+  const counts = new Array(8).fill(0);
+  for (const t of map.tiles) if (t.terrain !== 'water') counts[Math.min(7, t.height)]++;
+  return counts;
+}
+
+/**
+ * OpenTTD CalculateCoverageLine (landscape.cpp:1533-1596): the level L (0..8) whose count of land tiles
+ * with height >= L is closest to fraction * land. Ties keep the higher level. No RNG.
+ * @param {number[]} counts land histogram by height (levels 0..7)
+ * @param {number} fraction 0..1
+ * @returns {number} 0..8
+ */
+export function coverageLine(counts, fraction) {
+  let land = 0;
+  for (const c of counts) land += c;
+  const goal = land * fraction;
+  let best = 8, bestDist = Math.abs(goal); // L = 8: nothing covered
+  let above = 0;
+  for (let L = counts.length - 1; L >= 0; L--) {
+    above += counts[L];
+    const d = Math.abs(above - goal);
+    if (d < bestDist) { best = L; bestDist = d; }
+  }
+  return best;
+}
+
+/**
+ * Opt-in tree placer (U4): assign forest to `wanted` of the eligible grass tiles on a stream derived from
+ * the game seed (never game.rng, so the rest of the map is unchanged). 'none' places no forest.
+ * 'original' scatters forest uniformly; 'improved' grows clustered blobs from shuffled seeds.
+ * @param {object} map
+ * @param {number|string|undefined} seed
+ * @param {string} placer
+ * @param {Uint8Array} eligible 1 for tiles that may become forest
+ * @param {number} wanted classic forest tile count to match
+ */
+function placeForests(map, seed, placer, eligible, wanted) {
+  if (placer === 'none' || wanted <= 0) return;
+  const { width, height, tiles } = map;
+  const rng = makeRng(String(seed) + ':trees');
+  const cand = [];
+  for (let i = 0; i < eligible.length; i++) if (eligible[i]) cand.push(i);
+  for (let i = cand.length - 1; i > 0; i--) { // Fisher-Yates
+    const j = rng.int(0, i);
+    [cand[i], cand[j]] = [cand[j], cand[i]];
+  }
+  const target = Math.min(wanted, cand.length);
+  if (placer === 'original') {
+    for (let k = 0; k < target; k++) tiles[cand[k]].terrain = 'forest';
+    return;
+  }
+  // improved: each shuffled seed grows a small blob over eligible tiles (4-neighbour BFS, fixed order)
+  let placed = 0;
+  for (const s0 of cand) {
+    if (placed >= target) break;
+    if (tiles[s0].terrain === 'forest') continue;
+    const queue = [s0];
+    tiles[s0].terrain = 'forest';
+    placed++;
+    let qi = 0, groupLeft = FOREST_GROUP_SIZE - 1;
+    while (qi < queue.length && groupLeft > 0 && placed < target) {
+      const i = queue[qi++];
+      const x = i % width, y = (i - x) / width;
+      for (const [nx, ny] of [[x, y - 1], [x + 1, y], [x, y + 1], [x - 1, y]]) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height || groupLeft <= 0 || placed >= target) continue;
+        const j = ny * width + nx;
+        if (!eligible[j] || tiles[j].terrain !== 'grass') continue;
+        tiles[j].terrain = 'forest';
+        queue.push(j);
+        placed++;
+        groupLeft--;
+      }
+    }
+  }
 }
 
 /** Lakes option: number of lakes to aim for (attempts are capped in carveLakes). */

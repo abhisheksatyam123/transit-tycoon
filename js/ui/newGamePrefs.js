@@ -100,6 +100,10 @@ export const MAPGEN_PREF_VALUES = Object.freeze({
   // 'random' from the game seed (map.js waterBorderMask); per-side values are allowed by the generator, the
   // dialog offers the four single sides.
   waterBorders: ['none', 'all', 'random', 'north', 'east', 'south', 'west'],
+  // U1-U3 coverage presets (climate-scoped in the generator), U4 tree placer; 'classic' = historic rules.
+  snowCoverage: ['classic', 'low', 'medium', 'high', 'max'],
+  desertCoverage: ['classic', 'low', 'medium', 'high', 'max'],
+  treePlacer: ['classic', 'none', 'original', 'improved'],
 });
 
 /**
