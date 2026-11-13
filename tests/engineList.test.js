@@ -48,7 +48,8 @@ describe('engine weight / multihead defaults (phase 1, no data change)', () => {
     expect(engineWeight({ weight: 75 })).toBe(75);
   });
   test('every train engine model carries weight 60 (data equals the default)', () => {
-    const engines = Object.values(MODEL_BY_ID).filter((m) => m.kind === 'engine');
+    // D17: multihead pairs are the one exception (a pair weighs two halves; see multiheadPairs.test.js)
+    const engines = Object.values(MODEL_BY_ID).filter((m) => m.kind === 'engine' && !m.multihead);
     expect(engines.length).toBeGreaterThan(0);
     for (const m of engines) expect(engineWeightById(m.id)).toBe(60);
   });

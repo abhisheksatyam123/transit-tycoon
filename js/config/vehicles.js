@@ -65,6 +65,9 @@ export const ARTIC_VEHICLE_MODELS = [
  * yearly news of default games do not change. optIn: only offered when extraIndustries is on or a valuables source exists.
  */
 export const EXTRA_VEHICLE_MODELS = [
+  // D17 multihead pair: one engine unit made of two halves (OpenTTD multihead). power/cost/running are PAIR totals (spec D-2);
+  // capacity is per head and 0 (spec D-4/D-5: engines carry no cargo). Offered only when multiheadPairs is on.
+  { id: 'eng_twin_thunder', name: 'Twin Thunder Diesel (multihead pair)', kind: 'engine', optIn: 'multihead', multihead: true, weight: 120, introYear: 1958, speed: 128, capacity: 0, cost: 26000, running: 6400, reliability: 0.88, power: 3600, news: false },
   { id: 'trk_armoured', name: 'Armoured Truck', kind: 'truck', introYear: 1950, speed: 56, capacity: 12, cost: 5200, running: 1000, reliability: 0.85, cargos: ['VALU'], optIn: 'valuables', news: false },
   // TP: sub-tropical water tanker (road) and water tanker wagon (rail), offered only in tropic games (modelAvailable)
   { id: 'trk_water', name: 'Water Tanker', kind: 'truck', introYear: 1920, speed: 56, capacity: 20, cost: 4500, running: 900, reliability: 0.82, cargos: ['WATER'], optIn: 'tropic', news: false },

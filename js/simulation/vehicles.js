@@ -43,6 +43,7 @@ export function modelAvailable(state, model, ownerId = null) {
   if (model.optIn === 'tram') return !!state && hasTramTrack(state);
   if (model.optIn === 'tropic') return isTropic(state); // TP sub-tropical water tankers
   if (model.optIn === 'toyland') return isToyland(state); // TY2 toyland trucks, TY5 toyland buses/locos
+  if (model.optIn === 'multihead') return !!state && getSetting(state, 'multiheadPairs') === true; // D17 multihead pair
   if (model.optIn === 'extraIndustries') return !!state && getSetting(state, 'extraIndustries') === true; // T-IN chain vehicles
   if (getSetting(state, 'extraIndustries')) return true;
   return !!state && state.industries.some((i) => INDUSTRY_BY_ID[i.typeId] && INDUSTRY_BY_ID[i.typeId].produces.includes('VALU'));
