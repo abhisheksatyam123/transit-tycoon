@@ -570,6 +570,140 @@ export function computeDemand({ nodes, trees, supply, mode, freight, acceptance 
   return out;
 }
 
+/** Pair-evaluation budget of the parity demand loop (deterministic; exceeding it sets approx). */
+export const PARITY_PAIR_CAP = 200000;
+
+/** OpenTTD DistanceMaxPlusManhattan: 2*max(dx,dy) + min(dx,dy). */
+export function distanceMaxPlusManhattan(a, b) {
+  const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]);
+  return dx > dy ? 2 * dx + dy : 2 * dy + dx;
+}
+
+/**
+ * OpenTTD DemandCalculator::CalcDemand (linkgraph/demands.cpp), one component, integer units (opt-in demand
+ * parity, setting cargodistDemandParity). Pure: no state access. Node order is the order of `nodes` (ascending id
+ * from the caller). `pos` maps node -> [x,y]; `supply` and `accept` map node -> number (accept is a gate: > 0).
+ * Symmetric: supply-weighted effective supply and back demand (demand_size %); asymmetric: forward demand only.
+ * Deviation: OpenTTD's uint arithmetic cannot go negative; here a bumped forward demand is clamped to the source's
+ * undelivered supply instead of underflowing.
+ * @returns {{entries:{s:number,d:number,amt:number}[], approx:boolean}}
+ */
+export function demandUnitsParity({ nodes, pos, supply, accept, mode, accuracy = 16, demandSize = 100, demandDistance = 0, mapW, mapH }) {
+  const entries = new Map(); // 'from>to' -> units (insertion order = first delivery)
+  let approx = false;
+  const sym = mode === 'symmetric';
+  if (!sym && mode !== 'asymmetric') return { entries: [], approx };
+  const n = nodes.length;
+  const sup = nodes.map((id) => Math.max(0, Math.floor(supply.get(id) || 0)));
+  const undel = sup.slice();
+  const acc = nodes.map((id) => ((accept.get(id) || 0) > 0 ? 1 : 0));
+  const supplies = [], demands = [];
+  let supplySum = 0;
+  for (let i = 0; i < n; i++) {
+    supplySum += sup[i];
+    if (sup[i] > 0) supplies.push(i);
+    if (acc[i] > 0) demands.push(i);
+  }
+  let ns = supplies.length, nd = demands.length;
+  if (ns === 0 || nd === 0) return { entries: [], approx };
+  // BaseDistance = IntSqrt(DistanceMaxPlusManhattan((0,0), (MaxX,MaxY))), MaxX = width-1
+  const base = Math.max(1, Math.floor(Math.sqrt(distanceMaxPlusManhattan([0, 0], [mapW - 1, mapH - 1]))));
+  let md = demandDistance;
+  if (md > 100) { const over = md - 100; md = 100 + Math.floor((over * over) / 12); }
+  const dpn = Math.max(Math.floor(supplySum / nd), 1);
+  const deliver = (a, b, amt) => {
+    undel[a] -= amt;
+    const key = nodes[a] + '>' + nodes[b];
+    entries.set(key, (entries.get(key) || 0) + amt);
+  };
+  const sQ = supplies.slice(), dQ = demands.slice();
+  let sH = 0, dH = 0; // FIFO heads
+  let chance = 0, evals = 0;
+  outer: while (sH < sQ.length && dH < dQ.length) {
+    const f = sQ[sH++];
+    for (let i = 0; i < nd; i++) {
+      const t = dQ[dH++];
+      if (f === t) {
+        if (dH >= dQ.length && sH >= sQ.length) break outer;
+        dQ.push(t);
+        continue;
+      }
+      if (++evals > PARITY_PAIR_CAP) { approx = true; break outer; }
+      let eff = sym
+        ? Math.max(Math.floor(Math.floor((sup[f] * Math.max(1, sup[t]) * demandSize) / 100) / dpn), 1)
+        : sup[f];
+      let scaled = base;
+      if (md > 0) {
+        const dist = distanceMaxPlusManhattan(pos.get(nodes[f]), pos.get(nodes[t]));
+        scaled = Math.max(0, base + Math.trunc(((dist - base) * md) / 1024));
+      }
+      const divisor = 16 + Math.floor((accuracy * scaled * 16) / (base * 2));
+      let forw = 0;
+      if (divisor <= eff * 16) forw = Math.floor((eff * 16) / divisor);
+      else if (++chance > accuracy * nd * ns) forw = 1;
+      forw = Math.min(forw, undel[f]);
+      if (sym && acc[f] > 0) {
+        let back = Math.floor((forw * demandSize) / 100);
+        if (back > undel[t]) {
+          back = undel[t];
+          forw = Math.max(1, Math.floor((back * 100) / demandSize));
+        }
+        deliver(t, f, back);
+      }
+      forw = Math.min(forw, undel[f]); // clamp (see deviation note)
+      deliver(f, t, forw);
+      const hasLeft = (sym ? (sup[t] === 0 || undel[t] > 0) : true) && acc[t] > 0;
+      if (hasLeft) dQ.push(t); else nd--;
+      if (undel[f] === 0) break;
+    }
+    if (undel[f] !== 0) sQ.push(f); else ns--;
+  }
+  return { entries: [...entries].map(([k, amt]) => { const [s, d] = k.split('>').map(Number); return { s, d, amt }; }), approx };
+}
+
+/** Opt-in demand parity on (setting cargodistDemandParity, off by default). */
+export function demandParityOn(state) {
+  return getSetting(state, 'cargodistDemandParity') === true;
+}
+
+/**
+ * Demand of one job under demand parity: runs demandUnitsParity per connected component (nodes linked by routing
+ * trees), then keeps the pairs routable from the source. Rows are normalised per source, sorted by destination id.
+ */
+function parityDemand(state, nodes, trees, pos, supply, acc, mode) {
+  const parent = new Map(nodes.map((n) => [n, n]));
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  for (const s of nodes) for (const d of trees.get(s).dist.keys()) { const a = find(s), b = find(d); if (a !== b) parent.set(a, b); }
+  const groups = new Map();
+  for (const n of nodes) { const r = find(n); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(n); }
+  const opts = {
+    pos, supply, accept: acc, mode,
+    accuracy: getSetting(state, 'linkgraphAccuracy'),
+    demandSize: getSetting(state, 'linkgraphDemandSize'),
+    demandDistance: getSetting(state, 'linkgraphDemandDistance'),
+    mapW: state.map.width, mapH: state.map.height,
+  };
+  const dem = {}, pairs = [];
+  let approx = false;
+  for (const comp of groups.values()) {
+    if (comp.length < 2) continue;
+    const r = demandUnitsParity({ ...opts, nodes: comp });
+    if (r.approx) approx = true;
+    const rows = new Map();
+    for (const e of r.entries) {
+      if (!(e.amt > 0) || !trees.get(e.s).dist.has(e.d)) continue; // only routable pairs
+      if (!rows.has(e.s)) rows.set(e.s, []);
+      rows.get(e.s).push(e);
+    }
+    for (const [s, list] of rows) {
+      const tot = list.reduce((n, e) => n + e.amt, 0);
+      dem[s] = list.map((e) => [e.d, e.amt / tot]).sort((a, b) => a[0] - b[0]);
+      for (const e of list) pairs.push({ s, d: e.d, amt: e.amt, dist: trees.get(s).dist.get(e.d) });
+    }
+  }
+  return { dem, pairs, approx };
+}
+
 /**
  * One link-graph job (OpenTTD LinkGraphJob, simplified): expire edges, demand, routing, flows, next hops.
  * Starts the job: edge clock, supply counters and the routing result are computed here and returned; the caller
@@ -626,13 +760,20 @@ function computeJob(state, cargoId, mode, opts = {}) {
   for (const s of nodes) trees.set(s, shortest(s, adj, pos, metric));
   // demand and next hops are built by the pure core (exported for parity oracles/tests)
   const freight = FREIGHT_CARGOS.includes(cargoId);
-  const acc = freight ? acceptanceOf(state, cargoId, nodeSet) : null;
+  // opt-in demand parity (cargodistDemandParity) needs the acceptance gate of every cargo, not only freight
+  const parity = demandParityOn(state) && (mode === 'symmetric' || mode === 'asymmetric');
+  const acc = freight || parity ? acceptanceOf(state, cargoId, nodeSet) : null;
   const demand = computeDemand({
     nodes, trees, supply, mode, freight, acceptance: acc,
     sizeExp: demandSizeExponent(state), distK: demandDistanceK(state),
   });
   res.dem = demand.dem; res.nh = demand.nh;
-  const pairs = demand.pairs;
+  let pairs = demand.pairs;
+  if (parity) {
+    const par = parityDemand(state, nodes, trees, pos, supply, acc, mode);
+    res.dem = par.dem; pairs = par.pairs;
+    if (par.approx) res.approx = true;
+  }
   // capacity-constrained routing (setting cargodistMcf): flows per (s,d) over several first hops
   if (capRouting) {
     // OpenTTD-style batched capacity routing (setting cargodistCapacityRouting): demand is unchanged
