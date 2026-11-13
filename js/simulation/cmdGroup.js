@@ -72,6 +72,12 @@ export function createGroup(ctx, name, opts = {}) {
   if (kind != null) group.kind = kind;
   if (!state.company.groups) state.company.groups = [];
   state.company.groups.push(group);
+  // D21 copy-at-creation (opt-in): freeze the company keep-length value into the new group (OpenTTD group_cmd.cpp:371).
+  // Off (default): nothing is written, the group keeps following the company setting.
+  if (getSetting(state, 'groupCopyKeepLength') === true) {
+    state.company.groupReplaceWagonRemoval ??= {};
+    state.company.groupReplaceWagonRemoval[group.id] = getSetting(state, 'renewKeepLength') === true;
+  }
   return { ok: true, cost: 0, group };
 }
 
