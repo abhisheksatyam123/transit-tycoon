@@ -27,10 +27,20 @@ export async function loadMoscowData() {
 }
 
 /**
+ * Does a serialized save (or an already-parsed state) belong to the Moscow scenario?
+ * A save may have been re-formatted (e.g. pretty-printed JSON), so whitespace around the ':' is allowed;
+ * compact saves match exactly as before.
+ * @param {string|object} data
+ * @returns {boolean}
+ */
+export function isMoscowSave(data) {
+  return typeof data === 'string' ? /"scenario"\s*:\s*"moscow"/.test(data) : !!(data && data.scenario === 'moscow');
+}
+
+/**
  * Load the Moscow data when a save string (or the requested scenario) needs it.
  * @param {string|object} data
  */
 export async function loadMoscowDataFor(data) {
-  const isMoscow = typeof data === 'string' ? data.includes('"scenario":"moscow"') : data && data.scenario === 'moscow';
-  return isMoscow ? loadMoscowData() : null;
+  return isMoscowSave(data) ? loadMoscowData() : null;
 }

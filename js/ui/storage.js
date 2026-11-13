@@ -9,6 +9,8 @@ import { logger } from './logger.js';
 
 const PREFIX = 'tt.save.';
 const ZPREFIX = 'Z1:';
+/** A sliced save with no worker reply/error after this long falls back to the synchronous save path. */
+const PACK_WATCHDOG_MS = 15000;
 
 /** Decode a raw slot value (compressed 'Z1:' or legacy plain JSON). */
 function decodeRaw(raw) {
@@ -26,9 +28,9 @@ export function saveToSlot(slot, game) {
     const s = game.state;
     const meta = { date: s.date, money: s.company.money, savedAt: Date.now(), seed: s.seed };
     const packed = ZPREFIX + compress(JSON.stringify({ meta, data: game.serialize() }));
+    // small meta copy first so the slot list never decompresses big saves (and never goes stale after a data write)
+    localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta));
     localStorage.setItem(PREFIX + slot, packed);
-    // small meta copy so the slot list never decompresses big saves
-    try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* ignore */ }
     return { ok: true };
   } catch (err) {
     const quota = !!err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014);
@@ -55,7 +57,9 @@ function getPacker() {
     packer.onerror = (e) => {
       for (const w of packWaiters.values()) w.reject(new Error(e.message || 'worker failed'));
       packWaiters.clear();
+      const failed = packer;
       packer = null; // fall back to synchronous packing next time
+      try { failed.terminate(); } catch { /* already gone */ }
     };
   } catch {
     packer = null;
@@ -79,34 +83,57 @@ export function saveToSlotAsync(slot, game, stats) {
   // SV: the snapshot is serialised in time slices and streamed to the worker piece by piece (each <= 512 KB,
   // so no single huge postMessage copy). The sim is held (no ticks, commands blocked) until the last piece is posted.
   return new Promise((resolve) => {
+    let settled = false;
+    let active = true;
+    let holdHeld = false;
+    const finish = (result) => { if (settled) return; settled = true; resolve(result); };
+    const releaseHold = () => { if (holdHeld) { holdHeld = false; endSaveHold(); } };
+    // A worker can die without delivering either a reply or an error event: do not leave the save (and the
+    // save hold / autosaveBusy flag) pending forever. After the watchdog the synchronous path writes the slot.
+    const fallback = (err) => {
+      if (!active) return;
+      active = false;
+      packWaiters.delete(id);
+      clearTimeout(timer);
+      try { w.terminate(); } catch { /* already gone */ }
+      if (packer === w) packer = null; // pack a later save synchronously
+      releaseHold();
+      if (err && !logger.warn('storage', 'sliced save failed; saving synchronously', err)) console.warn('sliced save failed; saving synchronously', err);
+      finish(saveToSlot(slot, game));
+    };
+    const timer = setTimeout(() => {
+      if (packWaiters.has(id)) fallback(new Error('packer worker timed out'));
+    }, PACK_WATCHDOG_MS);
     packWaiters.set(id, {
       resolve: (packed) => {
+        if (!active) return;
+        active = false;
+        clearTimeout(timer);
+        releaseHold();
         try {
+          localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta));
           localStorage.setItem(PREFIX + slot, ZPREFIX + packed);
-          try { localStorage.setItem(PREFIX + slot + ':meta', JSON.stringify(meta)); } catch { /* ignore */ }
-          resolve({ ok: true });
+          finish({ ok: true });
         } catch (err) {
-          resolve(quotaResult(err));
+          finish(quotaResult(err));
         }
       },
       // worker failed: synchronous save of the same slot
-      reject: () => resolve(saveToSlot(slot, game)),
+      reject: () => fallback(new Error('packer worker failed')),
     });
+    holdHeld = true;
     beginSaveHold();
     try {
-      const post = (msg) => { const t = performance.now(); w.postMessage(msg); if (stats) stats.maxBlockMs = Math.max(stats.maxBlockMs || 0, performance.now() - t); };
+      const post = (msg) => { if (!active) return; const t = performance.now(); w.postMessage(msg); if (stats) stats.maxBlockMs = Math.max(stats.maxBlockMs || 0, performance.now() - t); };
       post({ op: 'begin', id, meta });
       game.serializeAsync(stats, (chunk) => post({ op: 'chunk', id, data: chunk }))
-        .then(() => { endSaveHold(); post({ op: 'end', id }); }, (err) => {
-          endSaveHold();
-          packWaiters.delete(id);
+        .then(() => { if (!active) return; releaseHold(); post({ op: 'end', id }); }, (err) => {
+          if (!active) return;
           if (!logger.warn('storage', 'streamed save failed; saving synchronously', err)) console.warn('streamed save failed; saving synchronously', err);
-          resolve(saveToSlot(slot, game));
+          fallback(err);
         });
     } catch (err) {
-      endSaveHold();
-      packWaiters.delete(id);
-      resolve(quotaResult(err));
+      fallback(err);
     }
   });
 }
@@ -129,6 +156,26 @@ export function loadSlotData(slot) {
     return decodeRaw(raw).data || null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Load a slot for the UI, distinguishing an empty slot from a corrupted one.
+ * `meta` can exist while the payload is missing/unreadable (e.g. interrupted writes), which is what the
+ * load windows surface as "Save slot N is corrupt" instead of silently doing nothing.
+ * @param {string} slot
+ * @returns {{status:'ok',data:string,meta:object|null}|{status:'empty'}|{status:'corrupt',meta:object|null}}
+ */
+export function readSlot(slot) {
+  const meta = slotMeta(slot);
+  let raw = null;
+  try { raw = localStorage.getItem(PREFIX + slot); } catch { return { status: 'empty' }; }
+  if (!raw) return meta ? { status: 'corrupt', meta } : { status: 'empty' };
+  try {
+    const data = decodeRaw(raw).data || null;
+    return data ? { status: 'ok', data, meta } : { status: 'corrupt', meta };
+  } catch {
+    return { status: 'corrupt', meta };
   }
 }
 
