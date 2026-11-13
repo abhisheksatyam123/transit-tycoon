@@ -16,14 +16,14 @@ import { TICKS_PER_DAY } from './constants.js';
 import { articParts } from './articulated.js';
 
 /** OpenTTD gradual_loading_wait_time (economy.cpp), in OpenTTD ticks: train, road, ship, aircraft. */
-export const GRADUAL_WAIT_OTTD = { train: 40, road: 20, ship: 10, aircraft: 20 };
+const GRADUAL_WAIT_OTTD = { train: 40, road: 20, ship: 10, aircraft: 20 };
 /** OpenTTD ticks per day (timer_game_tick.h DAY_TICKS). */
-export const OTTD_TICKS_PER_DAY = 74;
+const OTTD_TICKS_PER_DAY = 74;
 /** Load amount per part per cycle (OpenTTD base table, per vehicle class). */
-export const GRADUAL_LOAD_AMOUNT = { train: 5, road: 5, ship: 10, aircraft: 20 };
+const GRADUAL_LOAD_AMOUNT = { train: 5, road: 5, ship: 10, aircraft: 20 };
 
 /** OpenTTD vehicle class of a TT vehicle. */
-export function gradualClass(v) {
+function gradualClass(v) {
   if (v.kind === 'train') return 'train';
   if (v.kind === 'ship') return 'ship';
   if (v.kind === 'aircraft') return 'aircraft';

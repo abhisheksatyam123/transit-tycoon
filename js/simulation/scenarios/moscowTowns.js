@@ -9,22 +9,22 @@ import { englishName } from './translit.js';
 import { pickStyle, clampLevel, tileDist, LANDUSE_STYLE } from './moscowStyles.js';
 
 /** Maximum number of towns created from districts. */
-export const MAX_TOWNS = 80;
+const MAX_TOWNS = 80;
 
 /** Catchment radius (tiles) of a district town: houses farther than this from every town stay empty. */
-export const TOWN_CATCHMENT = tl(16);
+const TOWN_CATCHMENT = tl(16);
 
 /** Catchment radius (tiles) of the Kremlin/Tverskoy town (dense centre). */
-export const CENTRE_CATCHMENT = tl(24);
+const CENTRE_CATCHMENT = tl(24);
 /** Distance weight of the Kremlin/Tverskoy town when claiming tiles (<1 pulls the centre outward). */
-export const CENTRE_PULL = 0.55;
+const CENTRE_PULL = 0.55;
 
 /**
  * Open plots for the player between districts: the chance a valid house site is left
  * empty grows with distance from the Kremlin (the historic core stays dense).
  * Gives the map infill room instead of a wall of houses on every road-side tile.
  */
-export const VACANCY = [
+const VACANCY = [
   { d: tl(8), p: 0.06 },
   { d: tl(15), p: 0.16 },
   { d: tl(24), p: 0.28 },
@@ -32,16 +32,16 @@ export const VACANCY = [
   { d: Infinity, p: 0.48 },
 ];
 /** Vacancy probability for distance `d` (tiles, Euclidean) from the Kremlin. */
-export function vacancyChance(d) {
+function vacancyChance(d) {
   for (const band of VACANCY) if (d <= band.d) return band.p;
   return VACANCY[VACANCY.length - 1].p;
 }
 
 /** Radius (tiles) of the dense centre inside the Garden Ring: houses at level 3, some 4. */
-export const CENTRE_RADIUS = tl(18);
+const CENTRE_RADIUS = tl(18);
 
 /** Share of dense centre houses that are towers (level 4); the rest are mid-rise (level 3). */
-export const CENTRE_TOWER_SHARE = 0.35;
+const CENTRE_TOWER_SHARE = 0.35;
 
 /** Blank town record with the same fields generateTowns uses. */
 function blankTown(state, name, nameRu, x, y) {
@@ -60,7 +60,7 @@ const d2 = (ax, ay, bx, by) => (ax - bx) ** 2 + (ay - by) ** 2;
  * Pick at most `k` points from `pts` by farthest-point sampling, seeded with `seed`.
  * Deterministic: ties resolved by input order.
  */
-export function farthestPoints(pts, k, seed) {
+function farthestPoints(pts, k, seed) {
   if (pts.length <= k) return pts.slice();
   const chosen = [seed];
   const dist = pts.map((p) => d2(p.x, p.y, seed.x, seed.y));
@@ -126,7 +126,7 @@ function nearestTownOf(towns, x, y) {
  * houses tiles within its own catchment (centre town wider), so isolated outer towns
  * cannot absorb whole sectors.
  */
-export function catchmentTownOf(towns, x, y) {
+function catchmentTownOf(towns, x, y) {
   const t = nearestTownOf(towns, x, y);
   const r = t === towns[0] ? CENTRE_CATCHMENT : TOWN_CATCHMENT;
   return d2(t.x, t.y, x, y) <= r * r ? t : null;
@@ -169,9 +169,9 @@ function houseSite(map, x, y, dens, inCentre) {
  * the park-like ring that keeps enlarged monuments visually dominant.
  */
 /** Chebyshev radius (tiles) of the house-free frame around landmark tiles. */
-export const LANDMARK_CLEAR_R = 1;
+const LANDMARK_CLEAR_R = 1;
 
-export function withinLandmarkClear(state, x, y) {
+function withinLandmarkClear(state, x, y) {
   const { map } = state;
   // the ensemble box (ensembleBoxes) already keeps each baked sprite's extent free; this ring only frames monuments
   // (it was 8 tiles at 200 m: with 100 m tiles, uniformly scaled ensembles and ~440 statues it emptied the centre)
@@ -185,16 +185,16 @@ export function withinLandmarkClear(state, x, y) {
 }
 
 /** Margin (tiles) kept free around each ensemble bounding box. */
-export const ENSEMBLE_MARGIN = 1;
+const ENSEMBLE_MARGIN = 1;
 /** Width (tiles) of the house ring built around each monument ensemble. */
-export const MONUMENT_RING = tl(3);
+const MONUMENT_RING = tl(3);
 
 /**
  * Bounding boxes of every multi-tile 3D landmark ensemble (tiles are grouped by building id).
  * Small groups (fewer than 4 tiles at 200 m) are ignored.
  * @returns {{x0:number,y0:number,x1:number,y1:number}[]}
  */
-export function ensembleExtents(map) {
+function ensembleExtents(map) {
   const W = map.width, box = new Map();
   map.tiles.forEach((t, i) => {
     if (!t.building || !t.building.lm3d) return;

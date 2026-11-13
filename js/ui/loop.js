@@ -5,7 +5,7 @@ import { saveHeld } from '../simulation/saveHold.js';
  */
 
 /** OpenLoco runs 40 logic updates per second at normal speed (OpenLoco.cpp tickWait, 40 FPS). */
-export const BASE_TPS = 40;
+const BASE_TPS = 40;
 const MAX_STEPS_PER_FRAME = 40;
 
 /**

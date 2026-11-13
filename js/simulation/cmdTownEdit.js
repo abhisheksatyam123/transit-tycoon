@@ -19,7 +19,7 @@ import { nearestTown } from './state.js';
 
 const NOT_EDITOR = { ok: false, error: 'not in the scenario editor' };
 /** OpenLoco TownWindow expand handler: the growth step is run this many times. */
-export const EXPAND_STEPS = 8;
+const EXPAND_STEPS = 8;
 
 /**
  * @param {any} game

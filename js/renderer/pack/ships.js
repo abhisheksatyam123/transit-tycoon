@@ -38,7 +38,7 @@ export function shipSpriteId(model, dir) {
  * @param {string} [colour]
  * @returns {boolean} false when the pack lacks the sprite
  */
-export function drawPackShip(ctx, model, dir, sx, sy, colour) {
+function drawPackShip(ctx, model, dir, sx, sy, colour) {
   const id = shipSpriteId(model, dir);
   if (id === undefined || !packState.pack || !packState.pack.sprites[id]) return false;
   return blitPack(ctx, id, sx, sy - HALF_H, colour || DEFAULT_CC);

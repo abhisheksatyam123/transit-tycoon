@@ -16,7 +16,7 @@ const MIN_KREMLIN_DIST = tl(30);
  * Secondary (processing) industries: placed in the suburb band, types interleaved round the circle so
  * every compass sector gets a mix and no two of one type sit next to each other.
  */
-export const SECONDARY = [
+const SECONDARY = [
   { typeId: 'factory', n: 8 },
   { typeId: 'power_station', n: 6 },
   { typeId: 'steel_mill', n: 5 },

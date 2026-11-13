@@ -37,7 +37,7 @@ import { localAuthorityDist } from '../townAuthority.js';
 import { manhattan } from '../state.js';
 
 /** kBuildSpeedToGrowthPerTick */
-export const BUILD_SPEED_TO_GROWTH_PER_TICK = [0, 1, 3, 5, 7, 9, 12, 16, 22, 0, 0, 0];
+const BUILD_SPEED_TO_GROWTH_PER_TICK = [0, 1, 3, 5, 7, 9, 12, 16, 22, 0, 0, 0];
 const MAX_STEPS = 75;
 /** Chance that a construction attempt along the walked road is carried out (TT pacing, see header). */
 const TT_BUILD_CHANCE = 0.01;
@@ -376,7 +376,7 @@ export function growTown(game, town, { buildInitialRoadFlag = true, constructBui
 }
 
 /** OpenTTD town_cmd.cpp _grow_count_values[fund?0:1][min(activeStations,5)] (normal = row 1). */
-export const OTTD_GROW_COUNT = [[120, 120, 120, 100, 80, 60], [320, 420, 300, 220, 160, 100]];
+const OTTD_GROW_COUNT = [[120, 120, 120, 100, 80, 60], [320, 420, 300, 220, 160, 100]];
 /** OpenTTD reference period (normal, 1 active station) used to scale the per-check growth chance. */
 const OTTD_REF_PERIOD = 420;
 /** OpenTTD CountActiveStations: time_since_load <= 20 || time_since_unload <= 20 (days). */

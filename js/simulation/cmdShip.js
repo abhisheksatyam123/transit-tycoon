@@ -21,7 +21,7 @@ import { shipPassable } from './shipPath.js';
 /** Catchment radius of dock tiles (OpenTTD dock catchment); buoys have none. */
 export const DOCK_RADIUS = 4;
 
-export const SHIP_ERR = {
+const SHIP_ERR = {
   dockLand: 'A dock must be on land next to water',
   dockWater: 'Docks cannot be built on water',
   depotLand: 'A ship depot must be built on water',

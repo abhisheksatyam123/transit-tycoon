@@ -20,10 +20,10 @@ export const MAX_CHUNKS = 24;
 export const MAX_CHUNK_PIXELS = MAX_CHUNKS * 2048 * 1312 * 4; // scale-2 pixels (scale^2 in trim)
 /** Per-frame time budget (ms) for building chunks: the first one is always built, more only within budget,
  *  so startup / fast pans spread chunk rasterising over frames instead of one 200-300 ms frame. */
-export const BUILD_BUDGET_MS = 10;
+const BUILD_BUDGET_MS = 10;
 /** Per-frame budget (ms) while visible chunks are still unbuilt (placeholder on screen, e.g. right after boot).
  *  Only applies while something visible is missing, so steady-state frames keep BUILD_BUDGET_MS. */
-export const BUILD_BUDGET_MISSING_MS = 16;
+const BUILD_BUDGET_MISSING_MS = 16;
 /** Placeholder fill for a chunk that is still waiting to be built (flat grass diamond). */
 const PLACEHOLDER = '#5b7f3a';
 /** Placeholder colours for terrain kinds (approximate procedural terrain tops). */
@@ -39,7 +39,7 @@ const TERRAIN_CODE = { grass: 1, forest: 2, desert: 3, rock: 4, snow: 5, water: 
  * Chunk raster scale for a device pixel scale (zoom * dpr).
  * @param {number} z
  */
-export function chunkScaleFor(z) {
+function chunkScaleFor(z) {
   return z <= 0.55 ? 0.5 : z <= 1.1 ? 1 : 2;
 }
 

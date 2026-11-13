@@ -15,11 +15,11 @@ import { pushNews } from './news.js';
 import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';;
 
 /** Air route distance window (manhattan tiles between the two towns). */
-export const AIR_MIN_DIST = 40;
-export const AIR_MAX_DIST = 120;
+const AIR_MIN_DIST = 40;
+const AIR_MAX_DIST = 120;
 /** Planes bought on a new air route, and the most one route may grow to. */
-export const AIR_PLANES = 2;
-export const AIR_MAX_PLANES = 4;
+const AIR_PLANES = 2;
+const AIR_MAX_PLANES = 4;
 /** At most this many air routes per rival. */
 export const MAX_AIR_ROUTES = 2;
 /**

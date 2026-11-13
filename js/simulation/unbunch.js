@@ -8,7 +8,7 @@
  */
 
 /** An unbunch depot order (fixed or nearest depot). */
-export function isUnbunchOrder(o) {
+function isUnbunchOrder(o) {
   return !!o && !!o.unbunch && (o.depotId != null || o.depot === 'nearest');
 }
 
@@ -48,7 +48,7 @@ export function unbunchListError(orders) {
 }
 
 /** The order before the vehicle's current one (the depot order, when the vehicle has just left a depot visit). */
-export function prevIsUnbunch(v) {
+function prevIsUnbunch(v) {
   const n = v.orders.length;
   return n > 0 && isUnbunchOrder(v.orders[(v.orderIndex - 1 + n) % n]);
 }

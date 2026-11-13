@@ -15,7 +15,7 @@ import { companyById, stampOwner } from './owner.js';
 import { invalidateBlocks } from './signals.js';
 import { refusalAt } from './townAuthority.js';
 
-export const WAYPOINT_ERR = {
+const WAYPOINT_ERR = {
   notStraight: 'A waypoint needs a straight rail tile (no curve or junction)',
   noRail: 'A waypoint must be built on rail',
   special: 'A waypoint cannot be built on a signal, bridge, tunnel or road tile',
@@ -72,7 +72,7 @@ export function isRoadWaypointStation(st) {
   return !!st && st.tiles.length > 0 && st.tiles.every((p) => p.kind === 'waypoint' && p.road === true);
 }
 
-export const ROAD_WAYPOINT_ERR = {
+const ROAD_WAYPOINT_ERR = {
   notStraight: 'A road waypoint needs a straight road tile (no junction or curve)',
   noRoad: 'A road waypoint must be built on road',
   special: 'A road waypoint cannot be built on rail, tram, a level crossing, a signal, a bridge or a tunnel',

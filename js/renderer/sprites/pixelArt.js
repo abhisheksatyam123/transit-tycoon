@@ -23,7 +23,7 @@ export const PX = {
 const hexRgb = (h) => { const n = parseInt(h.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const hash2 = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-export class PixelSprite {
+class PixelSprite {
   /**
    * @param {number} w canvas width px
    * @param {number} h canvas height px

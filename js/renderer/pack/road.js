@@ -11,7 +11,7 @@ const SLOPE_AXIS_MASK = { NE: 5, SE: 10, SW: 5, NW: 10 };
 const FLAT_OFFSET = [0, 18, 17, 7, 16, 0, 10, 5, 15, 8, 1, 4, 9, 3, 6, 2];
 
 /** Our road mask (N=1,E=2,S=4,W=8) -> OpenTTD RoadBits (NE=8, SE=4, SW=2, NW=1). */
-export function toOttdRoadBits(m) {
+function toOttdRoadBits(m) {
   return ((m & 1) << 3) | ((m & 2) << 1) | ((m & 4) >> 1) | ((m & 8) >> 3);
 }
 

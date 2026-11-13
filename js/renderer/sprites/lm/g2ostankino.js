@@ -5,7 +5,7 @@ import { registerLandmark } from './registry.js';
 const CONCRETE = '#c9c8c2';
 
 /** Ostankino sprite for a 1x1 footprint (the tower is only a few px wide). */
-export function buildOstankino(w, h) {
+function buildOstankino(w, h) {
   const top = heightPx(540);
   const s = footprintPixel(w, h, top);
   // ten legs from a ground ring up to the base cone (drawn behind the cone)

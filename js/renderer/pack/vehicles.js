@@ -14,7 +14,7 @@ import { playerVehicleColour } from '../palette.js';
 import { TOYLAND_VEH_ART, TOYLAND_VEH_KEY, toylandVehicleSpriteId } from './toyland_vehicles.js';
 
 /** Engine sprite base per rail image index (table/train_sprites.h _engine_sprite_base). */
-export const RAIL_BASE = [
+const RAIL_BASE = [
   2905, 2913, 2921, 3041, 2929, 2933, 2941, 2941, 2949, 2949, 2957, 2957,
   3017, 3025, 3033, 3049, 3053, 3053, 3061, 3065, 2937, 2973, 2973, 2965,
   2965, 2981, 2985, 2985, 3009, 3013, 2993, 3001, 3001, 2733, 2737, 2741,
@@ -24,7 +24,7 @@ export const RAIL_BASE = [
   2865, 2869,
 ];
 /** Direction mask per rail image index (_engine_sprite_and). */
-export const RAIL_AND = [
+const RAIL_AND = [
   7, 7, 7, 7, 3, 3, 7, 7, 7, 7, 7, 7,
   7, 7, 7, 3, 7, 7, 3, 7, 3, 7, 7, 7,
   7, 3, 7, 7, 3, 3, 7, 7, 7, 3, 3, 3,
@@ -34,7 +34,7 @@ export const RAIL_AND = [
   3, 3,
 ];
 /** Direction add per rail image index (_engine_sprite_add). */
-export const RAIL_ADD = [
+const RAIL_ADD = [
   0, 0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 4,
   0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 4, 0,
   4, 0, 0, 4, 0, 0, 0, 0, 4, 0, 0, 0,
@@ -44,7 +44,7 @@ export const RAIL_ADD = [
   0, 0,
 ];
 /** Sprite add when a wagon is loaded (_wagon_full_adder). */
-export const WAGON_FULL = [
+const WAGON_FULL = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 0,
@@ -54,7 +54,7 @@ export const WAGON_FULL = [
   32, 32,
 ];
 /** Road vehicle base sprite per image index (roadveh_cmd.cpp _roadveh_images). */
-export const ROADVEH_IMAGES = [
+const ROADVEH_IMAGES = [
   3284, 3292, 3300, 3308, 3316, 3324, 3340, 3348, 3364, 3356, 3372, 3332,
   3356, 3364, 3436, 3444, 3452, 3092, 3100, 3108, 3116, 3124, 3132, 3148,
   3156, 3172, 3164, 3180, 3140, 3164, 3172, 3244, 3252, 3260, 3476, 3484,
@@ -63,7 +63,7 @@ export const ROADVEH_IMAGES = [
   3204, 3220, 3236,
 ];
 /** Road vehicle loaded adder per image index (_roadveh_full_adder). */
-export const ROADVEH_FULL = [
+const ROADVEH_FULL = [
   0, 88, 0, 0, 0, 0, 48, 48, 48, 48, 0, 0,
   64, 64, 0, 16, 16, 0, 88, 0, 0, 0, 0, 48,
   48, 48, 48, 0, 0, 64, 64, 0, 16, 16, 0, 88,
@@ -72,7 +72,7 @@ export const ROADVEH_FULL = [
   8, 8, 8,
 ];
 /** Aircraft base sprite per image index (aircraft_cmd.cpp _aircraft_sprite). */
-export const AIRCRAFT_SPRITES = [
+const AIRCRAFT_SPRITES = [
   3765, 3773, 3781, 3789, 3797, 3805, 3741, 3749, 3757, 3813, 3845, 3853,
   3861, 3869, 3877, 3885, 3821, 3829, 3837, 3893, 3741, 3749, 3757, 3765,
   3773, 3781,
@@ -87,7 +87,7 @@ export const RAIL_IMG = {
   eng_bolt: 18,
 };
 /** Rail wagon image index per model. */
-export const WAGON_IMG = {
+const WAGON_IMG = {
   wag_coach: 33,
   wag_mail: 35,
   wag_hopper: 34,
@@ -107,7 +107,7 @@ export const WAGON_IMG = {
   wag_diamonds: 43,
 };
 /** Wagon image index per cargo when the model is unknown. */
-export const CARGO_WAGON = {
+const CARGO_WAGON = {
   PASS: 33,
   MAIL: 35,
   COAL: 34,
@@ -163,7 +163,7 @@ export const ROAD_IMG = {
   wag_fizzy: 38,
 };
 /** Road image indices for traffic cars: OpenTTD has no private cars, so small buses and vans are used. */
-export const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];
+const TRAFFIC_ROAD_IMG = [0, 17, 2, 4, 5, 1];
 /** Aircraft image index per model. */
 export const AIR_IMG = {
   ac_li2: 0,
@@ -177,7 +177,7 @@ export const AIR_IMG = {
 };
 
 /** Company colour palette used for traffic cars (vehicles without a livery). */
-export const VEHICLE_CC = ['#1f4fa0', '#b91c1c', '#15803d', '#f2c230', '#e5e7eb', '#7c3aed'];
+const VEHICLE_CC = ['#1f4fa0', '#b91c1c', '#15803d', '#f2c230', '#e5e7eb', '#7c3aed'];
 
 /**
  * OpenTTD direction (0..7) from a tile-space vector. Screen coords: sx = dx - dy, sy = (dx + dy) / 2
@@ -285,7 +285,7 @@ export function vehicleColour(livery, index) {
  * @param {{cargo?:string, loaded?:boolean, id?:number, colour?:string}} [opt]
  * @returns {boolean} false when the pack is missing or lacks the sprite (caller falls back)
  */
-export function drawPackVehicle(ctx, kind, model, dir, sx, sy, opt = {}) {
+function drawPackVehicle(ctx, kind, model, dir, sx, sy, opt = {}) {
   const pack = packState.pack;
   if (!pack) return false;
   // TY5: toyland vehicle models draw their toyland art when the toyland view is active (its keys exist only there)
@@ -298,7 +298,7 @@ export function drawPackVehicle(ctx, kind, model, dir, sx, sy, opt = {}) {
 }
 
 /** Road/rail vehicles are drawn at this fraction of OpenGFX size so they fit one lane. */
-export const VEH_SCALE = 0.6;
+const VEH_SCALE = 0.6;
 /** Scaled sprite cache per pack: key "id|colour" -> {c: canvas, w, h} (pixel-art, nearest neighbour). */
 const scaledCache = new WeakMap();
 

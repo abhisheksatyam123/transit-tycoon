@@ -54,7 +54,7 @@ export function checkBankruptcy(app) {
  * @param {import('./app.js').App} app
  * @param {'warn3'|'warn6'} stage
  */
-export function openTrouble(app, stage) {
+function openTrouble(app, stage) {
   const months = stage === 'warn3' ? 3 : 6;
   return app.wm.open('bankruptWarning', {
     title: 'In trouble!',
@@ -96,7 +96,7 @@ export function openTrouble(app, stage) {
  * Game-over window: the company is bankrupt; offer a new game or a load.
  * @param {import('./app.js').App} app
  */
-export function openGameOver(app) {
+function openGameOver(app) {
   return app.wm.open('gameOver', {
     title: 'Bankrupt',
     width: 360,

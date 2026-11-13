@@ -12,7 +12,7 @@ import { createGameFast } from './scenarioSnapshot.js';
 import { confirmDiscardGame } from './discardGuard.js';
 import { maybeOpenGoals } from './goalsAutoOpen.js';
 
-export const TITLE_VERSION = '0.1.0';
+const TITLE_VERSION = '0.1.0';
 const MOSCOW_REQUEST = Object.freeze({ scenario: 'moscow', seed: 1 });
 
 /** @type {null | { close: () => void }} */

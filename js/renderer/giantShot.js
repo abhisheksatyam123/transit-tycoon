@@ -6,7 +6,7 @@
 import { HALF_W, HALF_H, HEIGHT_STEP } from './iso.js';
 
 /** Overhang margin (world px) for roofs and tall sprites beyond the tile diamonds. */
-export const GIANT_PAD = 256;
+const GIANT_PAD = 256;
 /** Largest image side in px (browser canvas limits are larger; PNG encode time grows with area). */
 export const GIANT_MAX_SIDE = 8192;
 

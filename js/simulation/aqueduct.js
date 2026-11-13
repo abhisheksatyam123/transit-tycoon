@@ -15,7 +15,7 @@ import { constructionTotal } from './prices.js';
 import { spend } from './economy.js';
 import { getTile } from './map.js';
 
-export const AQ_ERR = {
+const AQ_ERR = {
   notStraight: 'Aqueducts must be straight',
   tooShort: 'An aqueduct needs at least one tile between its heads',
   tooLong: `Aqueduct too long (max ${MAX_BRIDGE_LENGTH} tiles)`,

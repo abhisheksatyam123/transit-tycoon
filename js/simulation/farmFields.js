@@ -16,12 +16,12 @@ import { isArctic, snowLineOf } from './climate.js';
 /** Fields a farm aims for (OpenLoco farmNumFields); production is 255 at this count. */
 export const FARM_NUM_FIELDS = 8;
 /** Fields planted when a farm is built. */
-export const FARM_START_FIELDS = 4;
+const FARM_START_FIELDS = 4;
 /** Ring width (tiles) around the footprint where fields may be planted. */
 const RING = 3;
 
 /** True for an industry type that grows fields (any producer of grain). */
-export function isFarmType(type) {
+function isFarmType(type) {
   return !!type && (type.produces || []).includes('GRAI');
 }
 

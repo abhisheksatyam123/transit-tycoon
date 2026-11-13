@@ -45,7 +45,7 @@ const TOWERS = [
 ];
 
 /** Build the Moscow City sprite for a 3x2 footprint. */
-export function buildMoscowCity(w, h) {
+function buildMoscowCity(w, h) {
   const top = Math.max(...TOWERS.map((t) => t.h + (t.spire || 0)));
   const s = footprintPixel(w, h, top);
   // far first (small u+v), so nearer towers overdraw

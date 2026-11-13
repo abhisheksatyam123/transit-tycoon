@@ -54,7 +54,7 @@ export function lateLabel(v) {
 }
 
 /** Kind filters: [value, label]. */
-export const VEHICLE_FILTERS = [['all', 'All'], ['train', 'Trains'], ['road', 'Road'], ['aircraft', 'Aircraft'], ['ship', 'Ships']];
+const VEHICLE_FILTERS = [['all', 'All'], ['train', 'Trains'], ['road', 'Road'], ['aircraft', 'Aircraft'], ['ship', 'Ships']];
 
 /** Model record of a vehicle (undefined for unknown ids). */
 function modelOf(v) {

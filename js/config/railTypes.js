@@ -12,9 +12,9 @@
  */
 import { COSTS } from './costs.js';
 
-export const RAIL_TYPE_RAIL = 0;
-export const RAIL_TYPE_MONO = 2;
-export const RAIL_TYPE_MAGLEV = 3;
+const RAIL_TYPE_RAIL = 0;
+const RAIL_TYPE_MONO = 2;
+const RAIL_TYPE_MAGLEV = 3;
 
 /** id -> {id, name, key (selector label), costMul, introYear (0 = always), engine (the OTTD intro engine)} */
 export const RAIL_TYPES = {

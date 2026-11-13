@@ -9,7 +9,7 @@ import { costText } from '../editorCost.js';
 import { OBJECT_TYPES } from '../../simulation/cmdObject.js';
 
 /** Kinds in cycle order: the three cmdObject types, then the HQ. */
-export const OBJECT_KINDS = [...OBJECT_TYPES, 'hq'];
+const OBJECT_KINDS = [...OBJECT_TYPES, 'hq'];
 const LABEL = { transmitter: 'Transmitter', lighthouse: 'Lighthouse', owned: 'Owned land', hq: 'Company HQ' };
 
 /** @param {import('../app.js').App} app */

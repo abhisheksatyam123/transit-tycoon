@@ -17,7 +17,7 @@ import { recordGameEnd } from './highscore.js';
 import { syncEditorBanner } from './windows/scenarioEditor.js';
 
 /** "Available from <year>" when an airport tool's type is not introduced in `year`, else null. */
-export function airportLocked(toolId, year) {
+function airportLocked(toolId, year) {
   const type = AIRPORT_TOOL_TYPE[toolId];
   const t = type && AIRPORT_TYPES[type];
   if (!t || !t.introYear || year >= t.introYear) return null;
@@ -67,7 +67,7 @@ export const TOOL_BUTTONS = [
 ];
 
 /** Window buttons: [windowName, label, icon, shortcut]. */
-export const WINDOW_BUTTONS = [
+const WINDOW_BUTTONS = [
   ['vehicles', 'Vehicles', 'vehicles', 'V'],
   ['finances', 'Finances', 'finances', 'F'],
   ['towns', 'Towns', 'towns', 'T'],

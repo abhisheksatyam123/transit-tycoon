@@ -5,9 +5,9 @@ import { mkIssue } from './diagIssue.js';
 import { acceptanceProblems } from './orderCargo.js';
 
 /** Waiting cargo above this at one station raises a warning. */
-export const WAITING_WARN = 1000;
+const WAITING_WARN = 1000;
 /** Cargo rating (0..100) below this raises an info issue. */
-export const RATING_INFO = 30;
+const RATING_INFO = 30;
 
 /**
  * Invariant checks: finite money/positions, valid building references, unique ids.

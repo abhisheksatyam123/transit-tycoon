@@ -92,7 +92,7 @@ export function wagonsFitting(wagons, platTiles, engineCount = 1) {
  * train / no rail platform there).
  * @returns {number|null}
  */
-export function platformFitOnArrival(state, v, st) {
+function platformFitOnArrival(state, v, st) {
   if (v.kind !== 'train') return null;
   const wagons = v.wagons || 0;
   const plat = platformRun(state, st, v.tx, v.ty);

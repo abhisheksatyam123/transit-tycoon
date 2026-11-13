@@ -79,10 +79,10 @@ export function planLandBridge(map, pts, layer = 'rail', maxLen = MAX_BRIDGE_LEN
  * Layer of the bridge deck on a tile that also carries ground track of the other layer ('rail'|'road'), else null.
  * Only set for deck tiles over a road or rail (OpenTTD-style); valley and water decks have no overBridge.
  */
-export const overBridgeLayer = (t) => (t && t.bridgeDeck !== undefined && t.overBridge) || null;
+const overBridgeLayer = (t) => (t && t.bridgeDeck !== undefined && t.overBridge) || null;
 
 /** A tile belongs to a player-built land bridge deck or head. */
-export const isPlayerLandBridge = (t) => !!(t && (t.playerBridge || t.bridgeDeck !== undefined));
+const isPlayerLandBridge = (t) => !!(t && (t.playerBridge || t.bridgeDeck !== undefined));
 
 /**
  * All cells of the player land bridge that (x,y) belongs to: both heads and the deck run between them.

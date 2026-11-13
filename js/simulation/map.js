@@ -11,7 +11,7 @@ import { hashSeed } from './rng.js';
  * climate snow line): the level where OpenTTD TileLoopClearAlps reaches full snow (climate.js snowDensity,
  * z - line + 1 >= 3). Default 5 + 2 = 7 = the historic hard-coded threshold, so default maps are unchanged.
  */
-export const SNOW_TERRAIN_OFFSET = 2;
+const SNOW_TERRAIN_OFFSET = 2;
 
 /** Terrain snow height for a mapgen snow line (levels; above 7 = no snow terrain, e.g. High = 7 -> 9). */
 export function snowTerrainHeight(snowLine) {
@@ -105,15 +105,15 @@ function fbm(rng, width, height, baseCell, octaves) {
 }
 
 /** Sea level presets (fraction of tiles below sea level); 'none' = no sea. Medium is the historic default. */
-export const SEA_LEVELS = { none: 0, low: 0.1, medium: 0.18, high: 0.3 };
+const SEA_LEVELS = { none: 0, low: 0.1, medium: 0.18, high: 0.3 };
 /** Height scale per terrain type (OpenTTD terrain_type): flat maps stay at 0..2, mountainous uses the full range. */
-export const TERRAIN_SCALE = { flat: 0.3, hilly: 0.7, normal: 1, mountainous: 1 };
+const TERRAIN_SCALE = { flat: 0.3, hilly: 0.7, normal: 1, mountainous: 1 };
 /** Elevation fbm lattice per smoothness setting (base cell, octaves); 'normal' is the historic default. */
-export const SMOOTHNESS = { smooth: [32, 3], normal: [24, 4], rough: [16, 5] };
+const SMOOTHNESS = { smooth: [32, 3], normal: [24, 4], rough: [16, 5] };
 /** Number of rivers to aim for (attempts are capped in carveRivers). */
-export const RIVER_COUNTS = { none: 0, few: 2, many: 6 };
+const RIVER_COUNTS = { none: 0, few: 2, many: 6 };
 /** Rivers carved by rivers: 'flowing' (OpenTTD-style rivers on slopes, see carveFlowingRivers). */
-export const FLOW_RIVER_COUNT = 4;
+const FLOW_RIVER_COUNT = 4;
 /** Town and industry count multipliers (density options; 'normal' keeps today's counts). */
 export const DENSITY = { low: 0.5, normal: 1, high: 1.5 };
 
@@ -359,14 +359,14 @@ function finishTerrain(map, rng, opts, forest, dry) {
 }
 
 /** Lakes option: number of lakes to aim for (attempts are capped in carveLakes). */
-export const LAKE_COUNTS = { off: 0, few: 3, many: 8 };
+const LAKE_COUNTS = { off: 0, few: 3, many: 8 };
 /** Lake size cap (tiles) and maximum depth above the lowest spill point (levels). */
 export const LAKE_MAX_TILES = 48;
-export const LAKE_MAX_DEPTH = 2;
+const LAKE_MAX_DEPTH = 2;
 /** OpenLoco generateTerrainOnMountains marks a square of radius 12 around each peak (MapGenerator.cpp:365-388). */
-export const MOUNTAIN_RADIUS = 12;
+const MOUNTAIN_RADIUS = 12;
 /** Peak height (levels) for the mountain style: the top level (7, the snow line); 6 would cover about half the map at radius 12. */
-export const MOUNTAIN_PEAK = 7;
+const MOUNTAIN_PEAK = 7;
 
 /**
  * Lakes (TT-original; OpenLoco has no lake pass: its generateWater, MapGenerator.cpp:219, only floods below sea level).
@@ -478,7 +478,7 @@ function markMountainStyle(map) {
 }
 
 /** Cliffs option: relief multiplier so the elevation has steep steps (cliffs off = 1, historic). */
-export const CLIFF_RELIEF = 2.8;
+const CLIFF_RELIEF = 2.8;
 /** Cliffs option: steepest neighbour step allowed (levels); off = 1 (historic). */
 export const CLIFF_SLOPE_CAP = 4;
 /** A neighbour step of at least this many levels is a cliff (OpenLoco kCliffTerrainHeightDiff = 4, rescaled to 8-px levels). */

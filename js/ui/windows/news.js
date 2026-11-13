@@ -63,7 +63,7 @@ export function openNews(app) {
  * Message settings: one row per category with an Off / Summary / Full selector.
  * @param {import('../app.js').App} app
  */
-export function openNewsSettings(app) {
+function openNewsSettings(app) {
   return app.wm.open('newsSettings', {
     title: 'Message settings',
     width: 420,

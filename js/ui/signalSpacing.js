@@ -5,7 +5,7 @@
 import { clampSignalSpacing } from '../simulation/signalRun.js';
 
 const KEY = 'tt.signalSpacing';
-export const DEFAULT_SIGNAL_SPACING = 4;
+const DEFAULT_SIGNAL_SPACING = 4;
 
 /** Current drag signal spacing (1..16 tiles). */
 export function getSignalSpacing() {

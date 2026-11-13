@@ -9,9 +9,9 @@ import { formatMoney } from './currency.js';
 import { findStation, manhattan } from './state.js';
 
 /** Distance (tiles) within which a station counts as serving a town or landmark. */
-export const SERVE_RADIUS = 6;
+const SERVE_RADIUS = 6;
 /** Distance (tiles, from the landmark centre) within which a station serves a landmark. */
-export const LANDMARK_RADIUS = 5;
+const LANDMARK_RADIUS = 5;
 
 /**
  * Goal definitions in unlock order. `progress(ctx)` returns {v, t}; the goal is done when v >= t.

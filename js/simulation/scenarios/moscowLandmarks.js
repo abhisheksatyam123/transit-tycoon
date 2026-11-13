@@ -11,7 +11,7 @@ import { project } from './moscowTiles.js';
 import { LM3D } from '../../config/landmarks3d.js';
 
 /** Maximum shift (tiles, Chebyshev) of a landmark footprint away from its real position. */
-export const LANDMARK_SHIFT = tl(2);
+const LANDMARK_SHIFT = tl(2);
 
 /** Landmark buildings: id (contract), map landmark id, footprint, and display title. */
 export const LANDMARK_SPECS = [
@@ -36,7 +36,7 @@ export const LANDMARK_SPECS = [
 ];
 
 /** Gorky Park forest strip along the river (3 wide, 4 tall), not a landmark building. */
-export const PARK = { mapId: 'gorky_park', w: 3, h: 4, title: 'Gorky Park' };
+const PARK = { mapId: 'gorky_park', w: 3, h: 4, title: 'Gorky Park' };
 
 /** Landmark titles by id (for the Query tool). */
 
@@ -52,7 +52,7 @@ function mapPos(map, mapId, lat, lon) {
  * Anchor candidates around (ax,ay) within `maxR`, ordered by ring then distance to the anchor.
  * @returns {{x:number,y:number}[]}
  */
-export function anchorsByDistance(ax, ay, maxR) {
+function anchorsByDistance(ax, ay, maxR) {
   const out = [];
   for (let dy = -maxR; dy <= maxR; dy++) for (let dx = -maxR; dx <= maxR; dx++) {
     out.push({ x: ax + dx, y: ay + dy, r: Math.max(Math.abs(dx), Math.abs(dy)), d: Math.hypot(dx, dy) });
@@ -76,7 +76,7 @@ function footprintFree(state, x, y, w, h, major) {
  * Nearest free anchor for a footprint, within LANDMARK_SHIFT of (ax,ay).
  * @returns {{x:number,y:number}|null}
  */
-export function fitFootprint(state, w, h, ax, ay, major, maxR = LANDMARK_SHIFT) {
+function fitFootprint(state, w, h, ax, ay, major, maxR = LANDMARK_SHIFT) {
   for (const a of anchorsByDistance(ax, ay, maxR)) {
     if (footprintFree(state, a.x, a.y, w, h, major)) return { x: a.x, y: a.y };
   }
@@ -134,7 +134,7 @@ function stampLandmark(state, spec, x0, y0) {
  * tile.building = {type:'landmark', id, lm3d:1, front:0|1, dx:0, dy:0, w:1, h:1}.
  * @returns {{id:string,x:number,y:number,w:number,h:number,title:string,tiles:number}[]}
  */
-export function placeEnsembles(state, log) {
+function placeEnsembles(state, log) {
   const { map } = state; const out = []; const overlays = [];
   if (globalThis.process?.env?.NO_LM3D) return out; // tools/lm3d/bake.js reads the world without ensembles
   for (const e of Object.values(LM3D)) {

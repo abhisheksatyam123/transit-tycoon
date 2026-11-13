@@ -38,7 +38,7 @@ function linkLegend() {
  * Position the legend directly above the minimap wrapper (right-aligned to it). Falls back to the bottom-right
  * corner when the minimap is not in the DOM. Keeps the panel inside the viewport.
  */
-export function placeLinkLegend(box) {
+function placeLinkLegend(box) {
   const wrap = document.getElementById('minimap-wrap');
   const vw = window.innerWidth || 1400, vh = window.innerHeight || 860;
   const r = wrap ? wrap.getBoundingClientRect() : { left: vw - 220, right: vw - 10, top: vh - 130 };
@@ -52,7 +52,7 @@ export function placeLinkLegend(box) {
 }
 
 /** Cargo ids to list now: PASS and MAIL plus any other cargo present in the links. */
-export function linkCargoIds(state) {
+function linkCargoIds(state) {
   const ids = new Set(ALWAYS);
   for (const l of collectLinks(state)) ids.add(l.cargoId);
   return [...ids];

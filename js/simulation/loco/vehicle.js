@@ -22,13 +22,13 @@ import { autorenewVehicle } from '../autorenew.js';
 
 export const RELIABILITY_SCALE = 25600; // 100% * 256
 export const RELIABILITY_LOSS_PER_DAY = 4; // kReliabilityLossPerDay
-export const RELIABILITY_LOSS_PER_DAY_OBSOLETE = 10; // kReliabilityLossPerDayObsolete
-export const MIN_RELIABILITY = 100;
-export const BREAKDOWN_DAYS = 5; // car.front->breakdownTimeout = 5
+const RELIABILITY_LOSS_PER_DAY_OBSOLETE = 10; // kReliabilityLossPerDayObsolete
+const MIN_RELIABILITY = 100;
+const BREAKDOWN_DAYS = 5; // car.front->breakdownTimeout = 5
 /** OpenTTD vehicle.cpp:1357 `if (Ship) rel += 0x6666` (16-bit reliability): ships are boosted by 0x6666/65536 = 0.4 of full
  *  scale; on the 25600 scale that is exactly 10240. Used only with setting shipBreakdownReduced (default off). */
 export const SHIP_BREAKDOWN_BOOST = Math.round((0x6666 * RELIABILITY_SCALE) / 65536); // 10240
-export const NO_BREAKDOWN_TIMEOUT = 0xffff;
+const NO_BREAKDOWN_TIMEOUT = 0xffff;
 const PROFIT_HISTORY = 4; // OpenLoco veh2->profit[4]
 
 /**

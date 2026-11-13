@@ -16,9 +16,9 @@ import { transferRival } from './aiCompanies.js';
 import { pushNews } from './news.js';
 
 /** OpenTTD: a company can be bought only after it is this many months old. */
-export const SHARE_MIN_AGE_MONTHS = 6;
+const SHARE_MIN_AGE_MONTHS = 6;
 /** Shares per company (OpenTTD: 4 shares of 25%). */
-export const SHARES_PER_COMPANY = 4;
+const SHARES_PER_COMPANY = 4;
 
 const monthOf = (date) => date.year * 12 + date.month;
 

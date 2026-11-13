@@ -16,7 +16,7 @@ export function tileIndex(map, x, y) { return y * map.width + x; }
  * Pick a road tile adjacent to (x,y), or null.
  * @returns {{x:number,y:number}|null}
  */
-export function roadNeighbour(map, rng, x, y) {
+function roadNeighbour(map, rng, x, y) {
   const cands = neighbours(map, x, y).filter((n) => n.tile.road);
   return cands.length ? rng.pick(cands) : null;
 }

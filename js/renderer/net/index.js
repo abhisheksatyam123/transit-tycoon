@@ -16,7 +16,7 @@ import { smoothPath } from './fit.js';
 const DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0], BIT = [1, 2, 4, 8], OPP = [2, 3, 0, 1];
 const cache = new WeakMap();
 /** Ribbon half-width margin (tile units) used for byTile. */
-export const RIBBON_MARGIN = 0.5;
+const RIBBON_MARGIN = 0.5;
 
 function bitsOf(t, kind) {
   // OpenTTD-style deck over track (tile.overBridge = deck layer): the deck is drawn apart, the ground track stays

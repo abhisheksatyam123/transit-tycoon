@@ -16,9 +16,9 @@ import { DIR_BY_BIT } from '../constants.js';
 const OPP = { 1: 4, 2: 8, 4: 1, 8: 2 };
 const BITS = [1, 2, 4, 8];
 /** Max path length (edges) kept between two tiles that closes a cycle we drop. */
-export const SMALL_CYCLE = tl(24);
+const SMALL_CYCLE = tl(24);
 /** Max spur length (tiles) removed as a dead end. */
-export const SPUR_MAX = tl(3);
+const SPUR_MAX = tl(3);
 const STRAIGHT_CAP = tl(8);
 const ALWAYS_KEEP = 1e6;
 
@@ -238,7 +238,7 @@ function reconnects(map, a, b, bit, limit) {
  * changing reachability. Deterministic (fixed tile order, bounded search).
  * @returns {number} edges removed
  */
-export function removeRedundantJunctionEdges(map, limit = tl(60)) {
+function removeRedundantJunctionEdges(map, limit = tl(60)) {
   let removed = 0;
   for (let i = 0; i < map.tiles.length; i++) {
     const t = map.tiles[i];
@@ -332,7 +332,7 @@ function freeForRail(map, i) {
  * tile. On success the path is laid as rail. Deterministic.
  * @returns {number} tiles added
  */
-export function reconnectDeadEnds(map, maxLen = tl(15)) {
+function reconnectDeadEnds(map, maxLen = tl(15)) {
   const W = map.width, T = map.tiles, DXY = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };
   let added = 0;
   // component labels (surface graph); only join dead ends of different components => no new loops
@@ -438,7 +438,7 @@ const stepBit = (dx, dy) => (dy === -1 ? 1 : dx === 1 ? 2 : dy === 1 ? 4 : 8);
  * crossing (then gradeSep). A and B must be in different surface components, so no cycle is closed.
  * @returns {number} gaps bridged
  */
-export function bridgeGaps(map, maxGap = tl(4)) {
+function bridgeGaps(map, maxGap = tl(4)) {
   const { width: W, height: H, tiles: T } = map;
   const dsu = makeDsu(T.length);
   for (let i = 0; i < T.length; i++) if (T[i].rail && isSurface(T[i])) for (const { j } of links(map, i)) dsu.union(i, j);
@@ -509,8 +509,8 @@ export function bridgeGaps(map, maxGap = tl(4)) {
  * @param {string|null} bakedRail per-tile raster chars ('0' = none); null/short => no-op
  * @returns {number} dead ends restored
  */
-export const RESTORE_MAX = tl(30);
-export function restoreFromBake(map, bakedRail) {
+const RESTORE_MAX = tl(30);
+function restoreFromBake(map, bakedRail) {
   if (!bakedRail || bakedRail.length < map.tiles.length) return 0;
   const { width: W, height: H, tiles: T } = map;
   const dsu = makeDsu(T.length);
@@ -562,7 +562,7 @@ export function restoreFromBake(map, bakedRail) {
  * piece cannot carry a service; it is a fragment or a line that ends in a field.
  * @returns {number} tiles cleared
  */
-export function pruneIsolatedRail(map) {
+function pruneIsolatedRail(map) {
   const seen = new Uint8Array(map.tiles.length);
   let cleared = 0;
   for (let s = 0; s < map.tiles.length; s++) {
@@ -631,7 +631,7 @@ export function cleanRail(state, bakedRail = null) {
 /** Rail tiles of the 4 long surface tails verified unused (MR3 audit: 0 vehicle-path
  *  visits over 360 simulated days, no station/depot within 5 tiles, tips on grass,
  *  junctions degree 3 so the through-line survives). [x,y] roots in Moscow bake coords. */
-export const UNUSED_RAIL_TAIL_ROOTS = [[440, 32], [455, 69], [453, 203], [455, 261]];
+const UNUSED_RAIL_TAIL_ROOTS = [[440, 32], [455, 69], [453, 203], [455, 261]];
 
 /** Remove the 4 audited-unused long tails. Fails safe: every root is revalidated
  * (degree-1 surface leaf, no station/depot/tunnel on the chain, ends at a degree>=3

@@ -8,7 +8,7 @@ const LATTICE = '#6d7178', RING = '#9aa0a8';
 const radius = (z, top) => 0.04 * Math.sqrt(1 + ((z - top * 0.4) / (top * 0.25)) ** 2);
 
 /** Build the Shukhov tower sprite (1x1 footprint). */
-export function buildShukhov(w, h) {
+function buildShukhov(w, h) {
   const top = heightPx(160);
   const s = footprintPixel(w, h, top);
   const N = 12, SECT = 6;

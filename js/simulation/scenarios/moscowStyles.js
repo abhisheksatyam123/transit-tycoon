@@ -6,7 +6,7 @@
 import { tl, TS } from './moscowScale.js';
 
 /** Distance bands (tiles from the Kremlin): inside Garden Ring, Garden-TTK, TTK-MKAD, outside MKAD. */
-export const ZONE_RADII = { garden: tl(18), ttk: tl(45), mkad: tl(100) };
+const ZONE_RADII = { garden: tl(18), ttk: tl(45), mkad: tl(100) };
 
 /** Allowed level range per style [min, max] (level drives population, style drives looks). */
 export const STYLE_LEVELS = {

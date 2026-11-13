@@ -10,7 +10,7 @@ import { sortControls, nameSearch } from './sortControls.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 
 /** Display labels per depot kind. */
-export const DEPOT_KIND_LABELS = { rail: 'Rail', road: 'Road', air: 'Airport hangar', water: 'Ship', ship: 'Ship' };
+const DEPOT_KIND_LABELS = { rail: 'Rail', road: 'Road', air: 'Airport hangar', water: 'Ship', ship: 'Ship' };
 
 /**
  * Derived rows for the depot list (pure).

@@ -23,7 +23,7 @@ import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 export const FREIGHT_MIN_DIST = 12;
 export const FREIGHT_MAX_DIST = 30;
 /** Trucks bought on a new freight route. */
-export const FREIGHT_TRUCKS = 2;
+const FREIGHT_TRUCKS = 2;
 /** Producer must have at least this much output per month to be worth a truck route. */
 const MIN_PRODUCTION = 40;
 /** Ranked candidates one attempt tries before giving up (like aiShip's PAIR_TRIES). */

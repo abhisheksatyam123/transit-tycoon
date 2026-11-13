@@ -6,7 +6,7 @@ import { straightAxis } from './network.js';
 import { coordsOk, ERR } from './trackRules.js';
 
 /** Next state in the cycle: 0 two-way, 1 +axis only, 2 -axis only. */
-export function nextOneWay(v) { return v === 1 ? 2 : v === 2 ? 0 : 1; }
+function nextOneWay(v) { return v === 1 ? 2 : v === 2 ? 0 : 1; }
 
 /** Human label of a one-way state. */
 export function oneWayLabel(v) { return v === 1 ? 'one-way (east/south)' : v === 2 ? 'one-way (west/north)' : 'two-way'; }

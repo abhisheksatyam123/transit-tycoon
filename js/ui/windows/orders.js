@@ -38,7 +38,7 @@ const STOP_OPTIONS = [['non', 'Non-stop'], ['all', 'Stop at all stations'], ['vi
 const STOP_AT_OPTIONS = [['near', 'Near end'], ['middle', 'Middle'], ['far', 'Far end']];
 
 /** Order row text, OpenTTD style: "Go non-stop to X" / "Go to X" (stop all) / "Go via X". */
-export function orderVerb(o) {
+function orderVerb(o) {
   const m = stopMode(o);
   return m === 'via' ? 'Go via' : m === 'all' ? 'Go to' : 'Go non-stop to';
 }

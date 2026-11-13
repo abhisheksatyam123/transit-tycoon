@@ -23,7 +23,7 @@ const GFX = { ...INDUSTRY_GFX, ...TP_GFX };
 import { subtileOffset } from './subtile.js';
 
 /** Concrete ground drawn where a layout has no entry (OpenTTD SPR_CONCRETE_GROUND). */
-export const SPR_CONCRETE_GROUND = 1420;
+const SPR_CONCRETE_GROUND = 1420;
 
 /**
  * Our industry type id -> OpenTTD layout family in INDUSTRY_LAYOUTS (T-IA).

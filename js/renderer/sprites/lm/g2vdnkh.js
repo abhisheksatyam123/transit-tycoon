@@ -3,7 +3,7 @@ import { footprintPixel, heightPx, PX } from '../pixelArt.js';
 import { registerLandmark } from './registry.js';
 
 /** Build VDNKh (footprint 2x2): ground park is drawn separately; only the monuments here. */
-export function buildVdnkh(w, h) {
+function buildVdnkh(w, h) {
   const top = heightPx(97);
   const s = footprintPixel(w, h, top);
   // fountain (gold, round) on the front-right

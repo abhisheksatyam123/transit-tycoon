@@ -26,7 +26,7 @@ export function airLine(ax, ay, bx, by) {
 }
 
 /** Fraction of the path used for the takeoff and landing ramps. */
-export const RAMP_FRACTION = 0.15;
+const RAMP_FRACTION = 0.15;
 
 /**
  * Altitude (0 ground .. 1 cruise) of an aircraft at its current path position.

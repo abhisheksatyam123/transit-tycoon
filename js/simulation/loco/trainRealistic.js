@@ -28,15 +28,15 @@ export const TRACTIVE_EFFORT = 76;
 const ROLLING_BASE = 15;            // train.h:309-316, 1e-4 units
 const TRAIN_AIR_DRAG_AREA = 14;     // train.h:272
 const AXLE_PER_TONNE = 10;          // ground_vehicle.cpp:94
-export const WATTS_PER_HP = 746;
+const WATTS_PER_HP = 746;
 export const ENGINE_TONNES = DEFAULT_ENGINE_WEIGHT; // TT engine weight when the model has none (consistEngines.js)
 /** Symbol-keyed cache stamp for the engine list: JSON.stringify ignores symbol keys, so saves are unchanged. */
 const ENGINE_LIST_STAMP = Symbol('engineList');
 
 /** OpenTTD curve constants (train_cmd.cpp). */
-export const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67
-export const CURVE_TILE_UNITS = 16;      // one tile along the path (OTTD TILE_SIZE); corner spacing is per tile, so the 88 rule (spacing <= 8) cannot fire on whole-tile paths
-export const CURVE_LOOKAHEAD_TILES = 6;  // corners considered ahead (constant, keeps the scan O(1))
+const CURVE_VEHICLE_LENGTH = 8;   // VEHICLE_LENGTH, vehicle_type.h:67
+const CURVE_TILE_UNITS = 16;      // one tile along the path (OTTD TILE_SIZE); corner spacing is per tile, so the 88 rule (spacing <= 8) cannot fire on whole-tile paths
+const CURVE_LOOKAHEAD_TILES = 6;  // corners considered ahead (constant, keeps the scan O(1))
 export const CURVE_LIMIT_90 = 61;        // train_cmd.cpp: 90 degree -> 61
 export const CURVE_LIMIT_45_CLOSE = 88;  // train_cmd.cpp: 45 degree corners closer than VEHICLE_LENGTH -> 88
 
@@ -53,11 +53,11 @@ const NO_LIMIT = Infinity;
  * 9 turnaround. Transit Tycoon does not expose that piece ID, so the curve class is recovered
  * geometrically from the TT tile path.
  */
-export const ROAD_CURVE_FRACTION_VERY_SMALL = 0x0CCD / 0xFFFF; // ~0.05
+const ROAD_CURVE_FRACTION_VERY_SMALL = 0x0CCD / 0xFFFF; // ~0.05
 /** OpenLoco small road curve speed fraction (0x199A/0xFFFF, ~0.10). */
-export const ROAD_CURVE_FRACTION_SMALL = 0x199A / 0xFFFF;
+const ROAD_CURVE_FRACTION_SMALL = 0x199A / 0xFFFF;
 /** OpenLoco minimum road curve speed, in mph. */
-export const ROAD_CURVE_MIN_MPH = 12;
+const ROAD_CURVE_MIN_MPH = 12;
 
 /**
  * OpenLoco road curve speed fraction for a road path. The look-ahead must stay O(1), so only the

@@ -26,7 +26,7 @@ const ROCK_BASE = 4023;
  * @param {number[]} c corner heights [hN,hE,hS,hW]
  * @returns {number}
  */
-export function groundSpriteId(kind, hash, c) {
+function groundSpriteId(kind, hash, c) {
   let base;
   switch (kind) {
     case 'grass': case 'forest': base = (hash % 33) === 0 ? ROUGH_BASE : GRASS_BASE; break;

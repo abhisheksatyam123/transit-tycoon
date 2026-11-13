@@ -76,7 +76,7 @@ export function star(ctx, u, v, z, r, color) {
 }
 
 /** Screen-space points of an ellipse (tile-space radii a,b) at height z. */
-export function ellipsePts(a, b, z, n = 28) {
+function ellipsePts(a, b, z, n = 28) {
   const pts = [];
   for (let i = 0; i < n; i++) {
     const t = (i / n) * Math.PI * 2;

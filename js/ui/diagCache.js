@@ -27,7 +27,7 @@ function loadModule() {
  * @param {any[]} issues
  * @returns {{error:number,warn:number,info:number,byCategory:Record<string,number>}}
  */
-export function countIssues(issues) {
+function countIssues(issues) {
   const out = { error: 0, warn: 0, info: 0, byCategory: /** @type {Record<string,number>} */ ({}) };
   for (const i of issues) {
     const n = typeof i.count === 'number' && i.count > 0 ? i.count : 1;
@@ -38,7 +38,7 @@ export function countIssues(issues) {
 }
 
 /** Real-time staleness limit for the cached scan (ms), in addition to the game-month rule. */
-export const MAX_AGE_MS = 30000;
+const MAX_AGE_MS = 30000;
 /** @type {ReturnType<typeof setTimeout>|number|null} pending idle rescan */
 let pending = null;
 
@@ -49,7 +49,7 @@ function monthKey(game) {
 }
 
 /** Minimum gap between two scans triggered by player commands (ms). */
-export const COMMAND_SCAN_GAP_MS = 1000;
+const COMMAND_SCAN_GAP_MS = 1000;
 /** Set by touchIssues(): the cached scan no longer reflects the world. */
 let dirty = false;
 /** @type {ReturnType<typeof setTimeout>|null} trailing timer after a command */

@@ -20,7 +20,7 @@ import { townGrowthAllowed, tropicGrowthAllowed } from '../climate.js';
 import { recomputePopulation } from '../towns.js';
 import { getSetting } from '../settings.js';
 
-export const HISTORY_LEN = 20 * 12;
+const HISTORY_LEN = 20 * 12;
 export const MIN_COMPANY_RATING = -1000;
 export const MAX_COMPANY_RATING = 1000;
 /** TownSize: hamlet, village, town, city, metropolis. */
@@ -48,7 +48,7 @@ export function adjustCompanyRating(town, amount) {
 }
 
 /** Town::recalculateSize. */
-export function recalculateSize(town) {
+function recalculateSize(town) {
   let size = town.size;
   if (size < 4 && town.population >= POPULATIONS[size + 1]) size++;
   else if (size !== 0 && town.population + 100 < POPULATIONS[size]) size--;

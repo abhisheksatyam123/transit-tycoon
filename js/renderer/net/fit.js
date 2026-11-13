@@ -22,13 +22,13 @@ export const RADII = {
   roadCurve: pieceRadius('TA0L0T3R0D0', 1.2),
 };
 const DIR = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-export const DP_EPS = 0.62;
+const DP_EPS = 0.62;
 /** Rail uses a wider DP tolerance so mainline S-wobbles collapse into straight runs (render-only). */
-export const DP_EPS_RAIL = 0.9;
+const DP_EPS_RAIL = 0.9;
 const STEP = 0.125;
 
 /** Douglas-Peucker on [[x,y],...] keeping endpoints; returns kept points. */
-export function simplify(pts, eps) {
+function simplify(pts, eps) {
   const keep = new Uint8Array(pts.length);
   keep[0] = keep[pts.length - 1] = 1;
   const stack = [[0, pts.length - 1]];
@@ -128,7 +128,7 @@ export function smoothPath(raw, opts = {}) {
 }
 
 /** Road DP tolerances tried in order (tiles); a wider one is kept only if the result stays in the chain's tiles. */
-export const ROAD_EPS_LADDER = [DP_EPS, 0.8, 1.0];
+const ROAD_EPS_LADDER = [DP_EPS, 0.8, 1.0];
 
 /**
  * Simplify a centreline. Rail: unchanged (DP_EPS_RAIL). Road: adaptive tolerance so long slanted
@@ -167,7 +167,7 @@ function simplifyChain(pts, opts, P, d0, d1) {
 }
 
 /** Half-window (tiles) of the final centreline relaxation: rounds DP zig-zags on player curves/circles. */
-export const SMOOTH_W = { road: 1.0, rail: 2.0 };
+const SMOOTH_W = { road: 1.0, rail: 2.0 };
 
 /**
  * Resample at exactly STEP and apply two passes of a tapered moving average (half-window w tiles,
@@ -175,7 +175,7 @@ export const SMOOTH_W = { road: 1.0, rail: 2.0 };
  * 1:1 staircase diagonals are unchanged; corners and jogs become smooth curves. Render-only.
  * @param {number[]} pts flat points @param {number} w @returns {number[]}
  */
-export function relax(pts, w) {
+function relax(pts, w) {
   const n = pts.length / 2;
   if (n < 3 || !(w > 0)) return pts;
   const R = [pts[0], pts[1]];

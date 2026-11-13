@@ -27,7 +27,7 @@ export function roundTicks(orders) {
 }
 
 /** Tick offset of the departure from order idx within one round (travel to it, then its wait). */
-export function departOffset(orders, idx) {
+function departOffset(orders, idx) {
   let d = 0;
   for (let j = 0; j <= idx; j++) {
     if (j > 0) d += (orders[j].travelDays || 0) * TICKS_PER_DAY;

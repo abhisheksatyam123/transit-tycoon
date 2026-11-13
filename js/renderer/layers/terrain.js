@@ -156,7 +156,7 @@ export function drawGround(ctx, map, x, y, sx, sy, frame, c) {
 }
 
 /** Steps of at least this many levels get a vertical cliff face (cliffs mapgen option; default maps never reach it). */
-export const CLIFF_WALL_STEP = 2;
+const CLIFF_WALL_STEP = 2;
 /**
  * Vertical cliff faces under a raised tile's south-west / south-east edge when the neighbour is CLIFF_WALL_STEP or more
  * levels lower (cliffs mapgen option; cliffFace sprite, sprites/terrain.js). Normal maps have no such step, so this

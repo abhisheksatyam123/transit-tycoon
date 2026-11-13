@@ -3,7 +3,7 @@
  */
 
 /** Max individual issues emitted per id family before aggregating. */
-export const AGG_LIMIT = 20;
+const AGG_LIMIT = 20;
 
 /**
  * Build an Issue record, omitting undefined optional fields.

@@ -10,7 +10,7 @@ import { HALF_W, HALF_H } from '../iso.js';
 
 const cache = new SpriteCache();
 /** Size (logical px) of an aircraft sprite; anchor at its centre. */
-export const AIRCRAFT_SIZE = 120;
+const AIRCRAFT_SIZE = 120;
 /** Body lift above the ground anchor (px). */
 const LIFT = 12;
 
@@ -19,7 +19,7 @@ const LIFT = 12;
  * kind: 'prop' | 'jet'; eng: 'wing' | 'rear' | 'none'; nEng: engines per side (wing mount);
  * tail: 'fin' | 'T'; sweep: wing sweep (tile units); width: 'narrow' | 'wide'.
  */
-export const AIRCRAFT_GEOM = {
+const AIRCRAFT_GEOM = {
   ac_li2: { L: 0.52, S: 0.62, fuse: 5, fin: 14, kind: 'prop', eng: 'wing', nEng: 1, tail: 'fin', sweep: 0.02 },
   ac_il14: { L: 0.56, S: 0.64, fuse: 6, fin: 15, kind: 'prop', eng: 'wing', nEng: 1, tail: 'fin', sweep: 0.02 },
   ac_tu104: { L: 0.72, S: 0.58, fuse: 7, fin: 24, kind: 'jet', eng: 'rear', nEng: 1, tail: 'fin', sweep: 0.14 },
@@ -33,7 +33,7 @@ export const AIRCRAFT_GEOM = {
 };
 
 /** Liveries: body, cheatline, tail fin, label. */
-export const LIVERIES = [
+const LIVERIES = [
   { id: 'aeroflot', body: '#f8fafc', stripe: '#1e3a8a', tail: '#dc2626' },
   { id: 's7', body: '#f8fafc', stripe: '#15803d', tail: '#22c55e' },
   { id: 'pobeda', body: '#f8fafc', stripe: '#6d28d9', tail: '#1d4ed8' },
@@ -44,7 +44,7 @@ export const LIVERIES = [
  * Geometry for a model id (falls back to a320 for unknown ids).
  * @param {string} id
  */
-export function aircraftGeom(id) {
+function aircraftGeom(id) {
   return AIRCRAFT_GEOM[id] || AIRCRAFT_GEOM.ac_a320;
 }
 

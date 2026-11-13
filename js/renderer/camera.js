@@ -3,7 +3,7 @@
  */
 import { HALF_W, HALF_H, TILE_H, HEIGHT_STEP, tileToScreen, screenToTileFloat } from './iso.js';
 
-export const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 4;
 
 export class Camera {

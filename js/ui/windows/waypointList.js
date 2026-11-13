@@ -11,7 +11,7 @@ import { isWaypointRecord, waypointDisplayName } from '../../simulation/cmdRenam
 import { openRename } from '../rename.js';
 
 /** Sort keys for the waypoint list (sortControls tuple format). */
-export const WAYPOINT_SORTS = [['name', 'Name'], ['type', 'Type'], ['id', 'Id']];
+const WAYPOINT_SORTS = [['name', 'Name'], ['type', 'Type'], ['id', 'Id']];
 
 /** True for road waypoints (every tile kind waypoint with road:true). */
 export function isRoadWaypoint(st) {

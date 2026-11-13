@@ -55,7 +55,7 @@ const STATION_UP = 12, STATION_DOWN = -15;
 /** A station counts as served if it picked up cargo within this many days. */
 const SERVED_DAYS = 20;
 /** OpenTTD RATING_TREE_DOWN_STEP / RATING_ROAD_DOWN_STEP_EDGE. */
-export const TREE_DOWN_STEP = -35, ROAD_DOWN_STEP = -18;
+const TREE_DOWN_STEP = -35, ROAD_DOWN_STEP = -18;
 /** OpenTTD RATING_STATUE bonus is not in OpenTTD's table; we use a one-off bonus of this size. */
 export const STATUE_BONUS = 200;
 /** Fund new buildings: months of accelerated growth. */
@@ -73,7 +73,7 @@ export const RATING_BRIBE_UP_STEP = 200;
 export const RATING_BRIBE_MAXIMUM = 800;
 export const RATING_BRIBE_DOWN_TO = -50;
 /** OpenTTD TownActionBribe: a bribe fails with probability 1/14 (Chance16(1,14)). */
-export const BRIBE_FAIL_CHANCE = 1 / 14;
+const BRIBE_FAIL_CHANCE = 1 / 14;
 /** OpenTTD: a failed bribe leaves the town unwanted for this many months (no more bribes, station ratings 0). */
 export const BRIBE_UNWANTED_MONTHS = 6;
 /** OpenTTD: road reconstruction lasts 6 months (t->road_build_months = 6). */
@@ -83,7 +83,7 @@ export const ROAD_WORKS_SPEED = 0.5;
 /** OpenTTD exclusive transport rights last 12 months (t->exclusive_counter = 12). */
 export const EXCLUSIVE_MONTHS = 12;
 /** Exclusive-rights base cost (scaled by town population at purchase time). */
-export const EXCLUSIVE_BASE = 40_000;
+const EXCLUSIVE_BASE = 40_000;
 
 /** Local authority rating of the player (lazy default 500). */
 export function townRating(town) {
@@ -105,7 +105,7 @@ export function authorityTown(state, x, y) {
 /** Backwards-compatible alias (tests/UI). */
 export const ratingTitle = (r) => ratingRank(r);
 
-export function ratingRank(r) {
+function ratingRank(r) {
   if (r >= 400) return 'Excellent';
   if (r >= 200) return 'Good';
   if (r >= 0) return 'Average';
@@ -135,7 +135,7 @@ export function refusalAt(state, x, y, owner = null) {
  * cheap, simple model): +12 per station the company served (pick-up) recently, -15 per unserved station nearby.
  * Also ticks down any active advertising boost / funding / statue expiry is not needed (statue is permanent).
  */
-export function authorityMonthlyTick(ctx) {
+function authorityMonthlyTick(ctx) {
   const { state } = ctx;
   const towns = state.towns || [];
   // Only the player's stations move the player's rating: rival stations are the rival's business.
@@ -295,7 +295,7 @@ function ratingKey(companyId) {
  * @param {{dryRun?:boolean}} [opts]
  * @returns {{ok:true,cost:0,rating:number}|{ok:false,error:string}}
  */
-export function setTownRatingCmd(ctx, townId, companyId, rating, opts = {}) {
+function setTownRatingCmd(ctx, townId, companyId, rating, opts = {}) {
   const town = (ctx.state.towns || []).find((t) => t.id === townId);
   if (!town) return { ok: false, error: 'Unknown town' };
   const v = Math.max(MIN_COMPANY_RATING, Math.min(MAX_COMPANY_RATING, Math.round(rating)));

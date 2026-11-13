@@ -6,7 +6,7 @@ import { pushNews } from './news.js';
 import { isArctic, isTropic } from './climate.js';
 
 /** Population milestones that trigger news. */
-export const MILESTONES = [500, 1000, 2000, 3000, 5000, 8000, 12000];
+const MILESTONES = [500, 1000, 2000, 3000, 5000, 8000, 12000];
 
 /**
  * Month end statistics roll for a town (growth itself is driven per town tick by loco/town.js,

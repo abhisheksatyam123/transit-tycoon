@@ -24,14 +24,14 @@ export const OBJECT_ERR = {
 };
 
 /** Price of an object (inflation-adjusted). */
-export function objectPrice(state, type) {
+function objectPrice(state, type) {
   const base = type === 'transmitter' ? COSTS.buildTransmitter
     : type === 'lighthouse' ? COSTS.buildLighthouse : COSTS.buildOwnedLand;
   return constructionTotal(state, base);
 }
 
 /** Site check (pure). @returns {string} error or '' */
-export function objectSiteError(state, type, x, y) {
+function objectSiteError(state, type, x, y) {
   if (!OBJECT_TYPES.includes(type)) return OBJECT_ERR.unknown;
   const map = state.map;
   if (!coordsOk(map, x, y)) return OBJECT_ERR.bounds;

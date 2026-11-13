@@ -42,7 +42,7 @@ export function screenToTileFloat(sx, sy) {
  * @param {number} h
  * @returns {boolean}
  */
-export function pointInTile(sx, sy, tx, ty, h) {
+function pointInTile(sx, sy, tx, ty, h) {
   const cx = (tx - ty) * HALF_W;
   const cy = (tx + ty) * HALF_H - h * HEIGHT_STEP;
   return Math.abs(sx - cx) / HALF_W + Math.abs(sy - cy) / HALF_H <= 1;

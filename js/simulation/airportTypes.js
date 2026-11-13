@@ -22,7 +22,7 @@ import { MODEL_BY_ID } from '../config/vehicles.js';
 
 export const DEFAULT_AIRPORT_TYPE = 'city';
 /** Largest seat count a plane may have to use a small (or commuter) airport. */
-export const SMALL_MAX_CAPACITY = 80;
+const SMALL_MAX_CAPACITY = 80;
 
 // D = departure runway (OTTD: takeoffs use one runway, landings another; metropolitan and international)
 const PART_CODE = { H: 'hangar', T: 'terminal', W: 'tower', R: 'runway', D: 'runwayDep', A: 'apron', P: 'helipad' };

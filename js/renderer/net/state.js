@@ -5,7 +5,7 @@
 function saved() {
   try { return typeof localStorage === 'undefined' || localStorage.getItem('tt.net') !== '0'; } catch { return true; }
 }
-export const netState = { enabled: saved() };
+const netState = { enabled: saved() };
 /** @returns {boolean} */
 export function netActive() { return netState.enabled; }
 /** @param {boolean} on */

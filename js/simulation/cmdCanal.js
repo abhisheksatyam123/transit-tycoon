@@ -16,7 +16,7 @@ import { getTile } from './map.js';
 import { planAqueduct, buildAqueduct } from './aqueduct.js';
 import { getSetting } from './settings.js';
 
-export const CANAL_ERR = {
+const CANAL_ERR = {
   notFlat: 'Canals must be built on flat land',
   lockOnWater: 'A lock must be built on land',
   lockSlope: 'A lock needs a straight single-direction slope one level high',

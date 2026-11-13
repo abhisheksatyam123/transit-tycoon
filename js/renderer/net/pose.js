@@ -10,7 +10,7 @@ import { netActive } from './state.js';
 /** Shared output record: smoothPose returns this same object each call (read it immediately). */
 const OUT = { x: 0, y: 0, angle: 0, edge: -1, s: 0, w: 1 };
 /** Blend length (tile units) over which a pose fades from the sim lane at edge ends. */
-export const POSE_BLEND = 0.25;
+const POSE_BLEND = 0.25;
 /** Heading weight in the edge choice (squared tile distance units). */
 const HEADING_W = 0.05;
 

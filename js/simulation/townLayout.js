@@ -44,7 +44,7 @@ function roadAt(map, x, y) {
  * OpenTTD IsNeighbourRoadTile: is there a road parallel to `dir` within `distMulti` tiles
  * to the side of (x, y)? Ported loop over pos in [4, (distMulti+1)*4).
  */
-export function isNeighbourRoad(map, x, y, dir, distMulti) {
+function isNeighbourRoad(map, x, y, dir, distMulti) {
   const { width: W, height: H } = map;
   if (x < 0 || y < 0 || x >= W || y >= H) return false;
   const back = DIR_BY_BIT[OPPOSITE[dir]];

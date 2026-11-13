@@ -14,7 +14,7 @@ function bx(s, u0, v0, u1, v1, z0, z1, colour = BODY) {
 }
 
 /** Build the MSU sprite. */
-export function buildMsu(w, h) {
+function buildMsu(w, h) {
   const top = heightPx(240), wingTop = heightPx(40), sideTop = heightPx(70);
   const s = footprintPixel(w, h, top);
   // dark plinth under the whole facade

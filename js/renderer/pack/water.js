@@ -11,10 +11,10 @@ import { packState } from './state.js';
 import { HALF_H, HEIGHT_STEP as S } from '../iso.js';
 
 /** Edge bits: our N=1 (top-right edge), E=2 (bottom-right), S=4 (bottom-left), W=8 (top-left). */
-export const EDGE_N = 1;
-export const EDGE_E = 2;
-export const EDGE_S = 4;
-export const EDGE_W = 8;
+const EDGE_N = 1;
+const EDGE_E = 2;
+const EDGE_S = 4;
+const EDGE_W = 8;
 
 /** Rotated-sprite cache: key "id|rot" -> canvas (64x31 image, origin at the sprite's own offset). */
 const cache = new Map();

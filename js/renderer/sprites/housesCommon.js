@@ -4,8 +4,8 @@
  */
 import { poly, quad, box } from './shapes.js';
 
-export const WIN = 'rgba(30,45,70,0.85)';
-export const WIN_LIT = '#fde68a';
+const WIN = 'rgba(30,45,70,0.85)';
+const WIN_LIT = '#fde68a';
 export const WHITE = '#f8fafc';
 
 /** Draw one window quad on a face: face 'v' (plane v=fixed) or 'u' (plane u=fixed). */

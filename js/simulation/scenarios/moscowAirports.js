@@ -7,20 +7,20 @@ import { tl, TS } from './moscowScale.js';
 import { project } from './moscowTiles.js';
 
 /** Real airport positions: [id, name, lat, lon]. */
-export const AIRPORT_SITES = [
+const AIRPORT_SITES = [
   ['SVO', 'Sheremetyevo', 55.9726, 37.4146],
   ['VKO', 'Vnukovo', 55.5915, 37.2615],
   ['DME', 'Domodedovo', 55.4088, 37.9063],
 ];
 
 /** Aircraft bought per airport pair (round trips SVO-VKO, SVO-DME, VKO-DME). */
-export const AIRCRAFT_PER_PAIR = 1;
+const AIRCRAFT_PER_PAIR = 1;
 
 /** Search radius (tiles) around a real site for a clearable airport footprint. */
-export const AIRPORT_SEARCH_R = tl(40);
+const AIRPORT_SEARCH_R = tl(40);
 
 /** Half-size (tiles) of the area kept free of generated local streets around each airport site. */
-export const AIRPORT_RESERVE = { rx: tl(6), ry: tl(5) };
+const AIRPORT_RESERVE = { rx: tl(6), ry: tl(5) };
 
 /**
  * Tile position of each airport site: centre of the baked bbox (x+w/2, y+h/2) clamped into the map,
@@ -56,7 +56,7 @@ export function airportReserve(gm, map) {
  * Find the first footprint near (cx,cy) that game.buildAirport accepts (dry run).
  * @returns {{x:number,y:number}|null}
  */
-export function findAirportSite(game, cx, cy, maxR = AIRPORT_SEARCH_R) {
+function findAirportSite(game, cx, cy, maxR = AIRPORT_SEARCH_R) {
   for (let r = 0; r <= maxR; r++) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;

@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS } from '../simulation/settings.js';
 import { MAPGEN_DEFAULTS } from '../simulation/game.js';
 import { HEIGHTMAP_ROTATIONS } from '../simulation/heightmap.js';
 
-export const NEW_GAME_KEY = 'tt.newGameSettings';
+const NEW_GAME_KEY = 'tt.newGameSettings';
 
 /** Keys of the settings that apply to new games. */
 export const NEW_GAME_SETTING_KEYS = SETTING_META.filter((m) => m.newGame).map((m) => m.key);

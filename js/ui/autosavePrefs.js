@@ -4,7 +4,7 @@
  * 0 = off, 1 / 3 / 6 / 12 allowed; default 1 (monthly, the existing behaviour).
  * Timed autosaves rotate through AUTOSAVE_SLOTS (newest overwrites the oldest); the load window lists them.
  */
-export const AUTOSAVE_KEY = 'tt.autosave';
+const AUTOSAVE_KEY = 'tt.autosave';
 export const AUTOSAVE_INTERVALS = [0, 1, 3, 6, 12];
 export const AUTOSAVE_DEFAULT = 1;
 export const AUTOSAVE_SLOTS = ['auto-1', 'auto-2', 'auto-3'];

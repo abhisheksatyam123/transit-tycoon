@@ -3,7 +3,7 @@
  * Sprites are rendered at SPRITE_SCALE resolution so they stay crisp up to 2x zoom.
  */
 
-export const SPRITE_SCALE = 2;
+const SPRITE_SCALE = 2;
 
 /**
  * @typedef {Object} Sprite

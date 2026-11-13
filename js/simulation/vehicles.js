@@ -49,7 +49,7 @@ export function modelAvailable(state, model, ownerId = null) {
 }
 
 /** True when at least one tile of the map carries tram track. Lazy scan; tram models need it. */
-export function hasTramTrack(state) {
+function hasTramTrack(state) {
   const tiles = state.map && state.map.tiles;
   if (!tiles) return false;
   for (let i = 0; i < tiles.length; i++) if (tiles[i].tram) return true;
@@ -57,7 +57,7 @@ export function hasTramTrack(state) {
 }
 
 /** True when at least one tile of the map is electrified (catenary). Lazy scan; electric models need it. */
-export function hasElectrifiedTrack(state) {
+function hasElectrifiedTrack(state) {
   const tiles = state.map && state.map.tiles;
   if (!tiles) return false;
   for (let i = 0; i < tiles.length; i++) if (tiles[i].elec) return true;
@@ -189,7 +189,7 @@ export function refundValue(cost) {
  * no separate design year, so introYear stands in for `designed`. Computed in OL's 16-bit units (percent*256),
  * then mapped back to the 0..1 fraction. Only the purchase copy is reduced; baseReliability is unchanged.
  */
-export function newVehicleReliability(model, year) {
+function newVehicleReliability(model, year) {
   let r16 = Math.round((model.reliability || 0) * 25600);
   if (model.introYear != null && model.introYear + 2 > year) {
     r16 -= Math.floor(r16 / 8);

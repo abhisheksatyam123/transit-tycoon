@@ -19,9 +19,9 @@ import { ERR, checkMoney, coordsOk, objectError } from './trackRules.js';
 import { cornerSlopeOk } from './map.js';
 import { getSetting } from './settings.js';
 
-export const MIN_HEIGHT = 0;
+const MIN_HEIGHT = 0;
 export const MAX_HEIGHT = 7;
-export const TERRAFORM_OPS = ['raise', 'lower', 'level', 'plant'];
+const TERRAFORM_OPS = ['raise', 'lower', 'level', 'plant'];
 
 /** Tree-planting modes (OpenTTD tree_gui.cpp PM_NORMAL / PM_FOREST_SM / PM_FOREST_LG). */
 export const PLANT_MODES = ['normal', 'forestSmall', 'forestLarge'];

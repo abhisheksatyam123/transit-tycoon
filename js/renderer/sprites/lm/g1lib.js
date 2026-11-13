@@ -10,7 +10,7 @@ export const C = {
 };
 
 /** Hex colour -> [r,g,b]. */
-export function rgbOf(h) { const n = parseInt(h.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgbOf(h) { const n = parseInt(h.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 
 /** New footprint sprite, drawn by fn(sprite) and finished as a canvas sprite. */
 export function build(w, h, tall, fn) {

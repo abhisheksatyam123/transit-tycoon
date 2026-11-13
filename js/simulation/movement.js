@@ -49,7 +49,7 @@ import { CROSSING_HOLD, entersBarred } from './levelCrossing.js';
 import { consistMaxSpeedTiles } from './consist.js';
 
 /** Ticks between path retries for lost vehicles. */
-export const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
+const LOST_RETRY_TICKS = 2 * TICKS_PER_DAY;
 
 /**
  * Advance one vehicle by one tick.
@@ -323,7 +323,7 @@ function passStation(ctx, v) {
 }
 
 /** A broken-down vehicle that keeps moving at reduced speed (OL Vehicle1.cpp:190-197); aircraft and UFO-frozen ones stop. */
-export function crawling(v) {
+function crawling(v) {
   return v.state === 'broken' && v.kind !== 'aircraft' && !v.breakdownFrozen;
 }
 
@@ -420,7 +420,7 @@ function move(ctx, v) {
 }
 
 /** Road vehicle entering a barred level crossing from a tile that is not one (OpenTTD road vehicles stop before a barred crossing). */
-export function crossingBarred(ctx, a, b) {
+function crossingBarred(ctx, a, b) {
   const W = ctx.state.map.width;
   return entersBarred(ctx.barred, W, a.y * W + a.x, b.y * W + b.x);
 }

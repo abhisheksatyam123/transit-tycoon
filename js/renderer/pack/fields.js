@@ -8,13 +8,13 @@
 import { blitPack } from './draw.js';
 import { HALF_H } from '../iso.js';
 
-export const SPR_FARMLAND_BARE = 4126;
-export const SPR_FARMLAND_STATE_STEP = 19;
-export const SPR_FARMLAND_HAYPACKS = 4278;
-export const SPR_HEDGE_FENCE = 4102;
+const SPR_FARMLAND_BARE = 4126;
+const SPR_FARMLAND_STATE_STEP = 19;
+const SPR_FARMLAND_HAYPACKS = 4278;
+const SPR_HEDGE_FENCE = 4102;
 
 /** Farmland sprite for a field tile at (x, y): bare soil, one of the 7 growth states, or hay packs. */
-export function fieldGroundSprite(x, y) {
+function fieldGroundSprite(x, y) {
   const h = ((x * 73856093) ^ (y * 19349663)) >>> 0;
   const k = h % 16;
   if (k === 15) return SPR_FARMLAND_HAYPACKS;

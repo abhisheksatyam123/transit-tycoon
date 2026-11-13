@@ -15,7 +15,7 @@ const CATEGORIES = ['network', 'traffic', 'vehicle', 'station', 'finance', 'town
  * @param {import('../app.js').App} app
  * @param {any} i issue
  */
-export function focusIssue(app, i) {
+function focusIssue(app, i) {
   if (typeof i.x === 'number' && typeof i.y === 'number') {
     app.renderer.overlay.selection = [{ x: i.x, y: i.y }];
     app.centerOn(i.x, i.y);

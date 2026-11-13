@@ -5,7 +5,7 @@
 import { formatMoney, CURRENCIES } from '../simulation/currency.js';
 
 /** Default-format money amount: optional minus, "$", digits with thousands commas, optional decimals. */
-export const DEFAULT_MONEY_RE = /-?\$[\d,]+(\.\d+)?/g;
+const DEFAULT_MONEY_RE = /-?\$[\d,]+(\.\d+)?/g;
 
 /**
  * Replace default-format money amounts in a text with formatMoney(value, code).

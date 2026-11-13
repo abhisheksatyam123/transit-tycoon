@@ -22,9 +22,9 @@
  */
 
 export const LEVELS = { debug: 0, info: 1, warn: 2, error: 3, off: 4 };
-export const LOG_DIR = 'logs';
-export const MAX_ENTRIES = 2000;
-export const FLUSH_MS = 1000;
+const LOG_DIR = 'logs';
+const MAX_ENTRIES = 2000;
+const FLUSH_MS = 1000;
 const MAX_OPFS_BYTES = 10 * 1024 * 1024; // 10 MiB across all log files
 
 /** @returns {string} today's file name, e.g. `tt-2026-11-08.log` */
@@ -86,7 +86,7 @@ export class MemoryStore {
  * OPFS backend: `navigator.storage.getDirectory()` -> `logs/` subdir.
  * Guarded: every method no-ops / throws only when OPFS is unavailable.
  */
-export class OpfsStore {
+class OpfsStore {
   async _dir() { return (await navigator.storage.getDirectory()).getDirectoryHandle(LOG_DIR, { create: true }); }
   async list() {
     const dir = await this._dir();
@@ -133,7 +133,7 @@ export class OpfsStore {
 }
 
 /** Pick the default store: OPFS in a secure browsing context, else memory. */
-export function defaultStore() {
+function defaultStore() {
   try {
     if (typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.getDirectory === 'function') return new OpfsStore();
   } catch { /* fall through */ }
@@ -338,7 +338,7 @@ export class FileLogger {
 export const logger = new FileLogger();
 
 /** Install the console handle (`window.__ttLog`). Safe when called early. */
-export function installConsoleHandle(target = globalThis) {
+function installConsoleHandle(target = globalThis) {
   if (!target) return logger;
   target.__ttLog = {
     enable: (level) => logger.enable(level),

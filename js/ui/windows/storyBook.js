@@ -6,7 +6,7 @@ import { el, setText, clear } from '../dom.js';
 
 const LS_KEY = 'tt-story-v1';
 
-export const STORY_PAGES = [
+const STORY_PAGES = [
   { id: 'ch1', title: 'Chapter 1: First Tracks', text: 'A small town waits for its first train. Lay tracks, build a station, and carry people and goods to grow it.', unlock: 0 },
   { id: 'ch2', title: 'Chapter 2: The Network Grows', text: 'One station is not enough. Connect a second town and watch passengers and cargo flow between them.', unlock: 1 },
   { id: 'ch3', title: 'Chapter 3: Money Matters', text: 'Routes earn money, but upkeep costs too. Balance your finances and keep the company in the black.', unlock: 2 },
@@ -14,7 +14,7 @@ export const STORY_PAGES = [
   { id: 'ch5', title: 'Chapter 5: The Grand Objective', text: 'Every tycoon has a goal. Complete the final objectives to see your name in the Hall of Fame.', unlock: 4 },
 ];
 
-export function loadStoryProgress() {
+function loadStoryProgress() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) { const p = JSON.parse(raw); if (p && typeof p === 'object') return p; }
@@ -23,10 +23,10 @@ export function loadStoryProgress() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch (_) {}
   return p;
 }
-export function saveStoryProgress(p) { try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch (_) {} }
+function saveStoryProgress(p) { try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch (_) {} }
 
 /** Number of completed goals, best-effort from the game. */
-export function completedGoalCount(app) {
+function completedGoalCount(app) {
   try {
     const snap = app?.game?.goals?.();
     if (snap && typeof snap.completed === 'number') return snap.completed;

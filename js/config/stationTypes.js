@@ -29,7 +29,7 @@ export const STATION_STYLES = {
 };
 
 /** Base catchment radius per kind (mirrors constants.js CATCHMENT). */
-export const BASE_CATCHMENT = { rail: 4, bus: 3, truck: 3 };
+const BASE_CATCHMENT = { rail: 4, bus: 3, truck: 3 };
 
 /**
  * Styles of `kind` offered in `year` (default first).

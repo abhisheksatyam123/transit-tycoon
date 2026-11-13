@@ -7,8 +7,8 @@ import { HALF_H, HALF_W } from '../iso.js';
 import { blitPack } from './draw.js';
 import { packActive, packState } from './state.js';
 
-export const SPR_TRANSMITTER = 2601;
-export const SPR_LIGHTHOUSE = 2602;
+const SPR_TRANSMITTER = 2601;
+const SPR_LIGHTHOUSE = 2602;
 
 /**
  * Draw the object on a tile. (sx,sy) is the tile centre in screen px (as drawObject receives it).

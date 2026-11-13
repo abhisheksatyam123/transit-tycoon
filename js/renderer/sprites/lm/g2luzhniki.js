@@ -15,7 +15,7 @@ function gridIn(a, b, fn) {
 }
 
 /** Build the Luzhniki sprite. */
-export function buildLuzhniki(w, h) {
+function buildLuzhniki(w, h) {
   const s = footprintPixel(w, h, H + 8);
   // pitch on the ground
   gridIn(AI, BI, (u, v) => s.dot(...s.P(u, v, 0), [63, 122, 79], 1, 0.08));

@@ -10,7 +10,7 @@ let overlayEl = null;
  * Show the centred dark-glass loading overlay.
  * @param {string} text
  */
-export function showLoading(text) {
+function showLoading(text) {
   if (!overlayEl) {
     overlayEl = document.createElement('div');
     overlayEl.id = 'loading-overlay';
@@ -24,7 +24,7 @@ export function showLoading(text) {
 }
 
 /** Hide the overlay (no-op when never shown). */
-export function hideLoading() {
+function hideLoading() {
   if (overlayEl) overlayEl.hidden = true;
 }
 

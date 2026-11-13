@@ -11,7 +11,7 @@
  * Emotions / observation / AI thoughts are not ported (single human company, no owner portrait).
  */
 
-export const EXPENDITURE_HISTORY = 4; // kExpenditureHistoryCapacity
+const EXPENDITURE_HISTORY = 4; // kExpenditureHistoryCapacity
 export const HISTORY_LENGTH = 120; // performance / value / cargo history months
 export const RATING_NAMES = ['Platelayer', 'Engineer', 'Traffic Manager', 'Transport Coordinator', 'Route Supervisor',
   'Director', 'Chief Executive', 'Chairman', 'President', 'Tycoon'];
@@ -37,7 +37,7 @@ export function ensureCompany(c) {
 }
 
 /** Integer square root (Math::Vector::fastSquareRoot). */
-export function fastSquareRoot(n) { return Math.floor(Math.sqrt(Math.max(0, n))); }
+function fastSquareRoot(n) { return Math.floor(Math.sqrt(Math.max(0, n))); }
 
 /** CompanyManager::applyPaymentToCompany expenditure bookkeeping: signed amount into this year's expenditure[type]. */
 export function noteExpenditure(c, type, signedAmount) {

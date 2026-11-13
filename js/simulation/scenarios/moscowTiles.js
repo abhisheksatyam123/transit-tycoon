@@ -95,7 +95,7 @@ export function applyBits(map, key, chars) {
 }
 
 /** Avenue class by baked road class: 1 motorway/trunk, 2 primary, 3 secondary. */
-export const AVENUE_OF = { m: 1, t: 1, p: 2, s: 3 };
+const AVENUE_OF = { m: 1, t: 1, p: 2, s: 3 };
 
 /**
  * Mark the baked motorway/trunk network as full-width 4-lane highways.
@@ -154,9 +154,9 @@ function isCandidate(map, L, i) {
 }
 
 /** Local street pitch: 4x4 house blocks with a street every 5 tiles. */
-export const LOCAL_PITCH = tl(10);
+const LOCAL_PITCH = tl(10);
 /** Minimum baked density for local streets (0 none, 1 outskirts, 2+ urban core). */
-export const LOCAL_MIN_DENSITY = 1;
+const LOCAL_MIN_DENSITY = 1;
 
 /**
  * Lay a sparse block grid on urban land (density >= LOCAL_MIN_DENSITY): one straight street

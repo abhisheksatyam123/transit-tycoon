@@ -17,7 +17,7 @@ import { LANE_OFFSET, HWY_LANE_OFFSET, roadSideSign } from '../../config/traffic
  * @param {{id:number,kind:string,color:number,dir:number,fx:number,fy:number,ang:number}} car
  * @returns {typeof car} the same car when not on net tiles, else a new pose object
  */
-export function smoothCarPose(car) {
+function smoothCarPose(car) {
   const map = getPoseMap();
   if (!map || car.ang === undefined || !poseCovered(map, 'road', car.fx, car.fy)) return car;
   const p = { x: 0, y: 0, angle: 0, w: 1 };
@@ -124,7 +124,7 @@ export function drawCar(ctx, car, sx, sy) {
  * @param {number} load
  * @returns {string}
  */
-export function heatColor(load) {
+function heatColor(load) {
   if (load < 0.5) return 'rgb(34,197,94)';
   if (load < 1.5) return 'rgb(234,179,8)';
   return 'rgb(239,68,68)';

@@ -14,7 +14,7 @@
  * The untyped default bridge (tile.bridgeType absent) is the old single bridge: no speed cap, cost x1.
  */
 
-export const UNLIMITED = Infinity;
+const UNLIMITED = Infinity;
 
 /** Ordered as in the OTTD table. `id` is what tiles store in tile.bridgeType. */
 export const BRIDGE_TYPES = [

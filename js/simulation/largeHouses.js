@@ -27,7 +27,7 @@ export const LARGE_GROUPS = [
 ];
 
 /** Chance that a successful 1x1 house attempt tries a multi-tile house instead. */
-export const LARGE_HOUSE_CHANCE = 0.2;
+const LARGE_HOUSE_CHANCE = 0.2;
 
 /** True when the largeHouses setting is on (every climate; each group names the climates it may be built in). */
 export function largeHousesEnabled(state) {
@@ -38,7 +38,7 @@ export function largeHousesEnabled(state) {
  * Climate tag of a footprint at height z (see LARGE_GROUPS.climates): sub-tropic games are 'tropic', sub-arctic games
  * are 'arctic-above' at or above the snow line (snow density >= 0, as drawOgfxBuilding) and 'arctic-below' otherwise.
  */
-export function largeClimateTag(state, z) {
+function largeClimateTag(state, z) {
   if (isToyland(state)) return 'toyland'; // no toyland large-house groups yet: 1x1 houses only
   if (isTropic(state)) return 'tropic';
   if (isArctic(state)) return snowDensity(z, snowLineOf(state)) >= 0 ? 'arctic-above' : 'arctic-below';

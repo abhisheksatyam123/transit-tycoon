@@ -17,7 +17,7 @@ const HULL = { ship_oiltanker: '#1f2937', ship_ferry: '#f8fafc', ship_cargo: '#7
  * @param {number} s +1 / -1
  * @param {string} modelId
  */
-export function drawShip(ctx, axis, s, modelId, colour) {
+function drawShip(ctx, axis, s, modelId, colour) {
   const L = 0.36, W = 0.11;
   const hull = colour || HULL[modelId] || '#7c2d12'; // colour: player colour scheme / group colour (hull)
   const [a0, a1] = axis === 'u' ? [-L, L] : [-L, L];

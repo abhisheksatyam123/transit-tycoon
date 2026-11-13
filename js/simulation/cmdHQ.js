@@ -17,7 +17,7 @@ import { notify } from './news.js';
 /** Footprint size of a headquarters (tiles). */
 export const HQ_SIZE = 2;
 /** Highest HQ level (OpenTTD/OpenLoco: 0..4). */
-export const HQ_MAX_LEVEL = 4;
+const HQ_MAX_LEVEL = 4;
 
 export const HQ_ERR = {
   bounds: 'Site is outside the map',

@@ -12,7 +12,7 @@ const DIRS_BY_BIT = { 1: DIRS[0], 2: DIRS[1], 4: DIRS[2], 8: DIRS[3] };
 
 const BITS = [1, 2, 4, 8];
 /** Max path length (edges) between the ends of a road edge that closes a cycle we drop. */
-export const ROAD_SMALL_CYCLE = tl(8);
+const ROAD_SMALL_CYCLE = tl(8);
 /** Max dead-end spur length (tiles) pruned. */
 const ALWAYS_KEEP = 1e6;
 /** R10a: longest dead-end spur (tiles) pruned, iterated. */
@@ -95,7 +95,7 @@ function makeDsu(n) {
 }
 
 /** Number of surface road edges that close a cycle of length <= ROAD_SMALL_CYCLE (diagnostic). */
-export function countSmallRoadCycles(map) {
+function countSmallRoadCycles(map) {
   const adj = new Map();
   const add = (u, v) => { if (!adj.has(u)) adj.set(u, []); adj.get(u).push(v); };
   const edges = [];
@@ -198,7 +198,7 @@ function tryShift(map, a, ab, da, before) {
  * Deterministic scan; repeats while progress is made (bounded passes).
  * @returns {number} jogs removed
  */
-export function straightenJogs(map) {
+function straightenJogs(map) {
   let done = 0;
   for (let pass = 0; pass < 3; pass++) {
     let changed = 0;

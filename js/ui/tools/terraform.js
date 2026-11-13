@@ -8,7 +8,7 @@ import { costText } from '../editorCost.js';
 import { rectTiles } from './geometry.js';
 import { plantOptions, PLANT_MODE_LABEL, treeTypeLabels } from './plantOptions.js';
 
-export const TERRA_MODES = ['raise', 'lower', 'level'];
+const TERRA_MODES = ['raise', 'lower', 'level'];
 const MODE_LABEL = { raise: 'Raise', lower: 'Lower', level: 'Level' };
 
 /**

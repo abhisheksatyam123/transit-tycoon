@@ -31,7 +31,7 @@ function clock(s, u, v, z, r = 3) {
  * @param {{m:number, wing:number, wD:number, wH:number, hw:number, hd:number, tiers:Array<[number,number]>,
  *   spireCol:string, star:boolean, steps?:boolean, corners?:boolean, cornerH?:number, body?:string, clockOn?:boolean}} sp
  */
-export function buildStalin(w, h, sp) {
+function buildStalin(w, h, sp) {
   const top = heightPx(sp.m);
   const s = footprintPixel(w, h, top);
   const zc = (f) => Math.round(top * f);
@@ -71,7 +71,7 @@ export function buildStalin(w, h, sp) {
 }
 
 /** Parameters per Seven Sisters building (real heights in metres, shapes from photos). */
-export const SEVEN_SISTERS = {
+const SEVEN_SISTERS = {
   ukraina: { m: 206, wing: 0.6, wD: 0.36, wH: 0.45, hw: 0.32, hd: 0.26, tiers: [[1, 0.6], [0.66, 0.82], [0.4, 0.92]],
     spireCol: PX.copper, star: true, corners: true, cornerH: 0.7 },
   kotelnicheskaya: { m: 176, wing: 0.86, wD: 0.3, wH: 0.4, hw: 0.2, hd: 0.2, tiers: [[1, 0.6], [0.7, 0.88]],

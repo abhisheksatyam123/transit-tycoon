@@ -8,7 +8,7 @@ import { routeRail, layRailPath, nearestStraight, placeStationTile, stationAxis 
 import { spurDepot } from './moscowLand.js';
 
 /** Metro lines built at most (ring lines first, then longest): all baked lines. */
-export const MAX_METRO_LINES = 17;
+const MAX_METRO_LINES = 17;
 /** Line-index alphabet of the baked metroLine layer (must match tools/moscow/layers.js IDX). */
 const LINE_IDX = '0123456789abcdefghijklmnopqrstuvwxyz';
 
@@ -26,18 +26,18 @@ export function metroGeometry(L, bakedLines, line) {
   return { metro: L.metro, metroLine: L.metroLine, ch: LINE_IDX[li] };
 }
 /** Passenger trains per service (a service is a stop window served back and forth). */
-export const TRAINS_PER_SERVICE = 2;
+const TRAINS_PER_SERVICE = 2;
 /** Stops per service window (orders stay under the MAX_ORDERS cap). */
-export const WINDOW = 8;
+const WINDOW = 8;
 /** Passenger catchment radius (tiles) of metro stations: deep-metro stations draw from far away. */
-export const METRO_CATCHMENT = tl(6);
+const METRO_CATCHMENT = tl(6);
 
 /**
  * Split a line's stops into services: overlapping windows of WINDOW stops. Ring lines use the
  * closed cycle; open lines are served back and forth inside each window.
  * @returns {object[][]} order lists
  */
-export function serviceSequences(orders, ring) {
+function serviceSequences(orders, ring) {
   const n = orders.length;
   if (n <= WINDOW) return [ring ? orders : orders.concat(orders.slice(1, -1).reverse())];
   const out = [];

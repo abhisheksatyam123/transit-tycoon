@@ -43,7 +43,7 @@ const DY = { 1: -1, 2: 0, 4: 1, 8: 0 };
  * @param {any} tile
  * @returns {number}
  */
-export function roadClassOf(tile) {
+function roadClassOf(tile) {
   const a = tile.avenue | 0;
   return a === 1 || a === 2 || a === 3 ? a : 0;
 }
@@ -57,7 +57,7 @@ export function roadClassOf(tile) {
  * @param {number} mask road mask of the tile (a 2-bit corner)
  * @returns {boolean}
  */
-export function isStaircaseCorner(map, x, y, mask) {
+function isStaircaseCorner(map, x, y, mask) {
   if (CORNER[mask] === undefined) return false;
   for (const b of BITS) {
     if (!(mask & b)) continue;
@@ -136,7 +136,7 @@ const TRAM_EDGE = { 1: [0, 1], 2: [1, 2], 4: [2, 3], 8: [3, 0] };
  * @param {number} sy
  * @param {number[]} [c] corner heights [hN,hE,hS,hW] (levels)
  */
-export function drawTramRails(ctx, tile, sx, sy, c = [0, 0, 0, 0]) {
+function drawTramRails(ctx, tile, sx, sy, c = [0, 0, 0, 0]) {
   const hc = (c[0] + c[1] + c[2] + c[3]) / 4 * HEIGHT_STEP;
   ctx.save();
   ctx.strokeStyle = '#3a2f28';

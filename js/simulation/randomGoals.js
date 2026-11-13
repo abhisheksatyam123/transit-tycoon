@@ -40,7 +40,7 @@ export function freightTotal(state) {
 }
 
 /** Create the record (idempotent). Random worlds only: scenario games use state.goals. */
-export function ensureRandomGoals(state) {
+function ensureRandomGoals(state) {
   if (state.scenario) return null;
   state.rgoals ??= { index: 0, done: [] };
   return state.rgoals;

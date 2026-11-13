@@ -94,7 +94,7 @@ export function placeExtraIndustries(state, rng) {
  * 'extraTown': a random site within EXTRA_TOWN_RADIUS of a town; 'extraRural': anywhere. extraCount per map.
  * Uses game rng only when extraIndustries is on (called only from placeExtraIndustries).
  */
-export function placeChainIndustries(state, rng) {
+function placeChainIndustries(state, rng) {
   const { map } = state;
   for (const type of EXTRA_INDUSTRY_TYPES) {
     if (type.placement !== 'extraTown' && type.placement !== 'extraRural') continue;

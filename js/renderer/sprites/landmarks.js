@@ -78,7 +78,7 @@ export function drawLandmark(ctx, b, sx, sy) {
 }
 
 /** Pyramidal roof on a square base (tile-space centre u,v; half-size; base z0; apex height rh). */
-export function pyramid(ctx, u, v, half, z0, rh, color) {
+function pyramid(ctx, u, v, half, z0, rh, color) {
   const A = [u - half, v - half], B = [u + half, v - half], C = [u + half, v + half], D = [u - half, v + half];
   const ap = [u, v, z0 + rh];
   const f = (p, q) => [p[0], p[1], z0, q[0], q[1], z0, ap[0], ap[1], ap[2]];
@@ -183,7 +183,7 @@ const SPECS = {
  * @param {number} h
  * @returns {import('./canvas.js').Sprite}
  */
-export function landmarkSprite(id, w, h) {
+function landmarkSprite(id, w, h) {
   return cache.get(`lm:${id}:${w}x${h}`, () => {
     const px = PIXEL_LANDMARKS.get(id);
     if (px) return px(w, h);

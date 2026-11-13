@@ -69,7 +69,7 @@ export function planBridges(map, pts, maxLen = MAX_BRIDGE_LENGTH) {
  * their surface terrain.
  * @returns {{ok:true,inner:Set<number>,portals:Set<number>}|{ok:false,error:string}}
  */
-export function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH, opts = {}) {
+function planTunnel(map, pts, layer = 'rail', maxLen = MAX_TUNNEL_LENGTH, opts = {}) {
   const other = layer === 'rail' ? 'road' : 'rail';
   const n = pts.length;
   if (n < 3) return { ok: false, error: 'Tunnel needs at least one tile between the portals' };

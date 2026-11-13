@@ -7,9 +7,9 @@ import { inBounds } from '../map.js';
 import { spurDepot } from './moscowLand.js';
 
 /** Bus lines to create. */
-export const BUS_LINES = 12;
+const BUS_LINES = 12;
 /** Buses per line. */
-export const BUSES_PER_LINE = 2;
+const BUSES_PER_LINE = 2;
 
 /** Straight road tile inside a box around (cx,cy), nearest first, or null; major=null accepts any road. */
 function straightStop(state, major, cx, cy, r) {

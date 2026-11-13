@@ -4,7 +4,7 @@
  * Score = the company performance index (TT's performance rating, 0..1000); ties go to company value.
  * Recorded once per game (in-memory guard, never in the save) when the objective is won/lost or the company goes bankrupt.
  */
-export const HIGHSCORE_KEY = 'tt.highscores';
+const HIGHSCORE_KEY = 'tt.highscores';
 export const HIGHSCORE_MAX = 10;
 
 /** Scenario key for the table: the scenario id, or 'random' for a generated map. */
@@ -75,7 +75,7 @@ export function loadHighScores() {
 }
 
 /** Record a finished game for its scenario. Returns the rank (0 = not in top 10). */
-export function recordHighScore(state, reason, now = Date.now()) {
+function recordHighScore(state, reason, now = Date.now()) {
   const all = loadHighScores();
   const key = scenarioKey(state);
   const r = insertHighScore(all[key], makeHighScoreEntry(state, reason, now));

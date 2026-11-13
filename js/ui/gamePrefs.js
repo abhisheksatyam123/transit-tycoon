@@ -2,7 +2,7 @@
  * Browser-only game preferences (localStorage 'tt.gamePrefs'), not in the save.
  * pauseOnNewGame (OpenTTD pause_on_newgame): a new game starts paused. Default off.
  */
-export const GAME_PREFS_KEY = 'tt.gamePrefs';
+const GAME_PREFS_KEY = 'tt.gamePrefs';
 
 /** @param {string|null|undefined} raw @returns {{pauseOnNewGame:boolean}} */
 export function parseGamePrefs(raw) {

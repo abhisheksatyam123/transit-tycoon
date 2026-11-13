@@ -20,7 +20,7 @@ const cache = new SpriteCache();
  * @param {boolean} [chamfer]
  * @returns {number[][][]} array of polylines; each polyline = [[u,v],...]
  */
-export function trackPaths(mask, chamfer = false) {
+function trackPaths(mask, chamfer = false) {
   const bits = BITS.filter((b) => mask & b);
   if (bits.length === 0) return [];
   if (bits.length === 1) {

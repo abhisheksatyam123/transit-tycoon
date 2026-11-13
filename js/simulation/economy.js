@@ -8,7 +8,7 @@ import { getSetting } from './settings.js';
 import { effectiveMaxLoan } from './prices.js';
 
 /** Ledger categories. */
-export const LEDGER_TYPES = ['construction', 'vehicles', 'running', 'income', 'interest', 'property'];
+const LEDGER_TYPES = ['construction', 'vehicles', 'running', 'income', 'interest', 'property'];
 
 /** Revenue-by-vehicle-type buckets shown in the finance window (D7 Phase 2, sparse). */
 export const REVENUE_KINDS = ['train', 'tram', 'bus', 'truck', 'ship', 'aircraft'];

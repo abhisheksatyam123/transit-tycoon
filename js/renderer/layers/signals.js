@@ -69,7 +69,7 @@ export function presignalSpriteKey(type, dir, red) {
  * sprite). Returns false when the pack is off, the sprite is missing, or the type is a
  * pre-signal (entry/exit/combo: extra set 5088+, not in the base pack).
  */
-export function drawSignalSprite(ctx, sx, sy, red = false, type = 'block', dir = 0) {
+function drawSignalSprite(ctx, sx, sy, red = false, type = 'block', dir = 0) {
   if (type === 'entry' || type === 'exit' || type === 'combo') {
     // pre-signals live in the EXTRA pack (presignal_{entry,exit,combo}.0..15), not base. Frame = dir axis pair + red/green.
     if (!packActive() || !packState.extra) return false;
@@ -169,7 +169,7 @@ export function signalPostSide(setting, roadSide) {
 export const signalPostSideSign = { value: 1 };
 
 /** Small triangle on the track beside the signal, pointing the way trains may pass (dir bit). */
-export function drawDirArrow(ctx, sx, sy, dir, color) {
+function drawDirArrow(ctx, sx, sy, dir, color) {
   const v = DIR_SCREEN[dir];
   if (!v) return;
   const ux = v[0] * HALF_H * 0.5, uy = v[1] * HALF_H * 0.5;

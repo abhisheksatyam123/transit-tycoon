@@ -25,7 +25,7 @@ import { getSetting } from './settings.js';
 /** OpenTTD RV_OVERTAKE_TIMEOUT (35), in TT ticks. */
 export const OVERTAKE_TIMEOUT_TICKS = 35;
 /** Tiles of opposite lane (from the vehicle's own tile onwards) that must be free to start an overtake. */
-export const OVERTAKE_WINDOW_TILES = 3;
+const OVERTAKE_WINDOW_TILES = 3;
 
 /** True when the roadOvertaking setting is on. */
 export function overtakeEnabled(state) {
@@ -87,7 +87,7 @@ export function tryOvertake(ctx, v, u) {
 }
 
 /** End an overtake: drop the lazy fields. */
-export function clearOvertake(v) {
+function clearOvertake(v) {
   delete v.overtakeId;
   delete v.overtakeCtr;
 }
@@ -106,7 +106,7 @@ export function overtakeTick(ctx, v) {
 }
 
 /** OpenTTD RoadVehicle::UpdateSpeed: overtaking acceleration 512 vs 256 (roadveh_cmd.cpp:751). */
-export const OVERTAKE_ACCEL_MULT = 2;
+const OVERTAKE_ACCEL_MULT = 2;
 
 /**
  * Speed of v after a land speed step while overtaking: the acceleration delta is doubled (OTTD 512 vs 256),

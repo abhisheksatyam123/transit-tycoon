@@ -6,11 +6,11 @@ import { makeSprite } from './canvas.js';
 import { obox, shadow, orient, lamp, wheels } from './iso3d.js';
 import { shade } from '../palette.js';
 
-export const CAR_TYPES = ['hatch', 'sedan', 'lada', 'suv', 'taxi', 'van', 'truck', 'minibus', 'police', 'ambulance'];
+const CAR_TYPES = ['hatch', 'sedan', 'lada', 'suv', 'taxi', 'van', 'truck', 'minibus', 'police', 'ambulance'];
 /** Cumulative weights out of 100 for CAR_TYPES. */
 const CUM = [18, 44, 58, 68, 77, 85, 91, 95, 98, 100];
 /** Realistic body palette; index 16 = taxi yellow. */
-export const CAR_PALETTE = ['#e8e8ea', '#f5f5f4', '#c4c8d0', '#9aa0aa', '#5b6068', '#1c1d21', '#1f3a66', '#23477a', '#b3261e', '#7a1f1f', '#2f6b3a', '#cdb98f', '#a8946a', '#3b5b8c', '#d9c9a0', '#c2410c', '#f5c400'];
+const CAR_PALETTE = ['#e8e8ea', '#f5f5f4', '#c4c8d0', '#9aa0aa', '#5b6068', '#1c1d21', '#1f3a66', '#23477a', '#b3261e', '#7a1f1f', '#2f6b3a', '#cdb98f', '#a8946a', '#3b5b8c', '#d9c9a0', '#c2410c', '#f5c400'];
 const WHITE = 0, YELLOW = 16;
 const GLASS = '#22303f';
 const SIZE = 40, AX = 20, AY = 28;
@@ -30,7 +30,7 @@ const SPEC = {
 };
 
 /** Mix an integer into a well-distributed non-negative int. */
-export function mixHash(n) {
+function mixHash(n) {
   let h = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
   return (h ^ (h >>> 16)) >>> 0;

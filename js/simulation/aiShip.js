@@ -22,15 +22,15 @@ import { pushNews } from './news.js';
 import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 
 /** Water route distance window (tiles, dock to dock along the water). */
-export const SHIP_MIN_DIST = 15;
-export const SHIP_MAX_DIST = 80;
+const SHIP_MIN_DIST = 15;
+const SHIP_MAX_DIST = 80;
 /** Producer must make at least this much per month. */
 const MIN_PRODUCTION = 40;
 /** Ship routes per rival, and ships per route. */
 export const MAX_SHIP_ROUTES = 2;
-export const MAX_SHIPS = 2;
+const MAX_SHIPS = 2;
 /** Cargo waiting at the source dock before one more ship is bought. */
-export const WAITING_FOR_SHIP = 60;
+const WAITING_FOR_SHIP = 60;
 /** Dock spots kept per end; the water search tries every source/destination spot pair. */
 const SPOTS_PER_END = 6;
 /** Candidate industry pairs tried per month (each costs a few path searches). */
@@ -49,7 +49,7 @@ export function shipRoutesOf(r) {
 }
 
 /** Cash a rival needs before a ship route: twice the estimated cost (2 docks, a depot, one ship). */
-export function shipRouteBudget(ship) {
+function shipRouteBudget(ship) {
   return 2 * (2 * SHIP_COSTS.dock + SHIP_COSTS.depot + ship.cost);
 }
 

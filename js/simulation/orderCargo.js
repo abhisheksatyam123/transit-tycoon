@@ -17,7 +17,7 @@ export function vehicleCargos(v) {
 }
 
 /** Cargo ids a station's catchment supplies (houses -> PASS/MAIL, producing industries). */
-export function stationSupplies(state, st) {
+function stationSupplies(state, st) {
   const out = new Set();
   if (!st) return out;
   const w = state.map.width;
@@ -47,7 +47,7 @@ export function unservedCargos(state, v, st) {
 }
 
 /** Display name of a cargo id. */
-export function cargoLabel(id) {
+function cargoLabel(id) {
   return (CARGO_BY_ID[id] && CARGO_BY_ID[id].name) || id;
 }
 

@@ -15,7 +15,7 @@ function isHeliModel(id) {
 }
 
 /** World px of lift at full altitude (alt = 1). */
-export const ALT_PX = 60;
+const ALT_PX = 60;
 
 /** @type {Map<number, {x:number,y:number,h:number}>} last screen-independent position per vehicle */
 const prev = new Map();
@@ -26,7 +26,7 @@ const prev = new Map();
  * @param {any} s segment (x,y tile floats, dir bit, _vid)
  * @returns {number}
  */
-export function airHeading(s) {
+function airHeading(s) {
   const p = prev.get(s._vid);
   let h = null;
   if (p) {

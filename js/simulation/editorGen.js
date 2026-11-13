@@ -13,7 +13,7 @@ import { recomputeAllAcceptance } from './stations.js';
 import { TOWN_MIN_DIST } from './cmdFound.js';
 
 /** Town size choices of the editor window (layout size 1..3). */
-export const TOWN_SIZES = Object.freeze({ small: 1, medium: 2, large: 3 });
+const TOWN_SIZES = Object.freeze({ small: 1, medium: 2, large: 3 });
 
 const NOT_EDITOR = { ok: false, error: 'not in the scenario editor' };
 

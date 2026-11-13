@@ -127,7 +127,7 @@ function confirmRemove(app, question, onYes) {
  * Leave editor mode: the company starts with normal money, the calendar moves to the start year, time runs.
  * @param {import('../app.js').App} app
  */
-export function playEditor(app) {
+function playEditor(app) {
   const r = app.game.playScenario();
   if (!r.ok) { app.toast(r.error, 'error'); return; }
   app.wm.closeAll();

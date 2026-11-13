@@ -37,7 +37,7 @@ export function el(tag, props, ...children) {
  * @param {Node} node
  * @param {Array} children
  */
-export function appendChildren(node, children) {
+function appendChildren(node, children) {
   for (const c of children) {
     if (c === null || c === undefined || c === false) continue;
     if (Array.isArray(c)) appendChildren(node, c);

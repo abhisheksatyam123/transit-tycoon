@@ -41,7 +41,7 @@ export function distantJoinRefused(state, opts, tiles) {
  * opts.joinStationId. Only player builds are checked; the chosen station must exist and stay within the spread limit. Returns null when no join was requested,
  * the station record when valid, or {error} when refused.
  */
-export function joinTarget(state, opts, kind, tiles) {
+function joinTarget(state, opts, kind, tiles) {
   if (!opts || opts.joinStationId == null) return null;
   const st = findStation(state, opts.joinStationId);
   if (!st) return { error: 'No such station to join' };

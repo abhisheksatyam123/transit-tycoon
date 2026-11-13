@@ -22,13 +22,13 @@ import { notify } from '../news.js';
 import { CARGO_BY_ID } from '../../config/cargos.js';
 import { advertBonus } from '../townAuthority.js';
 
-export const MIN_CARGO_RATING = 0;
-export const MAX_CARGO_RATING = 200;
-export const INITIAL_CARGO_RATING = 150;
+const MIN_CARGO_RATING = 0;
+const MAX_CARGO_RATING = 200;
+const INITIAL_CARGO_RATING = 150;
 const MAX_SPEED_MPH = 250;
 const KMH_TO_MPH = 0.621371;
 /** VehicleHead.cpp typeAgeMap {train 0, bus 5, truck 3, tram 2, aircraft 0, ship 0}. */
-export const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2, aircraft: 0, ship: 0 };
+const TYPE_AGE = { rail: 0, bus: 5, truck: 3, tram: 2, aircraft: 0, ship: 0 };
 
 /**
  * Station::calculateCargoRating. `c` = { age, quantity, vehicleSpeed(mph), vehicleAge, npc? }.

@@ -13,8 +13,8 @@ import { airportBlockedByDisaster } from './disasters.js';
 import { airLine } from './aircraft.js';
 import { HELI_PAD_TYPES, ftaTileOccupied } from './airportGround.js';
 
-export const RUNWAY_TICKS = 6;
-export const HOLD_RADIUS = 5;
+const RUNWAY_TICKS = 6;
+const HOLD_RADIUS = 5;
 /** OpenTTD counts per type: terminals (TERMn) and helipads (HELIPADn). */
 export const AIRPORT_CAPACITY = {
   city: { terminals: 3, helipads: 0 },
@@ -28,13 +28,13 @@ export const AIRPORT_CAPACITY = {
 };
 
 /** Slot pool a helicopter uses at a type: its helipads when it has any, else the terminals (planes: terminals). */
-export function slotPool(typeId, heli) {
+function slotPool(typeId, heli) {
   const c = AIRPORT_CAPACITY[typeId] || AIRPORT_CAPACITY.city;
   return heli && c.helipads ? 'pad' : 'term';
 }
 
 /** Capacity of an airport type for a helicopter or plane. */
-export function airCapacity(typeId, heli) {
+function airCapacity(typeId, heli) {
   const c = AIRPORT_CAPACITY[typeId] || AIRPORT_CAPACITY.city;
   return slotPool(typeId, heli) === 'pad' ? c.helipads : c.terminals;
 }

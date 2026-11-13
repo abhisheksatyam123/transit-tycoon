@@ -11,7 +11,7 @@ import { transferRival } from './aiCompanies.js';
 /** OpenTTD MoneyCheat step: the cheat window's money button adds 10,000,000 (cheat_gui.cpp _money_cheat_amount). */
 export const MONEY_CHEAT_AMOUNT = 10000000;
 /** OpenTTD CalendarTime::MIN_YEAR / MAX_YEAR (timer_game_common.h): clamp range for the year cheat. */
-export const CHEAT_MIN_YEAR = 0;
+const CHEAT_MIN_YEAR = 0;
 export const CHEAT_MAX_YEAR = 5000000;
 
 /** Mark that a cheat was used (lazy field). */

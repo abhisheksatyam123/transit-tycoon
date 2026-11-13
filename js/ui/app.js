@@ -26,7 +26,7 @@ import { unlockAutosaveSlot } from './autosaveGuard.js';
 
 /** Game commands that change orders, vehicles, stations or track: they mark the Issues scan stale. */
 /** Speed while Tab is held (OpenTTD fast forward = the fastest speed). */
-export const FAST_FORWARD_SPEED = 4;
+const FAST_FORWARD_SPEED = 4;
 export const ISSUE_COMMANDS = ['setIndustryProduction', 'buildRail', 'buildTunnel', 'buildRoadTunnel', 'buildRoadBridge', 'buildLandBridge', 'buildTram', 'buildRoad',
   'buildRailPath', 'buildRoadPath', 'demolish', 'convertRail', 'convertRoad', 'buildSignal', 'buildSignalRun', 'toggleOneWay', 'cycleSignalType', 'flipSignal',
   'removeSignal', 'convertSignal', 'buildRailStation', 'buildRoadStop', 'buildDepot', 'buildAirport', 'buildDock', 'buildShipDepot', 'buildBuoy', 'buildRailWaypoint', 'buildRoadWaypoint',
@@ -41,7 +41,7 @@ export const ISSUE_COMMANDS = ['setIndustryProduction', 'buildRail', 'buildTunne
  * the Issues scan stale after a successful command. Results are passed through unchanged.
  * @param {any} game
  */
-export function watchIssueCommands(game) {
+function watchIssueCommands(game) {
   for (const name of ISSUE_COMMANDS) {
     const fn = game[name];
     if (typeof fn !== 'function' || fn.__issuesWrapped) continue;

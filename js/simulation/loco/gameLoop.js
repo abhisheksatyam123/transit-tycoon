@@ -28,7 +28,7 @@ import * as CargoDist from '../cargodist.js';
 import { dailyDisasters, tickDisasters } from '../disasters.js'; // disasters setting (off by default)
 
 /** Date.cpp kIncrement: a 16-bit counter that wraps once per day (~96.09 ticks). */
-export const DAY_INCREMENT = 682;
+const DAY_INCREMENT = 682;
 /** Ticks per game day (65536 / 682), for rates expressed per day. */
 
 /**
@@ -36,7 +36,7 @@ export const DAY_INCREMENT = 682;
  * @param {object} s game state
  * @returns {boolean}
  */
-export function updateDayCounter(s) {
+function updateDayCounter(s) {
   const c = (s.dayCounter || 0) + DAY_INCREMENT;
   s.dayCounter = c & 0xffff;
   return c > 0xffff;

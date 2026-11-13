@@ -8,7 +8,7 @@ import { shade } from '../palette.js';
 
 const GLASS = '#1e2a38';
 /** Mosgortrans-style liveries: [body, stripe]. */
-export const BUS_LIVERIES = [['#f8fafc', '#1d4ed8'], ['#f8fafc', '#15803d'], ['#fde047', '#1f2937'], ['#e2e8f0', '#dc2626']];
+const BUS_LIVERIES = [['#f8fafc', '#1d4ed8'], ['#f8fafc', '#15803d'], ['#fde047', '#1f2937'], ['#e2e8f0', '#dc2626']];
 
 /** Window strip along the sides of a bus body. */
 function windowStrip(ctx, axis, a0, a1, z0, z1, w) {

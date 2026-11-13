@@ -13,14 +13,14 @@ import { appendOrder } from '../tools/addOrder.js';
 import { isWaypointRecord } from '../../simulation/cmdRename.js';
 
 /** Sort keys offered in the dropdown / header buttons. */
-export const STATION_SORTS = [
+const STATION_SORTS = [
   { key: 'name', label: 'Name' },
   { key: 'waiting', label: 'Waiting' },
   { key: 'rating', label: 'Max rating' },
 ];
 
 /** Facility filters: [value, label]. 'all' shows every station. */
-export const STATION_FILTERS = [
+const STATION_FILTERS = [
   ['all', 'All'], ['rail', 'Rail'], ['bus', 'Bus'], ['truck', 'Truck'], ['airport', 'Airport'],
 ];
 

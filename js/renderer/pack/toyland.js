@@ -281,7 +281,7 @@ export function toylandIndustryLayout(typeId, w, h, id) {
 }
 
 /** Pavement ground for a toyland industry footprint tile the OpenTTD layout leaves empty (OpenGFX toyland 4675). */
-export const SPR_TOY_HOLE = 4675;
+const SPR_TOY_HOLE = 4675;
 
 /**
  * Draw one toyland industry footprint tile from the TOYLAND pack (OpenGFX ids 4677+ and the base industry ids the

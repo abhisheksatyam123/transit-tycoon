@@ -24,17 +24,17 @@ import { pushNews } from './news.js';
 import { beginRivalAttempt, rollbackRivalAttempt } from './rivalAttempt.js';
 
 /** Rival signalling: block signals on the line every this many track tiles (OTTD signal density autofill). */
-export const RIVAL_SIGNAL_SPACING = 4;
+const RIVAL_SIGNAL_SPACING = 4;
 /** Rail route distance window (manhattan tiles, industry centre to centre). */
-export const RAIL_MIN_DIST = 20;
-export const RAIL_MAX_DIST = 60;
+const RAIL_MIN_DIST = 20;
+const RAIL_MAX_DIST = 60;
 /** Producer must make at least this much per month. */
 const MIN_PRODUCTION = 40;
 /** Rail routes per rival, and trains per route. */
 export const MAX_RAIL_ROUTES = 2;
-export const MAX_RAIL_TRAINS = 2;
+const MAX_RAIL_TRAINS = 2;
 /** Cargo waiting at the source before one more train is bought. */
-export const WAITING_FOR_TRAIN = 60;
+const WAITING_FOR_TRAIN = 60;
 /** Wagons on a new train. */
 const RAIL_WAGONS = 3;
 /** Station length (tiles) on each end. */
@@ -256,7 +256,7 @@ export function stationSpot(state, ind, toward) {
  * exitB, exitB]. The first and last steps run straight out of / into the stations, so the line connects.
  * @returns {{x,y}[]|null}
  */
-export function planTrack(state, sa, sb) {
+function planTrack(state, sa, sb) {
   const map = state.map;
   const oa = sa.out, ob = sb.out;
   const P0 = { x: sa.end.x + oa.dx, y: sa.end.y + oa.dy };

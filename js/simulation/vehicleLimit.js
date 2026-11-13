@@ -5,7 +5,7 @@
 import { getSetting } from './settings.js';
 
 /** vehicle kind (state.vehicles[].kind) -> setting key */
-export const VEHICLE_LIMIT_KEY = { train: 'maxTrains', road: 'maxRoadVeh', aircraft: 'maxAircraft', ship: 'maxShips' };
+const VEHICLE_LIMIT_KEY = { train: 'maxTrains', road: 'maxRoadVeh', aircraft: 'maxAircraft', ship: 'maxShips' };
 
 /** Vehicle kind of a purchasable model (same mapping as createVehicle). */
 export function vehicleKindOfModel(model) {
