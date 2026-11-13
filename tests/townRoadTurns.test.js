@@ -1,5 +1,6 @@
 import { test, expect, describe } from 'bun:test';
 import { findRoadPath } from '../js/simulation/townRoads.js';
+import { Game } from '../js/simulation/game.js';
 
 // minimal open-grass map: only the fields findRoadPath / stepCost / passable read
 function grassMap(W, H) {
@@ -79,4 +80,15 @@ describe('findRoadPath turns flag (D22)', () => {
     }
     expect(key(path[path.length - 1])).toBe(key({ x: 6, y: 6 }));
   });
+});
+
+describe('townRoadTurns at generation', () => {
+  test('the opt-in is applied before world generation (more road tiles, same towns)', () => {
+    const off = Game.create({ seed: 3, width: 96, height: 96, townCount: 8, settings: { townRoadTurns: false } });
+    const on = Game.create({ seed: 3, width: 96, height: 96, townCount: 8, settings: { townRoadTurns: true } });
+    expect(on.state.settings.townRoadTurns).toBe(true);
+    const roads = (g) => g.state.map.tiles.filter((t) => t.road).length;
+    expect(on.state.towns.length).toBe(off.state.towns.length);
+    expect(roads(on)).toBeGreaterThan(roads(off));
+  }, 60000);
 });
