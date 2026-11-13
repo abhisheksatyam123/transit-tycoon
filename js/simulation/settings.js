@@ -303,6 +303,8 @@ export const DEFAULT_SETTINGS = {
   roadStopOnTownRoad: true,
   /** OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): road stops may be built on roads owned by another company. Off = refused (station_cmd.cpp). TT default true = current. */
   roadStopOnCompetitorRoad: true,
+  /** D9 terminal road stops (opt-in, default off; spec d9-terminal-road-stops-spec.md). On = buildRoadStop called with opts.terminal accepts a bus/truck stop at a single road end or on clear land beside a road that points back; the stop keeps one entrance bit. Off = terminal option ignored (drive-through stops only). */
+  terminalRoadStops: false,
   /** OpenTTD construction.train_signal_side (settings_type.h TrainSignalSide, render-only): side of the track the signal post stands on. 'right' (default) = TT's historic fixed right side; 'left'; 'driving' = follow roadSide (OpenTTD's default RoadVehicleDrivingSide). */
   trainSignalSide: 'right',
   /** OpenTTD construction.build_on_slopes (world_settings.ini, def true): rail and road may be built on sloped tiles. true = TT's current behaviour (no slope check). false = buildLine refuses a tile whose four corners are not level. */
