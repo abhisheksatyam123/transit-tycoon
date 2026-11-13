@@ -18,6 +18,9 @@ const DEFAULT_MAPGEN = {
   // F3 opt-in heightmap rotation, default none (no effect on generated terrain or default saves)
   heightmapRotation: 'none',
   waterBorders: 'none',
+  snowCoverage: 'classic',
+  desertCoverage: 'classic',
+  treePlacer: 'classic',
 };
 
 describe('New Game mapgen options persistence (tt.newGameMapgen)', () => {

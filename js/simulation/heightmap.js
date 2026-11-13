@@ -2,7 +2,8 @@
  * Heightmap import (pure, no DOM): RGBA pixels -> OpenTTD greyscale -> map height levels.
  * Mirrors OpenTTD heightmap.cpp: RGBToGreyscale (integer 0.299/0.587/0.114 weights, /65536),
  * the image is stretched over the map (nearest sample), 0 stays sea level and 1..255 map evenly onto 1..levels.
- * The per-pixel aspect options of OpenTTD are not implemented (the map is always stretched).
+ * The image is stretched over the map by default (heightmapAspect 'stretch'); 'fit' (U5, opt-in) keeps the
+ * image aspect, centres it and pads the rest with sea (OpenTTD's img_scale/padding, heightmap.cpp:353-365).
  * Heightmap rotation is opt-in (see HEIGHTMAP_ROTATIONS / rotateGrid below); 'none' keeps the historic
  * import path byte-for-byte.
  */
@@ -106,6 +107,41 @@ export function resampleGrey(grey, imgW, imgH, mapW, mapH) {
   return out;
 }
 
+/** Heightmap aspect modes (U5): 'stretch' (default, historic) or 'fit' (keep aspect, pad with sea). */
+export const HEIGHTMAP_ASPECTS = Object.freeze(['stretch', 'fit']);
+
+/**
+ * Aspect-preserving nearest-sample fit (U5, opt-in): the image is scaled by min(mapW/imgW, mapH/imgH),
+ * centred, and the uncovered border is 0 (sea). Same sampling rule as resampleGrey.
+ * @param {Uint8Array} grey greyscale image (imgW*imgH)
+ * @param {number} imgW
+ * @param {number} imgH
+ * @param {number} mapW
+ * @param {number} mapH
+ * @returns {Uint8Array} mapW*mapH greyscale values
+ */
+export function resampleGreyFit(grey, imgW, imgH, mapW, mapH) {
+  if (!(imgW > 0 && imgH > 0 && mapW > 0 && mapH > 0)) throw new Error('heightmap: empty size');
+  if (grey.length !== imgW * imgH) throw new Error('heightmap: pixel count does not match the size');
+  const scale = Math.min(mapW / imgW, mapH / imgH);
+  const nw = Math.max(1, Math.min(mapW, Math.round(imgW * scale)));
+  const nh = Math.max(1, Math.min(mapH, Math.round(imgH * scale)));
+  const ox = Math.floor((mapW - nw) / 2), oy = Math.floor((mapH - nh) / 2);
+  const out = new Uint8Array(mapW * mapH);
+  for (let y = 0; y < mapH; y++) {
+    const v = y - oy;
+    if (v < 0 || v >= nh) continue;
+    const sy = Math.min(imgH - 1, Math.floor((v + 0.5) * imgH / nh));
+    for (let x = 0; x < mapW; x++) {
+      const u = x - ox;
+      if (u < 0 || u >= nw) continue;
+      const sx = Math.min(imgW - 1, Math.floor((u + 0.5) * imgW / nw));
+      out[y * mapW + x] = grey[sy * imgW + sx];
+    }
+  }
+  return out;
+}
+
 /**
  * OpenTTD GreyscaleToMapHeights height rule: 0 stays sea (0); 1..255 scale evenly onto 1..levels.
  * @param {number} g greyscale 0..255
@@ -150,10 +186,14 @@ export function greyToHeights(grey, levels = HEIGHTMAP_LEVELS) {
  * @param {number} mapH
  * @param {string} [rotation] one of HEIGHTMAP_ROTATIONS (applied after stretching; default 'none')
  * @param {number} [levels=HEIGHTMAP_LEVELS] highest land level (U6 heightmap height, clamped 1..7)
+ * @param {string} [aspect='stretch'] one of HEIGHTMAP_ASPECTS (U5); 'stretch' is the historic path
  * @returns {Uint8Array} mapW*mapH heights 0..levels
  */
-export function heightsForMap(grey, imgW, imgH, mapW, mapH, rotation = 'none', levels = HEIGHTMAP_LEVELS) {
-  const heights = greyToHeights(resampleGrey(grey, imgW, imgH, mapW, mapH), clampHeightmapLevels(levels));
+export function heightsForMap(grey, imgW, imgH, mapW, mapH, rotation = 'none', levels = HEIGHTMAP_LEVELS, aspect = 'stretch') {
+  const resampled = aspect === 'fit'
+    ? resampleGreyFit(grey, imgW, imgH, mapW, mapH)
+    : resampleGrey(grey, imgW, imgH, mapW, mapH);
+  const heights = greyToHeights(resampled, clampHeightmapLevels(levels));
   if (rotation === 'none') return heights;
   const r = rotateGrid(heights, mapW, mapH, rotation);
   return r.values;
