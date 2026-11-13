@@ -177,6 +177,10 @@ export const DEFAULT_SETTINGS = {
   vehicleCollisions: false,
   /** station rating penalty when a train crashes (OpenTTD train_cmd.cpp ~3360: ModifyStationRatingAround -160, radius 30): the crashed train's company's stations within 30 tiles lose 160 rating points. Needs vehicleCollisions. Off by default. */
   trainCrashStationRating: false,
+  /** train crash passenger deaths (OpenTTD Vehicle::Crash): each crashed consist loses a random 0..passengers (RandomRange(pass+1)) instead of its full load. Needs vehicleCollisions. Off by default (no extra random draws). */
+  trainCrashRandomVictims: false,
+  /** road vehicle destroyed at a level crossing: the news counts the victims (driver +1 and passengers, OpenTTD RoadVehicle::Crash). Needs vehicleCollisions. Off by default (fixed news text). */
+  trainCrashRoadNewsCount: false,
   /** cargo distribution for passengers and mail (OpenTTD cargodist, simplified): 'off' | 'asymmetric' | 'symmetric'. Off by default. */
   cargodist: 'off',
   /** timetable separation: vehicles on a complete timetable with shared orders depart at their evenly spaced slots. Off by default. */
