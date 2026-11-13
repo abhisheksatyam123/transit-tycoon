@@ -58,18 +58,31 @@ export function upgradeRivalAirports(ctx, r) {
   return false;
 }
 
-/** Upgrade both ends or neither: each end is checked before either commits (no half-upgraded route). */
+/**
+ * Upgrade both ends or neither. Both ends are checked (canUpgrade) and their total cost is checked against the
+ * cash before either commits. The commits then reuse those checks (no second canUpgrade): the two footprints
+ * are disjoint (checked here), so the first commit changes nothing the second end's check depends on, and the
+ * second commit cannot be refused. Should it be refused anyway, the first end is already upgraded and there is
+ * no rollback: that case is logged (console.warn) and reported as false, never thrown (a throw would abort the
+ * game tick), so the caller sees a failed upgrade rather than a half-upgraded pair reported as a success.
+ */
 function upgradeAirportPair(ctx, r, ends, route, origins, curId, typeId) {
   const { state } = ctx;
   const a = canUpgrade(ctx, r, origins[0], curId, typeId), b = canUpgrade(ctx, r, origins[1], curId, typeId);
   if (!a || !b) return false;
-  // the two new footprints must not overlap (the second's check would be stale after the first commits)
-  const cells = new Set(a.newTiles.map((p) => key(p.x, p.y)));
-  if (b.newTiles.some((p) => cells.has(key(p.x, p.y)))) return false;
+  // the footprints must not touch: a new tile of one end on a tile of the other (old or new) would make the
+  // second end's check stale after the first commits
+  const cells = new Set([...a.newTiles, ...a.oldTiles].map((p) => key(p.x, p.y)));
+  if ([...b.newTiles, ...b.oldTiles].some((p) => cells.has(key(p.x, p.y)))) return false;
   // all or nothing: both upgrades must be affordable together, so neither end commits when only one could
   if (checkMoney(state, a.cost + b.cost, r)) return false;
-  upgradeAirport(ctx, r, ends[0], route, origins[0], curId, typeId, true);
-  upgradeAirport(ctx, r, ends[1], route, origins[1], curId, typeId, false);
+  if (!upgradeAirport(ctx, r, ends[0], route, origins[0], curId, typeId, true, a)) return false; // nothing committed
+  if (!upgradeAirport(ctx, r, ends[1], route, origins[1], curId, typeId, false, b)) {
+    // invariant violation: the first end is committed and cannot be rolled back (see the comment above)
+    console.warn(`airport pair upgrade: route ${route.a}/${route.b} of rival ${r.id} (${r.name}): second end ` +
+      `station ${ends[1].id} refused after first end station ${ends[0].id} committed; route left half-upgraded`);
+    return false;
+  }
   return true;
 }
 
@@ -121,12 +134,14 @@ function canUpgrade(ctx, r, origin, curId, typeId) {
   return { cost, houses, oldTiles, newTiles, oldDepots, oldSet };
 }
 
-/** Commit one end (after canUpgrade passed): the old airport out, the new one in, same station record. */
-function upgradeAirport(ctx, r, st, route, origin, curId, typeId, isFirst) {
+/**
+ * Commit one end: the old airport out, the new one in, same station record. `chk` is the canUpgrade result
+ * for this end (checked by the caller); when absent it is checked here.
+ */
+function upgradeAirport(ctx, r, st, route, origin, curId, typeId, isFirst, chk = canUpgrade(ctx, r, origin, curId, typeId)) {
   const { state } = ctx;
   const map = state.map;
   const type = airportType(typeId);
-  const chk = canUpgrade(ctx, r, origin, curId, typeId);
   if (!chk) return false;
   const { cost, houses, oldTiles, newTiles, oldDepots, oldSet } = chk;
   const oldDepotIds = oldDepots.map((d) => d.id);
