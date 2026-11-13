@@ -222,6 +222,8 @@ export const SETTING_META = [
     help: 'OpenTTD: ships are less likely to break down (reliability boosted by 0.4 when rolling breakdowns). Off = as before.' },
   { key: 'shipTurnCost', group: 'vehicles', label: 'Ships pay turn cost (OpenTTD)', type: 'check',
     help: 'OpenTTD yapf_ship curve penalty: ship routing adds the cost of 6 tile steps for each 90-degree turn, so ships prefer straighter routes. Movement stays 4-connected (no diagonal moves). Off = shortest tile path only (current).' },
+  { key: 'shipDiagonal', group: 'vehicles', label: 'Ships move diagonally (8-way)', type: 'check',
+    help: 'Not OpenTTD: ships may cut corners diagonally across open water (a diagonal step costs about 1.4 tiles). Off = ships move only north, south, east and west (OpenTTD, current).' },
   { key: 'breakdownStop', group: 'vehicles', label: 'Broken-down vehicles stop (OpenTTD)', type: 'check',
     help: 'OpenTTD: a broken-down road vehicle, train or ship stops completely until repaired and blocks the traffic behind it; the breakdown lasts its full time even at a stop. Off = it crawls at a quarter speed (OpenLoco, current). Aircraft are unaffected.' },
   { key: 'ageDecayOttd', group: 'vehicles', label: 'Old vehicles wear out faster (OpenTTD)', type: 'check',

@@ -258,6 +258,8 @@ export const DEFAULT_SETTINGS = {
   shipBreakdownReduced: false,
   /** OpenTTD yapf_ship curve90 penalty (6 x YAPF_TILE_LENGTH): ship pathfinding pays 6 extra tile steps for each 90-degree turn, so routes prefer straight runs. 4-connected movement only; no diagonal moves. Default false = current TT unit-cost routing. */
   shipTurnCost: false,
+  /** Ships may step diagonally on the water grid (8-way, sqrt(2) per diagonal step, corner rule: no cutting land, no canal/lock/aqueduct diagonals). NOT OpenTTD or OpenLoco (both 4-connected). Default false = 4-way routes and movement, as before. */
+  shipDiagonal: false,
   /** OpenTTD vehicle.cpp:1397-1398 / roadveh_cmd.cpp:1587-1592: a broken-down road/rail/ship vehicle stops dead until repaired (movement.js 'broken') and does not end the breakdown at a stop. Default false = OpenLoco crawl (maxSpeed/4, ships 5 mph). Aircraft and UFO-frozen keep their behaviour. */
   breakdownStop: false,
   /** OpenTTD vehicle.cpp:1454-1466: reliability decay doubles per year past max age (x2..x32). Default false = current TT (one step). */

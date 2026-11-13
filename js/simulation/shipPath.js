@@ -5,7 +5,7 @@
  * Ships never move over land, so an island with no water route is unreachable (the vehicle is lost).
  */
 import { DIRS } from './constants.js';
-import { MPH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
+import { MPH_TO_TILES_PER_TICK, DIAGONAL_STEP } from './loco/vehicleMotion.js';
 
 const SHIP_ACCEL_MPH = 1 / 3; // 0.333333_mph (OpenLoco VehicleHead.cpp:2888)
 const SHIP_BRAKE_MPH = 1.0;   // 1.0_mph (OpenLoco VehicleHead.cpp:2875)
@@ -95,6 +95,7 @@ export const SHIP_CURVE90_COST = 6;
  * @returns {{x:number,y:number}[]|null} tiles from start (inclusive) to the goal (inclusive), or null
  */
 export function findShipPath(map, start, goals, opts) {
+  if (opts && opts.diagonal) return findShipPathDiagonal(map, start, goals);
   if (opts && opts.turnCost) return findShipPathTurnCost(map, start, goals);
   if (!goals || !goals.length) return null;
   const W = map.width, H = map.height;
@@ -132,6 +133,90 @@ export function findShipPath(map, start, goals, opts) {
       if (ng < g[j]) {
         g[j] = ng; parent[j] = i;
         open.push(ng + h(j), j);
+      }
+    }
+  }
+  if (goal < 0) return null;
+  const out = [];
+  for (let i = goal; i !== -1; i = i === s0 ? -1 : parent[i]) {
+    out.push({ x: i % W, y: (i - (i % W)) / W });
+  }
+  return out.reverse();
+}
+
+/** Tile has no canal, lock or aqueduct: diagonal ship steps never touch these (their 4-step rules stay as they are). */
+function plainWater(map, k) {
+  const t = map.tiles[k];
+  return !t.canal && !t.lock && !t.aqueduct;
+}
+
+/** A diagonal step on the tile grid is taken only between plain tiles and past two passable corner tiles (no cutting land). */
+function diagonalStepOk(map, i, j, W) {
+  if (!plainWater(map, i) || !plainWater(map, j)) return false;
+  const ix = i % W, iy = (i - ix) / W, jx = j % W, jy = (j - jx) / W;
+  const c1 = iy * W + jx, c2 = jy * W + ix; // the two orthogonal corners of the diagonal step
+  return shipPassable(map, c1) && shipPassable(map, c2) && plainWater(map, c1) && plainWater(map, c2);
+}
+
+/** True when two consecutive path tiles differ on both axes (opt-in `shipDiagonal` paths only). */
+export function isDiagonalStep(a, b) {
+  return !!a && !!b && a.x !== b.x && a.y !== b.y;
+}
+
+/** Progress cost of the step from path[i] to path[i+1]: a diagonal step is sqrt(2) tiles (as road/rail, movement.js). */
+export function shipStepLen(path, i) {
+  return isDiagonalStep(path[i], path[i + 1]) ? DIAGONAL_STEP : 1;
+}
+
+/**
+ * 8-way variant used by the opt-in `shipDiagonal` setting: orthogonal steps cost 1, diagonal steps sqrt(2), with the
+ * corner rule of diagonalStepOk. Octile heuristic (admissible for these costs). Goals keep the tile semantics.
+ * Ignores `turnCost`: the turn-cost search is 4-connected only.
+ */
+function findShipPathDiagonal(map, start, goals) {
+  if (!goals || !goals.length) return null;
+  const W = map.width, H = map.height;
+  const goalSet = new Set(goals.map((g) => g.y * W + g.x));
+  const s0 = start.y * W + start.x;
+  if (goalSet.has(s0)) return [{ x: start.x, y: start.y }];
+  const N = W * H;
+  const g = new Float64Array(N).fill(Infinity);
+  const parent = new Int32Array(N).fill(-1);
+  const closed = new Uint8Array(N);
+  const h = (i) => {
+    const x = i % W, y = (i - x) / W;
+    let best = Infinity;
+    for (const q of goals) {
+      const dx = Math.abs(q.x - x), dy = Math.abs(q.y - y);
+      best = Math.min(best, Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy));
+    }
+    return best;
+  };
+  const open = new Heap();
+  g[s0] = 0;
+  open.push(h(s0), s0);
+  let goal = -1;
+  while (open.size) {
+    const [, i] = open.pop();
+    if (closed[i]) continue;
+    closed[i] = 1;
+    if (goalSet.has(i)) { goal = i; break; }
+    const x = i % W, y = (i - x) / W;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (closed[j]) continue;
+        if (!goalSet.has(j) && !shipPassable(map, j)) continue;
+        const diag = dx !== 0 && dy !== 0;
+        if (diag) { if (!diagonalStepOk(map, i, j, W)) continue; } else if (!shipStepOk(map, i, j)) continue;
+        const ng = g[i] + (diag ? Math.SQRT2 : 1);
+        if (ng < g[j]) {
+          g[j] = ng; parent[j] = i;
+          open.push(ng + h(j), j);
+        }
       }
     }
   }
@@ -265,8 +350,9 @@ export function shipSpeedStep(v, targetTiles) {
 }
 
 /** Link check for a ship: the next path tile must still be open water (or a buoy / depot). */
-export function shipLinkOk(map, v) {
+export function shipLinkOk(map, v, allowDiagonal = true) {
   const b = v.path[v.pathIndex + 1];
   if (!b) return true;
+  if (!allowDiagonal && isDiagonalStep(v.path[v.pathIndex], b)) return false; // saved diagonal path, setting off: replan
   return shipPassable(map, b.y * map.width + b.x);
 }
