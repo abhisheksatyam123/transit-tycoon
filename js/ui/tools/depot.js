@@ -97,7 +97,7 @@ export function createDepotTool(app, kind) {
         const refusal = depotUiRefusal(g, x, y, kind);
         if (refusal) return { ok: false, error: refusal };
       }
-      if (!opts?.dryRun && !r.connected) app.toast('Depot exit is not connected to a road', 'warn');
+      if (!opts?.dryRun && !r.connected) app.toast(`Depot exit is not connected to ${kind === 'rail' ? 'a rail track' : 'a road'}`, 'warn');
       return g.buildDepot(x, y, kind, r.dir, opts);
     },
     footprint: (x, y) => [{ x, y }],

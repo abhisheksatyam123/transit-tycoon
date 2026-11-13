@@ -55,11 +55,12 @@ export function createSignalTool(app) {
 
   /** Preview the drag run: tiles + dry-run cost (or refusal). */
   const preview = (end) => {
+    ctrlPreview = !!end.ctrl; // input.js passes Ctrl with every hover/move; it drives the removal preview
     const tiles = signalDragTiles(start.x, start.y, end.x, end.y);
-    const key = `${start.x},${start.y},${end.x},${end.y},${getSignalSpacing()},${kind}`;
+    const key = `${start.x},${start.y},${end.x},${end.y},${getSignalSpacing()},${kind},${ctrlPreview}`;
     if (key !== lastKey) {
       lastKey = key;
-      const res = app.game.buildSignalRun(tiles, { spacing: getSignalSpacing(), remove: !!ctrlPreview, type: kind, dryRun: true });
+      const res = app.game.buildSignalRun(tiles, { spacing: getSignalSpacing(), remove: ctrlPreview, type: kind, dryRun: true });
       const label = res.ok ? `${res.tiles} signal${res.tiles === 1 ? '' : 's'} · ${money(res.cost || 0)}` : res.error;
       app.renderer.overlay.preview = { tiles, ok: !!res.ok, label };
     }

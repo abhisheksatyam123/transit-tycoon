@@ -46,14 +46,21 @@ export function ensureClimatePack(climate) {
   if (!basePackReady || !requestedClimate) return null;
   const def = CLIMATE_PACKS[requestedClimate];
   if (!def) return null;
-  if (!climateLoads.has(requestedClimate)) {
-    climateLoads.set(requestedClimate, def.load().then((pack) => {
+  const id = requestedClimate;
+  if (!climateLoads.has(id)) {
+    climateLoads.set(id, def.load().then((pack) => {
       def.apply(pack);
       if (climateRenderer) climateRenderer.setPackEnabled(packState.enabled && !!packState.pack);
+      // A missing pack is often transient (first fetch race): drop the memoised null so a later
+      // ensureClimatePack retries instead of keeping procedural graphics for the whole session.
+      if (!pack) climateLoads.delete(id);
       return pack;
+    }).catch(() => {
+      climateLoads.delete(id);
+      return null;
     }));
   }
-  return climateLoads.get(requestedClimate);
+  return climateLoads.get(id);
 }
 
 /**

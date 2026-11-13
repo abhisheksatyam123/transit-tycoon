@@ -6,7 +6,7 @@
 import { el } from '../dom.js';
 import { allSettings, setSetting, getSetting, roadSideLocked, DEFAULT_SETTINGS } from '../../simulation/settings.js';
 import { SETTING_GROUPS, SETTING_META, PREF_META, isChanged, matchesQuery } from '../settingsGroups.js';
-import { isMuted, setMuted } from '../../audio/sfx.js';
+import { isMuted, setMuted, unlockAudio } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
@@ -111,7 +111,7 @@ export function openSettings(app) {
           }
           for (const p of PREF_META) {
             const i = /** @type {HTMLInputElement} */ (el('input', { type: 'checkbox' }));
-            if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); app.ui.refreshToolbar?.(); });
+            if (p.id === 'sound') i.addEventListener('change', () => { setMuted(!i.checked); if (i.checked) unlockAudio(); app.ui.refreshToolbar?.(); });
             else if (p.id === 'fx') i.addEventListener('change', () => { setFxOn(i.checked); });
             else if (p.id.startsWith('tr:')) {
               const tid = p.id.slice(3);

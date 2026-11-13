@@ -16,12 +16,14 @@ export function createTramTool(app) {
     command: (g, x0, y0, x1, y1, opts) => convertMode
       ? g.convertRoad(x0, y0, x1, y1, { ...opts, to: 'road' })
       : g.buildTram(x0, y0, x1, y1, opts),
+    direct: () => convertMode,
     tiles: (x0, y0, x1, y1) => convertMode ? rectTiles(x0, y0, x1, y1) : lTiles(x0, y0, x1, y1),
   });
   const inner = tool.key;
   tool.key = (e) => {
     if (e.key === 'x' || e.key === 'X') {
       convertMode = !convertMode;
+      tool.cancel(); // mode changed mid-drag: drop the stale start/preview so the next release is not a build
       app.ui?.updateHint?.();
       app.toast?.(`Tram: ${convertMode ? 'convert tram to road' : 'build tram track'}`, 'info');
       return true;

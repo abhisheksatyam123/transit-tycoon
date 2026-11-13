@@ -19,6 +19,7 @@ import { screenToTileFloat, HEIGHT_STEP } from '../../renderer/iso.js';
  * @property {string} label
  * @property {string} hint
  * @property {(game:any, x0:number,y0:number,x1:number,y1:number, opts?:any)=>any} command
+ * @property {()=>boolean} [direct] when true, command() handles the drag itself (no shape path / buildRoadPath)
  * @property {(x0:number,y0:number,x1:number,y1:number)=>{x:number,y:number}[]} tiles
  * @property {'build'|'demolish'} sound
  * @property {'rail'|'road'} [layer] when set, enables shape modes (L/Diagonal/Curve/Circle, C cycles)
@@ -51,6 +52,7 @@ export function createLineTool(app, o) {
   /** @type {{ok:boolean,label:string}} */
   let lastResult = { ok: false, label: '' };
   const shapeTiles = (x0, y0, x1, y1) => {
+    if (o.direct?.()) return o.tiles(x0, y0, x1, y1); // rectangle modes preview their own tile set
     const sh = effShape(x0, y0, x1, y1);
     if (sh === 'L') return o.tiles(x0, y0, x1, y1);
     const r = routeFor(sh, x0, y0, x1, y1);
@@ -62,6 +64,9 @@ export function createLineTool(app, o) {
     const bridge = railMode === 'bridge';
     const railSel = railSelOf();
     const rsel = o.layer === 'rail' ? { trk: selectorTrack(railSel), electric: railSel === 'electric' } : {};
+    // A direct mode (road <-> tram convert) always runs its own command over the rectangle; the L/diag/curve
+    // shapes only pick preview tiles (o.tiles), so a diagonal drag must not be routed through buildRoadPath.
+    if (o.direct?.()) return o.command(g, x0, y0, x1, y1, opts);
     const sh = effShape(x0, y0, x1, y1);
     const r = sh === 'L' ? null : routeFor(sh, x0, y0, x1, y1);
     if (!r) return o.command(g, x0, y0, x1, y1, { ...opts, highway, tunnel, bridge, ...rsel, ...(bridge ? bridgeOpts() : {}) });

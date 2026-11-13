@@ -21,6 +21,7 @@ export function createElectrifyTool(app) {
   tool.key = (e) => {
     if (e.key === 'x' || e.key === 'X') {
       unelectrify = !unelectrify;
+      tool.cancel(); // mode changed mid-drag: drop the stale start/preview so the next release is not a build
       app.ui?.updateHint?.();
       app.toast?.(`Electrify: ${unelectrify ? 'remove catenary' : 'add catenary'}`, 'info');
       return true;

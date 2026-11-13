@@ -10,15 +10,17 @@ export const DEFAULT_CC = '#1f4fa0';
 
 /** Cache of tinted sprite canvases: key "spriteId|colour" (small per-sprite canvases, not whole atlases). */
 const tints = new Map();
-/** Mask pixel data per atlas, read once. */
-const maskData = new Map();
+/** Mask pixel data per pack -> atlas index, read once (WeakMap: a reloaded pack re-reads its own masks). */
+let maskData = new WeakMap();
 
 /** Mask RGBA bytes of atlas `ai` (null when the pack has no cc mask). */
 function maskOf(pack, ai) {
-  if (maskData.has(ai)) return maskData.get(ai);
+  let byAtlas = maskData.get(pack);
+  if (!byAtlas) { byAtlas = new Map(); maskData.set(pack, byAtlas); }
+  if (byAtlas.has(ai)) return byAtlas.get(ai);
   const mask = pack.masks && pack.masks[ai];
   const d = mask ? mask.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, mask.width, mask.height) : null;
-  maskData.set(ai, d);
+  byAtlas.set(ai, d);
   return d;
 }
 
@@ -59,7 +61,7 @@ function parseHex(hex) {
 }
 
 /** Drop cached tinted sprites and mask data (on pack reload). */
-export function clearTints() { tints.clear(); maskData.clear(); }
+export function clearTints() { tints.clear(); maskData = new WeakMap(); }
 
 /**
  * Draw sprite `id` with its OpenTTD origin (tile top corner) at (x, y). Pixel-art look: no smoothing.
