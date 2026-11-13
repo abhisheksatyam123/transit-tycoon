@@ -491,6 +491,6 @@ export class Game {
   tileInfo(x, y) { return this.inBounds(x, y) ? tileInfo(this.state, x, y, demolish(this.ctx, x, y, x, y, { dryRun: true })) : null; }
   catchmentTiles(stationId) { return catchmentTiles(this.state, findStation(this.state, stationId)); }
   stationsNear(x, y, radius) { return stationsNear(this.state, x, y, radius); }
-  getVehicleSegments(v) { return getVehicleSegments(typeof v === 'object' ? v : findVehicle(this.state, v)); }
+  getVehicleSegments(v) { return getVehicleSegments(typeof v === 'object' ? v : findVehicle(this.state, v), this.state); }
   listModels(kind) { return listModels(this.state, kind); }
 }
