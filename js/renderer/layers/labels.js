@@ -37,6 +37,13 @@ export function drawLabels(ctx, renderer, cam) {
   ctx.font = FONT;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
+  // cull town/station/sign loops by the visible tile range before projecting positions
+  const range = typeof cam.visibleTileRange === 'function' ? cam.visibleTileRange() : null;
+  // generous margin: a long sign centred on a tile just outside the tile range can still reach the screen
+  const vis = (x, y) => !range || (x >= range.x0 - 24 && x <= range.x1 + 24 && y >= range.y0 - 24 && y <= range.y1 + 24);
+  const c = { x: 0, y: 0 };
+  const center = (x, y) => (typeof renderer.tileCenterScreenInto === 'function'
+    ? renderer.tileCenterScreenInto(x, y, c) : renderer.tileCenterScreen(x, y));
   const place = (kind, id, wx, wy, text, fill, textCol, border) => {
     const p = cam.worldToScreen(wx, wy);
     const w = textWidth(ctx, text) + PAD_X * 2;
@@ -56,25 +63,28 @@ export function drawLabels(ctx, renderer, cam) {
   if (prefs.towns) {
     const popOn = zoom >= TOWN_POP_MIN_ZOOM;
     for (const t of state.towns) {
-      const c = renderer.tileCenterScreen(t.x, t.y);
-      place('town', t.id, c.x, c.y, townSignText(t.name, t.population, zoom), 'rgba(10,15,26,0.88)', '#f8fafc', popOn ? '#94a3b8' : '#64748b');
+      if (!vis(t.x, t.y)) continue;
+      const p = center(t.x, t.y);
+      place('town', t.id, p.x, p.y, townSignText(t.name, t.population, zoom), 'rgba(10,15,26,0.88)', '#f8fafc', popOn ? '#94a3b8' : '#64748b');
     }
   }
   if (showStations) {
     for (const st of state.stations) {
       const sx = st.signTile ? st.signTile.x : st.x;
       const sy = st.signTile ? st.signTile.y : st.y;
-      const c = renderer.tileCenterScreen(sx, sy);
+      if (!vis(sx, sy)) continue;
+      const p = center(sx, sy);
       const sty = stationSignStyle(state, st);
-      place('station', st.id, c.x, c.y, st.name, sty.fill, '#ffffff', sty.rival ? '#fde68a' : 'rgba(255,255,255,0.7)');
+      place('station', st.id, p.x, p.y, st.name, sty.fill, '#ffffff', sty.rival ? '#fde68a' : 'rgba(255,255,255,0.7)');
     }
   }
   // map signs (OpenTTD signs): player text labels, always shown; lazy state.signs (absent = none)
   const signs = state.signs;
   if (signs && signs.length) {
     for (const sg of signs) {
-      const c = renderer.tileCenterScreen(sg.x, sg.y);
-      place('sign', sg.id, c.x, c.y, sg.text, '#fef3c7', '#1c1917', '#b45309');
+      if (!vis(sg.x, sg.y)) continue;
+      const p = center(sg.x, sg.y);
+      place('sign', sg.id, p.x, p.y, sg.text, '#fef3c7', '#1c1917', '#b45309');
     }
   }
   ctx.textAlign = 'left';

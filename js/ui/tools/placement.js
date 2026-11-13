@@ -123,7 +123,13 @@ export function createPlacementTool(app, o) {
           const cost = priceWhenRefused(app.game, (extra) => o.command(app.game, t.x, t.y, { ...opts, ...extra }));
           res = { ...res, error: refusalLabel(res.error, cost, app.game.state.company.money) };
         }
-        app.exec(res, { x: t.x, y: t.y, sound: 'build' });
+        let area = { x0: t.x, y0: t.y, x1: t.x, y1: t.y };
+        const fp = res && res.ok && o.footprint ? o.footprint(t.x, t.y) : null;
+        if (fp && fp.length) {
+          area = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+          for (const p of fp) { area.x0 = Math.min(area.x0, p.x); area.x1 = Math.max(area.x1, p.x); area.y0 = Math.min(area.y0, p.y); area.y1 = Math.max(area.y1, p.y); }
+        }
+        app.exec(res, { x: t.x, y: t.y, sound: 'build', area });
         if (res && res.ok && o.catchment) {
           const warn = catchmentWarning(app.game.state, o.footprint(t.x, t.y), o.catchment);
           if (warn) app.toast(warn, 'warn');

@@ -46,6 +46,8 @@ export function smoothCarPose(car) {
 /** Previous sim-tick pose per car id, used to blend between sim ticks. */
 let prevPose = new Map();
 let curPose = new Map();
+/** Reused output array: the renderer consumes the result in the same tick (no caller keeps it). */
+const poseOut = [];
 let lastTick = -1, lastStamp = 0, tickMs = 1000 / 30;
 
 /**
@@ -59,13 +61,16 @@ let lastTick = -1, lastStamp = 0, tickMs = 1000 / 30;
 export function interpolateCars(cars, tick, now) {
   if (tick !== lastTick) {
     if (lastTick >= 0 && now > lastStamp) tickMs = Math.min(200, Math.max(10, now - lastStamp));
+    const reuse = prevPose;
     prevPose = curPose;
-    curPose = new Map();
+    curPose = reuse;
+    curPose.clear();
     lastTick = tick;
     lastStamp = now;
   }
   const alpha = Math.min(1, Math.max(0, (now - lastStamp) / tickMs));
-  const out = new Array(cars.length);
+  const out = poseOut;
+  out.length = cars.length;
   for (let i = 0; i < cars.length; i++) {
     const c = cars[i];
     curPose.set(c.id, c);

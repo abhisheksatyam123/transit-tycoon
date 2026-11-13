@@ -14,6 +14,9 @@ const DIRS = [
 /** Per-game cache: { map, edges: [{a,b,color}], stations: [...] }. */
 let cache = null;
 
+/** Drop the metro overlay cache (call when tunnel/line/station data changes, e.g. after a build). */
+export function invalidateMetro() { cache = null; }
+
 /** Parse a '#RRGGBB' colour (fallback grey). */
 function hex(c) {
   return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#9ca3af';

@@ -98,7 +98,12 @@ export function createSignalTool(app) {
       }
       const tiles = signalDragTiles(s.x, s.y, t.x, t.y);
       const res = app.game.buildSignalRun(tiles, { spacing: getSignalSpacing(), remove: !!t.ctrl, type: kind });
-      app.exec(res, { x: t.x, y: t.y, sound: t.ctrl ? 'demolish' : 'build' });
+      let area = { x0: t.x, y0: t.y, x1: t.x, y1: t.y };
+      if (tiles && tiles.length) {
+        area = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+        for (const p of tiles) { area.x0 = Math.min(area.x0, p.x); area.x1 = Math.max(area.x1, p.x); area.y0 = Math.min(area.y0, p.y); area.y1 = Math.max(area.y1, p.y); }
+      }
+      app.exec(res, { x: t.x, y: t.y, sound: t.ctrl ? 'demolish' : 'build', area });
     },
     cancel() {
       start = null;

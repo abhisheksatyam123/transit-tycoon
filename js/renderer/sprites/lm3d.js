@@ -65,13 +65,18 @@ export function lm3dFronts(map) {
 
 const frontCache = new WeakMap();
 const overlayCache = new WeakMap();
+/** Cache generation: bumped when landmarks/overlays are (re)placed (setGame etc.); WeakMap entries older
+ *  than the current generation are rebuilt immediately, the periodic rescan stays as a fallback. */
+let generation = 0;
+/** Drop the landmark front/overlay caches (cheap: bump a generation, rebuilt on the next query). */
+export function invalidateLm3d() { generation++; }
 function overlayFronts(map) {
   let c = frontCache.get(map);
-  if (!c || ++c.n > 240) {
+  if (!c || c.gen !== generation || ++c.n > 240) {
     const list = [];
     for (let i = 0; i < map.tiles.length; i++) { const b = map.tiles[i].building; if (b && b.lm3d && b.front && LM3D[b.id]) list.push({ id: b.id, x: i % map.width, y: Math.floor(i / map.width) }); }
     if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) if (o && LM3D[o.id] && Number.isInteger(o.x) && Number.isInteger(o.y)) list.push({ id: o.id, x: o.x, y: o.y, overlay: true });
-    c = { list, n: 0 }; frontCache.set(map, c);
+    c = { list, n: 0, gen: generation }; frontCache.set(map, c);
   }
   return c;
 }
@@ -79,7 +84,7 @@ function overlayFronts(map) {
 /** Overlay sprites grouped by tile so they can be drawn in painter's order. */
 export function lm3dOverlayBuckets(map) {
   let c = overlayCache.get(map);
-  if (!c || ++c.n > 240) {
+  if (!c || c.gen !== generation || ++c.n > 240) {
     const buckets = new Map();
     if (Array.isArray(map.lm3dOverlays)) for (const o of map.lm3dOverlays) {
       if (!o || !LM3D[o.id] || !Number.isInteger(o.x) || !Number.isInteger(o.y)) continue;
@@ -87,7 +92,7 @@ export function lm3dOverlayBuckets(map) {
       const key = o.y * map.width + o.x; // numeric tile key (no per-frame string keys)
       const bucket = buckets.get(key); if (bucket) bucket.push(o); else buckets.set(key, [o]);
     }
-    c = { buckets, n: 0 }; overlayCache.set(map, c);
+    c = { buckets, n: 0, gen: generation }; overlayCache.set(map, c);
   }
   return c.buckets;
 }

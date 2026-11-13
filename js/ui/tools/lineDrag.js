@@ -176,7 +176,8 @@ export function createLineTool(app, o) {
         opts = { axis: choosePiece(f.x - t.x + 0.5, f.y - t.y + 0.5) };
       }
       const res = build(app.game, s.x, s.y, t.x, t.y, opts);
-      app.exec(res, { x: t.x, y: t.y, sound: o.sound });
+      const area = { x0: Math.min(s.x, t.x), y0: Math.min(s.y, t.y), x1: Math.max(s.x, t.x), y1: Math.max(s.y, t.y) };
+      app.exec(res, { x: t.x, y: t.y, sound: o.sound, area });
     },
     cancel() {
       start = null;

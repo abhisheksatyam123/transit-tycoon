@@ -37,6 +37,66 @@ export function getNet(map, kind) {
 /** Drop cached nets (after any build/demolish command). */
 export function invalidateNet(map) { if (map) cache.delete(map); }
 
+/**
+ * Drop only one kind's cached net (road/rail), e.g. a rail build must not rebuild the road graph.
+ * @param {{width:number,height:number,tiles:any[]}} map
+ * @param {'road'|'rail'} kind
+ */
+export function invalidateNetKind(map, kind) {
+  const c = map && cache.get(map);
+  if (c && c[kind]) delete c[kind];
+}
+
+/**
+ * Net kinds whose tiles are touched by a command area (widened by one tile: a build connects to its
+ * neighbours, and the net's node/edge classification reads them). Pure; used to scope invalidation.
+ * @param {{width:number,height:number,tiles:any[]}} map
+ * @param {{x0:number,y0:number,x1:number,y1:number}} area
+ * @returns {{road:boolean,rail:boolean}}
+ */
+export function netKindsInArea(map, area) {
+  const out = { road: false, rail: false };
+  if (!map || !area) { out.road = out.rail = true; return out; }
+  const W = map.width, H = map.height;
+  const x0 = Math.max(0, Math.min(area.x0, area.x1) - 1), x1 = Math.min(W - 1, Math.max(area.x0, area.x1) + 1);
+  const y0 = Math.max(0, Math.min(area.y0, area.y1) - 1), y1 = Math.min(H - 1, Math.max(area.y0, area.y1) + 1);
+  for (let y = y0; y <= y1 && !(out.road && out.rail); y++) {
+    for (let x = x0; x <= x1; x++) {
+      const t = map.tiles[y * W + x];
+      if (!t) continue;
+      if (t.road || t.tram) out.road = true;
+      if (t.rail || t.tunnelPortal || t.playerTunnel) out.rail = true;
+      if (out.road && out.rail) break;
+    }
+  }
+  return out;
+}
+
+/** Whether a cached net has edge spans overlapping an area (widened by the ribbon margin/tile). */
+function netTouchesArea(net, map, area, pad = 2) {
+  if (!net) return false;
+  const W = map.width, H = map.height;
+  const x0 = Math.max(0, Math.min(area.x0, area.x1) - pad), x1 = Math.min(W - 1, Math.max(area.x0, area.x1) + pad);
+  const y0 = Math.max(0, Math.min(area.y0, area.y1) - pad), y1 = Math.min(H - 1, Math.max(area.y0, area.y1) + pad);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = y * W + x;
+      // adjacent node-to-node edges have no interior tile in byTile: check node tiles too
+      if ((net.byTile && net.byTile[i]) || (net.nodes && net.nodes[i])) return true;
+    }
+  }
+  return false;
+}
+
+/** Drop the cached nets touched by an area (road/rail), leaving the other kind cached. */
+export function invalidateNetArea(map, area) {
+  if (!map || !area) { invalidateNet(map); return; }
+  const kinds = netKindsInArea(map, area);
+  const c = cache.get(map);
+  if (kinds.road || netTouchesArea(c && c.road, map, area)) invalidateNetKind(map, 'road');
+  if (kinds.rail || netTouchesArea(c && c.rail, map, area)) invalidateNetKind(map, 'rail');
+}
+
 /** Whether tile (x,y) is drawn by the net for `kind`. */
 export function netCovers(map, kind, x, y) {
   return getNet(map, kind).covered[y * map.width + x] === 1;
@@ -105,7 +165,7 @@ function build(map, kind) {
   }
   const byTile = new Array(n);
   edges.forEach((e, ei) => indexEdge(e, ei, byTile, W, H));
-  return { kind, edges, byTile, covered };
+  return { kind, edges, byTile, covered, nodes: isNode };
 }
 
 /** Boundary-midpoint path: start node centre-edge, then each crossed tile boundary. */
