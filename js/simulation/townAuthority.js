@@ -266,7 +266,7 @@ export function doTownAction(ctx, townId, actionId, opts = {}) {
       notify(ctx, `${town.name}'s council accepted the bribe`, 'good', town.x, town.y, 'general');
     }
   }
-  spend(state.company, 'property', entry.cost);
+  spend(state.company, 'property', state.editor ? 0 : entry.cost); // scenario editor is free
   return { ok: true, cost: entry.cost };
 }
 

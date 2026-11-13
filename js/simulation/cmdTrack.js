@@ -586,7 +586,7 @@ export function demolish(ctx, x0, y0, x1, y1, opts = {}) {
     } else clearTerrain(t);
   }
   invalidateBlocks(state);
-  spend(state.company, 'construction', cost);
+  spend(state.company, 'construction', state.editor ? 0 : cost); // scenario editor is free (cmdTerraform.js)
   return { ok: true, cost, tiles: jobs.length };
 }
 
