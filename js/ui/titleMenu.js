@@ -10,6 +10,7 @@ import { openNewGame } from './windows/newGame.js';
 import { openScenarioSetup } from './windows/scenarioEditor.js';
 import { createGameFast } from './scenarioSnapshot.js';
 import { confirmDiscardGame } from './discardGuard.js';
+import { maybeOpenGoals } from './goalsAutoOpen.js';
 
 export const TITLE_VERSION = '0.1.0';
 const MOSCOW_REQUEST = Object.freeze({ scenario: 'moscow', seed: 1 });
@@ -76,6 +77,7 @@ export function openTitleMenu(app, opts = {}) {
     const game = await runWithLoading(buildingLabel(MOSCOW_REQUEST.scenario), () => createGameFast(MOSCOW_REQUEST, app.GameClass));
     app.setGame(game);
     app.announceScenario(game);
+    maybeOpenGoals(app, game); // same first-start Goals window as the ?scenario= boot (Moscow only)
   })));
   rows.push(btn('Load game', 'Load a saved game', then(() => app.open('load'))));
   rows.push(btn('Hall of fame', 'Top 10 finished games per scenario (this browser)', then(() => app.open('hallOfFame'))));

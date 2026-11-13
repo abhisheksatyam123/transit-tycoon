@@ -23,6 +23,24 @@ export function field(label, input) {
 }
 
 /** Fallback list when the scenarios module is missing. */
+/**
+ * Objective passed to createGame from the New Game objective controls; undefined = nothing chosen (scenario default / none).
+ * A typed Target always makes an explicit objective with the chosen years: on a scenario it refines that scenario's
+ * default objective, on a random world (no default) it is a company-value goal.
+ * @param {string} type select value: 'default' | 'none' | an OBJECTIVE_TYPES id
+ * @param {string} target typed target ('' = none)
+ * @param {string} years typed years (0 = no time limit)
+ * @param {any} [scDefault] the scenario's default objective, if any
+ * @returns {any|undefined}
+ */
+export function newGameObjective(type, target, years, scDefault) {
+  if (type === 'none') return { type: 'none' };
+  if (type !== 'default') return { type, target: Number(target) || undefined, timeLimitYears: Number(years) || 0 };
+  if (!target) return undefined;
+  const base = scDefault || { type: 'companyValue' };
+  return { ...base, target: Number(target), timeLimitYears: Number(years) || 0 };
+}
+
 const FALLBACK_SCENARIOS = [{ id: 'random', name: 'Random world', description: 'A procedurally generated world.', defaults: {} }];
 
 /**
@@ -221,9 +239,8 @@ export function openNewGame(app) {
         };
         if (sc && sc.id !== 'random') opts.scenario = sc.id;
         // Only explicit choices are passed, so default games stay identical.
-        if (objType.value === 'none') opts.objective = { type: 'none' };
-        else if (objType.value !== 'default') opts.objective = { type: objType.value, target: Number(objTarget.value) || undefined, timeLimitYears: Number(objYears.value) || 0 };
-        else if (objTarget.value && sc && sc.defaults && sc.defaults.objective) opts.objective = { ...sc.defaults.objective, target: Number(objTarget.value) };
+        const objective = newGameObjective(objType.value, objTarget.value, objYears.value, sc && sc.defaults && sc.defaults.objective);
+        if (objective) opts.objective = objective;
         if (Number(maxLoan.value) > 0) opts.maxLoan = Number(maxLoan.value);
         const settings = {};
         if (infl.value === 'off') settings.inflation = false;

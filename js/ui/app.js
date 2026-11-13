@@ -54,6 +54,11 @@ export function watchIssueCommands(game) {
   }
 }
 
+/** Speed a freshly attached game starts at: a scenario-editor map is paused (time does not run while editing). */
+export function startSpeed(game) {
+  return game && game.state && game.state.editor ? 0 : 1;
+}
+
 export class App {
   /**
    * @param {{game:any, renderer:import('../renderer/renderer.js').Renderer, minimap:any,
@@ -71,8 +76,8 @@ export class App {
     this.minimap = o.minimap;
     this.wm = new WindowManager(o.windowsEl);
     this.toasts = new Toasts(o.toastsEl);
-    /** simulation speed multiplier (0 = paused) */
-    this.speed = 1;
+    /** simulation speed multiplier (0 = paused); a restored scenario-editor map starts paused like setGame */
+    this.speed = startSpeed(o.game);
     /** hold-Tab fast forward active (not saved) */
     this.fastForward = false;
     this.prevSpeed = 1;

@@ -90,6 +90,17 @@ export function removeAllTowns(game) {
     }
   }
   state.towns = [];
+  // mirror deleteTown: subsidies and traffic tied to the removed towns go too
+  if (state.subsidies) {
+    const hit = (e) => e && e.type === 'town' && ids.has(e.id);
+    const keep = (s) => !hit(s.src) && !hit(s.dst);
+    if (state.subsidies.offers) state.subsidies.offers = state.subsidies.offers.filter(keep);
+    if (state.subsidies.awarded) state.subsidies.awarded = state.subsidies.awarded.filter(keep);
+  }
+  if (state.traffic && Array.isArray(state.traffic.cars)) {
+    state.traffic.cars = state.traffic.cars.filter((c) => !ids.has(c.townId));
+    if (state.traffic.perTown) for (const id of ids) delete state.traffic.perTown[id];
+  }
   recomputeAllAcceptance(state);
   return { ok: true, removed };
 }
