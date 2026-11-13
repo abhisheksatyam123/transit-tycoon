@@ -260,6 +260,8 @@ export const SETTING_META = [
     help: 'Cargodist routes fill the shortest links up to their monthly capacity first, then overflow to longer routes (OpenTTD MCF, simplified). Needs a cargo distribution setting.' },
   { key: 'cargodistCapacityRouting', group: 'economy', label: 'OpenTTD-style capacity routing', type: 'check',
     help: 'Batched, deterministic approximation of OpenTTD multi-commodity-flow routing: one residual shortest-path tree per source per round (up to 8 rounds), each demand push capped at the edge share left, leftover demand on the plain shortest path. Closer to OpenTTD than Capacity-limited routing (not identical: no cycle elimination). Off by default. Needs a cargo distribution setting.' },
+  { key: 'cargodistDemandParity', group: 'economy', label: 'OpenTTD-style demand', type: 'check',
+    help: 'Cargodist demand follows OpenTTD: whole units per origin-destination pair, weighted by supply and the destination\'s acceptance, with optional distance and demand-size effects. Off by default. Needs a cargo distribution setting.' },
   { key: 'linkgraphDistributionPax', group: 'economy', label: 'Passenger distribution', type: 'select',
     options: [['follow', 'Follow cargo distribution'], ['manual', 'Manual'], ['asymmetric', 'Asymmetric'], ['symmetric', 'Symmetric']],
     help: 'Per-class distribution (OpenTTD linkgraph distribution_pax). Manual = passengers ride without destinations. Follow = the cargo distribution setting.' },
