@@ -221,27 +221,46 @@ function flowsOf(state, cargoId, fromId, dest) {
 export function splitVia(state, st, cargoId, dest, amount) {
   const flows = flowsOf(state, cargoId, st.id, dest);
   if (!flows || flows.length < 2 || !(amount > 0)) return [{ via: undefined, amount }];
+  // Hoisted out of the per-unit loop: one ensureGraph/edge lookup/sent sum for the whole split, then a
+  // running integer total (identical to recomputing the row sum after each unit, just cheaper).
+  const { row, total: baseTotal } = viaRow(state, cargoId, st, dest);
+  let total = baseTotal;
   const got = new Map();
   for (let u = 0; u < amount; u++) {
-    const h = assignVia(state, cargoId, st, flows, 1, dest);
+    const h = pickVia(flows, row, total, 1);
+    row[h] = (row[h] || 0) + 1;
+    total++;
     got.set(h, (got.get(h) || 0) + 1);
   }
   return [...got.entries()].map(([via, n]) => ({ via, amount: n })).sort((a, b) => a.via - b.via);
 }
 
-/** Pick the via for `amount` units and record them in the sent counters of (st, dest). */
-function assignVia(state, cargoId, st, flows, amount, dest) {
+/** Sent-counter row of (st, dest) and its current total (0 when no unit was sent yet). */
+function viaRow(state, cargoId, st, dest) {
   const g = ensureGraph(state, cargoId);
   if (!g.sent) g.sent = {};
   const key = edgeKey(st.id, dest ?? null);
   const row = g.sent[key] || (g.sent[key] = {});
   let total = 0;
   for (const h of Object.keys(row)) total += row[h];
+  return { row, total };
+}
+
+/** Via with the largest share deficit after `amount` more units (ties: lowest hop id in `flows` order). */
+function pickVia(flows, row, sent, amount) {
   let best = null, bestDef = -Infinity;
+  const after = sent + amount;
   for (const [h, share] of flows) {
-    const def = share * (total + amount) - (row[h] || 0);
+    const def = share * after - (row[h] || 0);
     if (def > bestDef + 1e-12) { best = h; bestDef = def; }
   }
+  return best;
+}
+
+/** Pick the via for `amount` units and record them in the sent counters of (st, dest). */
+function assignVia(state, cargoId, st, flows, amount, dest) {
+  const { row, total } = viaRow(state, cargoId, st, dest);
+  const best = pickVia(flows, row, total, amount);
   row[best] = (row[best] || 0) + amount;
   return best;
 }
@@ -666,6 +685,9 @@ export function acceptanceOf(state, cargoId, nodeSet) {
  */
 export function updateMonthly(state) {
   if (linkgraphIntervalDays(state) > 0) return; // days-based schedule (updateDaily) takes over
+  // Default path (cargodist off, freightDistribution manual): cdCargoList would be empty, so skip the
+  // list allocation, settings reads and ensureGraph bookkeeping entirely.
+  if (!cargodistOn(state) && freightMode(state) === 'manual') return;
   const now = state.date.year * 12 + state.date.month;
   const interval = Math.max(1, Math.round(getSetting(state, 'linkgraphRecalcInterval')));
   const delay = Math.max(0, Math.round(getSetting(state, 'linkgraphRecalcTime')));
