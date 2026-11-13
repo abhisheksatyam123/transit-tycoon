@@ -181,6 +181,8 @@ export const SETTING_META = [
     help: 'How towns grow. Transit Tycoon = growth from monthly delivered cargo (default). OpenTTD = growth from stations that picked up or delivered cargo in the last 20 days; towns with no active station grow only rarely.' },
   { key: 'allowTownRoads', group: 'environment', label: 'Towns build roads', type: 'check',
     help: 'OpenTTD economy.allow_town_roads: towns may extend their road network as they grow. Off = towns never build roads (houses still grow along the existing streets).' },
+  { key: 'townRoadTurns', group: 'environment', label: 'Town roads turn (fix)', type: 'check',
+    help: 'Lets town roads bend: fixes a path-finding bug (OpenTTD-style turns). Off = the original straight-line roads plus fallback. Changes town growth.' },
   { key: 'placeHouses', group: 'environment', label: 'Towns build houses', type: 'check',
     help: 'OpenTTD economy.place_houses: towns may construct new houses as they grow. Off = the existing houses stay and the population stops rising (roads can still grow).' },
   { key: 'townCargoScale', group: 'economy', label: 'Town cargo scale (%)', type: 'number', min: 0, max: 500,

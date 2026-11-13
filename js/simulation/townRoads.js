@@ -5,6 +5,7 @@
 import { linkTiles } from './network.js';
 import { labelComponents, labelComponentsAll } from './diagIssue.js';
 import { TOWN_CORE_RADIUS } from './diagChecksMap.js';
+import { getSetting } from './settings.js';
 
 const ROAD_COST = 0.4;
 
@@ -67,20 +68,24 @@ const DIRS4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
  * minRun straight steps, so a path with minRun 2 has no 1-tile staircases.
  * Reversing is never allowed. Existing roads are cheap to reuse.
  *
- * Known limitation (decision D22): the run bit never becomes 1 on a straight step (`run === 1 ? 1 : 0`
- * at the nrun computation), so a turn is never legal and the search only returns straight lines.
- * `loco/townGrow` compensates with `bfsRoadPath` when this returns null. Fixing the bookkeeping changes
- * town growth and therefore the world hash, so it is a user decision (opt-in toggle or a re-pinned
- * hash), not a silent change; rival freight uses its own BFS planner for the same reason.
+ * Known limitation (decision D22), bug fixed behind `turns`: with turns=false (default, world-hash
+ * stable) the run bit never becomes 1 on a straight step (`run === 1 ? 1 : 0` at the nrun computation),
+ * so a turn is never legal and the search only returns straight lines. `loco/townGrow` compensates
+ * with `bfsRoadPath` when this returns null. With turns=true (setting townRoadTurns, opt-in) the run
+ * counter is fixed (see findTurnPath): roads can bend, and the fallback is rarely needed.
+ * Rival freight uses its own BFS planner.
  * @param {object} map
  * @param {{x:number,y:number}[]} sources
  * @param {Set<number>} goals tile indices
  * @param {{x:number,y:number}} target point used for the heuristic
  * @param {(x:number,y:number)=>boolean} allowed extra spatial restriction
- * @param {number} minRun straight steps needed before a turn
+ * @param {number} minRun straight steps needed before a turn (honoured only when turns=true)
+ * @param {boolean} turns false (default) = original straight-only behaviour, byte-identical results;
+ *   true = the fixed bookkeeping that allows turns after minRun straight steps
  * @returns {{x:number,y:number}[]|null} path from a source to a goal (inclusive)
  */
-export function findRoadPath(map, sources, goals, target, allowed = () => true, minRun = 2) {
+export function findRoadPath(map, sources, goals, target, allowed = () => true, minRun = 2, turns = false) {
+  if (turns) return findTurnPath(map, sources, goals, target, allowed, minRun);
   const { width: W, height: H, tiles } = map;
   const N = W * H;
   // state = tile*10 + heading*2 + run; heading 4 = no heading yet (a source); run 1 = enough straight steps
@@ -136,6 +141,70 @@ export function findRoadPath(map, sources, goals, target, allowed = () => true, 
 }
 
 /**
+ * A* for townRoadTurns=true. State = tile, heading (0..3, or 4 = source) and
+ * run = straight steps taken in the current heading, capped at minRun.
+ * A straight step gives run+1 (capped); a source's first step and every turn step give run 1.
+ * A turn (heading change) is legal only when run >= minRun, so minRun 2 means a leg is at least
+ * two tiles before it bends (a source's first leg counts from its first step). Reversing is never
+ * allowed; TURN_COST is added per turn; the heuristic and the goal test are as in findRoadPath.
+ */
+function findTurnPath(map, sources, goals, target, allowed, minRun) {
+  const { width: W, height: H, tiles } = map;
+  const N = W * H;
+  const RS = minRun + 1;          // run values 0..minRun
+  const P = 5 * RS;               // states per tile: headings 0..4 (4 = source) x run
+  const SN = N * P;
+  const g = new Float64Array(SN).fill(Infinity);
+  const parent = new Int32Array(SN).fill(-1);
+  const closed = new Uint8Array(SN);
+  const heap = new Heap();
+  const h = (i) => 0.4 * (Math.abs((i % W) - target.x) + Math.abs(Math.floor(i / W) - target.y));
+  for (const s of sources) {
+    const i = s.y * W + s.x;
+    const st = i * P + 4 * RS;
+    g[st] = 0;
+    heap.push(h(i), st);
+  }
+  while (heap.size) {
+    const st = heap.pop();
+    if (closed[st]) continue;
+    closed[st] = 1;
+    const i = Math.floor(st / P), code = st - i * P;
+    const hd = Math.floor(code / RS), run = code - hd * RS;
+    if (goals.has(i)) {
+      const out = [];
+      for (let c = st; c !== -1; c = parent[c]) {
+        const ti = Math.floor(c / P);
+        out.push({ x: ti % W, y: Math.floor(ti / W) });
+      }
+      return out.reverse();
+    }
+    const x = i % W, y = Math.floor(i / W);
+    const cur = tiles[i];
+    for (let nd = 0; nd < 4; nd++) {
+      if (hd < 4 && nd === (hd + 2) % 4) continue;
+      const turn = hd < 4 && nd !== hd;
+      if (turn && run < minRun) continue;
+      const nx = x + DIRS4[nd][0], ny = y + DIRS4[nd][1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || !allowed(nx, ny)) continue;
+      const j = ny * W + nx;
+      const t = tiles[j];
+      if (!passable(t) || Math.abs(t.height - cur.height) > 1) continue;
+      const nrun = (turn || hd === 4) ? Math.min(1, minRun) : Math.min(run + 1, minRun);
+      const ns = j * P + nd * RS + nrun;
+      if (closed[ns]) continue;
+      const ng = g[st] + stepCost(t, cur) + (turn ? TURN_COST : 0);
+      if (ng < g[ns]) {
+        g[ns] = ng;
+        parent[ns] = st;
+        heap.push(ng + h(j), ns);
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Lay a road along a path: link consecutive tiles, claim them for the town
  * and flatten forest/rock to grass.
  * @param {object} state
@@ -169,13 +238,14 @@ function coreRoadTiles(map, town) {
 /** Connect two towns by road if they are not already on one network. */
 function linkPair(state, a, b) {
   const { map } = state;
+  const turns = getSetting(state, 'townRoadTurns');
   const labels = labelComponentsAll(map, 'road');
   const la = labels[a.y * map.width + a.x], lb = labels[b.y * map.width + b.x];
   if (la >= 0 && la === lb) return true;
   const sources = coreRoadTiles(map, a);
   const goals = new Set(coreRoadTiles(map, b).map((p) => p.y * map.width + p.x));
   if (!sources.length || !goals.size) return false;
-  const path = findRoadPath(map, sources, goals, b);
+  const path = findRoadPath(map, sources, goals, b, undefined, 2, turns);
   if (!path) return false;
   layRoadPath(state, path);
   return true;
@@ -215,6 +285,7 @@ export function connectTowns(state) {
  */
 export function repairTownRoads(state) {
   const { map } = state;
+  const turns = getSetting(state, 'townRoadTurns');
   let laid = 0;
   const R2 = TOWN_CORE_RADIUS * TOWN_CORE_RADIUS;
   for (const town of state.towns) {
@@ -234,7 +305,7 @@ export function repairTownRoads(state) {
     for (const tiles of pieces.values()) {
       const goals = new Set();
       for (const p of core) if (labels[p.y * map.width + p.x] === centre) goals.add(p.y * map.width + p.x);
-      const path = findRoadPath(map, tiles, goals, town, inCore);
+      const path = findRoadPath(map, tiles, goals, town, inCore, 2, turns);
       if (path) { layRoadPath(state, path); laid++; }
     }
   }

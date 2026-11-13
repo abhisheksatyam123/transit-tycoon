@@ -141,7 +141,7 @@ function joinStreetToCore(state, town, street) {
   }
   if (!goals.size) return;
   const allowed = (x, y) => (x - town.x) ** 2 + (y - town.y) ** 2 <= 4 * R2 && !(prot && prot[y * map.width + x]);
-  const path = findRoadPath(map, street, goals, { x: town.x, y: town.y }, allowed);
+  const path = findRoadPath(map, street, goals, { x: town.x, y: town.y }, allowed, 2, getSetting(state, 'townRoadTurns'));
   if (path) layRoadPath(state, path);
 }
 
@@ -167,7 +167,7 @@ function buildInitialRoad(game, town) {
 /**
  * M4 (Moscow only): shortest 4-connected land path (BFS, free to turn) from a source tile to a goal
  * tile. Intermediate tiles must be open ground (no road, building, rail, water, tunnel/bridge, or
- * a step taller than 1). Used when findRoadPath finds no path (its straight-run rule blocks bends).
+ * a step taller than 1). Used when findRoadPath finds no path (with townRoadTurns off its straight-run rule blocks bends).
  */
 function bfsRoadPath(map, sources, goals, allowed, prot) {
   const W = map.width, H = map.height, N = W * H;
@@ -232,8 +232,8 @@ export function repairTownRoads(state, town, labels) {
       else if (labels[i] === main && map.tiles[i].road) goals.add(i);
     }
     if (!sources.length || !goals.size) continue;
-    let path = findRoadPath(map, sources, goals, { x: town.x, y: town.y }, allowed);
-    if (!path) path = bfsRoadPath(map, sources, goals, allowed, prot);  // findRoadPath cannot turn after a source
+    let path = findRoadPath(map, sources, goals, { x: town.x, y: town.y }, allowed, 2, getSetting(state, 'townRoadTurns'));
+    if (!path) path = bfsRoadPath(map, sources, goals, allowed, prot);  // with townRoadTurns off, findRoadPath cannot turn after a source
     if (path && path.length <= REPAIR_MAX_LEN) { layRoadPath(state, path); joins++; }
   }
   return joins;

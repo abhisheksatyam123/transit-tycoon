@@ -232,6 +232,9 @@ export const DEFAULT_SETTINGS = {
   allowTownRoads: true,
   /** OpenTTD economy.place_houses (def true): towns may construct new houses as they grow. Off = existing houses only (population stays put, roads may still grow). */
   placeHouses: true,
+  /** Opt-in fix of the town road path-finding bug (decision D22): true = town roads may bend after minRun straight steps.
+   * false (default) = the original straight-only roads plus the bfsRoadPath fallback (world hash unchanged). */
+  townRoadTurns: false,
   /** OpenTTD economy.town_cargo_scale (percent 0..500, def 100): scales passengers and mail produced by town houses each production chunk. 100 = current. */
   townCargoScale: 100,
   /** OpenTTD economy.town_cargogen_mode (TownCargoGenMode): 'original' = current OpenLoco-style per-house-visit (r>>2)+1 (default,
