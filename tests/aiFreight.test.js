@@ -5,6 +5,23 @@ import { setSetting } from '../js/simulation/settings.js';
 import { acceptTakeover } from '../js/simulation/aiCompanies.js';
 import { pickFreightPair, pickFreightPairs, stopAxisOk, FREIGHT_MIN_DIST, FREIGHT_MAX_DIST } from '../js/simulation/aiFreight.js';
 
+// Load-tolerant timeouts (N13-T). Measured on a quiet machine: 730-day seed-15 freight tests ~10 s,
+// 1825-day seed-11 test ~43 s. Under load (~19 on 8 cores) they took 241 s and 339 s, which hit the
+// old 120000 / 180000 ms timeouts. LONG_TIMEOUT_MS leaves headroom above the loaded times.
+const LONG_TIMEOUT_MS = 300000;
+
+// Baseline money for the same seed without aiCompanies after 730 days. Game instances are fully
+// seeded (game.rng) and share no module state, so this value is the same wherever it is computed.
+let baselineMoney730 = null;
+function baselineMoney() {
+  if (baselineMoney730 === null) {
+    const base = Game.create({ seed: 15, width: 96, height: 96, townCount: 8 });
+    base.stepDays(730);
+    baselineMoney730 = base.state.company.money;
+  }
+  return baselineMoney730;
+}
+
 function seed15() {
   const g = Game.create({ seed: 15, width: 96, height: 96, townCount: 8 });
   setSetting(g.state, 'aiCompanies', 1);
@@ -28,16 +45,14 @@ describe('aiCompanies stage 3: freight', () => {
     const deliveredByRival = r.ledger.history.reduce((a, h) => a + (h.income || 0), 0) + (r.ledger.current.income || 0);
     expect(deliveredByRival).toBeGreaterThan(0);
     expect(trucks.some((v) => v.profit && v.profit.some((p) => p > 0))).toBe(true);
-  }, 120000);
+  }, LONG_TIMEOUT_MS);
 
   test('freight roads are paid by the rival (player money not charged)', () => {
     const g = seed15();
-    const base = Game.create({ seed: 15, width: 96, height: 96, townCount: 8 });
     g.stepDays(730);
-    base.stepDays(730);
     // the rival's freight road is rival-owned money: the player's money path is unaffected by it
-    expect(g.state.company.money).toBe(base.state.company.money);
-  }, 120000);
+    expect(g.state.company.money).toBe(baselineMoney());
+  }, LONG_TIMEOUT_MS);
 
 
   test('pickFreightPairs is a deterministic ranked list within the window, excluding used ids', () => {
@@ -82,7 +97,7 @@ describe('aiCompanies stage 3: freight', () => {
     expect(freight.length).toBeGreaterThanOrEqual(1);
     const trucks = g.state.vehicles.filter((v) => v.ownerId === r.id && v.kind === 'road');
     expect(trucks.length).toBeGreaterThanOrEqual(freight.length);
-  }, 180000);
+  }, LONG_TIMEOUT_MS);
 
   test('pickFreightPair returns a producer/acceptor pair within the distance window, or null', () => {
     const g = Game.create({ seed: 15, width: 96, height: 96, townCount: 8 });
