@@ -30,5 +30,8 @@ export function createObjectsTool(app) {
       return true;
     },
   });
-  return { ...tool, get kind() { return kind; } };
+  // Keep the tool's live hint accessor (createPlacementTool defines it as a getter): spreading the object
+  // would snapshot it, freezing the hint and the dry-run footprint after J. Add `kind` to the same object.
+  Object.defineProperty(tool, 'kind', { get: () => kind, configurable: true });
+  return tool;
 }

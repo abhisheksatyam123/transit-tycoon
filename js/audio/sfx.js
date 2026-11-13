@@ -37,15 +37,31 @@ export function unlockAudio() {
   }
 }
 
-/** Install one-shot listeners that unlock audio on the first gesture. */
+/**
+ * Install the gesture listeners that unlock audio, and keep the unlock armed across tab/window switches.
+ * Browsers may suspend the context again when the page is hidden or loses focus, so visibilitychange and
+ * window focus call unlockAudio() (which resumes a suspended context) and re-arm the one-shot gestures.
+ */
 export function installAudioUnlock() {
+  let armed = false;
   const h = () => {
+    armed = false;
     unlockAudio();
     window.removeEventListener('pointerdown', h);
     window.removeEventListener('keydown', h);
   };
-  window.addEventListener('pointerdown', h);
-  window.addEventListener('keydown', h);
+  const arm = () => {
+    if (armed) return;
+    armed = true;
+    window.addEventListener('pointerdown', h);
+    window.addEventListener('keydown', h);
+  };
+  const rearm = () => { unlockAudio(); arm(); };
+  arm();
+  if (typeof document !== 'undefined') {
+    window.addEventListener('visibilitychange', () => { if (!document.hidden) rearm(); });
+  }
+  window.addEventListener('focus', rearm);
 }
 
 /** @returns {boolean} */
@@ -133,7 +149,12 @@ const SOUNDS = {
  * @param {'build'|'demolish'|'income'|'error'|'click'|'horn'|'news'} name
  */
 export function play(name) {
-  if (muted || !ctx || ctx.state !== 'running') return;
+  if (muted || !ctx) return;
+  if (ctx.state !== 'running') {
+    // a suspended context (tab in the background, autoplay policy) resumes on the next call; drop this sound
+    if (typeof ctx.resume === 'function') { try { ctx.resume().catch(() => {}); } catch { /* ignore */ } }
+    return;
+  }
   const now = performance.now();
   if (lastPlayed[name] && now - lastPlayed[name] < 70) return;
   lastPlayed[name] = now;
@@ -154,7 +175,11 @@ const vehStamps = [];
  * @param {'depart_train'|'depart_road'|'ding'} name
  */
 export function playVehicle(name) {
-  if (muted || !ctx || ctx.state !== 'running') return;
+  if (muted || !ctx) return;
+  if (ctx.state !== 'running') {
+    if (typeof ctx.resume === 'function') { try { ctx.resume().catch(() => {}); } catch { /* ignore */ } }
+    return;
+  }
   const now = performance.now();
   while (vehStamps.length && now - vehStamps[0] > 1000) vehStamps.shift();
   if (vehStamps.length >= VEH_PER_SEC) return;

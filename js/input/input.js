@@ -33,7 +33,11 @@ export function setupInput(app, canvas, shortcuts) {
   const held = new Set();
   let panning = false, panX = 0, panY = 0, panMoved = 0;
   let leftDown = false;
+  // Set at press when a tool owned the drag; if the tool is cancelled mid-drag (Esc, right-click, setGame),
+  // the matching release must not fall through to the no-tool click (inspect/open window).
+  let downWithTool = false;
   let lastTile = { x: -1, y: -1 };
+  let lastCtrl = false;
   /** @type {Map<number,{x:number,y:number}>} active touches for pinch zoom */
   const touches = new Map();
   let pinchDist = 0;
@@ -44,7 +48,7 @@ export function setupInput(app, canvas, shortcuts) {
   };
   const inMap = (t) => app.game.inBounds(t.x, t.y);
 
-  const hover = (p) => {
+  const hover = (p, ctrl = false) => {
     const t = app.renderer.pickTile(p.x, p.y);
     app.toasts.setCursor(p.x, p.y);
     if (!inMap(t)) {
@@ -52,9 +56,11 @@ export function setupInput(app, canvas, shortcuts) {
       return null;
     }
     app.renderer.overlay.hover = t;
-    if (t.x !== lastTile.x || t.y !== lastTile.y) {
+    if (t.x !== lastTile.x || t.y !== lastTile.y || ctrl !== lastCtrl) {
       lastTile = t;
-      if (app.tool) app.tool.move(t);
+      lastCtrl = ctrl;
+      // Ctrl is passed on for tools whose preview depends on it (signal Ctrl+drag removes)
+      if (app.tool) app.tool.move({ ...t, ctrl });
     }
     return t;
   };
@@ -85,10 +91,11 @@ export function setupInput(app, canvas, shortcuts) {
       return;
     }
     if (e.button !== 0) return;
-    const t = hover(p);
+    const t = hover(p, !!(e.ctrlKey || e.metaKey));
     if (!t) return;
     leftDown = true;
-    if (app.tool) app.tool.down(t);
+    downWithTool = !!app.tool;
+    if (app.tool) app.tool.down({ ...t, ctrl: !!(e.ctrlKey || e.metaKey) });
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -113,12 +120,17 @@ export function setupInput(app, canvas, shortcuts) {
       if (panMoved > 4) app.follow(null);
       return;
     }
-    hover(p);
+    hover(p, !!(e.ctrlKey || e.metaKey));
   });
 
   const release = (e) => {
     touches.delete(e.pointerId);
     if (touches.size < 2) pinchDist = 0;
+    // fix 9: one finger of a pinch lifted -> re-anchor the pan origin on the remaining finger (no jump)
+    if (e.pointerType === 'touch' && touches.size === 1) {
+      const rem = touches.values().next().value;
+      panX = rem.x; panY = rem.y;
+    }
     const p = local(e);
     if (panning) {
       const wasClick = panMoved < 4 && e.pointerType === 'touch' && !app.tool;
@@ -128,19 +140,22 @@ export function setupInput(app, canvas, shortcuts) {
     }
     if (!leftDown) return;
     leftDown = false;
+    const pressedWithTool = downWithTool;
+    downWithTool = false;
     const t = app.renderer.pickTile(p.x, p.y);
     if (app.tool) {
       const clamped = clampTile(t);
       // ctrl and the screen point let a station tool open its distant-join picker (ui/tools/joinPicker.js)
       app.tool.up({ ...clamped, ctrl: !!(e.ctrlKey || e.metaKey), cx: e.clientX, cy: e.clientY, sx: p.x, sy: p.y });
       lastTile = { x: -1, y: -1 };
-    } else click(p);
+    } else if (!pressedWithTool) click(p);
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', (e) => {
     touches.delete(e.pointerId);
     panning = false;
     leftDown = false;
+    downWithTool = false;
     if (app.tool) app.tool.cancel();
   });
   canvas.addEventListener('pointerleave', () => { if (!leftDown && !panning) app.renderer.overlay.hover = null; });
@@ -247,7 +262,15 @@ export function setupInput(app, canvas, shortcuts) {
     if (e.key === 'Tab' && app.fastForward) app.setFastForward?.(false);
     held.delete(e.key.toLowerCase());
   });
-  window.addEventListener('blur', () => { held.clear(); if (app.fastForward) app.setFastForward?.(false); });
+  window.addEventListener('blur', () => {
+    held.clear();
+    if (app.fastForward) app.setFastForward?.(false);
+    // a window switch mid-drag must not leave a panning/left-down state (or a stale tool preview) behind
+    panning = false; panMoved = 0;
+    leftDown = false; downWithTool = false;
+    touches.clear(); pinchDist = 0;
+    if (app.tool) app.setTool(null);
+  });
 
   return {
     update(dt) {

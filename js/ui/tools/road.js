@@ -16,6 +16,7 @@ export function createRoadTool(app) {
     command: (g, x0, y0, x1, y1, opts) => convertMode
       ? g.convertRoad(x0, y0, x1, y1, { ...opts, to: 'tram' })
       : g.buildRoad(x0, y0, x1, y1, opts),
+    direct: () => convertMode,
     layer: 'road',
     tiles: (x0, y0, x1, y1) => convertMode ? rectTiles(x0, y0, x1, y1) : lTiles(x0, y0, x1, y1),
   });
@@ -23,6 +24,7 @@ export function createRoadTool(app) {
   tool.key = (e) => {
     if (e.key === 'x' || e.key === 'X') {
       convertMode = !convertMode;
+      tool.cancel(); // mode changed mid-drag: drop the stale start/preview so the next release is not a build
       app.ui?.updateHint?.();
       app.toast?.(`Road: ${convertMode ? 'convert road to tram' : 'build road'}`, 'info');
       return true;
