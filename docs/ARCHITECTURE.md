@@ -345,6 +345,7 @@ the existing game unless noted. When the code and this table disagree, the code 
 | `fundRoads` | on | Town action "Fund local road reconstruction" (roadworks) is offered. Off = not available. |
 | `roadAcceleration` | `original` | `realistic` (OpenTTD style): acceleration from power, tractive effort, drag, friction and slope against full loaded weight, with 75 % cardinal and 50 % reverse speed caps. `original` = the current model. |
 | `townCargogenMode` | `original` | `bitcount` (OpenTTD): a quarter of house visits produce a popcount of random bits, same monthly totals, smoother output. `original` = the Transit Tycoon rule. |
+| `townCargoScale` | 100 (0-500 %) | Scales passengers and mail produced by town houses. Only applies with `townCargogenMode` = `bitcount`; ignored in `original` mode (default-mode world hash is unchanged by this value). |
 | `timetableEstimates` | off | Measured wait and travel days are kept per order as display-only estimates (shown with `~` in the Orders window) until a time is set. |
 | `transparencyInvisibleHides` | off | Ctrl+Shift+1..8 hides the transparency class instead of fading it. Display only. Off = Ctrl+Shift+digit fades like Ctrl+digit. |
 | `linkgraphIntervalDays` | 0 (0-90) | 0 = the monthly link graph schedule. Above 0, days between link graph job starts (one cargo graph per spawn); the monthly interval and delay are ignored. |
