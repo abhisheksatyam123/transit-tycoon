@@ -1,7 +1,7 @@
 /**
  * Station, road stop and depot commands plus their removal helpers.
  */
-import { DIRS, OPPOSITE, AXIS_BITS } from './constants.js';
+import { DIRS, OPPOSITE, AXIS_BITS, DIR_BY_BIT } from './constants.js';
 import { constructionTotal } from './prices.js';
 import { COSTS } from '../config/costs.js';
 import { getTile, inBounds } from './map.js';
@@ -150,6 +150,24 @@ export function buildRailStation(ctx, x, y, axis, length = 1, opts = {}) {
 function roadOwnerId(t) { return t.owner === 'rival' ? (t.rivalId ?? null) : null; }
 
 /**
+ * Opt-in terminal entrance (setting terminalRoadStops): the single road bit of an existing road end,
+ * or opts.dir on clear land next to a road tile that already has the bit pointing back at it.
+ * @returns {{dir:number}|{error:string}}
+ */
+function terminalEntry(map, t, x, y, dir) {
+  if (t.road) {
+    const bits = t.road;
+    if (bits & (bits - 1)) return { error: 'Terminal stops need a road end' };
+    return { dir: bits };
+  }
+  const d = DIR_BY_BIT[dir];
+  if (!d) return { error: 'Terminal stop needs a connecting road' };
+  const nt = getTile(map, x + d.dx, y + d.dy);
+  if (!nt || !nt.road || !(nt.road & OPPOSITE[dir])) return { error: 'Terminal stop needs a connecting road' };
+  return { dir };
+}
+
+/**
  * Build a drive-through bus/truck stop on a straight road tile (keeps road bits) or on
  * empty land (lays road along opts.axis, default 'x', linking to roads beyond each end).
  * @returns {{ok:true,cost:number,stationId:number}|{ok:false,error:string}}
@@ -171,13 +189,22 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (kind !== 'tram' && t.road && t.owner === 'town' && getSetting(state, 'roadStopOnTownRoad') === false) return { ok: false, error: 'Drive-through stops cannot be built on town roads (game settings)' };
   // OpenTTD construction.road_stop_on_competitor_road (world_settings.ini ~544, def true): a road owned by another company (t.owner 'rival' or 'company' with a different builder; rival id in t.rivalId, player = null) is refused when off
   if (kind !== 'tram' && t.road && (t.owner === 'rival' || t.owner === 'company') && roadOwnerId(t) !== (opts.owner ?? null) && getSetting(state, 'roadStopOnCompetitorRoad') === false) return { ok: false, error: 'Drive-through stops cannot be built on competitor roads (game settings)' };
+  // opt-in terminal stop (setting terminalRoadStops, default off): one entrance bit, no through road
+  const terminalOn = opts.terminal === true && getSetting(state, 'terminalRoadStops') === true;
+  if (terminalOn && kind === 'tram') return { ok: false, error: 'Terminal stops are for bus and truck' };
   let axis;
+  let terminalDir = 0;
   if (kind === 'tram') {
     // tram stop: straight tram track only (trams stop there; buses do not); no road bits are added
     if (!t.tram) return { ok: false, error: 'Tram stops need tram track' };
     axis = straightAxis(t.tram);
     if (!axis) return { ok: false, error: 'Tram stops need a straight tram track' };
     if (t.road && (t.road & ~AXIS_BITS[axis])) return { ok: false, error: 'Tram stops need a straight tram track' };
+  } else if (terminalOn) {
+    const te = terminalEntry(map, t, x, y, opts.dir);
+    if (te.error) return { ok: false, error: te.error };
+    terminalDir = te.dir;
+    axis = straightAxis(terminalDir);
   } else if (t.road) {
     axis = straightAxis(t.road);
     if (!axis) return { ok: false, error: 'Road stops need a straight road' };
@@ -198,7 +225,9 @@ export function buildRoadStop(ctx, x, y, kind, opts = {}) {
   if (opts.dryRun) return { ok: true, cost, stationId: existing ? existing.id : null };
   const st = existing || stampOwner(state, createStation(state, x, y), opts.owner ?? null);
   clearTerrain(t);
-  if (!t.road && kind !== 'tram') {
+  if (terminalDir && !t.road) {
+    t.road = terminalDir;
+  } else if (!t.road && kind !== 'tram') {
     t.road = AXIS_BITS[axis];
     for (const d of DIRS) {
       if (!(t.road & d.bit)) continue;

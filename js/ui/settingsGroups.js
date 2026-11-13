@@ -141,6 +141,8 @@ export const SETTING_META = [
     help: 'OpenTTD construction.road_stop_on_town_road: drive-through bus and truck stops may be built on town-owned roads. Off = refused on town roads.' },
   { key: 'roadStopOnCompetitorRoad', group: 'construction', label: 'Road stops on competitor roads', type: 'check',
     help: 'OpenTTD construction.road_stop_on_competitor_road: drive-through bus and truck stops may be built on roads owned by another company. Off = refused on competitor roads.' },
+  { key: 'terminalRoadStops', group: 'construction', label: 'Terminal road stops', type: 'check',
+    help: 'Allow bus and truck terminal stops: a stop at the end of a road, entered from one side only, or on clear land beside a road. Off = drive-through stops only (default).' },
   { key: 'trainSignalSide', group: 'construction', label: 'Signal side', type: 'select',
     options: [['right', 'Right of track (default)'], ['left', 'Left of track'], ['driving', 'Road driving side']],
     help: 'OpenTTD construction.train_signal_side: which side of the track signal posts stand on (drawing only). Right = the historic default.' },
