@@ -497,7 +497,7 @@ function deliverLoad(ctx, v, st) {
   if (st.ownerId != null) st.delivered = 1; // rival stations only (player stations never use it); OL StationFlags::flag_8 (VehicleHead.cpp:3134): lifts the rival rating override
   const acceptingInd = creditDelivery(state, st, v.cargoId, load.amount);
   noteFirstDelivery(ctx, state, st, v.cargoId, acceptingInd);
-  noteDelivery(state, v.cargoId, load.amount, v.id);
+  noteDelivery(state, v.cargoId, load.amount, v.id, v.ownerId);
   const amount = load.amount;
   load.amount = 0;
   load.fromStationId = null;

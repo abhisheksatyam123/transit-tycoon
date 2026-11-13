@@ -21,7 +21,7 @@ export const GOALS = [
   { id: 'first_route', title: 'First route', desc: 'Buy a vehicle and give it at least two orders.', reward: 50000,
     progress: ({ stats }) => ({ v: Math.min(1, stats.routes), t: 1 }) },
   { id: 'pax_month', title: 'Busy month', desc: 'Carry 2,000 passengers in one month with vehicles you bought.', reward: 150000,
-    progress: ({ state }) => ({ v: state.goals.month.PAS || 0, t: 2000 }) },
+    progress: ({ state }) => ({ v: state.goals.month.PASS ?? state.goals.month.PAS ?? 0, t: 2000 }) }, // PASS is the cargo id; PAS kept for old saves
   { id: 'districts', title: 'Districts', desc: `Build stations within ${SERVE_RADIUS} tiles of 6 districts.`, reward: 200000,
     progress: ({ stats }) => ({ v: stats.servedTowns, t: 6 }) },
   { id: 'profit_month', title: 'Profitable month', desc: 'Make $60,000 profit (income minus expenses) in one month.', reward: 250000,
@@ -50,9 +50,9 @@ export function ensureGoals(state) {
   return state.goals || null;
 }
 
-/** Count a delivery toward the current month's cargo total (no-op without goals). */
-export function noteDelivery(state, cargoId, amount, vehicleId = Infinity) {
-  if (!state.goals || !(amount > 0) || vehicleId <= state.goals.base) return; // prebuilt fleet does not count
+/** Count a player delivery toward the current month's cargo total (no-op without goals). Rival-owned vehicles never count. */
+export function noteDelivery(state, cargoId, amount, vehicleId = Infinity, ownerId = null) {
+  if (!state.goals || !(amount > 0) || ownerId != null || vehicleId <= state.goals.base) return; // prebuilt fleet does not count
   state.goals.month[cargoId] = (state.goals.month[cargoId] || 0) + amount;
 }
 
@@ -64,6 +64,7 @@ function serveSets(state) {
   const meta = state.scenarioMeta && state.scenarioMeta.landmarks ? state.scenarioMeta.landmarks : [];
   const base = state.goals ? state.goals.base : -1;
   for (const st of state.stations) {
+    if (st.ownerId != null) continue; // rival stations never count
     if (st.id <= base) continue; // only stations the player built count
     towns.forEach((t, i) => { if (manhattan(st.x, st.y, t.x, t.y) <= SERVE_RADIUS) served.add(i); });
     for (const lm of meta) {
@@ -78,7 +79,7 @@ function serveSets(state) {
 function routeLinks(state, base, pointA, pointB) {
   const near = (st, p) => manhattan(st.x, st.y, p.x, p.y) <= LANDMARK_RADIUS;
   for (const v of state.vehicles) {
-    if (v.id <= base || v.orders.length < 2) continue;
+    if (v.ownerId != null || v.id <= base || v.orders.length < 2) continue; // player-bought only
     let a = false, b = false;
     for (const o of v.orders) {
       const st = findStation(state, o.stationId);
@@ -94,13 +95,13 @@ function routeLinks(state, base, pointA, pointB) {
 /** Per-check statistics shared by goal progress functions. */
 export function makeStats(state) {
   const base = state.goals.base;
-  const player = state.vehicles.filter((v) => v.id > base);
+  const player = state.vehicles.filter((v) => v.ownerId == null && v.id > base);
   const { served, landmarks } = serveSets(state);
   const lm = (id) => (state.scenarioMeta?.landmarks || []).find((q) => q.id === id);
   const center = (l) => (l ? { x: l.x + (l.w || 1) / 2 - 0.5, y: l.y + (l.h || 1) / 2 - 0.5 } : null);
   const kr = center(lm('kremlin')), vd = center(lm('vdnkh'));
   let value = state.company.money - state.company.loan;
-  for (const v of state.vehicles) value += v.value || 0;
+  for (const v of player) value += v.value || 0;
   return {
     routes: player.filter((v) => v.orders.length >= 2).length,
     servedTowns: served.size,

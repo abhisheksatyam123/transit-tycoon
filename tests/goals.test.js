@@ -4,6 +4,8 @@ import { Game } from '../js/simulation/game.js';
 import { buildScenario } from '../js/simulation/scenarios/index.js';
 import { miniMoscow } from './fixtures/miniMoscow.js';
 import { GOALS, evaluateGoals, goalSnapshot, noteDelivery, rollGoalMonth, makeStats, ensureGoals } from '../js/simulation/goals.js';
+import { tickDate } from '../js/simulation/loco/gameLoop.js';
+import * as CompanyManager from '../js/simulation/loco/companyManager.js';
 import { parseState } from '../js/simulation/save.js';
 
 const scenarioGame = () => {
@@ -74,15 +76,88 @@ describe('goals: evaluation and rewards', () => {
     expect(goalSnapshot(s).current.id).toBe('first_route');
   });
 
-  test('busy-month goal tracks cargo delivered this month and resets at month end', () => {
+  test('busy-month goal tracks PASS cargo delivered this month and resets at month end', () => {
     const s = scenarioGame().state;
-    noteDelivery(s, 'PAS', 1500);
-    noteDelivery(s, 'PAS', 400);
+    noteDelivery(s, 'PASS', 1500);
+    noteDelivery(s, 'PASS', 400);
     noteDelivery(s, 'COAL', 9999); // only passengers count
-    expect(s.goals.month.PAS).toBe(1900);
+    expect(s.goals.month.PASS).toBe(1900);
     expect(goalSnapshot(s).goals.find((r) => r.id === 'pax_month').v).toBe(0); // not yet unlocked
+    // old scenario saves stored the counter under the legacy 'PAS' key
+    const legacy = scenarioGame().state;
+    noteDelivery(legacy, 'PAS', 120);
+    legacy.goals.index = 1;
+    legacy.goals.done = ['first_route'];
+    expect(goalSnapshot(legacy).goals.find((r) => r.id === 'pax_month').v).toBe(120);
     rollGoalMonth(s);
     expect(s.goals.month).toEqual({});
+  });
+
+  test('busy-month goal completes from real PASS deliveries and unlocks the next goal', () => {
+    const s = scenarioGame().state;
+    s.vehicles.push({ id: s.nextId + 100, orders: [{ stationId: 1 }, { stationId: 1 }], value: 0 });
+    noteDelivery(s, 'PASS', 2000);
+    const n = evaluateGoals({ state: s, emit: () => {} });
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(s.goals.done).toContain('first_route');
+    expect(s.goals.done).toContain('pax_month');
+    expect(s.goals.index).toBeGreaterThanOrEqual(2);
+  });
+
+  test('rival stations never count toward player goals', () => {
+    const s = scenarioGame().state;
+    const baseline = makeStats(s).servedTowns;
+    const town = s.towns[0];
+    const probeId = s.nextId + 900;
+    // sensitivity check: a player station at the town centre does raise the count
+    s.stations.push({ id: probeId, x: town.x, y: town.y });
+    expect(makeStats(s).servedTowns).toBeGreaterThan(baseline);
+    s.stations.pop();
+    // the same station owned by a rival changes nothing
+    s.stations.push({ id: probeId, ownerId: 7, x: town.x, y: town.y });
+    expect(makeStats(s).servedTowns).toBe(baseline);
+  });
+
+  test('rival vehicles never count toward routes, landmarks or company value', () => {
+    const s = scenarioGame().state;
+    const meta = s.scenarioMeta;
+    meta.landmarks.push(
+      { id: 'kremlin', name: 'Kremlin', x: 20, y: 18, w: 1, h: 1 },
+      { id: 'vdnkh', name: 'VDNKh', x: 20, y: 30, w: 1, h: 1 },
+    );
+    const center = (l) => ({ x: l.x + (l.w || 1) / 2 - 0.5, y: l.y + (l.h || 1) / 2 - 0.5 });
+    const kr = center(meta.landmarks.find((l) => l.id === 'kremlin'));
+    const vd = center(meta.landmarks.find((l) => l.id === 'vdnkh'));
+    const a = s.nextId + 500, b = s.nextId + 501;
+    s.stations.push({ id: a, x: kr.x, y: kr.y }, { id: b, x: vd.x, y: vd.y });
+    s.vehicles.push({ id: s.nextId + 502, orders: [{ stationId: a }, { stationId: b }], value: 1000 });
+    const before = makeStats(s);
+    expect(before.kremlinVdnkh).toBe(true);
+    expect(before.routes).toBe(1);
+    const rivalStation = s.nextId + 600;
+    s.stations.push({ id: rivalStation, ownerId: 7, x: s.towns[0].x, y: s.towns[0].y });
+    const rivalVehicle = s.nextId + 601;
+    s.vehicles.push({ id: rivalVehicle, ownerId: 7, orders: [{ stationId: a }, { stationId: b }], value: 9_000_000 });
+    expect(makeStats(s)).toEqual(before);
+    // a rival delivery never advances the player's monthly counter
+    noteDelivery(s, 'PASS', 500, rivalVehicle, 7);
+    expect(s.goals.month.PASS).toBeUndefined();
+    noteDelivery(s, 'PASS', 1, s.nextId + 602);
+    expect(s.goals.month.PASS).toBe(1);
+  });
+
+  test('deliveries on the first tick of a new month count in the new month', () => {
+    const g = scenarioGame();
+    const s = g.state;
+    s.date = { year: 1950, month: 0, day: 31 };
+    s.dayCounter = 0xffff; // the next updateDayCounter wraps: a new day starts
+    noteDelivery(s, 'PASS', 100); // last delivery of the closing month
+    expect(tickDate(g)).toBe(true);
+    expect(s.date.month).toBe(1);
+    expect(s.goals.month).toEqual({}); // evaluated at the boundary, then reset
+    noteDelivery(s, 'PASS', 40); // first delivery of the new month (VehicleManager.tick)
+    CompanyManager.tick(g); // the deferred ledger roll must not wipe it
+    expect(s.goals.month.PASS).toBe(40);
   });
 
   test('profit goal reads the last closed month, not the running one', () => {
@@ -122,11 +197,11 @@ describe('goals: persistence', () => {
     const g = scenarioGame();
     g.state.goals.done.push('first_route');
     g.state.goals.index = 1;
-    g.state.goals.month.PAS = 123;
+    g.state.goals.month.PASS = 123;
     const back = Game.deserialize(g.serialize());
     expect(back.state.goals.done).toEqual(['first_route']);
     expect(back.state.goals.index).toBe(1);
-    expect(back.state.goals.month.PAS).toBe(123);
+    expect(back.state.goals.month.PASS).toBe(123);
     expect(back.serialize()).toBe(g.serialize());
   });
 

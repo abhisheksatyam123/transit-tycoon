@@ -17,9 +17,9 @@ const PEOPLE = new Set(['PASS', 'MAIL']);
  */
 export const RANDOM_GOALS = [
   { id: 'station', title: 'Build your first station', hint: 'Use the Road or Rail tool and place a station next to a town.', unit: '',
-    progress: (s) => ({ v: Math.min(1, s.stations.length), t: 1 }) },
+    progress: (s) => ({ v: Math.min(1, s.stations.filter((st) => st.ownerId == null).length), t: 1 }) },
   { id: 'route', title: 'Buy a vehicle and give it 2 orders', hint: 'Open a depot, buy a vehicle, then add two stations as its orders.', unit: '',
-    progress: (s) => ({ v: Math.min(1, s.vehicles.filter((v) => v.orders.length >= 2).length), t: 1 }) },
+    progress: (s) => ({ v: Math.min(1, s.vehicles.filter((v) => v.ownerId == null && v.orders.length >= 2).length), t: 1 }) },
   { id: 'income', title: 'Earn your first delivery income', hint: 'Load a vehicle at one station and unload it at another: the first delivery pays.', unit: '',
     progress: (s) => ({ v: Math.min(1, s.company.cargoUnitsTotalDelivered || 0), t: 1 }) },
   { id: 'freight200', title: 'Deliver 200 t of any freight cargo', hint: 'Run a freight route (coal, goods, oil...). Any cargo except passengers and mail counts.', unit: 't',
@@ -27,9 +27,9 @@ export const RANDOM_GOALS = [
   { id: 'pax500', title: 'Carry 500 passengers', hint: 'Connect two busy towns with a bus or train service.', unit: '',
     progress: (s) => ({ v: s.company.cargoDelivered?.PASS || 0, t: 500 }) },
   { id: 'profit5', title: 'Have 5 vehicles making a profit', hint: 'Keep the best routes and add vehicles where cargo waits.', unit: '',
-    progress: (s) => ({ v: s.vehicles.filter((v) => totalRecentProfit(v) > 0).length, t: 5 }) },
+    progress: (s) => ({ v: s.vehicles.filter((v) => v.ownerId == null && totalRecentProfit(v) > 0).length, t: 5 }) },
   { id: 'value250k', title: 'Reach company value $250,000', hint: 'Company value = cash - loan + vehicle value + 8 x recent profit. Repay the loan to raise it.', unit: '$',
-    progress: (s) => ({ v: Math.max(0, calculateCompanyValue(s.company, s.vehicles).companyValue), t: 250000 }) },
+    progress: (s) => ({ v: Math.max(0, calculateCompanyValue(s.company, s.vehicles.filter((v) => v.ownerId == null)).companyValue), t: 250000 }) },
 ];
 
 /** Total units of non-passenger cargo delivered by the company. */

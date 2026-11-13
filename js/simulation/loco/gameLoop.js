@@ -21,6 +21,7 @@ import * as Economy from './economy.js';
 import * as Subsidies from '../subsidies.js';
 import * as Objective from '../objective.js';
 import { getSetting } from '../settings.js';
+import { rollGoalMonth } from '../goals.js';
 import * as TreeGrowth from '../treeGrowth.js';
 import * as Recession from '../recession.js';
 import * as CargoDist from '../cargodist.js';
@@ -79,7 +80,8 @@ export function tickDate(game) {
     }
     game.events.emit('month', { date: s.date });
   }
-  CompanyManager.updateDaily(game);
+  CompanyManager.updateDaily(game); // evaluates goals before the counters roll
+  if (newMonth) rollGoalMonth(s); // reset after evaluation so the new month starts empty
   return true;
 }
 

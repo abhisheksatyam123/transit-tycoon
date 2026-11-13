@@ -7,9 +7,10 @@
  * Adaptation: transit-tycoon keeps a monthly ledger (company.ledger, shown by the Finances window and read by the
  * "profit_month" goal). OpenLoco charges vehicle running costs in VehicleManager::updateMonthly *after* CompanyManager::
  * updateMonthly1, so the ledger roll-over + goal evaluation is deferred to CompanyManager.tick (same game tick, after
- * every monthly manager ran): company.pendingLedger holds the month being closed.
+ * every monthly manager ran): company.pendingLedger holds the month being closed. The goal month counters themselves
+ * roll in the date tick (gameLoop tickDate) right after the month-end evaluation, so the next month starts empty.
  */
-import { evaluateGoals, rollGoalMonth } from '../goals.js';
+import { evaluateGoals } from '../goals.js';
 import { evaluateRandomGoals } from '../randomGoals.js';
 import { updateHQ } from '../cmdHQ.js';
 import { notify } from '../news.js';
@@ -35,7 +36,6 @@ export function tick(game) {
   c.pendingLedger = null;
   closeLedgerMonth(game.state, ended);
   evaluateGoals(game.ctx);
-  rollGoalMonth(game.state);
 }
 
 /** CompanyManager::updateDaily -> Company::updateDaily -> updateDailyPlayer (challenge progress) + loan autorepay. */

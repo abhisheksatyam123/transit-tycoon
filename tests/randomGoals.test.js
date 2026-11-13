@@ -79,6 +79,26 @@ describe('random-world goals', () => {
     expect(s.rgoals.done).toContain('profit5');
   });
 
+  test('rival companies do not count toward tutorial stages', () => {
+    const g = fresh();
+    snap(g);
+    const s = g.state;
+    const prog = (id) => RANDOM_GOALS.find((x) => x.id === id).progress(s);
+    const before = { station: prog('station').v, route: prog('route').v, profit: prog('profit5').v, value: prog('value250k').v };
+    s.stations.push({ ...station(1), ownerId: 7 });
+    for (let i = 0; i < 5; i++) s.vehicles.push({ ...veh(100 + i, 2, 1000), ownerId: 7 });
+    expect(prog('station').v).toBe(before.station);
+    expect(prog('route').v).toBe(before.route);
+    expect(prog('profit5').v).toBe(before.profit);
+    expect(prog('value250k').v).toBe(before.value);
+    // the same entities owned by the player do count
+    s.stations.push(station(2));
+    s.vehicles.push(veh(200, 2, 1000));
+    expect(prog('station').v).toBe(1);
+    expect(prog('route').v).toBe(1);
+    expect(prog('profit5').v).toBe(1);
+  });
+
   test('progress shows partial counts for the window', () => {
     const g = fresh();
     snap(g);
