@@ -50,7 +50,8 @@ function wagonOptions(app) {
 
 /**
  * Cache key for a consist strip: rebuild only when a displayed input changes (vehicle id/model,
- * extra engines, wagon model/cargo order, cargo/capacity, mixed-consist flag, game date, pickers).
+ * extra engines, wagon model/cargo order, cargo/capacity, mixed-consist flag, game date, pickers,
+ * and the vehicle state and load, which gate the sell / remove-engine dry runs).
  * @param {any} v
  * @param {any} date game date (year/month/day)
  * @returns {string}
@@ -58,8 +59,9 @@ function wagonOptions(app) {
 export function consistSignature(v, date) {
   const wagons = wagonList(v).map((w) => `${w.modelId}:${w.cargoId}`).join(',');
   const d = date ? `${date.year}-${date.month}-${date.day}` : '';
+  const load = v.load ? v.load.amount || 0 : 0;
   return [v.id, v.modelId, (v.engines || []).join(','), v.wagons || 0, v.capacity || 0,
-    v.cargoId ?? '', wagons, v.consist ? 1 : 0, d].join('|');
+    v.cargoId ?? '', wagons, v.consist ? 1 : 0, v.state ?? '', load, d].join('|');
 }
 
 /**

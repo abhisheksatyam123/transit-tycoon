@@ -53,3 +53,14 @@ describe('depot consist strip cache', () => {
     expect(add.disabled).toBe(false);
   });
 });
+
+describe('depot consist strip cache: vehicle state and load', () => {
+  test('signature changes when a depot train leaves the depot or is loaded', () => {
+    const v = { ...train(), state: 'depot' };
+    const base = consistSignature(v, DATE);
+    // leaving the depot or taking cargo changes the sell/remove dry-run flags, so the strip must rebuild
+    expect(consistSignature({ ...v, state: 'track' }, DATE)).not.toBe(base);
+    expect(consistSignature({ ...v, load: { amount: 30 } }, DATE)).not.toBe(base);
+    expect(consistSignature({ ...v, load: { amount: 0 } }, DATE)).toBe(base);
+  });
+});
