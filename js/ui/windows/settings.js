@@ -6,7 +6,7 @@
 import { el } from '../dom.js';
 import { allSettings, setSetting, getSetting, roadSideLocked, DEFAULT_SETTINGS } from '../../simulation/settings.js';
 import { SETTING_GROUPS, SETTING_META, PREF_META, isChanged, matchesQuery } from '../settingsGroups.js';
-import { isMuted, setMuted, unlockAudio } from '../../audio/sfx.js';
+import { isMuted, setMuted, unlockAudio, getSfxVolume, setSfxVolume } from '../../audio/sfx.js';
 import { savedGfxMode, togglePack } from '../../renderer/pack/index.js';
 import { isFxOn, setFxOn } from '../../renderer/vehicleFx.js';
 import { loadLabelPrefs, setLabelPref } from '../../renderer/labels.js';
@@ -93,6 +93,16 @@ export function openSettings(app) {
           unitSel('speed', 'Speed units', 'Vehicle speeds in km/h or mph. Display only.',
             Object.values(SPEED_UNITS).map((u) => [u.id, u.name]), 'speed');
           unitSel('dateFormat', 'Date format', 'Date display order: Day-Month-Year, Month-Day-Year, or Year-Month-Day. Display only.', Object.entries(DATE_FORMATS).map(([k, v]) => [k, v]), 'dateFormat');
+          // Sound-effects master volume 0..100 (localStorage 'tt.sfxVolume'; default 100 = the original level). Applied at once.
+          {
+            const help = 'Loudness of build and vehicle sounds. 100 = default. Mute (above) still silences everything.';
+            const vol = /** @type {HTMLInputElement} */ (el('input.input', { type: 'range', min: '0', max: '100', step: '5', value: String(getSfxVolume()), 'aria-label': 'Sound effects volume' }));
+            const out = el('span.muted', { text: getSfxVolume() + '%' });
+            vol.addEventListener('input', () => { out.textContent = vol.value + '%'; setSfxVolume(Number(vol.value)); });
+            const row = el('div.set-row', null, el('label.set-line', { title: help }, vol, el('span.set-label', { text: 'Sound effects volume' }), out), el('span.set-help.muted', { text: help }));
+            rows.push({ item: { label: 'Sound effects volume', help, group: g.id }, row, pref: true, sync: () => { if (document.activeElement !== vol) { vol.value = String(getSfxVolume()); out.textContent = vol.value + '%'; } } });
+            inner.push(row);
+          }
           // Accessibility (localStorage 'tt.a11y'): UI scale, high contrast, reduced motion. Applied at once.
           const scaleSel = /** @type {HTMLSelectElement} */ (el('select.input', null, ...UI_SCALES.map((v) => el('option', { value: String(v), text: v + '%' }))));
           scaleSel.addEventListener('change', () => { setA11y({ uiScale: Number(scaleSel.value) }); applyA11y(); });

@@ -2,21 +2,60 @@
  * Synthesised sound effects (Web Audio API, no audio files).
  * The AudioContext is created lazily on the first user gesture (browser autoplay policy).
  * Mute state persists in localStorage under 'tt.muted'.
+ * Master volume (0..100, default 100) persists under 'tt.sfxVolume'. Gain = MASTER_GAIN * volume / 100,
+ * so the default is exactly the original 0.35 gain.
  */
 
 const MUTE_KEY = 'tt.muted';
+const VOLUME_KEY = 'tt.sfxVolume';
+/** Master gain at full volume (the original fixed level). */
+export const MASTER_GAIN = 0.35;
+export const SFX_VOLUME_DEFAULT = 100;
 
 /** @type {AudioContext|null} */
 let ctx = null;
 /** @type {GainNode|null} */
 let master = null;
 let muted = readMuted();
+let volume = readVolume();
 /** @type {Record<string, number>} last play time per sound (rate limiting) */
 const lastPlayed = {};
 
 /** @returns {boolean} */
 function readMuted() {
   try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; }
+}
+
+/** @returns {number} saved volume 0..100 (integer); invalid or missing -> default 100 */
+function readVolume() {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY);
+    if (raw === null || raw.trim() === '') return SFX_VOLUME_DEFAULT;
+    const n = Number(raw);
+    return Number.isFinite(n) ? clampVolume(n) : SFX_VOLUME_DEFAULT;
+  } catch { return SFX_VOLUME_DEFAULT; }
+}
+
+/**
+ * Clamp and round a volume to an integer 0..100.
+ * @param {number} v
+ * @returns {number}
+ */
+export function clampVolume(v) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return SFX_VOLUME_DEFAULT;
+  return Math.max(0, Math.min(100, n));
+}
+
+/**
+ * Pure master gain: 0 when muted, else MASTER_GAIN scaled by volume/100 (volume 100 -> exactly 0.35).
+ * @param {number} volume 0..100
+ * @param {boolean} isMuted
+ * @returns {number}
+ */
+export function effectiveGain(volume, isMuted) {
+  if (isMuted) return 0;
+  return MASTER_GAIN * (clampVolume(volume) / 100);
 }
 
 /** Create the AudioContext if allowed. Call from a user gesture handler. */
@@ -30,7 +69,7 @@ export function unlockAudio() {
   try {
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : 0.35;
+    master.gain.value = effectiveGain(volume, muted);
     master.connect(ctx.destination);
   } catch {
     ctx = null;
@@ -76,7 +115,22 @@ export function isMuted() {
 export function setMuted(m) {
   muted = !!m;
   try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch { /* ignore */ }
-  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 0.35, ctx.currentTime, 0.02);
+  if (master && ctx) master.gain.setTargetAtTime(effectiveGain(volume, muted), ctx.currentTime, 0.02);
+}
+
+/** @returns {number} master sound-effects volume 0..100 */
+export function getSfxVolume() {
+  return volume;
+}
+
+/**
+ * Set the sound-effects volume (persisted, applied at once). Mute still silences everything.
+ * @param {number} v 0..100
+ */
+export function setSfxVolume(v) {
+  volume = clampVolume(v);
+  try { localStorage.setItem(VOLUME_KEY, String(volume)); } catch { /* ignore */ }
+  if (master && ctx) master.gain.setTargetAtTime(effectiveGain(volume, muted), ctx.currentTime, 0.02);
 }
 
 /**
