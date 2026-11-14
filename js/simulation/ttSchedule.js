@@ -19,19 +19,31 @@ export function timetableComplete(v) {
   return timed.length > 0 && timed.every((o) => o.travelDays > 0);
 }
 
-/** Total timetable duration in ticks: all travel and wait days over the order list (0 when none). */
-export function roundTicks(orders) {
+/**
+ * Wait days an order contributes to a round. A conditional's stored wait only counts while the G7 conditional
+ * lateness setting is on (condWaitsOn); with it off the stored value is ignored, as the hold is.
+ */
+function orderWaitDays(o, condWaitsOn) {
+  return o.cond != null && !condWaitsOn ? 0 : (o.waitDays || 0);
+}
+
+/**
+ * Total timetable duration in ticks: all travel and wait days over the order list (0 when none).
+ * condWaitsOn (default true = old behaviour): pass timetableLatenessConditionalOn(state) so stored conditional waits
+ * are ignored while the setting is off.
+ */
+export function roundTicks(orders, condWaitsOn = true) {
   let d = 0;
-  for (const o of orders || []) d += ((o.travelDays || 0) + (o.waitDays || 0)) * TICKS_PER_DAY;
+  for (const o of orders || []) d += ((o.travelDays || 0) + orderWaitDays(o, condWaitsOn)) * TICKS_PER_DAY;
   return d;
 }
 
 /** Tick offset of the departure from order idx within one round (travel to it, then its wait). */
-function departOffset(orders, idx) {
+function departOffset(orders, idx, condWaitsOn = true) {
   let d = 0;
   for (let j = 0; j <= idx; j++) {
     if (j > 0) d += (orders[j].travelDays || 0) * TICKS_PER_DAY;
-    d += (orders[j].waitDays || 0) * TICKS_PER_DAY;
+    d += orderWaitDays(orders[j], condWaitsOn) * TICKS_PER_DAY;
   }
   return d;
 }
@@ -53,11 +65,12 @@ export function timetableSeparationOn(state) {
  */
 export function scheduledDeparture(state, v, idx, since = state.tick) {
   if (!timetableSeparationOn(state) || v.orderGroup == null || !timetableComplete(v)) return null;
-  const T = roundTicks(v.orders);
+  const condOn = timetableLatenessConditionalOn(state);
+  const T = roundTicks(v.orders, condOn);
   if (!T) return null;
   const mem = orderGroupMembers(state, v);
   const base = v.ttStart != null ? v.ttStart : Math.round(mem.indexOf(v) * T / mem.length);
-  const dep = departOffset(v.orders, idx);
+  const dep = departOffset(v.orders, idx, condOn);
   if (since < base + dep) return base + dep;
   const r = Math.ceil((since - base - dep) / T); // first slot at or after the arrival tick
   return base + r * T + dep;
@@ -109,9 +122,9 @@ export function lateTicksOf(v) {
  * measured minus timetabled duration, reduce modulo one full round, then keep the legacy `lateDays` as the
  * rounded UI value. Both fields stay lazy (deleted when zero).
  */
-export function bookLateness(v, deltaTicks, orders) {
+export function bookLateness(v, deltaTicks, orders, condWaitsOn = true) {
   let x = lateTicksOf(v) + deltaTicks;
-  const T = roundTicks(orders);
+  const T = roundTicks(orders, condWaitsOn);
   if (T > 0) {
     if (x > T) x %= T;
     else if (x < -T) x = -((-x) % T);

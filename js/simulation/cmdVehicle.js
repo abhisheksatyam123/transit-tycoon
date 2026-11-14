@@ -176,6 +176,7 @@ export function skipToOrder(ctx, id, index, opts = {}) {
   }
   v.orderIndex = index;
   v.atStationId = null; delete v.intermediate;
+  delete v.condSince; // G7: a hold on the old order does not carry over
   delete v.departTick;
   delete v.arriveTick;
   if (v.state === 'loading') {
@@ -205,6 +206,7 @@ export function startVehicle(ctx, id, opts = {}) {
     noteDepotDeparture(ctx.state, v); // timetable: a halt in the depot is not travel time
   }
   if (v.ubHold) { delete v.ubHold; unbunchDepart(ctx.state, v); } // started by hand: leave now (the hold is dropped)
+  delete v.condSince; // G7: a conditional hold does not survive a stop/start (the next replan starts a fresh one)
   if (v.path.length && v.pathIndex < v.path.length - 1) v.state = 'running';
   else replan(ctx, v);
   return { ok: true, cost: 0, state: v.state };
@@ -218,6 +220,7 @@ export function stopVehicle(ctx, id, opts = {}) {
   if (v.state === 'depot' || v.state === 'stopped') return { ok: false, error: 'Vehicle is already stopped' };
   if (opts.dryRun) return { ok: true, cost: 0 };
   if (v.state === 'loading') { v.state = 'running'; v.atStationId = null; delete v.intermediate; v.path = []; }
+  delete v.condSince; // G7: stopping ends a conditional hold (see startVehicle)
   v.state = 'stopped';
   v.speed = 0;
   return { ok: true, cost: 0 };
@@ -493,7 +496,7 @@ export function spreadTimetableStart(ctx, id, opts = {}) {
   if (!v) return { ok: false, error: 'Unknown vehicle' };
   if (ownerMismatch(v, opts)) return { ok: false, error: RIVAL_OWNED };
   if (!timetableComplete(v)) return { ok: false, error: 'Timetable incomplete: every non-conditional order needs a travel time before spreading' };
-  const T = roundTicks(v.orders);
+  const T = roundTicks(v.orders, timetableLatenessConditionalOn(state));
   const mem = orderGroupMembers(state, v);
   if (opts.dryRun) return { ok: true, cost: 0, count: mem.length };
   mem.forEach((w, k) => { w.ttStart = state.tick + Math.round(k * T / mem.length); });

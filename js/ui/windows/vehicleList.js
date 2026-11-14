@@ -19,6 +19,7 @@ import { bucketVehicles, sortBuckets, groupStatistics, groupKindLabel, GROUP_BY,
 /** Human label + css class for a vehicle state. */
 export const STATE_LABEL = {
   depot: 'In depot', running: 'Running', loading: 'Loading', stopped: 'Stopped', broken: 'Broken down', lost: 'Lost',
+  condWait: 'Waiting for condition',
 };
 
 /** Sort keys: [key, label]. */
