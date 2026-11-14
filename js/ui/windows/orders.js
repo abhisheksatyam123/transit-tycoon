@@ -27,6 +27,7 @@ const COND_VAR_HELP = {
 };
 import { cargoName } from '../../simulation/orders.js';
 import { timetableComplete, roundTicks, timetableEstimatesOn } from '../../simulation/ttSchedule.js';
+import { timetableSubDayOn, ttFormatTime } from '../../simulation/ttTimeUnits.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
 import { depotDisplayName, waypointDisplayName, isWaypointRecord } from '../../simulation/cmdRename.js';
@@ -318,7 +319,8 @@ export function openOrders(app, id) {
         const st = app.game.state;
         const tc = timetableComplete(v);
         const roundDays = Math.round(roundTicks(v.orders) / TICKS_PER_DAY);
-        setText(totalLabel, roundDays > 0 ? `Total time: ${roundDays} day${roundDays === 1 ? '' : 's'}${tc ? '' : ' (incomplete: every non-conditional order needs a travel time)'}` : '');
+        const subDay = timetableSubDayOn(st);
+        setText(totalLabel, roundDays > 0 ? `Total time: ${subDay ? ttFormatTime(roundDays, true) : `${roundDays} day${roundDays === 1 ? '' : 's'}`}${tc ? '' : ' (incomplete: every non-conditional order needs a travel time)'}` : '');
         setText(startLabel, v.ttStart != null ? (v.ttStart > st.tick ? `starts in ${Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)} days` : 'started') : 'no start date');
         if (document.activeElement !== startIn) startIn.value = v.ttStart != null && v.ttStart > st.tick ? String(Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)) : '';
         spreadBtn.disabled = !tc;
