@@ -99,6 +99,23 @@ export function groupQuarters(entries) {
 }
 
 /**
+ * Revenue by vehicle type for one calendar year (opt-in finance history view). Sums `byKind` over the ledger's
+ * completed months in `year` plus the in-progress month when `currentYear` equals `year`. Read-only; pure.
+ * Returns `{ kind: amount }` for every REVENUE_KINDS key (zero when none).
+ */
+export function kindTotalsForYear(company, year, currentYear) {
+  const out = Object.fromEntries(REVENUE_KINDS.map((k) => [k, 0]));
+  const add = (byKind) => {
+    for (const k of REVENUE_KINDS) out[k] += Number((byKind || {})[k]) || 0;
+  };
+  for (const e of (company.ledger && company.ledger.history) || []) {
+    if (e && Number(e.year) === year) add(e.byKind);
+  }
+  if (Number(currentYear) === year) add(company.ledger && company.ledger.current && company.ledger.current.byKind);
+  return out;
+}
+
+/**
  * One year of `company.expenditures` in the ledger's byType shape: signed expenditure amounts are flipped for
  * display (income stays positive, costs become positive expenses). Missing/zero keys are omitted.
  */
@@ -169,6 +186,29 @@ export function openFinances(app) {
       body.appendChild(tabs);
       const tableWrap = el('div.table-wrap');
       body.appendChild(tableWrap);
+      // opt-in (financeByVehicleType): created on first use only, so the window is unchanged while it is off
+      let kindWrap = null;
+      let kindSig = '';
+      const refreshKinds = (c) => {
+        const on = !!getSetting(app.game.state, 'financeByVehicleType');
+        if (!on) {
+          if (kindWrap) { clear(kindWrap); kindSig = ''; }
+          return;
+        }
+        if (!kindWrap) { kindWrap = el('div.table-wrap.kind-wrap'); body.appendChild(kindWrap); }
+        const year = app.game.state.date.year;
+        const thisY = kindTotalsForYear(c, year, year);
+        const lastY = kindTotalsForYear(c, year - 1, year);
+        const sig = JSON.stringify([thisY, lastY]);
+        if (sig === kindSig) return;
+        kindSig = sig;
+        const cell = (v) => el('td.mono' + (v > 0 ? '.pos' : ''), { text: v ? money(v) : '—' });
+        const t = el('table.ledger', null,
+          el('tr', null, el('th', { text: 'Revenue by vehicle type' }), el('th', { text: 'This year', title: `Year ${year}` }), el('th', { text: 'Last year', title: `Year ${year - 1}` })),
+          REVENUE_KINDS.map((k) => el('tr', null, el('td.lbl', { text: KIND_LABEL[k] }), cell(thisY[k]), cell(lastY[k]))));
+        clear(kindWrap);
+        kindWrap.appendChild(t);
+      };
       const refresh = () => {
         for (const k of Object.keys(tabBtns)) tabBtns[k].classList.toggle('active', k === period);
         const c = app.game.state.company;
@@ -178,6 +218,7 @@ export function openFinances(app) {
         set['Own value'](money(ownValue(c)));
         set['Max loan'](money(maxLoanCap(app.game.state, c)));
         set['Interest (yearly)'](interestLabel(app.game.state));
+        refreshKinds(c);
         autoBox.checked = !!c.autopayLoan;
         let cols;
         if (period === 'quarterly') {
