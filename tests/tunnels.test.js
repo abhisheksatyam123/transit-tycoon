@@ -2,6 +2,7 @@ import { test, expect, describe } from 'bun:test';
 import { flatGame } from './helpers.js';
 import { Game } from '../js/simulation/game.js';
 import { tunnelCells } from '../js/simulation/cmdTrack.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 const N = 1, E = 2, S = 4, W = 8;
 const RAISE = 4; // interior height over the portals
@@ -66,6 +67,7 @@ describe('player rail tunnels (T7b)', () => {
 
   test('too long (more than 16 tiles) and no interior tile are refused', () => {
     const g = hill(30, 50, 24);
+    setSetting(g.state, 'maxTunnelLength', 16); // pin the old limit (default is now 64, D5)
     for (const x of [30, 46]) g.tile(x, 24).height = 1;
     const long = g.buildTunnel(30, 24, 46, 24);
     expect(long.ok).toBe(false);

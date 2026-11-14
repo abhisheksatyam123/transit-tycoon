@@ -13,8 +13,8 @@ import { LM3D } from '../js/config/landmarks3d.js';
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 // R12 (OpenLoco game loop + managers, js/simulation/loco/): day-0 state gained dayCounter/industry/economy fields
 const RANDOM_HASH = {
-  1: '5bbe6725ab0488f412af49d10738e12cc17ebff950eacaf29b622f499876b2a7',
-  7: 'edfe8f6ed38e471d26f7497e4460176f114ff3284d573681642e0778c8bcbd66',
+  1: '00b88f4ced002931a42cb9aeedf68ad63bac20d13359ebce1637c57ca01b2bef', // re-pinned 2026-11-14 (approved default flips D2/D5/D8)
+  7: '428112d4457d9ce22294e10a4f62b62a40678afb07d9af2d668e1e9c6d88b82b',
 };
 const mini = () => { const g = Game.create({ seed: 3, width: 40, height: 40 }); const r = buildScenario('moscow', g, miniMoscow()); return { g, r }; };
 

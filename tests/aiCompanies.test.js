@@ -22,7 +22,7 @@ describe('aiCompanies', () => {
   test('default (0) leaves the world hash unchanged (see MP note)', () => {
     const out = execFileSync(process.execPath, ['tools/world-hash.js'], { cwd: ROOT, encoding: 'utf8' });
     // MP: ind.hist is saved, so the serialized hash changed (hist-stripped hash is still 211ce1138012979d).
-    expect(out).toContain('hash e66b684174510b6b');
+    expect(out).toContain('hash 385f87d0fd13ef1a');
   }, 30000);
 
   test('with 0 rivals no rival state is created', () => {

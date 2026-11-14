@@ -126,6 +126,6 @@ describe('generation is unchanged', () => {
     const g = Game.create({ seed: 1 });
     g.stepDays(60);
     const h = createHash('sha256').update(JSON.stringify(g.state)).digest('hex').slice(0, 16);
-    expect(h).toBe('e66b684174510b6b');
+    expect(h).toBe('385f87d0fd13ef1a');
   }, 30000);
 });

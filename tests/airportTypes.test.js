@@ -183,7 +183,7 @@ describe('save/load and world hash', () => {
     const h = createHash('sha256').update(JSON.stringify(g.state)).digest('hex').slice(0, 16);
     // MP: ind.hist (monthly industry production history, saved) changed the serialized state; the
     // simulation itself is unchanged (the hash with hist stripped is still 211ce1138012979d).
-    expect(h).toBe('e66b684174510b6b');
+    expect(h).toBe('385f87d0fd13ef1a');
   }, 30000);
 });
 

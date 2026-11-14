@@ -2,6 +2,7 @@ import { test, expect, describe } from 'bun:test';
 import { flatGame } from './helpers.js';
 import { Game } from '../js/simulation/game.js';
 import { planBridges, bridgeCells } from '../js/simulation/cmdTrack.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 const N = 1, E = 2, S = 4, W = 8;
 
@@ -35,12 +36,14 @@ describe('player bridges (T7)', () => {
 
   test('span limit: a deck longer than the max is refused', () => {
     const g = channel(12);
+    setSetting(g.state, 'maxBridgeLength', 12); // pin the old limit (default is now 64, D5)
     // 12 deck tiles + 2 heads = 14 > 12: refused (the land beyond the water is far enough)
     const r = g.buildRail(28, 30, 43, 30);
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/too long/i);
     // 10 deck tiles + 2 heads = 12 is allowed
     const g2 = channel(10);
+    setSetting(g2.state, 'maxBridgeLength', 12);
     expect(g2.buildRail(28, 30, 40, 30).ok).toBe(true);
   });
 
