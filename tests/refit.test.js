@@ -78,6 +78,8 @@ describe('refit (T18)', () => {
     const { g, L, v } = train();
     expect(g.setOrders(v.id, [{ stationId: L.a.id, full: true }, { stationId: L.b.id, full: false }]).ok).toBe(true);
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     v.state = 'depot';
     v.age = v.maxAge + 1;
     v.value = Math.round(v.value * 0.4); // depreciated resale value: the company pays the difference
@@ -97,6 +99,8 @@ describe('refit (T18)', () => {
     const { g, v } = train();
     refitVehicle(g.ctx, v.id, 'IORE');
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     const g2 = Game.deserialize(g.serialize());
     expect(g2.serialize()).toBe(g.serialize());
     const v2 = g2.state.vehicles.find((x) => x.id === v.id);

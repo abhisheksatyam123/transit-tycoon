@@ -10,11 +10,11 @@ import { SETTING_META, groupOfSetting } from '../js/ui/settingsGroups.js';
 const small = { seed: 3, width: 64, height: 64, townCount: 3, industryCount: 4 };
 
 describe('loan interest rate (World/Company.cpp:724)', () => {
-  test('default is 5 (unchanged world) and old saves fall back to it', () => {
-    expect(DEFAULT_SETTINGS.loanInterestRate).toBe(5);
+  test('default is 2 (OpenTTD initial_interest) and old saves fall back to it', () => {
+    expect(DEFAULT_SETTINGS.loanInterestRate).toBe(2);
     const g = Game.create(small);
-    expect(getSetting(g.state, 'loanInterestRate')).toBe(5);
-    expect(monthlyLoanInterest(g.state, 120000)).toBe(500); // 120000*5/1200
+    expect(getSetting(g.state, 'loanInterestRate')).toBe(2);
+    expect(monthlyLoanInterest(g.state, 120000)).toBe(200); // 120000*2/1200
   });
 
   test('formula is loan*rate/1200 truncated; editor value 10 doubles it', () => {

@@ -76,6 +76,8 @@ describe('F1 protect opt-in (default: current TT semantics)', () => {
     g.addVehicleToGroup(v.id, groupId);
     protect(g, groupId);
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     v.state = 'depot';
     v.age = effectiveMaxAge(g.state, v) + 1;
     expect(isAutoreplaceEligible(g.state, v)).toBe(false);
@@ -164,6 +166,8 @@ describe('F1 protect opt-in (OpenTTD semantics)', () => {
     g.addVehicleToGroup(v.id, groupId);
     protect(g, groupId);
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     setSetting(g.state, 'autoreplaceProtectOttd', true);
     g.state.date.year = 1920; // the Puffer is still on sale for the same-model renewal
     v.state = 'depot';

@@ -101,6 +101,8 @@ describe('autoreplace (T18b)', () => {
   test('autorenew still works without rules', () => {
     const { g, v } = train();
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     v.state = 'depot';
     v.age = v.maxAge + 1;
     const nv = autorenewVehicle(g.ctx, v);

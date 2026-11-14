@@ -2,6 +2,7 @@ import { test, expect, describe } from 'bun:test';
 import { Game, mapgenOptions } from '../js/simulation/game.js';
 import { townLayoutForMode, TOWN_LAYOUT_MODES } from '../js/simulation/towns.js';
 import { LAYOUTS } from '../js/simulation/townLayout.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 describe('mapgen townLayout option', () => {
   test('default (mixed) is not stored and matches the plain generation', () => {
@@ -16,6 +17,7 @@ describe('mapgen townLayout option', () => {
   test('each fixed layout makes every generated town use that layout', () => {
     for (const v of ['original', 'better', '2x2', '3x3']) {
       const g = Game.create({ seed: 1, mapgen: { townLayout: v } });
+      setSetting(g.state, 'townFounding', 'allowed');
       expect(g.state.mapgen.townLayout).toBe(v);
       expect(g.state.towns.length).toBeGreaterThan(0);
       for (const t of g.state.towns) expect(t.layout).toBe(v);
@@ -41,6 +43,7 @@ describe('mapgen townLayout option', () => {
   test('found-town command honours opts.layout', async () => {
     const { foundTown } = await import('../js/simulation/cmdFound.js');
     const g = Game.create({ seed: 1 });
+    setSetting(g.state, 'townFounding', 'allowed');
     const ctx = { state: g.state, rng: g.rng };
     // find any legal site by trying a few coordinates
     let res = null;

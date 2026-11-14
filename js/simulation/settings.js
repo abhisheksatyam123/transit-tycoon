@@ -16,8 +16,8 @@ export const DEFAULT_SETTINGS = {
   /** OpenTTD invisibility: Ctrl+Shift+1..8 HIDES the matching transparency class instead of fading it (input.js). Off = Ctrl+Shift+digit is the same alias as Ctrl+digit (fade). Display only; never read by the simulation. */
   transparencyInvisibleHides: false,
   inflation: true,
-  /** loan interest rate in OpenLoco units (percent per year, charged monthly as loan*rate/1200; World/Company.cpp:724). Editor default 10 in OL; 5 here keeps existing games unchanged. */
-  loanInterestRate: 5,
+  /** loan interest rate in OpenLoco units (percent per year, charged monthly as loan*rate/1200; World/Company.cpp:724). Default 2 = OpenTTD company initial_interest default (settings-round-ab.md:21); OpenLoco editor default is 10. */
+  loanInterestRate: 2,
   /** OpenLoco: max loan is inflation-adjusted (CompanyManager.cpp:1191, ChangeLoan.cpp getInflationAdjustedCost(ci 0, div 8)). Off keeps flat MAX_LOAN so current games/hash unchanged. */
   inflationAdjustsMaxLoan: false,
   /** per-vehicle-type income and expenditure history (opt-in; off = unchanged). On: the finance window shows this year vs last year revenue by vehicle type. Read-only; no effect on money or the ledger. */
@@ -78,8 +78,8 @@ export const DEFAULT_SETTINGS = {
   cargoAgingRate: 100,
   /** OpenTTD order.serviceathelipad (def true in OpenTTD; TT default off = current behaviour): a helicopter stopped on a helipad is serviced. */
   serviceAtHelipad: false,
-  /** OpenTTD economy.found_town (def Forbidden in OpenTTD; TT default 'allowed' = current behaviour): 'forbidden' refuses new towns. */
-  townFounding: 'allowed',
+  /** OpenTTD economy.found_town (def Forbidden in OpenTTD; TT default now 'forbidden' = OpenTTD reference, settings-round-ab.md:12): 'forbidden' refuses new towns; 'allowed' restores the pre-flip behaviour. */
+  townFounding: 'forbidden',
   /** pathCosts: OpenTTD YAPF-like rail pathfinder costs (slopes, curves, station bypass, occupied blocks, red signals). Off by default: preserves determinism. */
   pathCosts: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */
@@ -343,10 +343,10 @@ export const DEFAULT_SETTINGS = {
   buildOnSlopes: true,
   /** OpenTTD construction.map_height_limit (def 0 = no limit): highest terrain level terraform may raise to. TT default 7 = cmdTerraform MAX_HEIGHT, the current hard ceiling; lower values cap raising. */
   mapHeightLimit: 7,
-  /** OpenTTD company.engine_renew_months (company_settings.ini, def 6): extra months past max age before autorenew (vehicle.cpp NeedsAutorenewing, 30 days each). TT default 0 = renew exactly past max age (current). */
-  engineRenewMonths: 0,
-  /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default 0 = only the purchase cost is checked (current). */
-  engineRenewMoney: 0,
+  /** OpenTTD company.engine_renew_months (company_settings.ini, def 6): extra months past max age before autorenew (vehicle.cpp NeedsAutorenewing, 30 days each). TT default now 6 = OpenTTD reference (settings-round-ac.md:10). */
+  engineRenewMonths: 6,
+  /** OpenTTD company.engine_renew_money (company_settings.ini, def 100000): company money needed before autoreplace/autorenew runs (vehicle.cpp NeedsServicing). TT default now 100000 = OpenTTD reference (settings-round-ac.md:11). */
+  engineRenewMoney: 100000,
   /** OpenTTD processing-industry abandonment (industry_cmd.cpp:3004-3007; always on in OpenTTD, no setting): secondary industries idle 5 years close at 1/180 per month. TT default off = no abandonment (current). */
   industryAbandonment: false,
   /** OpenTTD last-instance closure protection (industry_cmd.cpp:2758-2766; CanCloseLastInstance behaviour flag, not a setting): the last instance of an industry type cannot close. TT default off = it may close (current). */

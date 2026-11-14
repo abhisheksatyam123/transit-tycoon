@@ -104,6 +104,7 @@ describe('negativeCashInterest', () => {
   test('on: negative cash of -10000 at 5% charges trunc(10000*5/1200) = 41 extra', () => {
     const g = Game.create(small);
     setSetting(g.state, 'negativeCashInterest', true);
+    setSetting(g.state, 'loanInterestRate', 5);
     const c = primed(g, { money: -10000, loan: 0, months: 0 });
     const before = c.ledger.current.byType.interest || 0;
     companyMonthly(g);
