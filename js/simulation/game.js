@@ -185,7 +185,7 @@ export class Game {
       return game;
     }
     // T29 opt-in settings must be set before generation (they change what the generator places)
-    for (const k of ['extraIndustries', 'farmFields', 'buildingEras', 'spawnPrimaryIndustryOnly', 'townRoadTurns']) if (o.settings && o.settings[k]) setSetting(state, k, true);
+    for (const k of ['extraIndustries', 'farmFields', 'buildingEras', 'spawnPrimaryIndustryOnly', 'townRoadTurns', 'snowRespread']) if (o.settings && o.settings[k]) setSetting(state, k, true);
     // town generator numbers (larger_towns, initial_city_size): stored only when non-default
     for (const k of ['largerTowns', 'initialCitySize', 'townMinDistance']) if (o.settings && o.settings[k] !== undefined && o.settings[k] !== DEFAULT_SETTINGS[k]) setSetting(state, k, o.settings[k]);
     // T34 map generator options: stored only when non-default so default saves are unchanged
@@ -195,8 +195,8 @@ export class Game {
     // shows what this map was generated with. The generator itself still reads state.mapgen only.
     if (mg.townLayout) setSetting(state, 'townLayout', mg.townLayout);
     // heightmap import (newGame window): the heights are the terrain; never stored in state (tiles hold them)
-    if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, { ...mg, seed: o.seed });
-    else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg, seed: o.seed });
+    if (o.heightmap && o.heightmap.length === state.map.tiles.length) generateTerrainFromHeights(state.map, game.rng, o.heightmap, { ...mg, seed: o.seed, snowRespread: getSetting(state, 'snowRespread') });
+    else generateTerrain(state.map, game.rng, { waterRatio: o.waterRatio, ...mg, seed: o.seed, snowRespread: getSetting(state, 'snowRespread') });
     // density options scale the requested counts (normal = 1x, so default games are unchanged)
     const townMul = DENSITY[mg.townDensity ?? 'normal'] ?? 1, indMul = DENSITY[mg.industryDensity ?? 'normal'] ?? 1;
     generateTowns(state, game.rng, Math.max(1, Math.round(o.townCount * townMul)));
