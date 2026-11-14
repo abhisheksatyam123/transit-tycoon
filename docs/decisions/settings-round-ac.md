@@ -60,3 +60,6 @@ SETTING_META entries: `js/ui/settingsGroups.js:37` (economy), `:98` (constructio
   - The timeout is the existing 3-day TT timeout, not OTTD's `wait_oneway_signal` (15 days) / `wait_twoway_signal` (41 days). Changing it would change the default, so it is not ported.
   - With the setting false, the half-day deadlock breaker (`breaksCycle`) can still let a train pass a signal in a cycle of waiting vehicles.
   - OTTD backs trains up behind a red signal; TT still does not model queues behind a signal, so this setting only stops the turnaround.
+
+## Superseded 2026-11-14
+Default values stated above were changed by approved flips (see `defaults-decisions-2026-11-14.md`). Current: see `js/simulation/settings.js` DEFAULT_SETTINGS.

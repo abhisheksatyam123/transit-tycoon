@@ -25,3 +25,6 @@ All six defaults below are kept unchanged. E1 §(b) details each row; this doc r
 
 ## Bottom line (E1 top recommendations)
 Keep loan 5 (hash stability > editor fidelity); flag 10 as opt-in new-game idea only. No changes to service interval, Moscow objective/currency, per-save display prefs, or test budgets — all currently correct/safe.
+
+## Superseded 2026-11-14
+Default values stated above were changed by approved flips (see `defaults-decisions-2026-11-14.md`). Current: see `js/simulation/settings.js` DEFAULT_SETTINGS.

@@ -30,3 +30,6 @@ Unchanged except the added "Own value" row and two buttons. Interest still reads
 - AI rival company value (aiCompanies.js) is not touched; "Own value" is money minus loan only, per the request (no fleet term).
 - No DOM-level test of the window; the helpers are tested as pure functions, and the buttons only forward their results.
 - Max repay with short cash does not raise an error for a zero result; `repay(0)` returns the existing "Invalid amount" / "Not enough money" toast.
+
+## Superseded 2026-11-14
+Default values stated above were changed by approved flips (see `defaults-decisions-2026-11-14.md`). Current: see `js/simulation/settings.js` DEFAULT_SETTINGS.

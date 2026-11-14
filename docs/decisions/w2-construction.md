@@ -49,3 +49,6 @@ says. The aqueduct path (`aqueduct.js:75`) allows 14 including heads, so it is o
 - Terraform ceiling `MAX_HEIGHT = 7` (`cmdTerraform.js:23`); now read via `mapHeightLimit`.
 - Track placement had no slope check before this change (no `slope` / `flat` test in `cmdTrack.js`, `trackRules.js`).
 - Signal post side was hard-coded to the viewer's right (`signals.js` previously `px = sx + 6`).
+
+## Superseded 2026-11-14
+Default values stated above were changed by approved flips (see `defaults-decisions-2026-11-14.md`). Current: see `js/simulation/settings.js` DEFAULT_SETTINGS.

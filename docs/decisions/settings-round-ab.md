@@ -31,3 +31,6 @@ All four have one `SETTING_META` entry (`js/ui/settingsGroups.js`), as the setti
 
 - `economy.fund_buildings` and `economy.fund_roads` (OpenTTD town funding): TT has no funding model for these.
 - Town and station noise: no noise model in TT.
+
+## Superseded 2026-11-14
+Default values stated above were changed by approved flips (see `defaults-decisions-2026-11-14.md`). Current: see `js/simulation/settings.js` DEFAULT_SETTINGS.
