@@ -78,6 +78,16 @@ export function openNewGame(app) {
         el('option', { value: '160', text: '160 × 160 (huge)' }),
         el('option', { value: '192', text: '192 × 192 (huge)' })));
       size.value = '96';
+      // U7 (opt-in, default 'same' = square, identical to before): non-square height from the same fixed list as the
+      // width. Only the height changes; town and industry counts are NOT scaled by area (the industry count keeps its
+      // width-based formula below), so the non-square choice is an opt-in shape change only.
+      const heightSel = /** @type {HTMLSelectElement} */ (el('select.input', { 'aria-label': 'Map height' },
+        el('option', { value: 'same', text: 'Same as width (square, default)', selected: true }),
+        el('option', { value: '64', text: '64 tall' }),
+        el('option', { value: '96', text: '96 tall' }),
+        el('option', { value: '128', text: '128 tall' }),
+        el('option', { value: '160', text: '160 tall' }),
+        el('option', { value: '192', text: '192 tall' })));
       const scenario = /** @type {HTMLSelectElement} */ (el('select.input', null,
         el('option', { value: 'random', text: 'Random world' })));
       const desc = el('div.scenario-desc', { text: '' });
@@ -250,6 +260,7 @@ export function openNewGame(app) {
         desc,
         field('Seed', el('span.inline', null, seed, dice)),
         field('Map size', size),
+        field('Map height', heightSel),
         hmField,
         field('Towns', towns),
         field('Start year', year),
@@ -258,10 +269,11 @@ export function openNewGame(app) {
       start.addEventListener('click', () => {
         const sc = catalogue.find((c) => c.id === scenario.value) || catalogue[0];
         const s = Number(size.value);
+        const mapH = heightSel.value === 'same' ? s : Number(heightSel.value); // U7: 'same' keeps the square map
         const t = Math.max(1, Math.min(30, Number(towns.value) || 8));
         const opts = {
           seed: Number(seed.value) || 1,
-          width: s, height: s,
+          width: s, height: mapH,
           townCount: t,
           industryCount: Math.round(18 * (s * s) / (96 * 96)),
           startYear: Math.max(1920, Math.min(2050, Number(year.value) || 1950)),
@@ -299,7 +311,7 @@ export function openNewGame(app) {
         const mg = mapgenOptions(mgChoice);
         if (Object.keys(mg).length) opts.mapgen = mg;
         // heightmap: sized to the chosen map (only when an image was picked, so default games are unchanged)
-        if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, s, 'none', Number(hmHeight.value), hmAspect.value);
+        if (hm) opts.heightmap = heightsForMap(hm.grey, hm.w, hm.h, s, mapH, 'none', Number(hmHeight.value), hmAspect.value);
         win.close();
         app.newGame(opts);
       });
