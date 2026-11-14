@@ -193,6 +193,10 @@ export const DEFAULT_SETTINGS = {
   timetableEstimates: false,
   /** timetable sub-day display (G6): timetable totals show days and hours ("3d 04h"). Display only; stored values stay whole days. Off by default. */
   timetableSubDay: false,
+  /** OpenTTD timekeeping_units (TimekeepingUnits): 'economy' = current behaviour (default); 'calendar' = the calendar clock (state.calendar, calendarClock.js) runs at calendarTicksPerDay, used for the toolbar year. Opt-in. */
+  timekeepingUnits: 'economy',
+  /** calendar clock speed in logic ticks per calendar day (96 = current economy day; 24..384). Only read when timekeepingUnits is 'calendar' (calendarClock.js). */
+  calendarTicksPerDay: 96,
   /** freight distribution (OpenTTD linkgraph distribution_default for cargo other than pax/mail): 'manual' (default, classic) | 'asymmetric' (acceptance-weighted destinations, no return demand) | 'symmetric' (return demand too; needs cargodistDemandParity, else runs as asymmetric) */
   freightDistribution: 'manual',
   /** capacity-constrained routing (OpenTTD MCF, simplified) for the cargodist link graphs. Off by default. */

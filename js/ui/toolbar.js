@@ -4,6 +4,7 @@
  * toolbar stays one row on desktop widths.
  */
 import { getSetting } from '../simulation/settings.js';
+import { calendarYearOf } from '../simulation/calendarClock.js';
 import { hotkeyTitle, currentOverrides, effectiveKeys, onHotkeysChanged, keyLabel } from './hotkeys.js';
 import { el } from './dom.js';
 import { openTitleMenu } from './titleMenu.js';
@@ -334,7 +335,7 @@ export function createToolbar(root, app) {
       const [, tl, ti, tk] = /** @type {any} */ (toolInfo.get(m));
       toolIds.push(m);
       const b = flyItem(ti, tl, tk, () => {
-        const late = airportLocked(m, app.game.state.date.year);
+        const late = airportLocked(m, calendarYearOf(app.game.state));
         if (late) { closeFlyouts(); play('error'); app.toast(late, 'error', true); return; }
         closeFlyouts(); play('click'); app.setTool(m);
       }, 'menuitemradio');
@@ -428,7 +429,7 @@ export function createToolbar(root, app) {
     syncEditorBanner(app.game);
   };
   const applyAirAvailability = () => {
-    const year = app.game.state.date.year;
+    const year = calendarYearOf(app.game.state);
     for (const g of groups) for (const b of g.items) {
       const tid = b.dataset.tool;
       const late = tid ? airportLocked(tid, year) : null;

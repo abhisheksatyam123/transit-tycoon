@@ -21,6 +21,7 @@ import * as Economy from './economy.js';
 import * as Subsidies from '../subsidies.js';
 import * as Objective from '../objective.js';
 import { getSetting } from '../settings.js';
+import { calendarOn, advanceCalendar } from '../calendarClock.js'; // timekeepingUnits 'calendar' (opt-in); off = no-op
 import { rollGoalMonth } from '../goals.js';
 import * as TreeGrowth from '../treeGrowth.js';
 import * as Recession from '../recession.js';
@@ -93,6 +94,7 @@ export function tick(game) {
   const s = game.state;
   s.tick++;
   s.scenarioTicks = (s.scenarioTicks || 0) + 1;
+  if (calendarOn(s)) advanceCalendar(s, 1); // opt-in calendar clock: only the calendar moves, state.date is untouched
   const newDay = tickDate(game);
   if (s.disasters) tickDisasters(game.ctx || { state: s, emit: (ev, p) => game.events.emit(ev, p) }); // only while a disaster is active
   TileManager.tick(game, newDay);
