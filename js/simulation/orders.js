@@ -27,7 +27,7 @@ import { subsidyMultiplier } from './subsidies.js';
 import { MAX_WAITING } from './constants.js';
 import { cdApplies, loadFilter, nextHops, noteLeg } from './cargodist.js';
 import { stopKindOk, stationFitsVehicle, depotGoals } from './routing.js';
-import { departureHoldUntil, timetableSeparationOn, timetableLatenessOn, timetableEstimatesOn, lateTicksOf, bookLateness, latenessWaitTicks } from './ttSchedule.js';
+import { departureHoldUntil, timetableSeparationOn, timetableLatenessOn, timetableEstimatesOn, lateTicksOf, bookLateness, latenessWaitTicks, timetableLatenessConditionalOn } from './ttSchedule.js';
 import { unbunchListError, unbunchOrderError } from './unbunch.js';
 import { MODEL_BY_ID } from '../config/vehicles.js';
 import { updatePlatFit, loadingTicksFor } from './platformLength.js';
@@ -940,7 +940,7 @@ function recordDeparture(ctx, v, order) {
   // untimetabled wait only counts while the vehicle is already late.
   if (timetableLatenessOn(state) && order && v.arriveTick != null
     && (order.waitDays > 0 || lateTicksOf(v) > 0)) {
-    bookLateness(v, (state.tick - v.arriveTick) - (order.waitDays || 0) * TICKS_PER_DAY, v.orders);
+    bookLateness(v, (state.tick - v.arriveTick) - (order.waitDays || 0) * TICKS_PER_DAY, v.orders, timetableLatenessConditionalOn(state));
   }
   if (order && v.arriveTick != null && timetableEstimatesOn(state) && !v.autofill && !(order.waitDays > 0)) {
     // G3: measured station-wait estimate, display-only (lazy, absent when 0)

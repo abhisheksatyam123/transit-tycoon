@@ -5,6 +5,8 @@ import { setSetting } from '../js/simulation/settings.js';
 import { TICKS_PER_DAY } from '../js/simulation/constants.js';
 import { resolveConditionals } from '../js/simulation/condOrders.js';
 import { vehicleTick } from '../js/simulation/movement.js';
+import { roundTicks, timetableLatenessConditionalOn } from '../js/simulation/ttSchedule.js';
+import { serializeState, parseState } from '../js/simulation/save.js';
 
 // A conditional that is never true (always == 0) then a plain stop: the cond holds, then falls through.
 const COND = { v: 'always', cmp: '==', val: 0, to: -1 };
@@ -115,5 +117,72 @@ describe('G7 conditional lateness clock', () => {
     vehicleTick(ctx, v);
     expect(v.orderIndex).toBe(1);
     expect(v.state).not.toBe('condWait');
+  });
+
+  test('stop/start during a hold: the stored hold is dropped and the wait does not release early', () => {
+    const { g, v, state } = setup(true);
+    v.orders[0].waitDays = 2;
+    const ctx = { state, emit() {} };
+    const T0 = 1000;
+    state.tick = T0;
+    expect(resolveConditionals(state, v)).toBe(false);
+    v.state = 'condWait'; // as movement.js leaves it
+    expect(v.retryTick).toBe(T0 + 2 * TICKS_PER_DAY);
+    state.tick = T0 + TICKS_PER_DAY;
+    expect(g.stopVehicle(v.id).ok).toBe(true);
+    expect(v.condSince).toBeUndefined();
+    const Ts = T0 + TICKS_PER_DAY + TICKS_PER_DAY / 2;
+    state.tick = Ts;
+    expect(g.startVehicle(v.id).ok).toBe(true);
+    // a fresh hold from the restart: due 2 days after Ts, not 2 days after T0
+    expect(v.state).toBe('condWait');
+    expect(v.condSince).toBe(Ts);
+    expect(v.retryTick).toBe(Ts + 2 * TICKS_PER_DAY);
+    // the old (stale) release tick passes: still holding
+    state.tick = T0 + 2 * TICKS_PER_DAY;
+    vehicleTick(ctx, v);
+    expect(v.state).toBe('condWait');
+    expect(v.orderIndex).toBe(0);
+    // released at the fresh due tick
+    state.tick = Ts + 2 * TICKS_PER_DAY;
+    vehicleTick(ctx, v);
+    expect(v.orderIndex).toBe(1);
+    expect(v.state).not.toBe('condWait');
+  });
+
+  test('setting off after stored conditional waits: roundTicks ignores them; on: they count', () => {
+    const { v, state, L } = setup(true);
+    v.orders = [{ cond: { ...COND }, waitDays: 2 }, { stationId: L.b.id, travelDays: 1 }];
+    expect(roundTicks(v.orders, true)).toBe(3 * TICKS_PER_DAY);
+    expect(roundTicks(v.orders)).toBe(3 * TICKS_PER_DAY); // default argument = old behaviour
+    expect(roundTicks(v.orders, timetableLatenessConditionalOn(state))).toBe(3 * TICKS_PER_DAY);
+    setSetting(state, 'timetableLatenessConditional', false);
+    expect(roundTicks(v.orders, timetableLatenessConditionalOn(state))).toBe(TICKS_PER_DAY);
+    // no stored conditional waits: identical with the setting off
+    const plain = [{ stationId: L.a.id, travelDays: 1, waitDays: 1 }, { stationId: L.b.id, travelDays: 2 }];
+    expect(roundTicks(plain, false)).toBe(roundTicks(plain));
+  });
+
+  test('save round-trip: a vehicle mid-hold keeps condSince and releases at retryTick', () => {
+    const { v, state } = setup(true);
+    v.orders[0].waitDays = 2;
+    const T0 = 4000;
+    state.tick = T0;
+    expect(resolveConditionals(state, v)).toBe(false);
+    expect(v.state).toBe('condWait');
+    const back = parseState(serializeState(state));
+    const w = back.vehicles.find((x) => x.id === v.id);
+    expect(w.condSince).toBe(T0);
+    expect(w.state).toBe('condWait');
+    expect(w.retryTick).toBe(T0 + 2 * TICKS_PER_DAY);
+    const ctx = { state: back, emit() {} };
+    back.tick = T0 + 2 * TICKS_PER_DAY - 1;
+    vehicleTick(ctx, w);
+    expect(w.state).toBe('condWait');
+    expect(w.orderIndex).toBe(0);
+    back.tick = T0 + 2 * TICKS_PER_DAY;
+    vehicleTick(ctx, w);
+    expect(w.orderIndex).toBe(1);
+    expect(w.condSince).toBeUndefined();
   });
 });

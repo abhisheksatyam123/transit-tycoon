@@ -26,7 +26,7 @@ const COND_VAR_HELP = {
   drivingBackwards: 'Skip when a train is driving backwards (reversed consist)',
 };
 import { cargoName } from '../../simulation/orders.js';
-import { timetableComplete, roundTicks, timetableEstimatesOn } from '../../simulation/ttSchedule.js';
+import { timetableComplete, roundTicks, timetableEstimatesOn, timetableLatenessConditionalOn } from '../../simulation/ttSchedule.js';
 import { timetableSubDayOn, ttFormatTime } from '../../simulation/ttTimeUnits.js';
 import { TICKS_PER_DAY } from '../../simulation/constants.js';
 import { sharers } from '../../simulation/sharedOrders.js';
@@ -288,7 +288,9 @@ export function openOrders(app, id) {
           toSel.replaceChildren(...Array.from({ length: n }, (_, k) => el('option', { value: String(k), text: `order ${k + 1}` })));
         }
         toSel.value = String(c.to);
-        setText(row.querySelector(':scope > .name'), condText(c));
+        // G7 (read-only): a timetabled conditional wait shows only while the conditional lateness setting is on
+        const hold = timetableLatenessConditionalOn(app.game.state) && it.o.waitDays > 0 ? ` (waits ${it.o.waitDays} day${it.o.waitDays === 1 ? '' : 's'})` : '';
+        setText(row.querySelector(':scope > .name'), condText(c) + hold);
         row.classList.toggle('current', it.i === v.orderIndex);
       };
       addBtn.addEventListener('click', () => {
@@ -318,7 +320,7 @@ export function openOrders(app, id) {
         resetBtn.hidden = v.lateDays == null;
         const st = app.game.state;
         const tc = timetableComplete(v);
-        const roundDays = Math.round(roundTicks(v.orders) / TICKS_PER_DAY);
+        const roundDays = Math.round(roundTicks(v.orders, timetableLatenessConditionalOn(st)) / TICKS_PER_DAY);
         const subDay = timetableSubDayOn(st);
         setText(totalLabel, roundDays > 0 ? `Total time: ${subDay ? ttFormatTime(roundDays, true) : `${roundDays} day${roundDays === 1 ? '' : 's'}`}${tc ? '' : ' (incomplete: every non-conditional order needs a travel time)'}` : '');
         setText(startLabel, v.ttStart != null ? (v.ttStart > st.tick ? `starts in ${Math.ceil((v.ttStart - st.tick) / TICKS_PER_DAY)} days` : 'started') : 'no start date');

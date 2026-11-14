@@ -101,7 +101,11 @@ export function condTrue(state, v, c) {
  * @returns {boolean} true while the vehicle must keep holding
  */
 function condWaitHolding(state, v, cur) {
-  if (!timetableLatenessConditionalOn(state) || !(cur.waitDays > 0)) return false;
+  if (!timetableLatenessConditionalOn(state)) { delete v.condSince; return false; } // setting off: a stored hold is dropped
+  if (!(cur.waitDays > 0)) return false;
+  // identity check: a stored condSince only continues the hold that set it (still condWait, due at its retryTick);
+  // anything else (stopped/started, order changed, state moved on) starts a fresh hold from now
+  if (v.condSince != null && !(v.state === 'condWait' && v.retryTick === v.condSince + latenessWaitTicks(v, cur))) delete v.condSince;
   if (v.condSince == null) v.condSince = state.tick;
   const until = v.condSince + latenessWaitTicks(v, cur);
   if (state.tick < until) {
@@ -109,7 +113,7 @@ function condWaitHolding(state, v, cur) {
     v.retryTick = until;
     return true;
   }
-  bookLateness(v, (state.tick - v.condSince) - cur.waitDays * TICKS_PER_DAY, v.orders);
+  bookLateness(v, (state.tick - v.condSince) - cur.waitDays * TICKS_PER_DAY, v.orders, true);
   delete v.condSince;
   if (v.state === 'condWait') v.state = 'running';
   return false;
