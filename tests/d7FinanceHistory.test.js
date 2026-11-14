@@ -141,7 +141,8 @@ describe('D7 default view and no new state', () => {
     expect(Object.keys(c.ledger.current).sort()).toEqual(['byType', 'expenses', 'income']);
     expect('financePeriod' in c).toBe(false);
     expect('financeView' in c).toBe(false);
-    for (const k of Object.keys(DEFAULT_SETTINGS)) expect(k.toLowerCase()).not.toContain('finance');
+    // the only finance-named setting is the opt-in financeByVehicleType (read-only table, see tests/financeByType.test.js)
+    for (const k of Object.keys(DEFAULT_SETTINGS)) if (k !== 'financeByVehicleType') expect(k.toLowerCase()).not.toContain('finance');
     // a closed month keeps the existing five keys only
     spend(c, 'running', 10);
     closeLedgerMonth({ company: c }, { year: 1950, month: 0 });

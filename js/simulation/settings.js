@@ -20,6 +20,8 @@ export const DEFAULT_SETTINGS = {
   loanInterestRate: 5,
   /** OpenLoco: max loan is inflation-adjusted (CompanyManager.cpp:1191, ChangeLoan.cpp getInflationAdjustedCost(ci 0, div 8)). Off keeps flat MAX_LOAN so current games/hash unchanged. */
   inflationAdjustsMaxLoan: false,
+  /** per-vehicle-type income and expenditure history (opt-in; off = unchanged). On: the finance window shows this year vs last year revenue by vehicle type. Read-only; no effect on money or the ledger. */
+  financeByVehicleType: false,
   /** cargo payment rate in percent of the OpenLoco formula (Moscow scenario uses less: busy prebuilt network) */
   cargoPaymentPercent: 100,
   /** OpenTTD difficulty.vehicle_costs: percent scale on vehicle purchase prices and monthly running costs (prices.js vehiclePrice, loco/vehicle.js monthlyRunningCost). 100 = unchanged. */

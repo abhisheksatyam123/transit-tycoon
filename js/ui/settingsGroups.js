@@ -313,6 +313,8 @@ export const SETTING_META = [
     help: 'Yearly loan interest in OpenLoco units (percent): monthly charge = loan x rate / 1200, for you and AI rivals. OpenLoco editor default 10; 5 = current.' },
   { key: 'inflationAdjustsMaxLoan', group: 'economy', label: 'Max loan inflation-adjusted (OL)', type: 'check',
     help: 'OpenLoco scales max loan with inflation (CompanyManager 1191). Off = flat current games; hash unchanged.' },
+  { key: 'financeByVehicleType', group: 'economy', label: 'Finance history by vehicle type', type: 'check',
+    help: 'Adds a this year / last year table of revenue by vehicle type to the Finances window. Read-only. Off = the window is unchanged.' },
   { key: 'subsidies', group: 'economy', label: 'Subsidies', type: 'check',
     help: 'Offer subsidies every month.' },
   { key: 'subsidyMultiplier', group: 'economy', label: 'Subsidy multiplier', type: 'select',
