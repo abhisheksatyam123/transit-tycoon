@@ -219,7 +219,7 @@ function straightenJogs(map) {
 }
 
 /** Count S-bend jog patterns (diagnostic, same test as straightenJogs without the free-corner check). */
-export function countJogs(map) {
+function countJogs(map) {
   let n = 0;
   for (let a = 0; a < map.tiles.length; a++) {
     if (!map.tiles[a].road) continue;

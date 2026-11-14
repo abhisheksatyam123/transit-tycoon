@@ -15,7 +15,7 @@ import { INDUSTRY_BY_ID } from '../config/industries.js';
 import { CARGO_BY_ID } from '../config/cargos.js';
 
 export const MAX_OFFERS = 4;
-export const OFFER_MONTHS = 12;
+const OFFER_MONTHS = 12;
 export const AWARD_MONTHS = 12;
 /** Offered durations in months (Settings window). */
 export const SUBSIDY_MONTH_OPTIONS = [12, 24, 36, 60];

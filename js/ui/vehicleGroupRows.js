@@ -21,7 +21,7 @@ export const BUCKET_SORTS = [
 ];
 
 /** Vehicle kinds counted per group: [key, label]. */
-export const VEHICLE_KINDS = [['train', 'train'], ['road', 'road'], ['aircraft', 'aircraft'], ['ship', 'ship']];
+const VEHICLE_KINDS = [['train', 'train'], ['road', 'road'], ['aircraft', 'aircraft'], ['ship', 'ship']];
 
 /**
  * Vehicle count per kind (trains / road vehicles / aircraft / ships) plus the total.

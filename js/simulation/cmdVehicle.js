@@ -408,7 +408,7 @@ export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
 }
 
 /** Max speed limit of an order in km/h (OpenTTD order max speed): 1..1000; 0/null clears. */
-export const MAX_ORDER_SPEED_KMH = 1000;
+const MAX_ORDER_SPEED_KMH = 1000;
 
 /**
  * Change or clear the timetable times and speed limit of one order, or of every order (`index` = 'all'), like
@@ -903,7 +903,7 @@ function depotOnTram(state, depot) {
 }
 
 /** Inflated price of all wagons of a mixed consist (what they cost to buy). */
-export function consistPrice(state, v) {
+function consistPrice(state, v) {
   return wagonList(v).reduce((sum, w) => sum + wagonUnitPrice(state, w.modelId), 0);
 }
 

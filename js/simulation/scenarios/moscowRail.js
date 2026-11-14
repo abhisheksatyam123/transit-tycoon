@@ -395,7 +395,7 @@ function reconnectDeadEnds(map, maxLen = tl(15)) {
  * clear the chain, unless the leaf sits near a station/depot (kept) or the chain would reach a station,
  * depot or tunnel. Any length. @returns {number} tiles removed
  */
-export function pruneStubs(map, maxLen = tl(12), keepNearStation = true) {
+function pruneStubs(map, maxLen = tl(12), keepNearStation = true) {
   let pruned = 0;
   const sig0 = terminalSignature(map);
   map.tiles.forEach((t, i) => {

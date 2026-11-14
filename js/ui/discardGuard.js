@@ -8,7 +8,7 @@
  * @param {any} game app.game
  * @returns {boolean}
  */
-export function hasRunningGame(game) {
+function hasRunningGame(game) {
   return !!game;
 }
 

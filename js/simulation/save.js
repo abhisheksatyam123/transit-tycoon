@@ -10,10 +10,10 @@ import { ensureGoals } from './goals.js';
 const TILE_CHUNK = 1024;
 const CAR_CHUNK = 8;
 /** Max main-thread time per slice of an async save (ms). The sync path ignores it. */
-export const SAVE_SLICE_MS = 8;
+const SAVE_SLICE_MS = 8;
 
 /** Output is flushed to the sink in pieces of about this many chars (streamed saves; SV). */
-export const SAVE_CHUNK_CHARS = 512 * 1024;
+const SAVE_CHUNK_CHARS = 512 * 1024;
 
 /**
  * Serialise state to a JSON string (synchronous: one run of the shared generator, see serializeStateSteps).
@@ -419,7 +419,7 @@ function stripCarScratch(state) {
  * @param {Sink} sink
  * @returns {Generator<void, void, void>}
  */
-export function* serializeStateSteps(state, sink) {
+function* serializeStateSteps(state, sink) {
   if (!state.scenario) { sink.write(JSON.stringify(stripCarScratch(state))); return; }
   const tiles = Array.isArray(state.map.tiles) ? yield* packTilesSteps(state.map.tiles) : state.map.tiles;
   const tr = state.traffic ? yield* packTrafficSteps(state.traffic) : state.traffic;

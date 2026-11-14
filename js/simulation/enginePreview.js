@@ -25,13 +25,13 @@ import { companyById } from './owner.js';
 import { notify } from './news.js';
 import { dayNumber } from './date.js';
 
-export const PREVIEW_WAIT_DAYS = 20; // OpenTTD engine.cpp preview_wait = 20 days
+const PREVIEW_WAIT_DAYS = 20; // OpenTTD engine.cpp preview_wait = 20 days
 export const EXCLUSIVE_DAYS = 365; // one year of exclusive use
 export const BLOCK_DAYS = 600; // OpenTTD engine.cpp block_preview = 20 months (20 x 30 days); enginePreviewBlock setting
 const PREVIEW_RETRY_DAYS = 30; // enginePreviewBlock: while every candidate is blocked, try the next preview cycle monthly
 
 /** Company key used in preview records: 'p' = player, 'r<id>' = rival. */
-export function ownerKey(ownerId) { return ownerId == null ? 'p' : 'r' + ownerId; }
+function ownerKey(ownerId) { return ownerId == null ? 'p' : 'r' + ownerId; }
 function keyOwner(key) { return key === 'p' ? null : Number(key.slice(1)); }
 
 /** Vehicle class used for the "same kind of vehicle" check (matches cmdVehicle kind field). */
@@ -45,7 +45,7 @@ function typeWord(model) {
 }
 
 /** Models that take part in previews: real vehicles (not wagons, not opt-in extras, not news-less). */
-export function previewable(model) {
+function previewable(model) {
   return !!model && model.kind !== 'wagon' && !model.optIn;
 }
 

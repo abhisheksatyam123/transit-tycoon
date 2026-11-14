@@ -64,7 +64,7 @@ export function hexToRgb(hex) {
 }
 
 /** Darken/lighten an [r,g,b] by factor f (1 = unchanged). Pure. */
-export function shade(rgb, f) {
+function shade(rgb, f) {
   return rgb.map((v) => Math.max(0, Math.min(255, Math.round(v * f))));
 }
 

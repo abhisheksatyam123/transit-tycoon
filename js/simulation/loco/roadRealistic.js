@@ -26,19 +26,19 @@
 import { KMH_TO_TILES_PER_TICK, totalWeight, landSpeedStep, ROAD_WEIGHT } from './vehicleMotion.js';
 
 /** OpenTTD GROUND_ACCELERATION (vehicle_type.h:19), N per tonne. */
-export const GROUND_ACCELERATION = 9800;
+const GROUND_ACCELERATION = 9800;
 /** Road tractive effort coefficient 76/256 (engine_type.h:160-161, table/engines.h RVI default). */
-export const TRACTIVE_EFFORT = 76;
+const TRACTIVE_EFFORT = 76;
 /** Road air drag area, m^2 (roadveh.h:213-219). */
-export const ROAD_AIR_DRAG_AREA = 6;
+const ROAD_AIR_DRAG_AREA = 6;
 /** Rolling friction coefficients in 1e-4 (roadveh.h:237-246). */
 export const ROLLING_ROAD = 75;
 export const ROLLING_TRAM = 40;
 /** Bearing friction: 0.1 % of the weight (ground_vehicle.cpp:94). */
-export const AXLE_PER_TONNE = 10;
-export const WATTS_PER_HP = 746;
+const AXLE_PER_TONNE = 10;
+const WATTS_PER_HP = 746;
 /** Full-load terminal speed as a multiple of rated speed (the derivation target). */
-export const TERMINAL_SPEED_FACTOR = 1.25;
+const TERMINAL_SPEED_FACTOR = 1.25;
 
 /** Air drag coefficient cache of one road vehicle (parts = 1: TT treats the whole bus/tram as one unit). */
 function airDragCoef(ratedKmh) {

@@ -101,7 +101,7 @@ const WINDOW_BUTTONS = [
 /** Tools shown as top-level buttons; every other tool lives in a flyout group. */
 export const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'tramStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
 /** D9: opt-in terminal stop tools; shown only when setting terminalRoadStops is on. */
-export const TERMINAL_TOOLS = ['busTerminal', 'truckTerminal'];
+const TERMINAL_TOOLS = ['busTerminal', 'truckTerminal'];
 /** True when a toolbar tool may be shown: terminal tools need terminalRoadStops on. */
 export function terminalToolShown(state, id) {
   return !TERMINAL_TOOLS.includes(id) || getSetting(state, 'terminalRoadStops') === true;

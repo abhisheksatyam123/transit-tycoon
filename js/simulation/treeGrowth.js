@@ -12,9 +12,9 @@
 import { getSetting } from './settings.js';
 
 /** Tiles sampled per monthly pass. */
-export const TREE_SAMPLES = 400;
+const TREE_SAMPLES = 400;
 /** Chance that a sampled forest tile seeds a tree. */
-export const TREE_SEED_CHANCE = 0.2;
+const TREE_SEED_CHANCE = 0.2;
 /** Hard cap of new trees per monthly pass. */
 export const TREE_MAX_NEW = 40;
 

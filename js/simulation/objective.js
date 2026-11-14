@@ -38,7 +38,7 @@ export function createObjective(state, o) {
 }
 
 /** Current value of the measured quantity. */
-export function objectiveValue(state, obj) {
+function objectiveValue(state, obj) {
   const c = ensureCompany(state.company);
   switch (obj.type) {
     case 'companyValue': return c.companyValue;

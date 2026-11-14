@@ -31,7 +31,7 @@ function findGroup(state, id) {
 }
 
 /** Vehicle kinds a group may be restricted to (group.kind; strictGroupKind). 'road' covers bus/truck/tram. */
-export const GROUP_KINDS = ['train', 'road', 'aircraft', 'ship'];
+const GROUP_KINDS = ['train', 'road', 'aircraft', 'ship'];
 
 /** Per-type groups are enforced only while the strictGroupKind setting is on (default off). */
 function strictKind(state) {
@@ -265,7 +265,7 @@ export function setGroupAutorenew(ctx, id, value, opts = {}) {
   }
   return { ok: true, cost: 0, value: value ?? null };
 }
-export function groupHasFlag(g,flag){
+function groupHasFlag(g,flag){
   if(flag==='replaceProtect'||flag==='replaceProtection') return !!(g&&g.replaceProtect);
   return false;
 }
@@ -288,7 +288,7 @@ export function setGroupColour(ctx, id, colour, opts = {}) {
 }
 
 /** Per-vehicle-type colour scheme keys (the renderer maps a vehicle to one of these: groupLivery.js typeOfVehicle). */
-export const TYPE_COLOUR_KEYS = ['rail', 'road', 'tram', 'air', 'ship'];
+const TYPE_COLOUR_KEYS = ['rail', 'road', 'tram', 'air', 'ship'];
 
 /**
  * Per-vehicle-type colour scheme (OpenLoco CompanyWindow colour scheme / OpenTTD livery, simplified): the

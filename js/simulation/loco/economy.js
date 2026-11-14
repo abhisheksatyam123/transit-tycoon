@@ -16,7 +16,7 @@ import { CARGOS, CARGO_BY_ID } from '../../config/cargos.js';
 import { getSetting } from '../settings.js';
 
 /** Economy.cpp kInflationFactors. */
-export const INFLATION_FACTORS = [20, 20, 20, 20, 23, 20, 23, 23, 20, 17, 17, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20];
+const INFLATION_FACTORS = [20, 20, 20, 20, 23, 20, 23, 23, 20, 17, 17, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20];
 
 /** Cost indices into the 32 currency multiplication factors (synthetic mapping for transit-tycoon). */
 export const COST_INDEX = {
@@ -32,7 +32,7 @@ function inflate(factors) {
 }
 
 /** Economy::setInflationForYear: fresh factors for `year` (clamped to 1900..2030). */
-export function inflationFactorsForYear(year) {
+function inflationFactorsForYear(year) {
   const f = new Array(32).fill(START_FACTOR);
   const months = (Math.max(1900, Math.min(2030, year)) - 1900) * 12;
   for (let m = 0; m < months; m++) inflate(f);
@@ -59,7 +59,7 @@ export function getCurrencyMultiplicationFactor(state, costIndex) {
 }
 
 /** Inflation relative to the start of the game: 1.0 at start, growing ~5.9%/year. Scale transit-tycoon cost tables with it. */
-export function costScale(state, costIndex) {
+function costScale(state, costIndex) {
   const e = ensureEconomy(state);
   return e.factors[costIndex] / e.base[costIndex];
 }
@@ -75,12 +75,12 @@ export function normalisedFactor(state, costIndex) {
 }
 
 /** Economy::getInflationAdjustedCost: costFactor * normalised multiplication factor / 2^divisor (integer, truncating). */
-export function getInflationAdjustedCost(state, costFactor, costIndex, divisor) {
+function getInflationAdjustedCost(state, costFactor, costIndex, divisor) {
   return Math.trunc((costFactor * normalisedFactor(state, costIndex)) / 2 ** divisor);
 }
 
 /** CargoObject-like payment parameters for a transit-tycoon cargo id (null for unknown cargo). */
-export function cargoPaymentParams(cargoId) {
+function cargoPaymentParams(cargoId) {
   const c = CARGO_BY_ID[cargoId];
   if (!c) return null;
   return {
@@ -122,7 +122,7 @@ export function calculateDeliveredCargoPayment(state, cargoId, numUnits, distanc
 }
 
 /** Economy::getDeliveryCargoPaymentsTable: payment for 100 units over 10 tiles after 2,4,..120 days (60 entries). */
-export function getDeliveryCargoPaymentsTable(state, cargoId) {
+function getDeliveryCargoPaymentsTable(state, cargoId) {
   const t = [];
   for (let d = 2; d < 122; d += 2) t.push(calculateDeliveredCargoPayment(state, cargoId, 100, 10, d));
   return t;

@@ -39,9 +39,9 @@ export function ottdDistance(a, b) {
 /** Passenger / mail cargos (cargodist setting, OpenTTD symmetric/asymmetric demand). */
 export const CD_CARGOS = ['PASS', 'MAIL'];
 /** Freight cargos (setting freightDistribution = asymmetric): OpenTTD asymmetric demand. */
-export const FREIGHT_CARGOS = CARGOS.map((c) => c.id).filter((id) => !CD_CARGOS.includes(id));
+const FREIGHT_CARGOS = CARGOS.map((c) => c.id).filter((id) => !CD_CARGOS.includes(id));
 /** Months without any vehicle using an edge before it is removed. */
-export const EDGE_EXPIRE_MONTHS = 3;
+const EDGE_EXPIRE_MONTHS = 3;
 
 /** @returns {'off'|'asymmetric'|'symmetric'} */
 export function cargodistMode(state) {
@@ -65,7 +65,7 @@ export function freightMode(state) {
 }
 
 /** Capacity-constrained routing (OpenTTD MCF passes) on (setting cargodistMcf). */
-export function cdMcfOn(state) {
+function cdMcfOn(state) {
   return getSetting(state, 'cargodistMcf') === true;
 }
 
@@ -120,7 +120,7 @@ export function mcfAugment(state) { return Math.max(1, Math.round(getSetting(sta
 export function mcfSaturation(state) { return Math.min(100, Math.max(1, getSetting(state, 'linkgraphShortPathSaturation'))); }
 
 /** Lazily created link graph of a cargo. */
-export function ensureGraph(state, cargoId) {
+function ensureGraph(state, cargoId) {
   if (!state.cargoDist) state.cargoDist = {};
   let g = state.cargoDist[cargoId];
   if (!g) {
@@ -606,7 +606,7 @@ export function computeDemand({ nodes, trees, supply, mode, freight, acceptance 
 }
 
 /** Pair-evaluation budget of the parity demand loop (deterministic; exceeding it sets approx). */
-export const PARITY_PAIR_CAP = 200000;
+const PARITY_PAIR_CAP = 200000;
 
 /** OpenTTD DistanceMaxPlusManhattan: 2*max(dx,dy) + min(dx,dy). */
 export function distanceMaxPlusManhattan(a, b) {

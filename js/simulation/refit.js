@@ -32,7 +32,7 @@ export function refitCargos(v) {
  * Drop all cargo aboard (OpenTTD refit_cap = 0 on a cargo type change, vehicle_cmd.cpp:476-477): the cargo is
  * lost, nothing is paid for it. No money or profit field is touched.
  */
-export function dropLoad(load) {
+function dropLoad(load) {
   load.amount = 0;
   load.fromStationId = null;
   delete load.feeder;

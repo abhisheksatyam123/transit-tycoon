@@ -19,10 +19,10 @@ import { recomputeAllAcceptance } from '../stations.js';
 import { manhattan } from '../state.js';
 import * as Industry from './industry.js';
 
-export const CLOSE_INDUSTRY_DISTANCE_MAX = 9; // kCloseIndustryDistanceMax (480/32=15, scaled for small maps)
-export const INDUSTRY_WITHIN_CLUSTER_DISTANCE = 20; // kIndustryWithinClusterDistance (960/32=30)
-export const NUM_INDUSTRY_IN_CLUSTER = 3;
-export const FIND_RANDOM_NEW_INDUSTRY_ATTEMPTS = 250;
+const CLOSE_INDUSTRY_DISTANCE_MAX = 9; // kCloseIndustryDistanceMax (480/32=15, scaled for small maps)
+const INDUSTRY_WITHIN_CLUSTER_DISTANCE = 20; // kIndustryWithinClusterDistance (960/32=30)
+const NUM_INDUSTRY_IN_CLUSTER = 3;
+const FIND_RANDOM_NEW_INDUSTRY_ATTEMPTS = 250;
 const DIST_NEAR_TOWN_MAX = 18; // 576/32
 const DIST_AWAY_TOWN_MIN = 24; // 768/32
 const TREES_NEAR_MIN = 25;
@@ -57,7 +57,7 @@ function canIndustryTypeBeCreated(state, type) {
 }
 
 /** capOfTypeOfIndustry. */
-export function capOfTypeOfIndustry(game, type) {
+function capOfTypeOfIndustry(game, type) {
   const factor = game.state.industryFactor ?? 2;
   const total = type.totalOfType ?? 2;
   const inter = Math.floor(((factor + 1) * total) / 3);
@@ -102,7 +102,7 @@ function inMoscowCentre(state, x, y) {
 }
 
 /** findRandomNewIndustryLocation: random top-left tile passing the type's placement rules, or null. */
-export function findRandomNewIndustryLocation(game, type) {
+function findRandomNewIndustryLocation(game, type) {
   const { state, rng } = game, m = state.map;
   for (let i = 0; i < FIND_RANDOM_NEW_INDUSTRY_ATTEMPTS; i++) {
     const x = rng.int(2, m.width - type.w - 3), y = rng.int(2, m.height - type.h - 3);
@@ -124,7 +124,7 @@ export function findRandomNewIndustryLocation(game, type) {
 }
 
 /** createNewIndustry (buildImmediately=false: production ramps up from 0). */
-export function createNewIndustry(game, type, numAttempts) {
+function createNewIndustry(game, type, numAttempts) {
   for (let a = 0; a < numAttempts; a++) {
     const loc = findRandomNewIndustryLocation(game, type);
     if (!loc) continue;

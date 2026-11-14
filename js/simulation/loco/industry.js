@@ -48,7 +48,7 @@ export const requiredCargos = (type) => (type.accepts || []).slice(0, 3);
  * Initial daily production target (OpenLoco: dailyProductionTarget, 0..100+) for a type slot from its old monthly figure.
  * @param {object} type @param {number} slot @param {number} [factor] 1 = nominal
  */
-export function initialTarget(type, slot, factor = 1) {
+function initialTarget(type, slot, factor = 1) {
   const cargo = producedCargos(type)[slot];
   const base = cargo && type.production ? type.production[cargo] || 0 : 0;
   return Math.round((base * 8 * factor) / DAYS_PER_MONTH);
@@ -225,7 +225,7 @@ export function updateDaily(game, ind) {
 }
 
 /** Industry::isMonthlyProductionUp. */
-export function isMonthlyProductionUp(rng, ind) {
+function isMonthlyProductionUp(rng, ind) {
   const type = INDUSTRY_BY_ID[ind.typeId];
   if (requiredCargos(type).length) return false; // canIncreaseProduction: primary industries only
   return ind.percentTransportedPrev[0] > 70 && rng.int(0, 31) === 0
@@ -233,7 +233,7 @@ export function isMonthlyProductionUp(rng, ind) {
 }
 
 /** Industry::isMonthlyProductionDown. */
-export function isMonthlyProductionDown(rng, ind) {
+function isMonthlyProductionDown(rng, ind) {
   const type = INDUSTRY_BY_ID[ind.typeId];
   if (requiredCargos(type).length) return false;
   const pct = ind.percentTransportedPrev[0], t = ind.dailyProductionTarget[0];
@@ -241,7 +241,7 @@ export function isMonthlyProductionDown(rng, ind) {
 }
 
 /** Industry::isMonthlyProductionClosing: obsolete or random closure chance (out of 65535). */
-export function isMonthlyProductionClosing(rng, state, ind) {
+function isMonthlyProductionClosing(rng, state, ind) {
   const type = INDUSTRY_BY_ID[ind.typeId];
   const obsolete = type.obsoleteYear ?? 9999;
   return (state.date.year > obsolete && rng.int(0, 0xffff) < 102)
@@ -249,7 +249,7 @@ export function isMonthlyProductionClosing(rng, state, ind) {
 }
 
 /** OpenTTD PROCESSING_INDUSTRY_ABANDONMENT_YEARS (industry_cmd.cpp). */
-export const ABANDONMENT_YEARS = 5;
+const ABANDONMENT_YEARS = 5;
 
 /**
  * industryAbandonment (opt-in, default off = no abandonment): OpenTTD ChangeIndustryProduction (industry_cmd.cpp:3004-3007).
@@ -269,7 +269,7 @@ export function isMonthlyAbandonment(rng, state, ind) {
  * protectLastIndustry (opt-in, default off = last instance may close): OpenTTD CheckIndustryCloseDownProtection
  * (industry_cmd.cpp:2758-2766). True = closure must be refused because this is the only industry of its type.
  */
-export function closureProtected(state, ind) {
+function closureProtected(state, ind) {
   if (!getSetting(state, 'protectLastIndustry')) return false;
   return state.industries.filter((i) => i.typeId === ind.typeId).length <= 1;
 }

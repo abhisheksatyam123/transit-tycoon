@@ -40,19 +40,19 @@ import { buildHQ, hqPrice, hqSiteError, removeHQ } from './cmdHQ.js';
 import { airportType } from './airportTypes.js';
 
 
-export const AI_NAMES = ['Northern Lines', 'Velox Transit', 'Iron Coach Co.'];
-export const AI_COLOURS = ['#d9482b', '#2b7fd9', '#3aa35a'];
+const AI_NAMES = ['Northern Lines', 'Velox Transit', 'Iron Coach Co.'];
+const AI_COLOURS = ['#d9482b', '#2b7fd9', '#3aa35a'];
 /** Town pair distance window (manhattan tiles). */
 export const ROUTE_MIN_DIST = 15;
 export const ROUTE_MAX_DIST = 40;
 /** A rival only starts a new route with at least this much cash (stops + depot + 2 buses). */
-export const ROUTE_BUDGET = 30000;
+const ROUTE_BUDGET = 30000;
 /** Months of negative profit before a vehicle is sold. */
-export const SELL_AFTER_MONTHS = 12;
+const SELL_AFTER_MONTHS = 12;
 /** Months of negative company value before a rival is wound up (OpenTTD style bankruptcy). */
 export const BANKRUPT_MONTHS = 12;
 /** Buses per route: one more bus when passengers wait at an end and the route has fewer than this. */
-export const MAX_BUSES_PER_ROUTE = 6;
+const MAX_BUSES_PER_ROUTE = 6;
 const WAITING_FOR_BUS = 30;
 const MAX_ROUTES = 8;
 /** Freight: a rival needs this much cash and at least 2 bus routes before a truck route; at most this many. */
@@ -113,7 +113,7 @@ export function updateMonthly(game) {
 }
 
 /** Competitor speed (setting competitorSpeed, 0 very slow .. 4 very fast; default 2 = medium). */
-export const COMPETITOR_SPEED_DEFAULT = 2;
+const COMPETITOR_SPEED_DEFAULT = 2;
 export function competitorSpeed(state) {
   const v = getSetting(state, 'competitorSpeed');
   return Number.isInteger(v) && v >= 0 && v <= 4 ? v : COMPETITOR_SPEED_DEFAULT;
@@ -242,7 +242,7 @@ function buildRivalHQ(ctx, r) {
  * Takeover offer (OpenTTD): a rival that has been in negative value for half its bankruptcy window can be
  * bought. The price is its company value (min 0). The offer lapses when its value recovers.
  */
-export const TAKEOVER_LEAD = 6;
+const TAKEOVER_LEAD = 6;
 function updateTakeover(ctx, r) {
   const { state } = ctx;
   if (r.negValueMonths === 0) { delete r.takeoverOffer; return; }
@@ -348,7 +348,7 @@ function townServed(state, town) {
  * Best unserved, road-connected town pair 15..40 apart: highest combined population, then lowest id.
  * @returns {[object, object]|null}
  */
-export function pickTownPair(state) {
+function pickTownPair(state) {
   const labels = labelComponentsAll(state.map, 'road');
   const cands = state.towns.filter((t) => !townServed(state, t))
     .map((t) => ({ t, comp: townComponent(state, labels, t) }))
@@ -531,6 +531,6 @@ function addBuses(ctx, r) {
 }
 
 /** The rival company record for a stamped entity (null for the player). */
-export function ownerOf(state, entity) {
+function ownerOf(state, entity) {
   return entity && entity.ownerId != null ? companyById(state, entity.ownerId) : null;
 }
