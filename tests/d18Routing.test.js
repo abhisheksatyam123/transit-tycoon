@@ -13,6 +13,7 @@ import { setSetting } from '../js/simulation/settings.js';
 function cappedLine(opts = {}) {
   const g = flatGame(5);
   const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false);
   setSetting(s, 'freightDistribution', 'asymmetric');
   if (opts.routing !== undefined) setSetting(s, 'cargodistCapacityRouting', opts.routing);
   if (opts.mcf) setSetting(s, 'cargodistMcf', true);
@@ -104,6 +105,7 @@ describe('D18 capacity routing', () => {
 function metricNet(opts = {}) {
   const g = flatGame(5);
   const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false); // classic shares: this test sums dem rows to 1
   setSetting(s, 'cargodist', 'asymmetric');
   if (opts.routing !== undefined) setSetting(s, 'cargodistCapacityRouting', opts.routing);
   if (opts.mcf) setSetting(s, 'cargodistMcf', true);

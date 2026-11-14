@@ -15,6 +15,7 @@ describe('D18 freight symmetric demand', () => {
 
   test('symmetric is reachable only with demand parity on; otherwise it runs as asymmetric', () => {
     const off = { settings: {} };
+    setSetting(off, 'cargodistDemandParity', false);
     setSetting(off, 'freightDistribution', 'symmetric');
     expect(freightMode(off)).toBe('asymmetric');
     expect(cdMode(off, 'COAL')).toBe('asymmetric');

@@ -7,6 +7,7 @@ import { setSetting, getSetting, DEFAULT_SETTINGS } from '../js/simulation/setti
 /** Line A(10,24) - B(25,24) - C(40,24) of rail stations; A has the supply, B and C the same. */
 function line(mode) {
   const g = flatGame(5);
+  setSetting(g.state, 'cargodistDemandParity', false);
   if (mode) setSetting(g.state, 'cargodist', mode);
   const s = g.state;
   for (const r of [g.buildRailStation(10, 24, 'x', 3), g.buildRailStation(25, 24, 'x', 3), g.buildRailStation(40, 24, 'x', 3),
