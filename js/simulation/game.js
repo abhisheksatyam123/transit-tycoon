@@ -185,7 +185,9 @@ export class Game {
       return game;
     }
     // T29 opt-in settings must be set before generation (they change what the generator places)
-    for (const k of ['extraIndustries', 'farmFields', 'buildingEras', 'spawnPrimaryIndustryOnly', 'townRoadTurns', 'snowRespread']) if (o.settings && o.settings[k]) setSetting(state, k, true);
+    for (const k of ['extraIndustries', 'farmFields', 'buildingEras', 'spawnPrimaryIndustryOnly', 'townRoadTurns']) if (o.settings && o.settings[k]) setSetting(state, k, true);
+    // snowRespread defaults to true: an explicit boolean (incl. false) is honoured, absent keeps the default
+    if (o.settings && typeof o.settings.snowRespread === 'boolean') setSetting(state, 'snowRespread', o.settings.snowRespread);
     // town generator numbers (larger_towns, initial_city_size): stored only when non-default
     for (const k of ['largerTowns', 'initialCitySize', 'townMinDistance']) if (o.settings && o.settings[k] !== undefined && o.settings[k] !== DEFAULT_SETTINGS[k]) setSetting(state, k, o.settings[k]);
     // T34 map generator options: stored only when non-default so default saves are unchanged
