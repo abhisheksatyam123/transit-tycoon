@@ -3,6 +3,7 @@
  * The most used items are always visible; the rest sit in flyout groups (OpenTTD-style) so the
  * toolbar stays one row on desktop widths.
  */
+import { getSetting } from '../simulation/settings.js';
 import { hotkeyTitle, currentOverrides, effectiveKeys, onHotkeysChanged, keyLabel } from './hotkeys.js';
 import { el } from './dom.js';
 import { openTitleMenu } from './titleMenu.js';
@@ -34,6 +35,8 @@ export const TOOL_BUTTONS = [
   ['busStop', 'Bus Stop', 'bus', '4'],
   ['truckStop', 'Truck Stop', 'truck', '5'],
   ['tramStop', 'Tram Stop', 'bus', ''],
+  ['busTerminal', 'Bus Terminal', 'bus', ''],
+  ['truckTerminal', 'Truck Terminal', 'truck', ''],
   ['railDepot', 'Rail Depot', 'railDepot', '6'],
   ['roadDepot', 'Road Depot', 'roadDepot', '7'],
   ['demolish', 'Demolish', 'demolish', '8'],
@@ -95,7 +98,13 @@ const WINDOW_BUTTONS = [
 ];
 
 /** Tools shown as top-level buttons; every other tool lives in a flyout group. */
-const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'tramStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
+export const TOP_TOOLS = ['rail', 'road', 'station', 'busStop', 'truckStop', 'tramStop', 'railDepot', 'roadDepot', 'demolish', 'query', 'signal'];
+/** D9: opt-in terminal stop tools; shown only when setting terminalRoadStops is on. */
+export const TERMINAL_TOOLS = ['busTerminal', 'truckTerminal'];
+/** True when a toolbar tool may be shown: terminal tools need terminalRoadStops on. */
+export function terminalToolShown(state, id) {
+  return !TERMINAL_TOOLS.includes(id) || getSetting(state, 'terminalRoadStops') === true;
+}
 /** Windows shown as top-level buttons; the rest live in flyout groups. */
 const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load', 'help', 'newGame'];
 
@@ -105,7 +114,7 @@ const TOP_WINDOWS = ['vehicles', 'finances', 'issues', 'settings', 'save', 'load
  */
 export const TOOL_GROUPS = [
   ['rail', 'Rail+', 'electrify', ['electrify', 'waypoint']],
-  ['road', 'Road+', 'oneWay', ['oneWay', 'tram', 'roadWaypoint']],
+  ['road', 'Road+', 'oneWay', ['oneWay', 'tram', 'roadWaypoint', 'busTerminal', 'truckTerminal']],
   ['water', 'Water', 'dock', ['dock', 'shipDepot', 'buoy', 'canal', 'lock']],
   ['air', 'Air', 'airport', ['airport', 'smallAirport', 'commuterAirport', 'metroAirport', 'intlAirport', 'heliport', 'helidepot', 'helistation']],
   ['landscape', 'Landscape', 'terraform', ['terraform', 'plant', 'foundTown', 'fundIndustry', 'hq', 'objects', 'sign']],
@@ -407,7 +416,7 @@ export function createToolbar(root, app) {
   /** Scenario editor: only landscape tools (terraform, trees, towns, industries, canals, objects) stay; the rest are hidden. */
   const applyEditorMode = () => {
     const on = !!(app.game && app.game.state && app.game.state.editor);
-    const allowed = (b) => !on || !b.dataset.tool || EDITOR_TOOLS.includes(b.dataset.tool);
+    const allowed = (b) => (!on || !b.dataset.tool || EDITOR_TOOLS.includes(b.dataset.tool)) && terminalToolShown(app.game && app.game.state, b.dataset.tool);
     for (const g of groups) {
       if (g.id === 'lists') continue; // windows only
       for (const b of g.items) b.style.display = allowed(b) ? '' : 'none';
