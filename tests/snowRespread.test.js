@@ -1,4 +1,4 @@
-// Opt-in snow re-spread (decision D2, setting snowRespread, default false): terrain snow starts at the
+// Snow re-spread (decision D2, setting snowRespread, default ON since the D2 flip): terrain snow starts at the
 // snow line itself (height snowLine + 0) instead of snowLine + 2. Default off keeps the W5 pins unchanged.
 import { test, expect, describe } from 'bun:test';
 import { createMap, generateTerrain, snowTerrainHeight } from '../js/simulation/map.js';
@@ -15,7 +15,7 @@ describe('snowRespread (D2, opt-in)', () => {
   test('(a) default off: seed-1 terrain equals the existing W5 pin', () => {
     expect(termSig(gen(1, {}))).toBe('846990cc2c31266d');
     expect(termSig(gen(1, { snowRespread: false }))).toBe('846990cc2c31266d');
-    expect(H(Game.create({ seed: 1 }).state.map.tiles.map((t) => t.height + t.terrain).join(','))).toBe('f692b5165f1fdc21');
+    expect(H(Game.create({ seed: 1 }).state.map.tiles.map((t) => t.height + t.terrain).join(','))).toBe('9618a7c0d47dc54c');
   });
 
   test('(b) on: snow threshold is the snow line (5) and tiles at that height become snow', () => {
@@ -40,8 +40,8 @@ describe('snowRespread (D2, opt-in)', () => {
     expect(Math.min(...snow.map((t) => t.height))).toBe(5);
   });
 
-  test('(c) setting defaults to false', () => {
-    expect(DEFAULT_SETTINGS.snowRespread).toBe(false);
-    expect(getSetting(Game.create({ seed: 1 }).state, 'snowRespread')).toBe(false);
+  test('(c) setting defaults to true', () => {
+    expect(DEFAULT_SETTINGS.snowRespread).toBe(true);
+    expect(getSetting(Game.create({ seed: 1 }).state, 'snowRespread')).toBe(true);
   });
 });

@@ -255,9 +255,9 @@ export const DEFAULT_SETTINGS = {
   /** Opt-in fix of the town road path-finding bug (decision D22): true = town roads may bend after minRun straight steps.
    * false (default) = the original straight-only roads plus the bfsRoadPath fallback (world hash unchanged). */
   townRoadTurns: false,
-  /** Opt-in snow re-spread (decision D2): true = terrain snow starts at the snow line itself (height snowLine + 0, e.g. 5 with the default
-   * line) instead of snowLine + 2 (7). Read at map generation only; false (default) = the OpenTTD-matched +2 mapping, world hash unchanged. */
-  snowRespread: false,
+  /** Snow re-spread (decision D2, approved default on): true (default) = terrain snow starts at the snow line itself (height snowLine + 0,
+   * e.g. 5 with the default line) instead of snowLine + 2 (7). Read at map generation only; false = the OpenTTD-matched +2 mapping (old pins). */
+  snowRespread: true,
   /** OpenTTD economy.town_cargo_scale (percent 0..500, def 100): scales passengers and mail produced by town houses each production chunk. 100 = current. */
   townCargoScale: 100,
   /** OpenTTD economy.town_cargogen_mode (TownCargoGenMode): 'original' = current OpenLoco-style per-house-visit (r>>2)+1 (default,
