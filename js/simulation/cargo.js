@@ -7,7 +7,7 @@ import { HOUSE_POP } from './towns.js';
 import { addWaiting, acceptsFromSource } from './stations.js';
 import { ensureIndustryState } from './loco/industry.js';
 import { manhattan } from './state.js';
-import { cdApplies, splitByDest, noteSupply, splitVia } from './cargodist.js';
+import { cdApplies, splitByDest, noteSupply, noteSupplyAcc, demandParityOn, splitVia } from './cargodist.js';
 import { getSetting } from './settings.js';
 
 /** Days of the month on which a production chunk is distributed. */
@@ -88,6 +88,7 @@ export function deliverToStations(state, stations, cargoId, amount, sx, sy) {
 function addToStation(state, st, cargoId, amount, sx, sy) {
   if (!cdApplies(state, cargoId)) return addWaiting(st, cargoId, amount, sx, sy, state.tick, MAX_WAITING);
   noteSupply(st, cargoId, amount);
+  if (demandParityOn(state)) noteSupplyAcc(st, cargoId, amount);
   let added = 0;
   for (const part of splitByDest(state, st, cargoId, amount)) {
     const dest = part.dest === undefined ? null : part.dest;

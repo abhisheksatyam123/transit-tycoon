@@ -74,6 +74,7 @@ function coalLine(on) {
   const e = (x, y, cap) => noteLeg(s, x, y.id, [{ cargoId: 'COAL', capacity: cap }]);
   e(A, C, 40); e(C, A, 40);
   A.cdSupply = { COAL: 1000 };
+  A.cdSupplyAcc = { COAL: 1000 }; // parity supply side (cumulative accumulator), same amount
   return { s, A, C };
 }
 
