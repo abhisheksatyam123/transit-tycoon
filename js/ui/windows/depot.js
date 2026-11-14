@@ -13,6 +13,7 @@ import { openConfirm } from '../modal.js';
 import { depotDisplayName } from '../../simulation/cmdRename.js';
 import { isAutoreplaceEligible } from '../../simulation/autorenew.js';
 import { getSetting } from '../../simulation/settings.js';
+import { enginePositionUiOn, enginePositionRange } from '../enginePosition.js';
 
 /**
  * Consist editor strip (T19): one block per engine/wagon and +/- wagon buttons. Only for trains in a depot.
@@ -34,10 +35,21 @@ function consistStrip(app, id) {
     const epick = el('select.sm', { title: 'Engine model to add', 'aria-label': 'Engine model' });
     const eadd = el('button.btn.sm', { type: 'button', text: '+ engine', onclick: () => {
       const modelId = epick.value;
-      if (modelId) app.exec(app.game.addEngine(id, modelId), { sound: 'click' });
+      if (!modelId) return;
+      const posEl = row._pos;
+      if (!posEl) { app.exec(app.game.addEngine(id, modelId), { sound: 'click' }); return; }
+      const position = enginePositionRange(Number(posEl.max) || 0, posEl.value).value; // max = extra count (set in updateConsistStrip)
+      app.exec(app.game.addEngine(id, modelId, { position }), { sound: 'click' });
     } });
     const edel = el('button.btn.sm.danger', { type: 'button', text: '− engine', onclick: () => app.exec(app.game.removeEngine(id, null), { sound: 'click' }) });
     row.append(epick, eadd, edel);
+    // D17 (opt-in, both multiheadInterleave and multiEngineConsists on): insertion position inside the engine block.
+    if (enginePositionUiOn(app.game.state)) {
+      const pos = el('input.sm', { type: 'number', min: '0', step: '1', title: 'Engine position in the engine block (0 = next to the lead engine; default = end)', 'aria-label': 'Engine position' });
+      pos.value = '';
+      row.append(pos);
+      row._pos = pos;
+    }
   }
   row._pick = pick;
   return row;
@@ -134,6 +146,14 @@ export function updateConsistStrip(strip, app, v) {
     edel.textContent = er.ok ? `− last engine (refund ${money(er.cost)})` : '− engine';
     edel.disabled = !er.ok;
     edel.title = er.ok ? 'Detach the last extra engine' : er.error;
+  }
+  if (strip._pos) {
+    // D17: keep the Position input's range in step with the current extra-engine count (0..extra, default = append)
+    const pos = strip._pos;
+    const pr = enginePositionRange(extras.length, pos.value);
+    pos.max = String(pr.max);
+    // a blank field keeps meaning "append"; a typed value is only clamped when it falls outside 0..extra
+    if (pos.value !== '' && pos.value !== String(pr.value)) pos.value = String(pr.value);
   }
   strip._dry = { a, r, ea: epick && eadd ? ea : null, er: epick && edel ? er : null };
   const mixed = !!v.consist;
