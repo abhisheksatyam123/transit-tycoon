@@ -5,6 +5,7 @@
 import { el, setText } from '../dom.js';
 import { SPEED_UNITS } from '../../simulation/currency.js';
 import { currentSpeedUnit } from '../units.js';
+import { getSetting } from '../../simulation/settings.js';
 const speedUnitName = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).name;
 const speedFactor = () => (SPEED_UNITS[currentSpeedUnit()] || SPEED_UNITS.kmh).factor;
 import { listOrEmpty } from './common.js';
@@ -68,6 +69,15 @@ function depotKindOk(v, d) {
 /** Stop modes apply to trains and road vehicles only (OpenTTD; ships and aircraft are always non-stop here). */
 function canStopAtIntermediate(v) {
   return v.kind === 'train' || v.kind === 'road';
+}
+
+/**
+ * Whether the "Auto refit" checkbox shows on an order row (D15, opt-in): only when the stationAutoRefit setting is on
+ * and the order is a plain station stop (not depot, conditional, waypoint, go-via, or no-load).
+ */
+export function autoRefitShown(state, o, st) {
+  return getSetting(state, 'stationAutoRefit') === true && !!st && !isDepotOrder(o) && !isCond(o)
+    && !isWaypointRecord(st) && o.load !== 'none' && stopMode(o) !== 'via';
 }
 
 /** Current load mode of an order. */
@@ -322,11 +332,13 @@ export function openOrders(app, id) {
             el('span.order-idx.mono'), el('span.name'),
             el('span.order-flags', null,
               depotRowCtl(),
-              el('select.input', { title: 'Load', onchange: (e) => edit((os) => { os[it.i].load = e.target.value; os[it.i].full = e.target.value === 'full'; }) },
+              el('select.input', { title: 'Load', onchange: (e) => edit((os) => { os[it.i].load = e.target.value; os[it.i].full = e.target.value === 'full'; if (e.target.value === 'none') delete os[it.i].refitAuto; }) },
                 ...LOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               el('select.input', { title: 'Unload', onchange: (e) => edit((os) => { os[it.i].unload = e.target.value; }) },
                 ...UNLOAD_OPTIONS.map(([val, label]) => el('option', { value: val, text: label }))),
               stopSel(it),
+              el('label.small.autorefit', { title: 'Auto refit: an empty vehicle refits here to the cargo with the most waiting for its next stop (needs Settings > Refit at station orders)' },
+                el('input', { type: 'checkbox', 'aria-label': 'Auto refit' }), el('span', { text: ' auto refit' })),
               ...(app.findVehicle(id)?.kind === 'train' && !isCond(it.o) && !it.o.depotId ? [stopAtSel(it)] : []),
               el('label.small', { text: 'wait ' }, el('input.input', { type: 'number', min: '0', max: '365', step: '1', title: `Wait days: minimum days to wait at this stop (blank = auto${estOn && it.o.estWaitDays > 0 ? `, estimated ~${it.o.estWaitDays} d` : ''})`, placeholder: estOn && it.o.estWaitDays > 0 ? `~${it.o.estWaitDays}` : 'auto', style: 'width:5em',
                 onchange: (e) => app.exec(app.game.setOrderTimetable(id, it.i, { waitDays: Number(e.target.value) || 0 }), { quiet: true, sound: 'click' }) }),
@@ -394,6 +406,13 @@ export function openOrders(app, id) {
             if (stopEl) stopEl.hidden = isDepot || !canStopAtIntermediate(v);
             for (const x of Array.from(row.querySelectorAll(':scope > .order-flags > select[title="Load"], :scope > .order-flags > select[title="Unload"], :scope > .order-flags > label, :scope > .order-flags > .btn-row'))) {
               x.hidden = isDepot;
+            }
+            const arLabel = row.querySelector(':scope > .order-flags > label.autorefit');
+            if (arLabel) {
+              arLabel.hidden = !autoRefitShown(app.game.state, it.o, st);
+              const arBox = arLabel.querySelector('input');
+              arBox.checked = it.o.refitAuto === true;
+              arBox.onchange = (e) => edit((os) => { if (e.target.checked) os[it.i].refitAuto = true; else delete os[it.i].refitAuto; });
             }
             // P7: warn when this stop neither accepts nor supplies any cargo the vehicle carries
             // no warning on depot orders, nor on go-via (waypoint) orders: the vehicle passes through without loading

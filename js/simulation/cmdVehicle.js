@@ -144,6 +144,8 @@ export function modifyOrder(ctx, id, index, flags, opts = {}) {
     if (stopLoc !== 'far') orders[index].stopAt = stopLoc;
   }
   if (o.maxSpeed > 0) orders[index].maxSpeed = o.maxSpeed;
+  // D15 refitAuto survives a flag edit (normaliseOrders rejects it with stop 'via' or load 'none')
+  if (o.refitAuto === true && stop !== 'via' && load !== 'none') orders[index].refitAuto = true;
   const r = normaliseOrders(state, v, orders, stopKindFor);
   if (!r.ok) return r;
   if (opts.dryRun) return { ok: true, cost: 0 };
