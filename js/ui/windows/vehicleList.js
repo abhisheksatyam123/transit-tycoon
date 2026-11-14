@@ -37,6 +37,36 @@ function protectTitle(ottd) {
     : 'Protect this group from autoreplace (TT default): blocks the group\'s own rule, the company rule and autorenew; the vehicles keep as-is';
 }
 
+/**
+ * D21 per-group autorenew control (groupAutorenew on). Tri-state select: absent = follow the company `autorenew`
+ * setting ('default'), true = 'on', false = 'off'. Options are [value, label].
+ */
+export const AUTORENEW_OPTIONS = [['default', 'Company default'], ['on', 'Renew on'], ['off', 'Renew off']];
+
+/** Select option value for a stored company.groupAutorenew entry (undefined/null = absent = 'default'). */
+export function autorenewOptionOf(stored) {
+  if (stored === true) return 'on';
+  if (stored === false) return 'off';
+  return 'default';
+}
+
+/** Command value for a select option: 'on' -> true, 'off' -> false, 'default' (or unknown) -> null (clears the entry). */
+export function autorenewValueOf(option) {
+  if (option === 'on') return true;
+  if (option === 'off') return false;
+  return null;
+}
+
+/**
+ * Whether the per-group autorenew control is shown: only while the groupAutorenew setting is on (off = window as on main),
+ * and only for a selected player group (rival groups are refused by setGroupAutorenew).
+ * @param {unknown} settingOn value of the groupAutorenew setting
+ * @param {{id?:any, ownerId?:any}|null|undefined} group the selected group (null when none is selected)
+ */
+export function groupAutorenewVisible(settingOn, group) {
+  return settingOn === true && !!group && group.ownerId == null;
+}
+
 /** True when the vehicle runs to a timetable (any order with a wait or travel time). */
 export function hasVehicleTimetable(v) {
   return Array.isArray(v.orders) && v.orders.some((o) => hasTimetable(o));
@@ -249,6 +279,11 @@ export function openVehicleList(app) {
       bySel.onchange = () => { state.by = bySel.value; state.open.clear(); state.dir = 1; refresh(); };
       const protectCb = el('input', { type: 'checkbox', title: protectTitle(false), onchange: () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupFlag(state.group, 'replaceProtect', protectCb.checked)); refresh(); } });
       const protectLabel = el('label.muted', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' }, title: protectTitle(false) }, protectCb, el('span', { text: 'Protect from autoreplace' }));
+      // D21 per-group autorenew (groupAutorenew on only): tri-state select, hidden while the setting is off
+      const arSel = el('select.input', { style: { width: 'auto', display: 'none' }, 'aria-label': 'Group autorenew', title: 'Autorenew for this group: company default, renew on, or renew off' },
+        AUTORENEW_OPTIONS.map(([k, l]) => el('option', { value: k, text: l })));
+      arSel.onchange = () => { if (typeof state.group !== 'number') return; app.exec(app.game.setGroupAutorenew(state.group, autorenewValueOf(arSel.value)), { sound: 'click' }); refresh(); };
+      const arLabel = el('span.muted', { text: 'Autorenew', style: { display: 'none' } });
       // selected group details (OpenTTD group_gui.cpp WID_GL_INFO): read-only sums over the group's listed vehicles.
       const gStatsValue = [0, 1, 2, 3].map(() => el('span.kv-value.mono'));
       const gStats = el('div.kv-grid', { style: { display: 'none' } },
@@ -266,7 +301,7 @@ export function openVehicleList(app) {
         refresh();
       };
       const groupControls = el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, parentLabel, parentSel, protectLabel);
+        el('span.muted', { text: 'Group by' }), bySel, el('span.muted', { text: 'Group' }), groupSel, newGroupBtn, renameGroupBtn, deleteGroupBtn, parentLabel, parentSel, protectLabel, arLabel, arSel);
       // group-by dropdown (OpenTTD vehicle_gui.cpp GB_NONE / GB_SHARED_ORDERS / GB_GROUP). Grouped: the sort box sorts buckets.
       const sortKeyed = { sig: null };
       const sortOptions = (grouped) => {
@@ -408,6 +443,11 @@ export function openVehicleList(app) {
         if (protectCb.title !== pt) { protectCb.title = pt; protectLabel.title = pt; }
         protectLabel.style.display = selG ? 'inline-flex' : 'none';
         if (selG) liveryRow(selG);
+        // D21 autorenew select: shown only with groupAutorenew on and a player group selected; absent = 'default'
+        const arOn = groupAutorenewVisible(getSetting(app.game.state, 'groupAutorenew'), selG);
+        arLabel.style.display = arOn ? 'inline-flex' : 'none';
+        arSel.style.display = arOn ? '' : 'none';
+        if (arOn) arSel.value = autorenewOptionOf((app.game.state.company.groupAutorenew || {})[selG.id]);
         gStats.style.display = hasGroup ? 'grid' : 'none';
         if (hasGroup) {
           const statsVehicles = all.filter((v) => inGroup(v, state.group)
