@@ -274,6 +274,8 @@ export const DEFAULT_SETTINGS = {
   ageDecayOttd: false,
   /** OpenTTD vehicle.cpp:189-203: every depot entry services (reliability to max, timers reset). Default false = only with serviceIntervalDays. */
   serviceOnDepotVisit: false,
+  /** Aqueduct length (aqueduct.js planAqueduct): off = legacy check n-2 > maxBridgeLength, which is 2 tiles more lenient than bridges and tunnels. On = full head-to-head span n > maxBridgeLength, like bridges and tunnels (fixes the off-by-two). Default false = current TT behaviour. */
+  aqueductFullSpanLimit: false,
   /** OpenTTD vehicle.freight_trains: default number of wagons when buying a freight train (0 = automatic, the current 4). */
   freightTrainWagons: 0,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */

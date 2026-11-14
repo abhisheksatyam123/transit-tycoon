@@ -62,8 +62,12 @@ function headLevel(map, x, y, toward) {
   return h;
 }
 
-/** Plan an aqueduct for a drag (x0,y0)-(x1,y1). @returns {null|{ok:false,error:string}|{ok:true,tiles,level,dir,id}} null = not an aqueduct drag. */
-export function planAqueduct(map, x0, y0, x1, y1, maxLen = MAX_BRIDGE_LENGTH) {
+/**
+ * Plan an aqueduct for a drag (x0,y0)-(x1,y1). @returns {null|{ok:false,error:string}|{ok:true,tiles,level,dir,id}} null = not an aqueduct drag.
+ * fullSpan (opt-in `aqueductFullSpanLimit`, default false): measure the length like bridges and tunnels (full head-to-head
+ * span, n > maxLen) instead of the legacy n - 2 > maxLen, which is off by two. false = unchanged.
+ */
+export function planAqueduct(map, x0, y0, x1, y1, maxLen = MAX_BRIDGE_LENGTH, fullSpan = false) {
   const A = getTile(map, x0, y0), B = getTile(map, x1, y1);
   if (!A || !B) return null;
   if (A.terrain === 'water' || B.terrain === 'water' || A.canal || B.canal) return null;
@@ -72,7 +76,8 @@ export function planAqueduct(map, x0, y0, x1, y1, maxLen = MAX_BRIDGE_LENGTH) {
   if (x0 !== x1 && y0 !== y1) return { ok: false, error: AQ_ERR.notStraight };
   const n = Math.abs(x1 - x0) + Math.abs(y1 - y0) + 1;
   if (n < 3) return { ok: false, error: AQ_ERR.tooShort };
-  if (n - 2 > maxLen) return { ok: false, error: AQ_ERR.tooLong };
+  if (fullSpan) { if (n > maxLen) return { ok: false, error: AQ_ERR.tooLong }; }
+  else if (n - 2 > maxLen) return { ok: false, error: AQ_ERR.tooLong };
   const dx = Math.sign(x1 - x0), dy = Math.sign(y1 - y0);
   const d = dx > 0 ? 2 : dx < 0 ? 8 : dy > 0 ? 4 : 1; // from start head toward end head
   const hA = headLevel(map, x0, y0, d);

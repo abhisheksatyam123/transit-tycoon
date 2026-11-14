@@ -72,6 +72,8 @@ export const SETTING_META = [
   { key: 'maxBridgeLength', group: 'construction', label: 'Max bridge length (tiles)', type: 'select',
     options: [['12', '12 (default)'], ['16', '16'], ['20', '20'], ['24', '24'], ['32', '32'], ['40', '40'], ['48', '48'], ['64', '64']],
     help: 'Longest player bridge, counted in tiles including both heads (TT 12 = 10 tiles between the heads). OpenTTD construction.max_bridge_length counts only the tiles between the heads, so the same number is 2 longer here. Applies to new bridges; existing bridges are kept.' },
+  { key: 'aqueductFullSpanLimit', group: 'construction', label: 'Aqueduct length: full span', type: 'check',
+    help: 'Aqueducts are measured like bridges and tunnels: the full span between the two heads counts (fixes an off-by-two: with 12 selected, a 14-tile aqueduct was accepted). Off = the old length check, 2 tiles more lenient (current).' },
   { key: 'distantJoinStations', group: 'construction', label: 'Distant station join', type: 'check',
     help: 'Ctrl+click on a new station site may join one of your stations that is not next to it (OpenTTD station.distant_join_stations). Off = Ctrl+click builds a new station.' },
   { key: 'maxTunnelLength', group: 'construction', label: 'Max tunnel length (tiles)', type: 'select',
