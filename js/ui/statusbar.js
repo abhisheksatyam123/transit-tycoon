@@ -12,6 +12,7 @@ import { el, setText } from './dom.js';
 import { money, date } from './format.js';
 import { calculateCompanyValue } from '../simulation/loco/company.js';
 import { getSetting } from '../simulation/settings.js';
+import { calendarDateOf } from '../simulation/calendarClock.js';
 
 /**
  * Live company value with the same formula as the monthly history (OpenLoco calculateCompanyValue:
@@ -61,7 +62,7 @@ export function createStatusbar(root, app) {
 
   const update = () => {
     const s = app.game.state;
-    setText(dateEl, date(s.date));
+    setText(dateEl, date(calendarDateOf(s))); // opt-in calendar clock (timekeepingUnits); off = state.date
     setText(moneyEl, getSetting(s, 'infiniteMoney') === true ? '∞' : money(s.company.money));
     moneyEl.classList.toggle('neg', s.company.money < 0);
     setText(loanEl, money(s.company.loan));

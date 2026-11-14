@@ -59,3 +59,14 @@ export function calendarYearOf(state) {
   if (calendarOn(state) && state.calendar) return state.calendar.year;
   return state.date.year;
 }
+
+/**
+ * Date shown in the UI (status bar): the calendar date when calendarOn and the calendar exists, else the economy date.
+ * Returns the live object (read-only use); callers must not mutate it.
+ * @param {object} state
+ * @returns {{year:number,month:number,day:number}}
+ */
+export function calendarDateOf(state) {
+  if (calendarOn(state) && state.calendar) return state.calendar;
+  return state.date;
+}

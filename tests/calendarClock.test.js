@@ -2,7 +2,7 @@
  * Opt-in calendar clock (timekeeping option C, first slice): predicate, integer advance, default-off.
  */
 import { test, expect, describe } from 'bun:test';
-import { calendarOn, advanceCalendar, calendarYearOf } from '../js/simulation/calendarClock.js';
+import { calendarOn, advanceCalendar, calendarYearOf, calendarDateOf } from '../js/simulation/calendarClock.js';
 import { setSetting, DEFAULT_SETTINGS } from '../js/simulation/settings.js';
 
 const fresh = () => ({ date: { year: 1950, month: 0, day: 1 } });
@@ -100,5 +100,19 @@ describe('calendar clock: no floats in state', () => {
     expect(c.subFract).toBeLessThan(37);
     expect(c.month).toBeGreaterThanOrEqual(0);
     expect(c.month).toBeLessThan(12);
+  });
+});
+
+describe('calendar clock: status-bar date', () => {
+  test('calendarDateOf is the economy date when off, the calendar date when on', () => {
+    const s = fresh();
+    expect(calendarDateOf(s)).toBe(s.date);
+    expect(calendarDateOf(calOn(96))).toEqual({ year: 1950, month: 0, day: 1 });
+    const on = calOn(192);
+    expect(calendarDateOf(on)).toEqual({ year: 1950, month: 0, day: 1 });
+    advanceCalendar(on, 192 * 31);
+    expect(calendarDateOf(on)).toBe(on.calendar);
+    expect(calendarDateOf(on)).toEqual({ year: 1950, month: 1, day: 1, subFract: 0 });
+    expect(on.date).toEqual({ year: 1950, month: 0, day: 1 });
   });
 });
