@@ -351,6 +351,10 @@ export const DEFAULT_SETTINGS = {
    * GroupFlag::ReplaceWagonRemoval). On = createGroup writes the group's explicit keep-length entry from renewKeepLength at
    * creation, so later company changes do not reach it. Off = no key is written and the group follows the company live. */
   groupCopyKeepLength: false,
+  /** D21 per-group autorenew (opt-in, default off). On = a group may carry its own autorenew on/off in
+   * company.groupAutorenew (set via cmdGroup setGroupAutorenew); absent = follow the company `autorenew` setting.
+   * Off = the group flag is ignored and autorenew is company-wide as before. */
+  groupAutorenew: false,
 };
 
 /** OpenTTD difficulty.infinite_money: true = no affordability or bankruptcy checks. */

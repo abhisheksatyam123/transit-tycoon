@@ -455,6 +455,8 @@ export class Game {
   setGroupAutoreplaceWhenOld(groupId, oldModelId, value, opts) { return setGroupAutoreplaceWhenOld(this.state, groupId, oldModelId, value, opts); }
   /** Tri-state (inherited/value/company) for the autoreplace window's group scope. */
   autoreplaceWhenOldState(groupId, modelId) { return autoreplaceWhenOldState(this.state, groupId, modelId); }
+  /** D21 per-group autorenew (groupAutorenew on): true/false overrides the company autorenew for the group, null clears. */
+  setGroupAutorenew(groupId, value, opts) { return gcmd.setGroupAutorenew(this.ctx, groupId, value, opts); }
   /** Per-group keep-length (wagon removal): true/false overrides the company setting, null clears to inheritance (opt-in). */
   setGroupKeepLength(groupId, value, opts) { return setGroupKeepLength(this.state, groupId, value, opts); }
   /** Tri-state (inherited/value/company) of the keep-length flag for the autoreplace window's group scope. */

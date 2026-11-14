@@ -38,6 +38,19 @@ function keepLengthCap(state) {
  * OpenTTD company.engine_renew_months (def 6; vehicle.cpp NeedsAutorenewing: age - max_age < months*30 is not old enough).
  * TT default 0 = renew exactly when past max age (current). Returns extra days past max age before renewal.
  */
+/**
+ * D21 per-group autorenew (opt-in). With groupAutorenew on and the vehicle's group carrying its own flag in
+ * company.groupAutorenew, that flag wins; otherwise the company `autorenew` setting applies. Rivals always follow the
+ * company setting (they never read the player's group table). With groupAutorenew off the group flag is ignored.
+ */
+export function autorenewFor(state, v) {
+  if (v && v.ownerId == null && v.groupId != null && getSetting(state, 'groupAutorenew') === true) {
+    const byGroup = state.company && state.company.groupAutorenew;
+    if (byGroup && Object.prototype.hasOwnProperty.call(byGroup, v.groupId)) return byGroup[v.groupId] === true;
+  }
+  return !!getSetting(state, 'autorenew');
+}
+
 function renewDelayDays(state) {
   return (Number(getSetting(state, 'engineRenewMonths')) || 0) * 30;
 }
@@ -228,7 +241,7 @@ export function autorenewVehicle(ctx, v, opts = {}) {
     const r = replaceVehicle(ctx, v, v.modelId, 'autoreplace', ro);
     if (r.ok) return r.vehicle;
   }
-  if (!getSetting(state, 'autorenew') || !(v.age > effectiveMaxAge(state, v) + renewDelayDays(state))) return null;
+  if (!autorenewFor(state, v) || !(v.age > effectiveMaxAge(state, v) + renewDelayDays(state))) return null;
   const r = replaceVehicle(ctx, v, v.modelId, 'autorenew', ro);
   return r.ok ? r.vehicle : null;
 }
@@ -240,7 +253,7 @@ export function isAutoreplaceEligible(state, v) {
   if (target && MODEL_BY_ID[target] && target!==v.modelId
     && (!isReplaceWhenOldFor(state, v, v.modelId) || isVehicleOld(state, v))) return true;
   if (wagonRuleApplies(state, v) || engineRuleApplies(state, v)) return true;
-  return !!getSetting(state,'autorenew') && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
+  return autorenewFor(state, v) && v.age>effectiveMaxAge(state, v) + renewDelayDays(state);
 }
 /**
  * Mass autoreplace for a depot: apply autorenewVehicle to every eligible vehicle stopped inside it.

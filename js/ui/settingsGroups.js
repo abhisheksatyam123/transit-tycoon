@@ -100,6 +100,8 @@ export const SETTING_META = [
     help: 'OpenTTD company.renew_keep_length: after autoreplace, sell the wagons that would make the train longer than before (TT has uniform wagon lengths, so this means capping the wagon count at the old count and at Max wagons / Max train length, dropping the wagons nearest the engine). Off = the replacement keeps every wagon (current). A group flag can override this per group; absent = follow this setting.' },
   { key: 'groupCopyKeepLength', group: 'vehicles', label: 'New groups copy keep-length setting', type: 'check',
     help: 'OpenTTD group copy at creation: a newly created vehicle group takes the current Keep train length setting as its own fixed value, so later changes to that setting do not affect it. Off = new groups follow the setting live (current).' },
+  { key: 'groupAutorenew', group: 'vehicles', label: 'Per-group autorenew', type: 'check',
+    help: 'Allow each vehicle group its own autorenew on/off, overriding the company autorenew setting for that group only. Groups without their own setting keep following the company. Off = autorenew is company-wide only (current).' },
   { key: 'townCouncilTolerance', group: 'difficulty', label: 'Town council tolerance', type: 'select',
     options: [['0', 'Lenient (default)'], ['1', 'Tolerant'], ['2', 'Hostile'], ['3', 'Permissive']],
     help: 'Local authority attitude (OpenTTD difficulty.town_council_tolerance). Lenient: refuses below 0 rating. Tolerant: refuses below 200. Hostile: refuses below 400. Permissive: never refuses.' },

@@ -162,6 +162,11 @@ export function deleteGroup(ctx, id, opts = {}) {
     delete state.company.groupReplaceWagonRemoval[id];
     if (!Object.keys(state.company.groupReplaceWagonRemoval).length) delete state.company.groupReplaceWagonRemoval;
   }
+  // D21 per-group autorenew: drop the group's override, key removed when empty
+  if (state.company.groupAutorenew) {
+    delete state.company.groupAutorenew[id];
+    if (!Object.keys(state.company.groupAutorenew).length) delete state.company.groupAutorenew;
+  }
   return { ok: true, cost: 0 };
 }
 
@@ -234,6 +239,31 @@ export function setGroupFlag(ctx, id, flag, value, opts={}) {
   if(opts.dryRun) return {ok:true,cost:0,flag,value:!!value};
   if(value) g.replaceProtect=true; else delete g.replaceProtect;
   return {ok:true,cost:0,flag,value:!!value};
+}
+/**
+ * D21 per-group autorenew (opt-in, groupAutorenew setting). value true/false = the group's own autorenew; null removes
+ * the entry so the group follows the company `autorenew` setting again. Stored lazily in company.groupAutorenew
+ * ({[groupId]: bool}); the key is absent while unset. Player-only: a rival owner is refused. Requires groupAutorenew on.
+ * @returns {{ok:true,cost:0,value:(boolean|null)}|{ok:false,error:string}}
+ */
+export function setGroupAutorenew(ctx, id, value, opts = {}) {
+  const { state } = ctx;
+  if (((opts && opts.owner) ?? null) !== null) return { ok: false, error: 'Owned by a rival company' };
+  const g = findGroup(state, id);
+  if (!g) return { ok: false, error: 'Unknown group' };
+  if (value != null && typeof value !== 'boolean') return { ok: false, error: 'Autorenew value must be true, false or null' };
+  if (getSetting(state, 'groupAutorenew') !== true) return { ok: false, error: 'Per-group autorenew is off (groupAutorenew setting)' };
+  if (opts.dryRun) return { ok: true, cost: 0, value: value ?? null };
+  if (value == null) {
+    if (state.company.groupAutorenew) {
+      delete state.company.groupAutorenew[id];
+      if (!Object.keys(state.company.groupAutorenew).length) delete state.company.groupAutorenew;
+    }
+  } else {
+    state.company.groupAutorenew ??= {};
+    state.company.groupAutorenew[id] = value;
+  }
+  return { ok: true, cost: 0, value: value ?? null };
 }
 export function groupHasFlag(g,flag){
   if(flag==='replaceProtect'||flag==='replaceProtection') return !!(g&&g.replaceProtect);
