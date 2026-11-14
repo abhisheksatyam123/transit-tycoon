@@ -306,6 +306,8 @@ export const DEFAULT_SETTINGS = {
   /** D17 multihead pairs: offers the twin-engine model (eng_twin_thunder, one unit that is two halves, not splittable).
    * Off (default) = the model is not offered; no existing vehicle or hash changes. */
   multiheadPairs: false,
+  /** D17 interleave (spec option C, phase-2 slot only): with multiEngineConsists on, addEngine may place the extra engine at opts.position inside the engine block (default: end). Sums and the lead-first rule are unchanged. Off = always append (current). */
+  multiheadInterleave: false,
   /** OpenTTD gui.autosave_interval: periodically saves the current game into the autosave slot in the background. */
   autosaveInterval: 'off',
   /** OpenTTD economy.exclusive_rights (economy_settings.ini, def true): town action 'Buy exclusive transport rights' is available. Off = the action is not offered and is refused (town_cmd.cpp TownActionBuyRights). TT default true = current. */
