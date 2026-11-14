@@ -13,9 +13,14 @@ import { hashSeed, makeRng } from './rng.js';
  */
 const SNOW_TERRAIN_OFFSET = 2;
 
-/** Terrain snow height for a mapgen snow line (levels; above 7 = no snow terrain, e.g. High = 7 -> 9). */
-export function snowTerrainHeight(snowLine) {
-  return (Number.isInteger(snowLine) ? snowLine : DEFAULT_SNOW_LINE) + SNOW_TERRAIN_OFFSET;
+/**
+ * Terrain snow height for a mapgen snow line (levels; above 7 = no snow terrain, e.g. High = 7 -> 9).
+ * respread (opt-in setting snowRespread, decision D2): the offset is 0, so snow starts at the snow line
+ * itself (5 -> height 5 with the default line). false (default) keeps the +SNOW_TERRAIN_OFFSET mapping.
+ */
+export function snowTerrainHeight(snowLine, respread = false) {
+  const offset = respread === true ? 0 : SNOW_TERRAIN_OFFSET;
+  return (Number.isInteger(snowLine) ? snowLine : DEFAULT_SNOW_LINE) + offset;
 }
 
 /**
@@ -351,7 +356,7 @@ function finishTerrain(map, rng, opts, forest, dry) {
   // Both are null on the default path, which keeps the historic thresholds below verbatim.
   const snowFrac = opts.climate === 'arctic' ? coverageFraction(opts.snowCoverage) : null;
   const desertFrac = opts.climate === 'tropic' ? coverageFraction(opts.desertCoverage) : null;
-  let snowAt = snowTerrainHeight(opts.snowLine);
+  let snowAt = snowTerrainHeight(opts.snowLine, opts.snowRespread === true);
   let desertLine = null;
   if (snowFrac !== null || desertFrac !== null) {
     const counts = landHeightCounts(map);

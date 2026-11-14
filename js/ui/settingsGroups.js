@@ -203,6 +203,8 @@ export const SETTING_META = [
     help: 'OpenTTD economy.allow_town_roads: towns may extend their road network as they grow. Off = towns never build roads (houses still grow along the existing streets).' },
   { key: 'townRoadTurns', group: 'environment', label: 'Town roads turn (fix)', type: 'check',
     help: 'Lets town roads bend: fixes a path-finding bug (OpenTTD-style turns). Off = the original straight-line roads plus fallback. Changes town growth.' },
+  { key: 'snowRespread', group: 'environment', label: 'Snow starts at the snow line (re-spread)', type: 'check',
+    help: 'Opt-in (decision D2): terrain snow starts at the snow line (height 5 by default) instead of 2 levels above it (7). Applies when a map is generated (New Game). Off = the OpenTTD-matched mapping, unchanged.' },
   { key: 'placeHouses', group: 'environment', label: 'Towns build houses', type: 'check',
     help: 'OpenTTD economy.place_houses: towns may construct new houses as they grow. Off = the existing houses stay and the population stops rising (roads can still grow).' },
   { key: 'townCargoScale', group: 'economy', label: 'Town cargo scale (%)', type: 'number', min: 0, max: 500,
