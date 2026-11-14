@@ -8,6 +8,7 @@ import { placeIndustry } from '../js/simulation/industries.js';
 /** Straight road y=17 x 24..28 with truck drive-through stops at both ends. */
 function stopRoad(seed = 7) {
   const g = flatGame(seed);
+  setSetting(g.state, 'townFounding', 'allowed');
   expect(g.buildRoad(24, 17, 28, 17).ok).toBe(true);
   const a = g.buildRoadStop(24, 17, 'truck');
   const b = g.buildRoadStop(28, 17, 'truck');
@@ -51,6 +52,7 @@ describe('depot exit vs drive-through stop side', () => {
 
   test('plain-road auto-orient for a normal road is unchanged', () => {
     const g = flatGame(7);
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.buildRoad(20, 24, 30, 24).ok).toBe(true);
     expect(autoDepotDir(g, 25, 25, 'road')).toBe(1); // road to the north
     expect(g.buildDepot(25, 25, 'road', 1).ok).toBe(true);
@@ -85,32 +87,38 @@ describe('depot exit vs drive-through stop side', () => {
 import { Game } from '../js/simulation/game.js';
 import { TERRA_ERR } from '../js/simulation/cmdTerraform.js';
 import { createTerraformTool } from '../js/ui/tools/terraform.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 describe('scenario editor: empty flat map is land, water refusals say why', () => {
   const editor = () => Game.create({ editor: true, seed: 7, width: 96, height: 96, startYear: 1950, emptyFlat: true, townCount: 0, industryCount: 0 });
   test('empty flat map has no water; the centre is flat land at height 1', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.state.map.tiles.some((t) => t.terrain === 'water')).toBe(false);
     expect(g.state.map.tiles[48 * 96 + 48]).toMatchObject({ terrain: 'grass', height: 1 });
   });
   test('raise and found a town work at the centre of an empty flat map', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.terraform('raise', { x0: 40, y0: 40, x1: 43, y1: 43 }).ok).toBe(true);
     expect(g.foundTown(60, 60).ok).toBe(true);
   });
   test('found town on water says why', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     g.state.map.tiles[60 * 96 + 60].terrain = 'water';
     expect(g.foundTown(60, 60)).toEqual({ ok: false, error: 'Cannot found a town on water' });
   });
   test('terraform on water says why', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     g.state.map.tiles[40 * 96 + 40].terrain = 'water';
     expect(g.terraform('raise', { x0: 40, y0: 40, x1: 40, y1: 40 })).toEqual({ ok: false, error: TERRA_ERR.water });
     expect(TERRA_ERR.water).toMatch(/water/);
   });
   test('terraform tool shows the water reason in its preview', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     g.state.map.tiles[40 * 96 + 40].terrain = 'water';
     const app = { game: g, renderer: { overlay: {} }, toast() {}, exec() {}, ui: {} };
     const tool = createTerraformTool(app);

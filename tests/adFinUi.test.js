@@ -8,9 +8,9 @@ import { interestLabel, ownValue, maxBorrowAmount, maxRepayAmount } from '../js/
 const small = { seed: 3, width: 64, height: 64, townCount: 3, industryCount: 4 };
 
 describe('finances window: interest label', () => {
-  test('default shows 5% (unchanged display)', () => {
+  test('default shows 2% (OpenTTD initial_interest)', () => {
     const g = Game.create(small);
-    expect(interestLabel(g.state)).toBe('5%');
+    expect(interestLabel(g.state)).toBe('2%');
   });
   test('shows the live loanInterestRate setting', () => {
     const g = Game.create(small);

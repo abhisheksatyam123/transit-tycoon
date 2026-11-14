@@ -40,11 +40,11 @@ describe('Round AC settings: defaults', () => {
   test('defaults reproduce the current behaviour', () => {
     expect(DEFAULT_SETTINGS.exclusiveRights).toBe(true);
     expect(DEFAULT_SETTINGS.roadStopOnTownRoad).toBe(true);
-    expect(DEFAULT_SETTINGS.engineRenewMonths).toBe(0);
-    expect(DEFAULT_SETTINGS.engineRenewMoney).toBe(0);
+    expect(DEFAULT_SETTINGS.engineRenewMonths).toBe(6);
+    expect(DEFAULT_SETTINGS.engineRenewMoney).toBe(100000);
     const g = flatGame();
     expect(getSetting(g.state, 'exclusiveRights')).toBe(true);
-    expect(getSetting(g.state, 'engineRenewMonths')).toBe(0);
+    expect(getSetting(g.state, 'engineRenewMonths')).toBe(6);
   });
 
   test('each key has exactly one UI entry in the right group', () => {
@@ -124,9 +124,11 @@ describe('engineRenewMonths and engineRenewMoney (company.engine_renew_*)', () =
     return v;
   }
 
-  test('default 0 months: renewal happens exactly when past max age', () => {
+  test('0 months: renewal happens exactly when past max age', () => {
     const { g, v } = puffer();
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMoney', 0);
+    setSetting(g.state, 'engineRenewMonths', 0);
     oldPuffer(g, v, 0);
     expect(autorenewVehicle(g.ctx, v)).not.toBe(null);
   });
@@ -134,6 +136,7 @@ describe('engineRenewMonths and engineRenewMoney (company.engine_renew_*)', () =
   test('6 months: a vehicle 1 day past max age is not yet renewed; 6 months past is', () => {
     const { g, v } = puffer();
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMoney', 0);
     setSetting(g.state, 'engineRenewMonths', 6);
     oldPuffer(g, v, 0);
     expect(autorenewVehicle(g.ctx, v)).toBe(null);
@@ -141,9 +144,11 @@ describe('engineRenewMonths and engineRenewMoney (company.engine_renew_*)', () =
     expect(autorenewVehicle(g.ctx, v)).not.toBe(null);
   });
 
-  test('default 0 money: renewal needs only the purchase cost', () => {
+  test('0 money: renewal needs only the purchase cost', () => {
     const { g, v } = puffer();
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
+    setSetting(g.state, 'engineRenewMoney', 0);
     oldPuffer(g, v, 0);
     expect(autorenewVehicle(g.ctx, v)).not.toBe(null);
   });
@@ -151,6 +156,7 @@ describe('engineRenewMonths and engineRenewMoney (company.engine_renew_*)', () =
   test('engineRenewMoney above the company money blocks renewal; a lower one does not', () => {
     const { g, v } = puffer();
     setSetting(g.state, 'autorenew', true);
+    setSetting(g.state, 'engineRenewMonths', 0);
     oldPuffer(g, v, 0);
     setSetting(g.state, 'engineRenewMoney', g.state.company.money + 1e9);
     expect(autorenewVehicle(g.ctx, v)).toBe(null);

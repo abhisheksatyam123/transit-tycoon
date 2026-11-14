@@ -20,7 +20,7 @@ describe('Round AB settings: defaults and UI', () => {
     expect(DEFAULT_SETTINGS.infiniteMoney).toBe(false);
     expect(DEFAULT_SETTINGS.cargoAgingRate).toBe(100);
     expect(DEFAULT_SETTINGS.serviceAtHelipad).toBe(false);
-    expect(DEFAULT_SETTINGS.townFounding).toBe('allowed');
+    expect(DEFAULT_SETTINGS.townFounding).toBe('forbidden');
     const g = flatGame();
     expect(infiniteMoney(g.state)).toBe(false);
     expect(getSetting(g.state, 'cargoAgingRate')).toBe(100);
@@ -117,9 +117,10 @@ describe('found town (economy.found_town)', () => {
     throw new Error('no free site');
   }
 
-  test('default allowed: a town can be founded', () => {
+  test('allowed (explicit; default is forbidden): a town can be founded', () => {
     const g = Game.create({ seed: 42, width: 96, height: 96 });
     const [x, y] = freeSite(g);
+    setSetting(g.state, 'townFounding', 'allowed');
     const n = g.state.towns.length;
     expect(g.foundTown(x, y).ok).toBe(true);
     expect(g.state.towns.length).toBe(n + 1);

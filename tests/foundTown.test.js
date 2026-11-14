@@ -3,6 +3,7 @@ import { flatGame } from './helpers.js';
 import { Game } from '../js/simulation/game.js';
 import { COSTS, INDUSTRY_FUND_COSTS } from '../js/config/costs.js';
 import { TOWN_MIN_DIST, FOUND_ERR } from '../js/simulation/cmdFound.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 /** A land tile at least 12 tiles from every town and industry, found by scanning the open map. */
 function freeSite(g) {
@@ -16,6 +17,7 @@ function freeSite(g) {
 describe('found town', () => {
   test('founds a town on a valid site, charges the price and creates the record', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const [x, y] = freeSite(g);
     const n = g.state.towns.length, money = g.state.company.money;
     const r = g.foundTown(x, y);
@@ -32,6 +34,7 @@ describe('found town', () => {
 
   test('dry run charges nothing and changes nothing', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const [x, y] = freeSite(g);
     const n = g.state.towns.length, money = g.state.company.money;
     const r = g.foundTown(x, y, { dryRun: true });
@@ -42,6 +45,7 @@ describe('found town', () => {
 
   test('refuses water, too-close towns, out-of-bounds and missing money with a clear error', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const s = g.state;
     const [x, y] = freeSite(g);
     // a free grass tile 4 steps from the first town centre (its streets/houses sit within 3-4 tiles)
@@ -71,6 +75,7 @@ describe('found town', () => {
 
   test('a tile with a house or track is refused', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const s = g.state;
     const r = g.buildRail(20, 20, 26, 20);
     expect(r.ok).toBe(true);
@@ -79,6 +84,7 @@ describe('found town', () => {
 
   test('fund industry places a building of that type and charges the per-type price', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const s = g.state;
     const n = s.industries.length, money = s.company.money;
     const r = g.fundIndustry('coal_mine', 12, 20);
@@ -92,6 +98,7 @@ describe('found town', () => {
 
   test('fund industry refuses an overlapping footprint and an unknown type', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.fundIndustry('coal_mine', 12, 20).ok).toBe(true);
     const bad = g.fundIndustry('power_station', 13, 20);
     expect(bad.ok).toBe(false);
@@ -101,6 +108,7 @@ describe('found town', () => {
 
   test('found town and industry survive a save/load roundtrip', () => {
     const g = flatGame(42);
+    setSetting(g.state, 'townFounding', 'allowed');
     const [x, y] = freeSite(g);
     expect(g.foundTown(x, y).ok).toBe(true);
     expect(g.fundIndustry('farm', 40, 26).ok).toBe(true);

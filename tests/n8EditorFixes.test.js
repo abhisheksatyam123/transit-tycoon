@@ -5,12 +5,14 @@ import { doTownAction } from '../js/simulation/townAuthority.js';
 import { removeAllTowns, manyRandomTowns } from '../js/simulation/editorGen.js';
 import { startSpeed } from '../js/ui/app.js';
 import { newGameObjective } from '../js/ui/windows/newGame.js';
+import { setSetting } from '../js/simulation/settings.js';
 
 const editor = (extra = {}) => Game.create({ editor: true, seed: 11, width: 96, height: 96, startYear: 1960, emptyFlat: true, ...extra });
 
 describe('scenario editor is free', () => {
   test('demolish in the editor leaves money and expenses unchanged', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.foundTown(30, 30).ok).toBe(true);
     expect(g.state.towns.length).toBe(1);
     const m0 = g.state.company.money;
@@ -26,6 +28,7 @@ describe('scenario editor is free', () => {
 
   test('a normal game still charges for demolish', () => {
     const g = Game.create({ seed: 5, width: 40, height: 40, townCount: 1, industryCount: 0 });
+    setSetting(g.state, 'townFounding', 'allowed');
     const m0 = g.state.company.money;
     const r = g.demolish(0, 0, 39, 39);
     expect(r.ok).toBe(true);
@@ -35,6 +38,7 @@ describe('scenario editor is free', () => {
 
   test('town authority actions cost nothing in the editor but stay usable', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.foundTown(30, 30).ok).toBe(true);
     const town = g.state.towns[0];
     const m0 = g.state.company.money;
@@ -80,6 +84,7 @@ describe('New Game objective choice', () => {
   test('a created objective keeps the chosen years in the game state', () => {
     const obj = newGameObjective('default', '30000', '12', undefined);
     const g = Game.create({ seed: 5, width: 40, height: 40, townCount: 1, industryCount: 0, objective: obj });
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(g.state.objective.type).toBe('companyValue');
     expect(g.state.objective.target).toBe(30000);
     expect(g.state.objective.timeLimitYears).toBe(12);
@@ -89,6 +94,7 @@ describe('New Game objective choice', () => {
 describe('removing all editor towns mirrors deleteTown cleanup', () => {
   test('subsidies and traffic tied to removed towns are dropped', () => {
     const g = editor();
+    setSetting(g.state, 'townFounding', 'allowed');
     expect(manyRandomTowns(g).ok).toBe(true);
     const ids = g.state.towns.map((t) => t.id);
     expect(ids.length).toBeGreaterThan(0);
