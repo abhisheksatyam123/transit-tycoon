@@ -10,6 +10,7 @@ import { setSetting } from '../js/simulation/settings.js';
 function freightNet(opts = {}) {
   const g = flatGame(5);
   const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false);
   if (opts.freight !== undefined) setSetting(s, 'freightDistribution', opts.freight);
   if (opts.mcf) setSetting(s, 'cargodistMcf', true);
   for (const [x, y] of [[10, 24], [25, 24], [40, 24]]) expect(g.buildRailStation(x, y, 'x', 3).ok).toBe(true);

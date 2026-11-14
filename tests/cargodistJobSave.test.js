@@ -13,6 +13,7 @@ describe('cargodist: pending link-graph job save', () => {
   test('pending job (non-empty) survives save/load; loaded and original agree after it is applied', () => {
     const g = flatGame(5);
     const s = g.state;
+    setSetting(s, 'cargodistDemandParity', false);
     setSetting(s, 'cargodist', 'symmetric');
     setSetting(s, 'linkgraphRecalcTime', 2);
     for (const r of [g.buildRailStation(10, 24, 'x', 3), g.buildRailStation(25, 24, 'x', 3), g.buildRailStation(40, 24, 'x', 3),

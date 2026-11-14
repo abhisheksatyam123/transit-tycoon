@@ -696,7 +696,7 @@ export function demandUnitsParity({ nodes, pos, supply, accept, mode, accuracy =
   return { entries: [...entries].map(([k, amt]) => { const [s, d] = k.split('>').map(Number); return { s, d, amt }; }), approx };
 }
 
-/** Opt-in demand parity on (setting cargodistDemandParity, off by default). */
+/** Opt-in demand parity on (setting cargodistDemandParity, on by default). */
 export function demandParityOn(state) {
   return getSetting(state, 'cargodistDemandParity') === true;
 }

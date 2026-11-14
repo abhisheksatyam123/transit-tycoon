@@ -1,4 +1,4 @@
-/** D18: opt-in OpenTTD demand parity (setting cargodistDemandParity, off by default). */
+/** D18: opt-in OpenTTD demand parity (setting cargodistDemandParity, on by default). */
 import { test, expect, describe } from 'bun:test';
 import { flatGame } from './helpers.js';
 import { placeIndustry } from '../js/simulation/industries.js';
@@ -10,10 +10,10 @@ const units = (r) => Object.fromEntries(r.entries.map((e) => [e.s + '>' + e.d, e
 const pos = new Map([[1, [0, 0]], [2, [5, 0]], [3, [0, 5]]]);
 
 describe('D18 demand parity: pure DemandCalculator', () => {
-  test('setting is registered and off by default', () => {
-    expect(DEFAULT_SETTINGS.cargodistDemandParity).toBe(false);
-    expect(demandParityOn({ settings: {} })).toBe(false);
-    expect(demandParityOn(null)).toBe(false);
+  test('setting is registered and on by default', () => {
+    expect(DEFAULT_SETTINGS.cargodistDemandParity).toBe(true);
+    expect(demandParityOn({ settings: {} })).toBe(true);
+    expect(demandParityOn(null)).toBe(true); // no state: the default applies
   });
 
   test('DistanceMaxPlusManhattan is 2*max + min', () => {

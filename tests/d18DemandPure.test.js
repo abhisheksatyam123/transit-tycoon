@@ -15,6 +15,7 @@ import { setSetting } from '../js/simulation/settings.js';
 function paxLine(mode) {
   const g = flatGame(5);
   const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false);
   setSetting(s, 'cargodist', mode);
   for (const r of [g.buildRailStation(10, 24, 'x', 3), g.buildRailStation(25, 24, 'x', 3), g.buildRailStation(40, 24, 'x', 3),
     g.buildRail(13, 24, 39, 24), g.buildDepot(20, 25, 'rail', 1)]) expect(r.ok).toBe(true);
@@ -95,6 +96,7 @@ describe('D18 pure demand core', () => {
   test('freight: pure computeDemand reproduces the integrated matrix (acceptance weights, acceptance gate)', () => {
     const g = flatGame(5);
     const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false);
     setSetting(s, 'freightDistribution', 'asymmetric');
     for (const [x, y] of [[10, 24], [25, 24], [40, 24]]) expect(g.buildRailStation(x, y, 'x', 3).ok).toBe(true);
     expect(g.buildRail(13, 24, 39, 24).ok).toBe(true);

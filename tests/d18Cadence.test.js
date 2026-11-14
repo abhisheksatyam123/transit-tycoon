@@ -11,6 +11,7 @@ const BASE_DAY = 2000 * 365; // 1 Jan 2000 (a spawn day for the 4-day interval)
 function line() {
   const g = flatGame(5);
   const s = g.state;
+  setSetting(s, 'cargodistDemandParity', false);
   setSetting(s, 'cargodist', 'symmetric');
   for (const r of [g.buildRailStation(10, 24, 'x', 3), g.buildRailStation(25, 24, 'x', 3), g.buildRailStation(40, 24, 'x', 3),
     g.buildRail(13, 24, 39, 24), g.buildDepot(20, 25, 'rail', 1)]) expect(r.ok).toBe(true);

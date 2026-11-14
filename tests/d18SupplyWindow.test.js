@@ -11,7 +11,7 @@ function coalLine(parity) {
   const g = flatGame(5);
   const s = g.state;
   setSetting(s, 'freightDistribution', 'asymmetric');
-  if (parity) setSetting(s, 'cargodistDemandParity', true);
+  setSetting(s, 'cargodistDemandParity', !!parity);
   expect(g.buildRailStation(10, 24, 'x', 3).ok).toBe(true);
   expect(g.buildRailStation(20, 24, 'x', 3).ok).toBe(true);
   expect(g.buildRail(10, 24, 20, 24).ok).toBe(true);
