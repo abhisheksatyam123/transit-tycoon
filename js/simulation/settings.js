@@ -66,7 +66,7 @@ export const DEFAULT_SETTINGS = {
    * so a refit on that order never runs.
    */
   depotRefitAlwaysVisits: false,
-  /** OpenTTD GetRefitCost (vehicle_cmd.cpp:319-354): per-model refit cost, permille of purchase price (model.refitCost, absent = 0), cargo-carrying parts only. Default off = flat 10% (refit.js). */
+  /** OpenTTD GetRefitCost (vehicle_cmd.cpp:319-354): per-model refit cost, permille of purchase price (model.refitCost). A cargo-carrying part without refitCost falls back to the flat 10%; the locomotive without refitCost is free of charge (contributes 0). Default off = flat 10% of the whole vehicle (refit.js). */
   modelRefitCost: false,
   /** OpenTTD CARGO_AUTO_REFIT (economy.cpp HandleStationRefit): an empty vehicle loading at a station order with refitAuto refits to the cargo with most waiting for its next stop. Default off (orders.js autoRefitTarget). */
   stationAutoRefit: false,

@@ -87,10 +87,14 @@ export function refitCore(ctx, v, cargoId, opts = {}) {
   if (!partial && (v.load ? v.load.amount || 0 : 0) > 0) return { ok: false, error: 'Unload the vehicle before refitting' };
   let capacity = v.capacity;
   let base = model.cost;
-  // modelRefitCost (opt-in, default off): per-model permille of purchase price (model.refitCost, absent = 0),
-  // cargo-carrying parts only (the locomotive is skipped unless it has its own refitCost). Off = flat 10%.
+  // modelRefitCost (opt-in, default off): per-part cost. A part with its own model.refitCost pays that permille of
+  // its purchase price. A cargo-carrying part without refitCost falls back to the flat REFIT_COST_FRACTION (10%).
+  // The locomotive without refitCost contributes 0. Off = flat 10% of the whole vehicle.
   const perModel = getSetting(state, 'modelRefitCost') === true;
-  const part = (m) => Math.round((m.cost * (m.refitCost ?? 0)) / 1000);
+  const part = (m, carries) => {
+    if (m.refitCost != null) return Math.round((m.cost * m.refitCost) / 1000);
+    return carries ? Math.round(m.cost * REFIT_COST_FRACTION) : 0;
+  };
   let cost;
   if (model.kind === 'engine') {
     const w = MODEL_BY_ID[v.wagonModelId];
@@ -98,8 +102,8 @@ export function refitCore(ctx, v, cargoId, opts = {}) {
     base += w.cost * (v.wagons || 0);
   }
   if (perModel) {
-    let parts = part(model);
-    if (model.kind === 'engine') parts += part(MODEL_BY_ID[v.wagonModelId]) * (v.wagons || 0);
+    let parts = part(model, model.kind !== 'engine');
+    if (model.kind === 'engine') parts += part(MODEL_BY_ID[v.wagonModelId], true) * (v.wagons || 0);
     cost = sameCargo ? 0 : vehiclePrice(state, parts);
   } else {
     cost = sameCargo ? 0 : vehiclePrice(state, Math.round(base * REFIT_COST_FRACTION));
