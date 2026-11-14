@@ -53,4 +53,4 @@ No allocation is added anywhere (no new objects/arrays/closures in the tick path
 - Scope was kept at all surface types (road, rail, ship), the closest match to OpenTTD; a road-only
   variant was considered in the spec (§2.8) but not built — no second setting.
 - No UI besides the settings row; no per-vehicle override. No save migration needed (key defaults).
-- Not merged/pushed (branch `x1-breakdown` only).
+- Merged to main (be16539); setting `breakdownStop` default OFF.
