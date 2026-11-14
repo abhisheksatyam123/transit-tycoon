@@ -19,9 +19,9 @@ describe('W5 snow line mapgen', () => {
     expect(termSig(gen(1, { snowLine: 5 }))).toBe(pinned[1]);
   });
 
-  test('game seed 1 terrain is identical to pre-W5 (main)', () => {
+  test('game seed 1 default terrain pin (snowRespread default on, D2 flip)', () => {
     const g = Game.create({ seed: 1 });
-    expect(H(g.state.map.tiles.map((t) => t.height + t.terrain).join(','))).toBe('f692b5165f1fdc21');
+    expect(H(g.state.map.tiles.map((t) => t.height + t.terrain).join(','))).toBe('9618a7c0d47dc54c');
   });
 
   test('default mapping: snow from height 7', () => {
