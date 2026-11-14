@@ -260,6 +260,8 @@ export const SETTING_META = [
     help: 'OpenTTD lateness counter: a vehicle early against its timetable waits longer (timetabled wait minus lateness, floored at 0), a late one waits less; lateness accumulates over the round and is seeded by the start date. Off = a plain minimum wait (default).' },
   { key: 'timetableEstimates', group: 'vehicles', label: 'Timetable estimates', type: 'check',
     help: 'OpenTTD estimated times: measured wait and travel days are kept per order as display-only estimates (shown as ~ in the orders window) until a time is set. Ctrl+click Autofill keeps a longer existing wait. Off = no estimates recorded (default).' },
+  { key: 'timetableLatenessConditional', group: 'vehicles', label: 'Conditional order waits', type: 'check',
+    help: 'OpenTTD lateness on conditional orders: a conditional order may carry a timetabled wait, and the vehicle holds there for the lateness-adjusted wait before its condition is tested. Needs Timetable lateness. Off = conditional orders carry no wait (default).' },
   { key: 'timetableSubDay', group: 'vehicles', label: 'Timetable sub-day display', type: 'check',
     help: 'Show timetable totals in days and hours (e.g. 3d 04h). Display only: stored times stay whole days. Off = plain days (default).' },
   { key: 'timekeepingUnits', group: 'economy', label: 'Timekeeping units', type: 'select',
