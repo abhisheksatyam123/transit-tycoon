@@ -78,6 +78,9 @@ export function vehicleTick(ctx, v) {
     case 'lost':
       if (ctx.state.tick >= v.retryTick) replan(ctx, v);
       return;
+    case 'condWait': // G7: holding at a timetabled conditional wait; replan re-tests the lateness-adjusted hold
+      if (v.retryTick == null || ctx.state.tick >= v.retryTick) replan(ctx, v);
+      return;
     case 'loading':
       if (loadingTick(ctx, v)) {
         if (v.intermediate) { // stop 'all' at a passed station: the order is still pending, continue to it
@@ -121,7 +124,7 @@ export function replan(ctx, v) {
   const noDepotTrip = v.goingToDepot === null || v.goingToDepot === undefined;
   if (noDepotTrip && v.orders.length && skipNotDueDepotOrders(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
   // conditional orders (condOrders.js): evaluated only here, when the vehicle advances to them
-  if (noDepotTrip && v.orders.length && !resolveConditionals(state, v)) { v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
+  if (noDepotTrip && v.orders.length && !resolveConditionals(state, v)) { if (v.state !== 'condWait') v.state = 'stopped'; v.speed = 0; v.path = []; v.pathIndex = 0; v.progress = 0; return false; }
   const order = noDepotTrip && v.orders.length ? currentOrder(v) : null;
   const toDepotOrder = isDepotOrder(order);
   if (v.kind === 'aircraft' && noDepotTrip && v.orders.length && !toDepotOrder && ftaReplan(ctx, v)) return true;

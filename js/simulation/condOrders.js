@@ -8,6 +8,8 @@
 import { cargoSlices, advanceOrder } from './orders.js';
 import { vehicleModel, effectiveMaxAge } from './vehicles.js';
 import { serviceDueNow } from './service.js';
+import { TICKS_PER_DAY } from './constants.js';
+import { timetableLatenessConditionalOn, latenessWaitTicks, bookLateness } from './ttSchedule.js';
 
 /**
  * Variables (OpenTTD OrderConditionVariable subset): load %, reliability %, max speed km/h, age years, service, always,
@@ -93,6 +95,27 @@ export function condTrue(state, v, c) {
 }
 
 /**
+ * G7 lateness clock on a timetabled conditional wait (OpenTTD vehicle.cpp:2458 rule). Off (default) = no-op.
+ * Starts the hold on first sight (`condSince`), holds the vehicle in state 'condWait' until the lateness-adjusted
+ * wait has passed (movement.js wakes it at `retryTick`), then books actual minus timetabled wait and returns false.
+ * @returns {boolean} true while the vehicle must keep holding
+ */
+function condWaitHolding(state, v, cur) {
+  if (!timetableLatenessConditionalOn(state) || !(cur.waitDays > 0)) return false;
+  if (v.condSince == null) v.condSince = state.tick;
+  const until = v.condSince + latenessWaitTicks(v, cur);
+  if (state.tick < until) {
+    v.state = 'condWait';
+    v.retryTick = until;
+    return true;
+  }
+  bookLateness(v, (state.tick - v.condSince) - cur.waitDays * TICKS_PER_DAY, v.orders);
+  delete v.condSince;
+  if (v.state === 'condWait') v.state = 'running';
+  return false;
+}
+
+/**
  * Resolve conditional orders at the vehicle's current order: while the current order is a conditional,
  * evaluate it and jump (true) or fall through (false). Loop guard: at most orders.length jumps, so a cycle
  * of conditionals cannot hang; past that the vehicle falls through sequentially, skipping conditionals.
@@ -108,6 +131,7 @@ export function resolveConditionals(state, v) {
       for (let k = 0; k < n && isCond(v.orders[v.orderIndex]); k++) advanceOrder(v);
       return !isCond(v.orders[v.orderIndex]);
     }
+    if (condWaitHolding(state, v, cur)) return false; // G7: held at this conditional (off: never)
     if (condTrue(state, v, cur.cond) && cur.cond.to >= 0 && cur.cond.to < n) v.orderIndex = cur.cond.to;
     else advanceOrder(v);
   }

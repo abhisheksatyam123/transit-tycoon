@@ -77,6 +77,11 @@ export function departureHoldUntil(state, v, idx) {
   return until;
 }
 
+/** G7: conditional-order waits with the lateness clock (default off; also requires timetableLateness). */
+export function timetableLatenessConditionalOn(state) {
+  return timetableLatenessOn(state) && !!getSetting(state, 'timetableLatenessConditional');
+}
+
 /** Timetable lateness setting (OpenTTD lateness counter semantics; default off). */
 export function timetableLatenessOn(state) {
   return !!getSetting(state, 'timetableLateness');

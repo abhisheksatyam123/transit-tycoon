@@ -31,7 +31,7 @@ import { companyOf, ownerMismatch, companyById, stampOwner, RIVAL_OWNED } from '
 import { wagonList, setWagonList, wagonUnitPrice } from './consist.js';
 import { engineList, extraEngineCount, MAX_EXTRA_ENGINES, isMultihead } from './consistEngines.js';
 import { KMH_TO_TILES_PER_TICK } from './loco/vehicleMotion.js';
-import { timetableComplete, roundTicks, orderGroupMembers, timetableEstimatesOn } from './ttSchedule.js';
+import { timetableComplete, roundTicks, orderGroupMembers, timetableEstimatesOn, timetableLatenessConditionalOn } from './ttSchedule.js';
 import { TICKS_PER_DAY } from './constants.js';
 import { vehicleLimitError, vehicleKindOfModel } from './vehicleLimit.js';
 import { backupVehicleOrders, restoreVehicleOrders, clearDepotBackup } from './orderBackup.js';
@@ -392,7 +392,7 @@ export function setOrderTimetable(ctx, id, index, times = {}, opts = {}) {
   // G7: conditional orders carry no timetable times. OpenTTD refuses a travel time on them
   // (CmdChangeTimetable MTF_TRAVEL_TIME); TT has no conditional-wait storage, so refuse edits rather
   // than keeping a partial wait that later normalisation would silently drop.
-  if (isCond(v.orders[index]) && (times.travelDays !== undefined || times.waitDays !== undefined)) {
+  if (isCond(v.orders[index]) && (times.travelDays !== undefined || (times.waitDays !== undefined && !timetableLatenessConditionalOn(state)))) {
     return { ok: false, error: 'Conditional orders cannot have a timetable time' };
   }
   const patch = {};

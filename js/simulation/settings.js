@@ -195,6 +195,8 @@ export const DEFAULT_SETTINGS = {
   timetableEstimates: false,
   /** timetable sub-day display (G6): timetable totals show days and hours ("3d 04h"). Display only; stored values stay whole days. Off by default. */
   timetableSubDay: false,
+  /** G7: timetabled conditional orders may carry a wait, held with the lateness clock (needs timetableLateness too). Off by default. */
+  timetableLatenessConditional: false,
   /** OpenTTD timekeeping_units (TimekeepingUnits): 'economy' = current behaviour (default); 'calendar' = the calendar clock (state.calendar, calendarClock.js) runs at calendarTicksPerDay, used for the toolbar year. Opt-in. */
   timekeepingUnits: 'economy',
   /** calendar clock speed in logic ticks per calendar day (96 = current economy day; 24..384). Only read when timekeepingUnits is 'calendar' (calendarClock.js). */
