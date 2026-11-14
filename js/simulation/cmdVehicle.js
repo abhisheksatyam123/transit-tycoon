@@ -827,6 +827,12 @@ export function addEngine(ctx, id, modelId, opts = {}) {
   const extra = extraEngineCount(v);
   if (extra + 1 > MAX_EXTRA_ENGINES) return { ok: false, error: `A train can have at most ${MAX_EXTRA_ENGINES + 1} engines` };
   if (((v.wagons || 0) + 2 + extra) * SEGMENT_SPACING > getSetting(state, 'maxTrainLength') + 1e-9) return { ok: false, error: 'Train is too long' };
+  // D17 interleave (opt-in): optional slot inside the engine block; default = end (today's behaviour)
+  let at = extra;
+  if (getSetting(state, 'multiheadInterleave') === true && opts.position != null) {
+    at = Math.floor(Number(opts.position));
+    if (!(at >= 0 && at <= extra) || Number(opts.position) !== at) return { ok: false, error: 'Engine position out of range' };
+  }
   const depot = findDepot(state, v.depotId);
   if (!depot) return { ok: false, error: 'Train is not in a depot' };
   const leadTrk = trainTrack({ kind: 'train', modelId: v.modelId }) || 0;
@@ -841,7 +847,7 @@ export function addEngine(ctx, id, modelId, opts = {}) {
   if (money) return money;
   if (opts.dryRun) return { ok: true, cost: unit, engines: 2 + extra };
   spend(company, 'vehicles', unit);
-  v.engines = v.engines ? [...v.engines, model.id] : [model.id];
+  v.engines = v.engines ? [...v.engines.slice(0, at), model.id, ...v.engines.slice(at)] : [model.id];
   v.runningCost = (v.runningCost || 0) + model.running;
   v.value = (v.value || 0) + refundValue(unit); // OL CreateVehicle.cpp:163-165
   refreshTrainMaxSpeed(v);
