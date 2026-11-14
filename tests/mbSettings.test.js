@@ -17,8 +17,8 @@ function valley(span) {
 
 describe('MB settings', () => {
   test('defaults keep current behaviour', () => {
-    expect(DEFAULT_SETTINGS.maxBridgeLength).toBe(12);
-    expect(DEFAULT_SETTINGS.maxTunnelLength).toBe(16);
+    expect(DEFAULT_SETTINGS.maxBridgeLength).toBe(64);
+    expect(DEFAULT_SETTINGS.maxTunnelLength).toBe(64);
     expect(DEFAULT_SETTINGS.townCouncilTolerance).toBe(0);
     expect(DEFAULT_SETTINGS.feederPaymentShare).toBe(75);
   });
@@ -29,8 +29,9 @@ describe('MB settings', () => {
     }
   });
 
-  test('bridge of 20 tiles refused at default, allowed with maxBridgeLength 32', () => {
+  test('bridge of 20 tiles refused at 12, allowed with maxBridgeLength 32', () => {
     const g = valley(20);
+    setSetting(g.state, 'maxBridgeLength', 12);
     expect(g.buildLandBridge(29, 20, 48, 20).ok).toBe(false);
     setSetting(g.state, 'maxBridgeLength', 32);
     expect(g.buildLandBridge(29, 20, 48, 20).ok).toBe(true);
@@ -40,6 +41,7 @@ describe('MB settings', () => {
     const hill = (x0, x1, y, h = 4) => { const g = flatGame(); for (let x = x0; x <= x1; x++) g.tile(x, y).height = h; return g; };
     const g = hill(30, 50, 24);
     for (const x of [30, 46]) g.tile(x, 24).height = 1; // 17-tile tunnel: portals low, interior high
+    setSetting(g.state, 'maxTunnelLength', 16);
     expect(g.buildTunnel(30, 24, 46, 24).ok).toBe(false);
     setSetting(g.state, 'maxTunnelLength', 32);
     expect(g.buildTunnel(30, 24, 46, 24).ok).toBe(true);
@@ -90,7 +92,7 @@ describe('MB settings', () => {
   test('old save without the keys falls back to defaults', () => {
     const g = flatGame();
     const loaded = parseState(serializeState(g.state));
-    expect(getSetting(loaded, 'maxBridgeLength')).toBe(12);
+    expect(getSetting(loaded, 'maxBridgeLength')).toBe(64);
     expect(getSetting(loaded, 'feederPaymentShare')).toBe(75);
   });
 });

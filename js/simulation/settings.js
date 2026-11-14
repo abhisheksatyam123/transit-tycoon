@@ -84,8 +84,8 @@ export const DEFAULT_SETTINGS = {
   pathCosts: false,
   /** tree growth: forest tiles occasionally spread to adjacent free grass once a month (treeGrowth.js). Off by default. */
   treeGrowth: false,
-  /** autoslope (OpenTTD construction.autoslope): terraform under rail/road is allowed when every affected track stays on a valid slope (cmdTerraform.js). Off by default. */
-  autoslope: false,
+  /** autoslope (OpenTTD construction.autoslope, default true): terraform under rail/road is allowed when every affected track stays on a valid slope (cmdTerraform.js). On by default (approved D5). */
+  autoslope: true,
   /** gradients: OL pitch force (Vehicle2.cpp:193): uphill slopes subtract weight*sin*256 ebp from the tractive term, downhill adds it (vehicleMotion.gradeMph / landSpeedStep); heavy trains on steep grades stall. Off by default: changes deterministic results. */
   gradients: false,
   /** trainSlopeSteepness: OpenTTD vehicle.train_slope_steepness (default 3 %, range 0-10). Scales the train grade term in gradeMph; only matters when gradients is on. */
@@ -287,10 +287,10 @@ export const DEFAULT_SETTINGS = {
   freightTrainWagons: 0,
   /** road driving side (OpenTTD road_side): 'right' (default, Russia) | 'left'. Render-only: lanes are mirrored; the sim is side-agnostic. Changeable only before road vehicles exist (OTTD). */
   roadSide: 'right',
-  /** OpenTTD construction.max_bridge_length: TT counts tiles INCLUDING both heads (OpenTTD counts between heads, so TT 12 = OTTD 10). Default 12 = trackRules MAX_BRIDGE_LENGTH. */
-  maxBridgeLength: 12,
-  /** OpenTTD construction.max_tunnel_length: TT counts tiles INCLUDING both portals (OpenTTD counts between portals, so TT 16 = OTTD 14). Default 16 = MAX_TUNNEL_LENGTH. */
-  maxTunnelLength: 16,
+  /** OpenTTD construction.max_bridge_length (default 64): TT counts tiles INCLUDING both heads (OpenTTD counts between heads, so TT 64 = OTTD 62). Default 64 (approved D5); trackRules MAX_BRIDGE_LENGTH stays 12 as a call-site fallback only. */
+  maxBridgeLength: 64,
+  /** OpenTTD construction.max_tunnel_length (default 64): TT counts tiles INCLUDING both portals (OpenTTD counts between portals, so TT 64 = OTTD 62). Default 64 (approved D5); trackRules MAX_TUNNEL_LENGTH stays 16 as a call-site fallback only. */
+  maxTunnelLength: 64,
   /** OpenTTD station.distant_join_stations (game_settings.ini, def true): Ctrl+click may join a station that is not next to the new one. */
   distantJoinStations: true,
   /** OpenTTD order.selectgoods (station_cmd.cpp:3991, 4583; def true): industries and towns deliver only to stations a vehicle has tried to load at. Off = every station in range takes cargo. */
